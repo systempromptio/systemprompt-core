@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "CLI"
+text = "`admin setup` requires an AI provider key only when the composition admits the `ai` member; a composition without it completes setup with no provider, and one with it still refuses \"At least one AI provider is required\"."

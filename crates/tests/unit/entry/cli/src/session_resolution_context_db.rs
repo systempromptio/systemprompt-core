@@ -34,7 +34,7 @@ fn session_for(user_id: &UserId, session_id: SessionId, context_id: ContextId) -
         ),
         SessionToken::new("token"),
         session_id,
-        context_id,
+        Some(context_id),
         SessionIdentity::new(
             user_id.clone(),
             Email::try_new("ctxdb@test.local").expect("valid Email"),
@@ -58,7 +58,7 @@ async fn revalidate_context_keeps_a_context_owned_by_the_user() {
     let outcome = revalidate_context(&contexts(&pool), &mut session, &pname("ctxdb")).await;
 
     assert!(matches!(outcome, ContextCheck::Owned), "{outcome:?}");
-    assert_eq!(session.context_id, context_id);
+    assert_eq!(session.context_id, Some(context_id));
 }
 
 #[tokio::test]
@@ -74,11 +74,14 @@ async fn revalidate_context_recovers_a_stale_context() {
         panic!("stale context should be recovered");
     };
 
-    assert_ne!(session.context_id, stale);
+    assert_ne!(session.context_id, Some(stale));
     assert_eq!(refreshed.context_id, session.context_id);
 
     ContextRepository::new(&pool)
-        .validate_context_ownership(&session.context_id, &user_id)
+        .validate_context_ownership(
+            session.context_id.as_ref().expect("session context"),
+            &user_id,
+        )
         .await
         .unwrap();
 }
@@ -97,7 +100,7 @@ async fn revalidate_context_adopts_the_existing_cli_context_by_name() {
     let outcome = revalidate_context(&contexts(&pool), &mut session, &pname("ctxdb")).await;
     assert!(matches!(outcome, ContextCheck::Recovered(_)), "{outcome:?}");
 
-    assert_eq!(session.context_id, existing);
+    assert_eq!(session.context_id, Some(existing));
 }
 
 #[tokio::test]
@@ -121,7 +124,23 @@ async fn an_unavailable_context_provider_is_reported_not_treated_as_valid() {
         "{outcome:?}"
     );
     assert!(!outcome.is_verified());
-    assert_eq!(session.context_id, original);
+    assert_eq!(session.context_id, Some(original));
+}
+
+#[tokio::test]
+async fn a_stored_context_is_dropped_when_no_member_provides_contexts() {
+    let user_id = unique_user_id("ctxnone");
+    let mut session = session_for(&user_id, SessionId::generate(), ContextId::generate());
+
+    let outcome = try_validate_context(&mut session, &pname("ctxdb"), Ok(None)).await;
+
+    let ContextCheck::Recovered(refreshed) = outcome else {
+        panic!("a context nothing can own is dropped: {outcome:?}");
+    };
+    assert_eq!(refreshed.context_id, None);
+    assert_eq!(session.context_id, None);
+    let again = try_validate_context(&mut session, &pname("ctxdb"), Ok(None)).await;
+    assert!(matches!(again, ContextCheck::Contextless), "{again:?}");
 }
 
 fn contexts(pool: &DbPool) -> systemprompt_cli::session::SessionContexts {

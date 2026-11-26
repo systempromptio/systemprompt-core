@@ -33,7 +33,7 @@ fn session(profile_name: &str) -> CliSession {
         ),
         SessionToken::new("tok"),
         SessionId::generate(),
-        ContextId::generate(),
+        Some(ContextId::generate()),
         SessionIdentity::new(
             UserId::new("user-explicit-profile"),
             Email::try_new("ops@example.test").expect("valid Email"),

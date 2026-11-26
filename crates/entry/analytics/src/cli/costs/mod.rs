@@ -17,9 +17,9 @@ use clap::{Args, Subcommand};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::cli::shared::with_resolved_export;
-use systemprompt_database::pool_from_handle;
+use crate::cli::shared::{report_port, with_resolved_export};
 use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_traits::usage_reports::ai::DynAiUsageReport;
 
 /// `analytics costs` with no subcommand runs the summary.
 ///
@@ -97,28 +97,22 @@ pub struct CostBreakdownOutput {
 }
 
 pub async fn execute(args: CostsArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
-    let pool = pool_from_handle(host.db().await?)?;
     match args.cmd.unwrap_or(CostsCommands::Summary(args.summary)) {
         CostsCommands::Summary(args) => {
-            let result =
-                summary::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
-                    .await?;
-            Ok(result)
+            let report =
+                report_port::<DynAiUsageReport>(host, "analytics costs summary", "gateway").await?;
+            summary::execute(with_resolved_export!(args, host), report.as_ref()).await
         },
         CostsCommands::Trends(args) => {
-            let result =
-                trends::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
-                    .await?;
-            Ok(result)
+            let report =
+                report_port::<DynAiUsageReport>(host, "analytics costs trends", "gateway").await?;
+            trends::execute(with_resolved_export!(args, host), report.as_ref()).await
         },
         CostsCommands::Breakdown(args) => {
-            let result = breakdown::execute_with_pool(
-                with_resolved_export!(args, host),
-                &pool,
-                host.output(),
-            )
-            .await?;
-            Ok(result)
+            let report =
+                report_port::<DynAiUsageReport>(host, "analytics costs breakdown", "gateway")
+                    .await?;
+            breakdown::execute(with_resolved_export!(args, host), report.as_ref()).await
         },
     }
 }

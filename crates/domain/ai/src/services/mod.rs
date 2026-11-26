@@ -12,6 +12,7 @@ pub mod core;
 pub mod personal_credentials;
 mod personal_key_probe;
 pub mod personal_keys;
+pub mod profile_usage;
 pub mod providers;
 pub mod schema;
 pub mod storage;
@@ -19,5 +20,6 @@ pub mod tooled;
 pub mod tools;
 pub mod upstream;
 
+pub use profile_usage::ProfileUsageService;
 pub use storage::{ImageStorage, StorageConfig};
 pub use tools::{NoopToolProvider, ToolDiscovery};

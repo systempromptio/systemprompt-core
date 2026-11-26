@@ -92,8 +92,14 @@ pub async fn execute(command: AnalyticsCommands, host: &dyn CommandHost) -> Resu
     match command {
         AnalyticsCommands::Overview(args) => {
             let pool = pool_from_handle(host.db().await?)?;
-            overview::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
-                .await
+            let ports = overview::OverviewPorts::resolve(host).await?;
+            overview::execute_with_pool(
+                with_resolved_export!(args, host),
+                &pool,
+                &ports,
+                host.output(),
+            )
+            .await
         },
         AnalyticsCommands::Conversations(cmd) => conversations::execute(cmd, host).await,
         AnalyticsCommands::Agents(cmd) => agents::execute(cmd, host).await,

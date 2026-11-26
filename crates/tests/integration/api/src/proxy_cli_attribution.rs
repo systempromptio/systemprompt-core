@@ -228,7 +228,7 @@ fn session(caller: &AuthedFixture, context: &ContextId) -> CallerSession {
         SessionToken::new(caller.jwt.as_str()),
         caller.session_id.clone(),
         caller.user_id.clone(),
-        context.clone(),
+        Some(context.clone()),
         UserType::Admin,
     )
 }

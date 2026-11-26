@@ -5,18 +5,19 @@
 
 use anyhow::Result;
 use clap::{Args, ValueEnum};
+use std::collections::HashSet;
 use std::path::PathBuf;
-use systemprompt_analytics::ConversationAnalyticsRepository;
-use systemprompt_analytics::models::reporting::{
-    ConversationListRow as AgentRow, GatewaySessionListRow,
-};
-use systemprompt_database::DbPool;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_logging::CliService;
+use systemprompt_traits::usage_reports::ReportUnavailable;
+use systemprompt_traits::usage_reports::agent::{AgentContextRow, DynAgentActivityReport};
+use systemprompt_traits::usage_reports::ai::{DynAiUsageReport, GatewaySessionListRow};
 
 use super::{ConversationListOutput, ConversationListRow};
-use crate::cli::shared::{export_to_csv, parse_time_range};
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use crate::cli::shared::{export_to_csv, parse_time_range, report_port};
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
+
+const REPORT: &str = "analytics conversations list";
 
 /// Where a conversation was held. Agent contexts carry A2A tasks; gateway
 /// sessions are `/v1/messages` clients (Claude Code, Cowork, SDKs) and are
@@ -71,7 +72,7 @@ const LIST_COLUMNS: [&str; 7] = [
     "updated_at",
 ];
 
-fn agent_row(row: AgentRow) -> ConversationListRow {
+fn agent_row(row: AgentContextRow) -> ConversationListRow {
     ConversationListRow {
         context: row.context_id.to_string(),
         source: "agent".to_owned(),
@@ -97,39 +98,63 @@ fn gateway_row(row: GatewaySessionListRow) -> ConversationListRow {
     }
 }
 
-pub(super) async fn execute_with_pool(
-    args: ListArgs,
-    pool: &DbPool,
-    _config: &CliConfig,
-) -> Result<CommandOutput> {
-    let repo = ConversationAnalyticsRepository::new(pool);
-    execute_internal(args, &repo).await
+async fn gateway_rows(
+    host: &dyn CommandHost,
+    agents: Option<&DynAgentActivityReport>,
+    (start, end): (chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>),
+    limit: i64,
+    user: Option<&UserId>,
+) -> Result<Vec<(chrono::DateTime<chrono::Utc>, ConversationListRow)>> {
+    let gateway = report_port::<DynAiUsageReport>(host, REPORT, "gateway").await?;
+    let sessions: Vec<GatewaySessionListRow> = gateway
+        .list_gateway_sessions(start, end, limit, user)
+        .await?;
+    let agent_contexts: HashSet<SessionId> = match agents {
+        Some(agents) => {
+            let ids: Vec<SessionId> = sessions.iter().map(|row| row.session_id.clone()).collect();
+            agents
+                .agent_context_sessions(&ids)
+                .await?
+                .into_iter()
+                .collect()
+        },
+        None => HashSet::new(),
+    };
+    Ok(sessions
+        .into_iter()
+        .filter(|row| !agent_contexts.contains(&row.session_id))
+        .map(|row| (row.updated_at, gateway_row(row)))
+        .collect())
 }
 
-async fn execute_internal(
-    args: ListArgs,
-    repo: &ConversationAnalyticsRepository,
-) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ListArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let user = args.user.as_deref().map(UserId::new);
     let user = user.as_ref();
+    let agents = host.resolved().await?.optional::<DynAgentActivityReport>();
 
     let mut rows: Vec<(chrono::DateTime<chrono::Utc>, ConversationListRow)> = Vec::new();
     if args.source != ConversationSource::Gateway {
-        rows.extend(
-            repo.list_agent_contexts(start, end, args.limit, user)
-                .await?
-                .into_iter()
-                .map(|row| (row.updated_at, agent_row(row))),
-        );
+        match &agents {
+            Some(agents) => rows.extend(
+                agents
+                    .list_agent_contexts(start, end, args.limit, user)
+                    .await?
+                    .into_iter()
+                    .map(|row| (row.updated_at, agent_row(row))),
+            ),
+            None if args.source == ConversationSource::Agent => {
+                return Err(ReportUnavailable {
+                    report: REPORT,
+                    capability: "agents",
+                }
+                .into());
+            },
+            None => {},
+        }
     }
     if args.source != ConversationSource::Agent {
-        rows.extend(
-            repo.list_gateway_sessions(start, end, args.limit, user)
-                .await?
-                .into_iter()
-                .map(|row| (row.updated_at, gateway_row(row))),
-        );
+        rows.extend(gateway_rows(host, agents.as_ref(), (start, end), args.limit, user).await?);
     }
     rows.sort_by_key(|row| std::cmp::Reverse(row.0));
     let conversations: Vec<ConversationListRow> = rows

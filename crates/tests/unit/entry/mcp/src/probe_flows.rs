@@ -9,7 +9,7 @@ fn caller(token: &str) -> CallerSession {
         SessionToken::new(token),
         SessionId::new("sess-probe"),
         UserId::new("user-probe"),
-        ContextId::generate(),
+        Some(ContextId::generate()),
         UserType::Admin,
     )
 }

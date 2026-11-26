@@ -6,13 +6,12 @@
 use anyhow::Result;
 use clap::Args;
 use std::path::PathBuf;
-use systemprompt_analytics::ConversationAnalyticsRepository;
-use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
 
 use super::ConversationStatsOutput;
 use crate::cli::shared::{export_single_to_csv, parse_time_range};
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
+use systemprompt_traits::usage_reports::agent::AgentActivityReport;
 
 #[derive(Debug, Args)]
 pub struct StatsArgs {
@@ -26,24 +25,16 @@ pub struct StatsArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute_with_pool(
+pub(super) async fn execute(
     args: StatsArgs,
-    pool: &DbPool,
-    _config: &CliConfig,
-) -> Result<CommandOutput> {
-    let repo = ConversationAnalyticsRepository::new(pool);
-    execute_internal(args, &repo).await
-}
-
-async fn execute_internal(
-    args: StatsArgs,
-    repo: &ConversationAnalyticsRepository,
+    repo: &dyn AgentActivityReport,
 ) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
-    let total_contexts = repo.get_context_count(start, end).await?;
-    let (total_tasks, avg_duration) = repo.get_task_stats(start, end).await?;
-    let total_messages = repo.get_message_count(start, end).await?;
+    let total_contexts = repo.context_count(start, end).await?;
+    let task_stats = repo.task_stats(start, end).await?;
+    let total_tasks = task_stats.task_count;
+    let total_messages = repo.message_count(start, end).await?;
 
     let avg_messages_per_task = if total_tasks > 0 {
         total_messages as f64 / total_tasks as f64
@@ -61,7 +52,7 @@ async fn execute_internal(
         total_tasks,
         total_messages,
         avg_messages_per_task,
-        avg_task_duration_ms: avg_duration.map_or(0, |v| v as i64),
+        avg_task_duration_ms: task_stats.avg_execution_time_ms.map_or(0, |v| v as i64),
     };
 
     if let Some(ref path) = args.export {

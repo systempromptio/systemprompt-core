@@ -22,7 +22,7 @@ pub enum RoutingDecision {
     ExecuteRemote {
         hostname: String,
         token: systemprompt_identifiers::SessionToken,
-        context: systemprompt_identifiers::ContextId,
+        context: Option<systemprompt_identifiers::ContextId>,
     },
     ContinueLocal,
 }

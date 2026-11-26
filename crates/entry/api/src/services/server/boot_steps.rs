@@ -51,7 +51,7 @@ pub(super) async fn start_accounting_recovery(
         return Ok(());
     };
     let settled = gateway
-        .recover_accounting(&ctx.kernel().resolved())
+        .recover_accounting(&ctx.kernel().resolved(), ctx.admitted().built())
         .await
         .context("gateway accounting recovery")?;
     if settled > 0 {

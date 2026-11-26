@@ -49,7 +49,7 @@ pub async fn execute_with_pool(
         created_at: context.created_at,
         updated_at: context.updated_at,
         last_message_at: context.last_message_at,
-        is_active: context.context_id == *caller.context_id(),
+        is_active: caller.context_id() == Some(&context.context_id),
     };
 
     Ok(CommandOutput::card_value("Context Details", &output))

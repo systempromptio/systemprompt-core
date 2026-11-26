@@ -19,8 +19,9 @@ use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Duration, Utc};
 use systemprompt_extension::bridge_catalog::{CatalogFreshness, ManifestEntries};
 use systemprompt_gateway::surface::views::GatewayManifestSigner;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{TenantId, UserId};
 use systemprompt_manifest::services::{BridgePolicyConfig, BridgeReleasesSpec};
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::bridge::instance::{BridgeVersionWindow, InstanceBranding};
 use systemprompt_models::bridge::manifest::{
     MANIFEST_INLINE_SCHEMA_VERSION, SignedManifest, SignedManifestEnvelope,
@@ -32,6 +33,25 @@ use super::error::{BridgeError, authenticate_bridge};
 use super::{BridgeRouteState, resolved};
 use per_user::{PerUserContext, load_per_user_context, record_catalog_grants};
 use systemprompt_extension::router::ApiHttpError;
+
+fn enabled_host_extensions(
+    services: &systemprompt_manifest::services::ServicesConfig,
+    enabled_hosts: &[HostKind],
+) -> std::collections::BTreeMap<HostKind, Vec<String>> {
+    services
+        .instance_host_extensions()
+        .into_iter()
+        .filter(|(host, _)| enabled_hosts.contains(host))
+        .collect()
+}
+
+fn tenant_of(state: &BridgeRouteState) -> Option<TenantId> {
+    state
+        .host
+        .tenant_id
+        .clone()
+        .filter(|t| !t.as_str().is_empty())
+}
 
 pub async fn manifest(
     state: BridgeRouteState,
@@ -72,11 +92,7 @@ pub async fn manifest(
         enabled_hosts,
         host_model_protocols,
     } = load_per_user_context(&state, &claims.user_id, services.instance_hosts()).await?;
-    let host_extensions = services
-        .instance_host_extensions()
-        .into_iter()
-        .filter(|(host, _)| enabled_hosts.contains(host))
-        .collect();
+    let host_extensions = enabled_host_extensions(&services, &enabled_hosts);
     let per_user_at = Instant::now();
 
     let manifest = SignedManifest {
@@ -86,11 +102,7 @@ pub async fn manifest(
         issued_at: stamp.issued_at,
         not_before: stamp.not_before,
         user_id: claims.user_id,
-        tenant_id: state
-            .host
-            .tenant_id
-            .clone()
-            .filter(|t| !t.as_str().is_empty()),
+        tenant_id: tenant_of(&state),
         user,
         plugins,
         skills,

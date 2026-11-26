@@ -4,7 +4,9 @@
 //! member's process set reconcile its servers to the required set and verify
 //! each is registered and running, failing server startup loudly if any
 //! required MCP server is missing, since agents depend on their tools. With
-//! no MCP process set admitted, startup is refused the same way.
+//! no MCP process set admitted, startup is refused when any MCP server is
+//! enabled; a host with no enabled MCP server has nothing to supervise and
+//! completes the phase.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -45,9 +47,13 @@ pub(in crate::services::server) async fn reconcile_system_services(
         .find::<Arc<ServiceProcessSets>>()
         .cloned()
         .unwrap_or_default();
-    let set = sets
-        .of_kind(kind)
-        .ok_or(ServiceProcessError::Unavailable { kind })?;
+    let Some(set) = sets.of_kind(kind) else {
+        if enabled_mcp_servers(ctx)? > 0 {
+            return Err(ServiceProcessError::Unavailable { kind }.into());
+        }
+        events.phase_completed(Phase::McpServers);
+        return Ok(());
+    };
     set.reconcile(events).await.map_err(|error| match error {
         ServiceProcessError::Failed { source, .. } => anyhow::Error::from_boxed(source),
         other => other.into(),
@@ -55,6 +61,19 @@ pub(in crate::services::server) async fn reconcile_system_services(
 
     events.phase_completed(Phase::McpServers);
     Ok(())
+}
+
+fn enabled_mcp_servers(ctx: &AppContext) -> Result<usize> {
+    Ok(ctx
+        .kernel()
+        .state()
+        .get::<systemprompt_loader::ServicesState>()?
+        .view()
+        .config()
+        .mcp_servers
+        .values()
+        .filter(|server| server.enabled)
+        .count())
 }
 
 #[expect(

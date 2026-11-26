@@ -7,16 +7,15 @@ use anyhow::Result;
 use clap::Args;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use systemprompt_analytics::ConversationAnalyticsRepository;
-use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
 
 use super::{ConversationTrendPoint, ConversationTrendsOutput};
 use crate::cli::shared::{
     export_to_csv, format_date_range, format_period_label, parse_time_range, truncate_to_period,
 };
-use systemprompt_extension::cli::{ChartType, CliConfig, CommandOutput};
+use systemprompt_extension::cli::{ChartType, CommandOutput};
 use systemprompt_models::artifacts::{ChartArtifact, ChartDataset};
+use systemprompt_traits::usage_reports::agent::AgentActivityReport;
 
 #[derive(Debug, Args)]
 pub struct TrendsArgs {
@@ -33,46 +32,37 @@ pub struct TrendsArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute_with_pool(
+pub(super) async fn execute(
     args: TrendsArgs,
-    pool: &DbPool,
-    _config: &CliConfig,
-) -> Result<CommandOutput> {
-    let repo = ConversationAnalyticsRepository::new(pool);
-    execute_internal(args, &repo).await
-}
-
-async fn execute_internal(
-    args: TrendsArgs,
-    repo: &ConversationAnalyticsRepository,
+    repo: &dyn AgentActivityReport,
 ) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
-    let context_rows = repo.get_context_timestamps(start, end).await?;
-    let task_rows = repo.get_task_timestamps(start, end).await?;
-    let message_rows = repo.get_message_timestamps(start, end).await?;
+    let context_rows = repo.context_timestamps(start, end).await?;
+    let task_rows = repo.task_timestamps(start, end).await?;
+    let message_rows = repo.message_timestamps(start, end).await?;
 
     let mut buckets: HashMap<String, (i64, i64, i64)> = HashMap::new();
 
-    for row in context_rows {
+    for timestamp in context_rows {
         let key = format_period_label(
-            truncate_to_period(row.timestamp, &args.group_by),
+            truncate_to_period(timestamp, &args.group_by),
             &args.group_by,
         );
         buckets.entry(key).or_insert((0, 0, 0)).0 += 1;
     }
 
-    for row in task_rows {
+    for timestamp in task_rows {
         let key = format_period_label(
-            truncate_to_period(row.timestamp, &args.group_by),
+            truncate_to_period(timestamp, &args.group_by),
             &args.group_by,
         );
         buckets.entry(key).or_insert((0, 0, 0)).1 += 1;
     }
 
-    for row in message_rows {
+    for timestamp in message_rows {
         let key = format_period_label(
-            truncate_to_period(row.timestamp, &args.group_by),
+            truncate_to_period(timestamp, &args.group_by),
             &args.group_by,
         );
         buckets.entry(key).or_insert((0, 0, 0)).2 += 1;

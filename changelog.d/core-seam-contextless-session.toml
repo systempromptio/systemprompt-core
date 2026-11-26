@@ -1,0 +1,19 @@
+[root]
+section = "Breaking"
+area = "CLI"
+text = "A CLI session no longer requires a member that provides conversation contexts: in a composition without the `agent` member `admin session login` and every session-backed command open a session whose context is `None`, and a stored context such a composition cannot own is dropped. A composition that provides only one of `DynContextDirectory` and `DynSessionContextIssuer` is refused with `SessionContextError::Unprovided`."
+
+[[crate]]
+name = "systemprompt-cloud"
+section = "Breaking"
+text = "`CliSession::context_id` is `Option<ContextId>` (absent from the stored session when `None`); `CliSession::builder` and `CliSessionBuilder::new` take `Option<ContextId>` and `CliSession::context_id()` returns `Option<&ContextId>`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`CallerSession::new` takes `Option<ContextId>` and `CallerSession::context_id()` returns `Option<&ContextId>`; `CallerSession::request_context` carries the context id derived from the session id when the session has none."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`SessionContexts::from_resolved` and `SessionContexts::for_profile` return `Option<SessionContexts>`; `issue_session_context` issues a context only when one is provided; `ContextCheck` gains `Contextless` and `SessionContextError` gains `Contextless`; `ExecutionTarget::Remote::context` and `execute_remote`'s context are optional."

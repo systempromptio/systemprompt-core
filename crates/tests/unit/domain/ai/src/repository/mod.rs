@@ -13,6 +13,9 @@ mod nul_text;
 mod personal_credentials;
 mod quota_usage;
 mod thought_signatures_db;
+mod usage_report_costs;
+mod usage_report_per_user;
+mod usage_report_reasoning;
 use systemprompt_models::origin::RequestOrigin;
 
 use systemprompt_ai::models::AiRequestRecord;

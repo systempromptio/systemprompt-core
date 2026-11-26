@@ -16,6 +16,8 @@
 #            capability-unit crate (scripts/units.txt), checked by
 #            scripts/compositions.sh, and scripts/lint-kernel-deps.py judges
 #            the facade with these features. Exactly one line carries it.
+#   smallest with `largest`, the line whose developer loop is also measured
+#            after touching one leaf file.
 # A composition without `boot` is a library composition: it is compiled, and
 # its build-report binary is a trivial `main` whose size measures only what
 # survives dead-code elimination, while its closure counts are exact.
@@ -29,4 +31,4 @@ flavour-site           core,runtime,identity,analytics,content,files,files-pdf  
 api                    api
 gateway                api,ai
 kernel                 core,database
-extension              core
+extension              core                                                        smallest

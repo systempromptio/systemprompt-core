@@ -38,7 +38,7 @@ pub async fn execute_with_pool(
 
     let context_id = resolve_context(&args.context, caller.user_id(), &repo).await?;
 
-    if context_id == *caller.context_id() {
+    if caller.context_id() == Some(&context_id) {
         bail!(
             "Cannot delete the active context. Switch to a different context first with 'contexts \
              use <id>'."

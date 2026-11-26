@@ -6,9 +6,11 @@ use systemprompt_cli::session::{
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_cloud::CloudCredentials;
 use systemprompt_extension::cli::CliConfig;
-use systemprompt_identifiers::{CloudAuthToken, Email, UserId};
+use systemprompt_identifiers::{CloudAuthToken, Email, ExtensionId, UserId};
 use systemprompt_loader::workspace::SessionKey;
-use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row_with_roles, test_db_pool};
+use systemprompt_test_fixtures::{
+    ensure_test_bootstrap, fixture_admitted_without, seed_user_row_with_roles, test_db_pool,
+};
 
 use crate::session_project_fixture::Project;
 
@@ -64,6 +66,31 @@ async fn coverage_local_session_creation_persists_identity_and_reuses_the_sessio
     let kept = stored.get_session(&SessionKey::Local).unwrap();
     assert_eq!(kept.user_id, user);
     assert_eq!(kept.session_id, first.session_id);
+}
+
+#[tokio::test]
+async fn a_composition_without_the_agents_member_opens_a_session_without_a_context() {
+    let user = admin().await;
+    let project = Project::new(user.as_str(), false).with_admitted(fixture_admitted_without(&[
+        ExtensionId::new("agent"),
+        ExtensionId::new("agent-runs"),
+    ]));
+    let ctx = project.context(true);
+    let first = get_or_create_session(&ctx).await.unwrap().session;
+    assert_eq!(first.user_id, user);
+    assert!(!first.session_token.as_str().is_empty());
+    assert_eq!(
+        first.context_id, None,
+        "no admitted member provides conversation contexts"
+    );
+    let second = get_or_create_session(&ctx).await.unwrap().session;
+    assert_eq!(second.session_id, first.session_id);
+    assert_eq!(second.context_id, None);
+    let stored = load_session_store(&project.paths()).unwrap();
+    assert_eq!(
+        stored.get_session(&SessionKey::Local).unwrap().context_id,
+        None
+    );
 }
 
 #[tokio::test]
@@ -358,7 +385,7 @@ async fn malformed_active_profile_fails_without_replacing_the_bound_session() {
         ),
         SessionToken::new("preserved-token"),
         SessionId::new("preserved-session"),
-        ContextId::generate(),
+        Some(ContextId::generate()),
         SessionIdentity::new(
             UserId::new("preserved-user"),
             Email::try_new("preserved@example.invalid").expect("valid email"),

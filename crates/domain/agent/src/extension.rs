@@ -3,8 +3,9 @@
 //! by type: `DynContextDirectory`, `DynContextMaterializer` and
 //! `DynSessionContextIssuer`, each open (database-only), the open
 //! live `Arc<dyn AgentRegistryProvider>` (the proxy's agent OAuth lookup), the
-//! open status-only `Arc<AgentStatusView>` and the open `Arc<AgentCardSite>`
-//! (the public URL and skills directory, narrowed from the configuration). It
+//! open status-only `Arc<AgentStatusView>`, the open `Arc<AgentCardSite>`
+//! (the public URL and skills directory, narrowed from the configuration) and
+//! the open agent activity report (`DynAgentActivityReport`). It
 //! contributes its supervised process set to the sealed `ServiceProcessSlot`.
 //!
 //! It owns the schema objects that cannot exist without its tables: the
@@ -29,14 +30,15 @@ use systemprompt_identifiers::InstanceId;
 use systemprompt_manifest::Config;
 use systemprompt_manifest::services::ServicesView;
 use systemprompt_models::attribution::DynRequestAttributionLookup;
+use systemprompt_traits::usage_reports::agent::DynAgentActivityReport;
 use systemprompt_traits::{
     AgentRegistryProvider, DynContextDirectory, DynContextMaterializer, DynServiceProcessSet,
     DynSessionContextIssuer, DynToolExecutionLookup, SecretPresence, SecretStore,
 };
 
 use crate::jobs::{CleanupEmptyContextsJob, UserContextCountersRollupJob};
-use crate::repository::ContextRepository;
 use crate::repository::agent_service::AgentServiceRepository;
+use crate::repository::{AgentActivityReportRepository, ContextRepository};
 use crate::services::ContextProviderService;
 use crate::services::agent_orchestration::process_set::AgentProcessSet;
 use crate::services::agent_orchestration::status_view::AgentStatusView;
@@ -56,6 +58,7 @@ impl Extension for AgentExtension {
     }
 
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        c.domain_config(systemprompt_manifest::validators::AgentConfigValidator::boxed);
         for schema in conversation_schemas()
             .into_iter()
             .chain(artifact_schemas())
@@ -255,6 +258,13 @@ fn provide_seams(c: &mut Contributions<'_>) {
             Ok(Arc::new(LiveAgentRegistry::new(
                 r.get::<ServicesView>()?,
                 r.get::<Arc<Config>>()?.is_cloud,
+            )))
+        },
+    )
+    .provide(
+        |r: &Resolved<'_>| -> Result<DynAgentActivityReport, ProvideError> {
+            Ok(Arc::new(AgentActivityReportRepository::new(
+                &r.get::<DbPool>()?,
             )))
         },
     )

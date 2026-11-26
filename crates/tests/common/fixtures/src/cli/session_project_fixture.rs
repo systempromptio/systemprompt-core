@@ -10,6 +10,7 @@ use systemprompt_runtime::Kernel;
 use crate::ensure_test_bootstrap;
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
+use systemprompt_extension::Admitted;
 use systemprompt_loader::workspace::paths::ResolvedPaths;
 
 pub struct Project {
@@ -17,6 +18,7 @@ pub struct Project {
     pub root: tempfile::TempDir,
     pub profile: PathBuf,
     seams: Option<Arc<Kernel>>,
+    admitted: Arc<Admitted>,
 }
 
 impl Project {
@@ -42,11 +44,17 @@ impl Project {
             root,
             profile,
             seams: None,
+            admitted: crate::fixture_admitted(),
         }
     }
 
     pub async fn with_session_seams(mut self) -> Self {
         self.seams = Some(crate::session_seams::session_seam_kernel().await);
+        self
+    }
+
+    pub fn with_admitted(mut self, admitted: Arc<Admitted>) -> Self {
+        self.admitted = admitted;
         self
     }
 
@@ -62,7 +70,7 @@ impl Project {
                 .with_profile_override(Some(self.profile.display().to_string())),
             EnvOverrides::default(),
         )
-        .with_admitted(Some(crate::fixture_admitted()));
+        .with_admitted(Some(Arc::clone(&self.admitted)));
         match &self.seams {
             Some(kernel) => ctx.with_kernel(Arc::clone(kernel)),
             None => ctx.with_detached_kernel(),

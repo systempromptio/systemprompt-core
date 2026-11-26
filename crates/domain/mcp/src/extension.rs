@@ -3,22 +3,24 @@
 //! registry (`Arc<dyn McpRegistryProvider>`, which sign-in reads for MCP
 //! resource scopes) and the read-only `Arc<McpServiceObserver>` (server
 //! health, recorded process ids and the running set; no spawner, no
-//! secrets), the MCP session store (`DynMcpSessionStore`, **sealed**: a
-//! restore lookup takes the server and user to match, so only the toolset host
-//! reads it, with the principal it verified), the artifact ingest
-//! (`Arc<ArtifactIngest>`, open: it scans with the installation's secret
-//! scanner cell and records tool results) and the same ingest as the shared
-//! `DynToolResultIngest` contract the gateway reads (open, as the ingest is),
-//! the built UI renderers as the shared `DynArtifactUiRenderer` the agent
-//! artifact routes read (open, after governance), and, once governance has
-//! loaded, the per-server tool executions (`DynToolExecutions`, open: an
-//! execution re-verifies the caller's hop token and records usage only for the
-//! context that token vouches for, and reads no secret) and the tool provider
-//! the ai member's inference path reads (`Arc<dyn ToolProvider>`, **sealed**:
-//! it calls servers with the connector-token cache and the secret lookup;
-//! provided before governance so the ai member's after-governance inference
-//! provide sees it whatever the composition order). It opens the [`UiSlot`] and
-//! the extension contract's [`AccessRecorderSlot`], so both built values are
+//! secrets), the tool-usage reports over its report views
+//! (`DynToolUsageReport`, open: the analytics `tools` commands read it), the
+//! MCP session store (`DynMcpSessionStore`, **sealed**: a restore lookup takes
+//! the server and user to match, so only the toolset host reads it, with the
+//! principal it verified), the artifact ingest (`Arc<ArtifactIngest>`, open: it
+//! scans with the installation's secret scanner cell and records tool results)
+//! and the same ingest as the shared `DynToolResultIngest` contract the gateway
+//! reads (open, as the ingest is), the built UI renderers as the shared
+//! `DynArtifactUiRenderer` the agent artifact routes read (open, after
+//! governance), and, once governance has loaded, the per-server tool executions
+//! (`DynToolExecutions`, open: an execution re-verifies the caller's hop token
+//! and records usage only for the context that token vouches for, and reads no
+//! secret) and the tool provider the ai
+//! member's inference path reads (`Arc<dyn ToolProvider>`, **sealed**: it calls
+//! servers with the connector-token cache and the secret lookup; provided
+//! before governance so the ai member's after-governance inference provide sees
+//! it whatever the composition order). It opens the [`UiSlot`] and the
+//! extension contract's [`AccessRecorderSlot`], so both built values are
 //! present whenever this member is admitted.
 //!
 //! It owns the schema objects that cannot exist without its tables: the
@@ -48,13 +50,14 @@ use systemprompt_manifest::Config;
 use systemprompt_manifest::services::{ServicesView, SystemAdmin};
 use systemprompt_security::credential::TokenCache;
 use systemprompt_security::keys::VerificationKeyring;
+use systemprompt_traits::usage_reports::mcp::DynToolUsageReport;
 use systemprompt_traits::{
     DynServiceProcessSet, DynToolCallIntentClaims, DynToolExecutionLookup, McpRegistryProvider,
     SecretLookup, ToolProvider,
 };
 
 use crate::contract::UiSlot;
-use crate::repository::{McpSessionRepository, ToolUsageRepository};
+use crate::repository::{McpSessionRepository, ToolUsageReportRepository, ToolUsageRepository};
 use crate::services::McpServiceObserver;
 use crate::services::artifact_ingest::ArtifactIngest;
 use crate::services::process_set::McpProcessSet;
@@ -67,74 +70,6 @@ use systemprompt_models::audit_spans::DynAuditSpanSink;
 #[derive(Debug, Clone, Copy, Default)]
 pub struct McpExtension;
 
-const TABLES: &[(&str, &str, &[&str])] = &[
-    (
-        "mcp_external_sessions",
-        include_str!("../schema/mcp_external_sessions.sql"),
-        &[
-            "server_name",
-            "session_id",
-            "user_id",
-            "credential_hash",
-            "expires_at",
-        ],
-    ),
-    (
-        "mcp_tool_executions",
-        include_str!("../schema/mcp_tool_executions.sql"),
-        &[
-            "mcp_execution_id",
-            "tool_name",
-            "server_name",
-            "source",
-            "correlation",
-            "created_at",
-        ],
-    ),
-    (
-        "mcp_sessions",
-        include_str!("../schema/mcp_sessions.sql"),
-        &["session_id", "status", "created_at"],
-    ),
-    (
-        "artifact_payloads",
-        include_str!("../schema/artifact_payloads.sql"),
-        &["sha256", "byte_len", "body", "ref_count"],
-    ),
-    (
-        "mcp_artifacts",
-        include_str!("../schema/mcp_artifacts.sql"),
-        &[
-            "artifact_id",
-            "mcp_execution_id",
-            "server_name",
-            "artifact_type",
-            "source",
-            "ai_tool_call_id",
-            "payload_sha256",
-            "is_structured",
-            "data",
-            "created_at",
-        ],
-    ),
-    (
-        "mcp_artifact_findings",
-        include_str!("../schema/mcp_artifact_findings.sql"),
-        &["artifact_id", "phase", "category", "scanner"],
-    ),
-    (
-        "tool_result_ingest_marks",
-        include_str!("../schema/tool_result_ingest_marks.sql"),
-        &[
-            "user_id",
-            "scope_id",
-            "gateway_conversation_id",
-            "last_message_index",
-            "boundary_tool_use_id",
-        ],
-    ),
-];
-
 impl Extension for McpExtension {
     fn metadata(&self) -> ExtensionMetadata {
         ExtensionMetadata {
@@ -145,48 +80,32 @@ impl Extension for McpExtension {
     }
 
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
-        for (name, sql, columns) in TABLES {
-            c.schema(
-                SchemaDefinition::new(*name, *sql)
-                    .with_required_columns(columns.iter().map(|c| (*c).to_owned()).collect()),
-            );
-        }
-        c.schema(
-            SchemaDefinition::new(
-                "tool_usage_rollup_hourly",
-                include_str!("../schema/tool_usage_rollup_hourly.sql"),
+        c.domain_config(systemprompt_manifest::validators::McpConfigValidator::boxed);
+        crate::schemas::contribute_schemas(c);
+        c.migrations(extension_migrations!())
+            .requires::<DynToolCallIntentClaims>()
+            .provide(
+                |r: &Resolved<'_>| -> Result<DynToolExecutionLookup, ProvideError> {
+                    let db = r.get::<DbPool>()?;
+                    Ok(Arc::new(ToolUsageRepository::new(&db)))
+                },
             )
-            .with_required_columns(vec!["bucket".into(), "execution_count".into()]),
-        )
-        .schema(SchemaDefinition::sql_only(include_str!(
-            "../schema/tool_call_ledger.sql"
-        )))
-        .schema(SchemaDefinition::sql_only(include_str!(
-            "../schema/report_views.sql"
-        )))
-        .schema(SchemaDefinition::sql_only(include_str!(
-            "../schema/tool_row_facts.sql"
-        )))
-        .schema(SchemaDefinition::sql_only(include_str!(
-            "../schema/trace_facts_mcp.sql"
-        )))
-        .migrations(extension_migrations!())
-        .requires::<DynToolCallIntentClaims>()
-        .provide(
-            |r: &Resolved<'_>| -> Result<DynToolExecutionLookup, ProvideError> {
-                let db = r.get::<DbPool>()?;
-                Ok(Arc::new(ToolUsageRepository::new(&db)))
-            },
-        )
-        .provide(
-            |r: &Resolved<'_>| -> Result<Arc<dyn McpRegistryProvider>, ProvideError> {
-                Ok(Arc::new(RegistryService::new(
-                    r.get::<SystemAdmin>()?.id().clone(),
-                    r.get::<ServicesView>()?,
-                    r.get::<Arc<Config>>()?,
-                )))
-            },
-        );
+            .provide(
+                |r: &Resolved<'_>| -> Result<DynToolUsageReport, ProvideError> {
+                    Ok(Arc::new(ToolUsageReportRepository::new(
+                        &r.get::<DbPool>()?,
+                    )))
+                },
+            )
+            .provide(
+                |r: &Resolved<'_>| -> Result<Arc<dyn McpRegistryProvider>, ProvideError> {
+                    Ok(Arc::new(RegistryService::new(
+                        r.get::<SystemAdmin>()?.id().clone(),
+                        r.get::<ServicesView>()?,
+                        r.get::<Arc<Config>>()?,
+                    )))
+                },
+            );
         c.provide(
             |r: &Resolved<'_>| -> Result<Arc<McpServiceObserver>, ProvideError> {
                 let db = r.get::<DbPool>()?;

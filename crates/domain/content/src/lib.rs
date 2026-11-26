@@ -75,8 +75,8 @@ pub use models::{
 };
 
 pub use repository::{
-    ContentFileRepository, ContentRepositories, ContentRepository, LinkAnalyticsRepository,
-    LinkRepository, SearchRepository,
+    ContentAudienceReportRepository, ContentFileRepository, ContentRepositories, ContentRepository,
+    LinkAnalyticsRepository, LinkRepository, SearchRepository,
 };
 
 pub use services::{

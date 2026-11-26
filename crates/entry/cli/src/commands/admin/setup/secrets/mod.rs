@@ -26,10 +26,30 @@ use systemprompt_loader::workspace::identity::generate_identity;
 
 pub use data::SecretsData;
 
+/// Whether the setup wizard must collect an AI provider key: required exactly
+/// when the composition admits the `ai` member.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProviderRequirement {
+    Required,
+    Optional,
+}
+
+impl ProviderRequirement {
+    #[must_use]
+    pub fn for_composition(built: &systemprompt_extension::BuiltState) -> Self {
+        if built.contains(&systemprompt_identifiers::ExtensionId::new("ai")) {
+            Self::Required
+        } else {
+            Self::Optional
+        }
+    }
+}
+
 #[doc(hidden)]
 pub fn collect_non_interactive(
     args: &SetupArgs,
     config: &CliConfig,
+    providers: ProviderRequirement,
 ) -> Result<(SecretsData, Option<ProviderId>)> {
     if !config.is_json_output() {
         CliService::section("Secrets Setup");
@@ -59,7 +79,7 @@ pub fn collect_non_interactive(
         args.vertex_key_file.as_deref(),
     )?;
 
-    validate_secrets(&secrets)?;
+    validate_secrets(&secrets, providers)?;
     let primary = resolve_primary(args, &secrets)?;
 
     if !config.is_json_output() {
@@ -75,9 +95,12 @@ pub fn collect_interactive(
     prompter: &dyn Prompter,
     env_name: &str,
     _config: &CliConfig,
+    providers: ProviderRequirement,
 ) -> Result<(SecretsData, Option<ProviderId>)> {
     CliService::section(&format!("Secrets Setup ({})", env_name));
-    CliService::info("At least one AI provider is required: an API key or Vertex AI.");
+    if providers == ProviderRequirement::Required {
+        CliService::info("At least one AI provider is required: an API key or Vertex AI.");
+    }
 
     let identity = generate_identity()?;
     CliService::success(
@@ -107,8 +130,11 @@ pub fn collect_interactive(
         return Ok((secrets, primary));
     }
 
-    let explicit = select_provider_keys(prompter, &mut secrets)?;
-    validate_secrets(&secrets)?;
+    let explicit = match providers {
+        ProviderRequirement::Required => select_provider_keys(prompter, &mut secrets)?,
+        ProviderRequirement::Optional => None,
+    };
+    validate_secrets(&secrets, providers)?;
     let primary = resolve_interactive_primary(prompter, explicit, &secrets)?;
 
     CliService::success(&format!("Configured keys: {}", secrets.summary()));
@@ -116,13 +142,13 @@ pub fn collect_interactive(
     Ok((secrets, primary))
 }
 
-fn validate_secrets(secrets: &SecretsData) -> Result<()> {
+fn validate_secrets(secrets: &SecretsData, providers: ProviderRequirement) -> Result<()> {
     if secrets.oauth_at_rest_pepper.len() < 32 {
         anyhow::bail!("OAuth at-rest pepper must be at least 32 characters");
     }
     systemprompt_config::decode_master_key(&secrets.encryption_master_key)?;
 
-    if !secrets.has_ai_provider() {
+    if providers == ProviderRequirement::Required && !secrets.has_ai_provider() {
         anyhow::bail!(
             "At least one AI provider is required.\n\n\
              Provide one of:\n\

@@ -7,7 +7,9 @@
 //! path on an empty database, where the declarative schemas materialise the
 //! state and each migration is stamped: a schema statement that names a table
 //! owned by a member the composition leaves out fails the install. A second
-//! install of the same members changes nothing in the catalog.
+//! install of the same members changes nothing in the catalog, and the
+//! trace-facts rollup refreshes on the installed schema whichever ledger
+//! owners the composition admits.
 
 use systemprompt_database::{Database, schema_catalog_digest};
 use systemprompt_test_fixtures::{DisposableDb, core_members, repo_path};
@@ -101,5 +103,9 @@ async fn install_twice(name: &str, ids: &[String], db: &Database) -> Result<(), 
     if !report.foreign_key_drift.is_empty() || !report.held_back.is_empty() {
         return Err(format!("{name}: the second install reported {report:?}"));
     }
+    sqlx::query_scalar::<_, i64>("SELECT refresh_trace_facts(ARRAY['composition-probe'])")
+        .fetch_one(db.pool().as_ref())
+        .await
+        .map_err(|error| format!("{name}: refresh_trace_facts: {error:?}"))?;
     Ok(())
 }

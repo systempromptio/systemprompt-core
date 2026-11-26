@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                ae.endpoint as \"endpoint!\",\n                COUNT(DISTINCT CASE\n                    WHEN u.id IS NOT NULL AND u.is_bot = FALSE AND u.is_scanner = FALSE\n                    THEN ae.user_id\n                END)::bigint as \"viewers!\"\n            FROM report_analytics_events ae\n            LEFT JOIN report_users u ON ae.user_id = u.id\n            WHERE ae.event_type = 'page_view'\n                AND ae.event_category = 'content'\n                AND left(ae.endpoint, length($1)) = $1\n                AND ae.timestamp >= CURRENT_TIMESTAMP - ($2 || ' days')::INTERVAL\n            GROUP BY ae.endpoint\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "endpoint!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "report_analytics_events",
+            "name": "endpoint"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "viewers!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      null
+    ]
+  },
+  "hash": "3529d147884f890167565abf412e795ebe10af7339241bee37348e472357b910"
+}

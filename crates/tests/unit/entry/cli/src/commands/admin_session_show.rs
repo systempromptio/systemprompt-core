@@ -16,7 +16,7 @@ fn session(profile: &str) -> CliSession {
         ),
         SessionToken::new("tok"),
         SessionId::generate(),
-        ContextId::generate(),
+        Some(ContextId::generate()),
         SessionIdentity::new(
             UserId::new("user-session-show"),
             Email::try_new("a@b.test").expect("valid Email"),

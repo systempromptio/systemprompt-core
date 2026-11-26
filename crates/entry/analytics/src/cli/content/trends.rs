@@ -7,7 +7,7 @@ use anyhow::Result;
 use clap::Args;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use systemprompt_analytics::ContentAnalyticsRepository;
+use systemprompt_analytics::ContentAudienceRepository;
 use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
 
@@ -38,13 +38,13 @@ pub(super) async fn execute_with_pool(
     pool: &DbPool,
     _config: &CliConfig,
 ) -> Result<CommandOutput> {
-    let repo = ContentAnalyticsRepository::new(pool);
+    let repo = ContentAudienceRepository::new(pool);
     execute_internal(args, &repo).await
 }
 
 async fn execute_internal(
     args: TrendsArgs,
-    repo: &ContentAnalyticsRepository,
+    repo: &ContentAudienceRepository,
 ) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 

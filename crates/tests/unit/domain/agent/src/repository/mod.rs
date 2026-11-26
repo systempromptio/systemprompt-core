@@ -13,6 +13,7 @@ mod message;
 mod task;
 mod task_corruption;
 mod task_keyset;
+mod usage_report;
 
 use systemprompt_agent::models::context::ContextKind;
 use systemprompt_agent::repository::A2ARepositories;

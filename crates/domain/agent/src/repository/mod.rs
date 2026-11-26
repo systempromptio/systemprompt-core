@@ -24,11 +24,13 @@ pub mod execution;
 pub mod owned;
 pub(crate) mod parts;
 pub mod task;
+pub mod usage_report;
 
 pub use context::ContextRepository;
 pub use empty_contexts::EmptyContextRepository;
 pub use owned::{OwnedArtifact, OwnedContext, OwnedTask, RuntimeTask, TaskHandle};
 pub use systemprompt_traits::RepositoryError;
+pub use usage_report::AgentActivityReportRepository;
 
 /// The collaborators [`A2ARepositories`] needs beyond the database: every
 /// one is required, so a runtime without a managed-skill authority or a

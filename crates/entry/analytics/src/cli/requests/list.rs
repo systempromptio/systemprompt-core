@@ -8,14 +8,12 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use systemprompt_analytics::RequestAnalyticsRepository;
-use systemprompt_analytics::models::reporting::{RequestListFilter, RequestListRow};
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiRequestId, UserId};
 use systemprompt_logging::CliService;
+use systemprompt_traits::usage_reports::ai::{AiUsageReport, RequestListFilter, RequestListRow};
 
 use crate::cli::shared::{export_to_csv, parse_time_range};
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -79,19 +77,7 @@ pub(super) struct RequestListOutput {
     pub requests: Vec<RequestListRowOutput>,
 }
 
-pub(super) async fn execute_with_pool(
-    args: ListArgs,
-    pool: &DbPool,
-    _config: &CliConfig,
-) -> Result<CommandOutput> {
-    let repo = RequestAnalyticsRepository::new(pool);
-    execute_internal(args, &repo).await
-}
-
-async fn execute_internal(
-    args: ListArgs,
-    repo: &RequestAnalyticsRepository,
-) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ListArgs, repo: &dyn AiUsageReport) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let mut filter = RequestListFilter::new(args.limit).with_offset(args.offset);
     if let Some(model) = args.model.as_deref() {
@@ -125,7 +111,7 @@ async fn execute_internal(
 
 fn build_row_output(row: RequestListRow) -> RequestListRowOutput {
     RequestListRowOutput {
-        id: AiRequestId::new(row.id),
+        id: row.id,
         user_id: row.user_id,
         provider: row.provider.unwrap_or_else(|| "-".to_owned()),
         model: row.model.unwrap_or_else(|| "-".to_owned()),

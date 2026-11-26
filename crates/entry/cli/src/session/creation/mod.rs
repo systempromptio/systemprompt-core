@@ -17,7 +17,7 @@ use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
 use super::api::load_signing_keys;
-use super::contexts::SessionContexts;
+use super::contexts::{SessionContexts, issue_session_context};
 use super::resolution::ProfileContext;
 use admin_bootstrap::{
     SessionComponents, build_cli_session, connect_database, generate_admin_token, load_secrets,
@@ -29,6 +29,27 @@ use systemprompt_extension::cli::{CliConfig, DynCloudAccess};
 use systemprompt_identifiers::Email;
 
 use systemprompt_runtime::admin_bootstrap as open_admin_bootstrap;
+use systemprompt_traits::{AdminAccount, AdminBootstrap};
+
+async fn resolve_session_admin(
+    admins: &dyn AdminBootstrap,
+    profile: &Profile,
+    session_email_hint: Option<&str>,
+    scope: crate::cloud_access::CloudScope<'_>,
+) -> Result<AdminAccount> {
+    if profile.is_local_trial() && session_email_hint.is_none() {
+        return resolve_local_admin(admins, &profile.system_admin.username).await;
+    }
+    let user_email = resolve_credentialed_user_email(session_email_hint, scope).await?;
+    resolve_admin_with_fallback(
+        admins,
+        user_email.as_str(),
+        session_email_hint,
+        "local",
+        scope,
+    )
+    .await
+}
 
 pub(super) async fn create_local_session(
     profile_ctx: &ProfileContext<'_>,
@@ -65,19 +86,8 @@ pub(super) async fn create_local_session(
         std::sync::Arc::<systemprompt_database::Database>::clone(&db_pool),
     )?;
 
-    let admin_user = if profile.is_local_trial() && session_email_hint.is_none() {
-        resolve_local_admin(admins.as_ref(), &profile.system_admin.username).await?
-    } else {
-        let user_email = resolve_credentialed_user_email(session_email_hint, scope).await?;
-        resolve_admin_with_fallback(
-            admins.as_ref(),
-            user_email.as_str(),
-            session_email_hint,
-            "local",
-            scope,
-        )
-        .await?
-    };
+    let admin_user =
+        resolve_session_admin(admins.as_ref(), profile, session_email_hint, scope).await?;
 
     if config.is_interactive() {
         CliService::key_value("User", &admin_user.email);
@@ -92,16 +102,21 @@ pub(super) async fn create_local_session(
         .await
         .context("Failed to create local CLI session row in the database")?;
 
-    let context_id = contexts
-        .issue(&admin_user.id, &session_id, profile_ctx.name)
-        .await?;
+    let context_id =
+        issue_session_context(contexts, &admin_user.id, &session_id, profile_ctx.name).await?;
     let session_token =
         generate_admin_token(&profile.security.issuer, keys, &admin_user, &session_id)?;
 
     if config.is_interactive() {
         CliService::success("Local session created");
         CliService::key_value("Session ID", session_id.as_str());
-        CliService::key_value("Context ID", context_id.as_str());
+        CliService::key_value(
+            "Context ID",
+            context_id.as_ref().map_or(
+                "none (no member provides conversation contexts)",
+                systemprompt_identifiers::ContextId::as_str,
+            ),
+        );
     }
 
     build_cli_session(
@@ -120,7 +135,7 @@ pub(super) async fn create_local_session(
 #[derive(Clone, Copy)]
 pub(super) struct SessionSource<'a> {
     pub boot: &'a BootContext,
-    pub contexts: &'a SessionContexts,
+    pub contexts: Option<&'a SessionContexts>,
     pub admitted: &'a Admitted,
     pub cloud: Option<&'a DynCloudAccess>,
 }
@@ -133,7 +148,7 @@ pub(super) struct TenantSessionParams<'a> {
     pub config: &'a CliConfig,
     pub session_email_hint: Option<&'a str>,
     pub boot: &'a BootContext,
-    pub contexts: &'a SessionContexts,
+    pub contexts: Option<&'a SessionContexts>,
     pub admitted: &'a Admitted,
 }
 
@@ -186,16 +201,21 @@ pub(super) async fn create_session_for_tenant(
         .await
         .context("Failed to create local tenant CLI session row in the database")?;
 
-    let context_id = contexts
-        .issue(&admin_user.id, &session_id, profile_ctx.name)
-        .await?;
+    let context_id =
+        issue_session_context(contexts, &admin_user.id, &session_id, profile_ctx.name).await?;
     let session_token =
         generate_admin_token(&profile.security.issuer, keys, &admin_user, &session_id)?;
 
     if config.is_interactive() {
         CliService::success("Session created");
         CliService::key_value("Session ID", session_id.as_str());
-        CliService::key_value("Context ID", context_id.as_str());
+        CliService::key_value(
+            "Context ID",
+            context_id.as_ref().map_or(
+                "none (no member provides conversation contexts)",
+                systemprompt_identifiers::ContextId::as_str,
+            ),
+        );
     }
 
     build_cli_session(

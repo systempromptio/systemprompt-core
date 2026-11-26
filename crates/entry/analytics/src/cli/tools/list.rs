@@ -6,13 +6,12 @@
 use anyhow::Result;
 use clap::{Args, ValueEnum};
 use std::path::PathBuf;
-use systemprompt_analytics::{ToolAnalyticsRepository, ToolListParams};
-use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
 
 use super::{ToolListOutput, ToolListRow};
 use crate::cli::shared::{export_to_csv, parse_time_range};
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
+use systemprompt_traits::usage_reports::mcp::{ToolListParams, ToolListSort, ToolUsageReport};
 
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
 pub enum ToolSortBy {
@@ -22,12 +21,12 @@ pub enum ToolSortBy {
     AvgTime,
 }
 
-impl ToolSortBy {
-    const fn as_str(&self) -> &'static str {
-        match self {
-            Self::ExecutionCount => "execution_count",
-            Self::SuccessRate => "success_rate",
-            Self::AvgTime => "avg_time",
+impl From<ToolSortBy> for ToolListSort {
+    fn from(sort: ToolSortBy) -> Self {
+        match sort {
+            ToolSortBy::ExecutionCount => Self::ExecutionCount,
+            ToolSortBy::SuccessRate => Self::SuccessRate,
+            ToolSortBy::AvgTime => Self::AvgTime,
         }
     }
 }
@@ -68,16 +67,7 @@ pub struct ListArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute_with_pool(
-    args: ListArgs,
-    pool: &DbPool,
-    _config: &CliConfig,
-) -> Result<CommandOutput> {
-    let repo = ToolAnalyticsRepository::new(pool);
-    execute_internal(args, &repo).await
-}
-
-async fn execute_internal(args: ListArgs, repo: &ToolAnalyticsRepository) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ListArgs, repo: &dyn ToolUsageReport) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let rows = repo
@@ -86,7 +76,7 @@ async fn execute_internal(args: ListArgs, repo: &ToolAnalyticsRepository) -> Res
             end,
             limit: args.limit,
             server_filter: args.server.as_deref(),
-            sort_order: args.sort_by.as_str(),
+            sort: args.sort_by.into(),
         })
         .await?;
 

@@ -8,14 +8,12 @@ use chrono::{DateTime, Duration, Utc};
 use clap::Args;
 use std::future::Future;
 use std::path::PathBuf;
-use systemprompt_analytics::CostAnalyticsRepository;
-use systemprompt_analytics::models::reporting::CostSummaryRow;
-use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
+use systemprompt_traits::usage_reports::ai::{AiUsageReport, CostSummaryRow};
 
 use super::CostSummaryOutput;
 use crate::cli::shared::{export_single_to_csv, parse_time_range};
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct SummaryArgs {
@@ -32,15 +30,6 @@ pub struct SummaryArgs {
 
     #[arg(long, help = "Export results to CSV file")]
     pub export: Option<PathBuf>,
-}
-
-pub(super) async fn execute_with_pool(
-    args: SummaryArgs,
-    pool: &DbPool,
-    _config: &CliConfig,
-) -> Result<CommandOutput> {
-    let repo = CostAnalyticsRepository::new(pool);
-    execute_internal(args, &repo).await
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -96,10 +85,7 @@ where
     })
 }
 
-async fn execute_internal(
-    args: SummaryArgs,
-    repo: &CostAnalyticsRepository,
-) -> Result<CommandOutput> {
+pub(super) async fn execute(args: SummaryArgs, repo: &dyn AiUsageReport) -> Result<CommandOutput> {
     let ResolvedWindow {
         start,
         end,
@@ -108,14 +94,14 @@ async fn execute_internal(
     } = resolve_window(
         args.since.as_ref(),
         args.until.as_ref(),
-        |start, end| async move { repo.get_summary(start, end).await.map_err(Into::into) },
+        |start, end| async move { repo.summary(start, end).await.map_err(Into::into) },
     )
     .await?;
 
     let period_duration = end - start;
     let prev_start = start - period_duration;
 
-    let previous = repo.get_previous_cost(prev_start, start).await?;
+    let previous = repo.previous_cost(prev_start, start).await?;
 
     let total_cost = current.cost.unwrap_or(0);
     let prev_cost = previous.cost.unwrap_or(0);

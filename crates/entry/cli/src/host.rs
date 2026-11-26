@@ -57,6 +57,7 @@ pub trait KernelHost: CommandHost {
     ) -> BoxFuture<'a, Result<Arc<Config>, CommandError>>;
     fn take_admit(&self) -> Result<systemprompt_runtime::AdmitFn, CommandError>;
     fn cloud_access(&self) -> Option<&DynCloudAccess>;
+    fn linked(&self) -> Result<Admitted, CommandError>;
 }
 
 impl CommandContext {
@@ -282,5 +283,12 @@ impl KernelHost for CommandContext {
 
     fn cloud_access(&self) -> Option<&DynCloudAccess> {
         Self::cloud_access(self)
+    }
+
+    fn linked(&self) -> Result<Admitted, CommandError> {
+        let refused =
+            || anyhow::anyhow!("Only a command holding target admission admits the composition");
+        let admit = Self::take_admit(self).ok_or_else(|| CommandError::new(refused()))?;
+        crate::runner::admit_unprofiled(None, admit).map_err(CommandError::new)
     }
 }

@@ -26,10 +26,9 @@ pub(super) fn scheduler_catalog_error(
     {
         return None;
     }
-    let scheduler = services?
-        .scheduler
-        .clone()
-        .unwrap_or_else(SchedulerConfig::with_system_admin);
+    let scheduler = services?.scheduler.clone().unwrap_or_else(|| {
+        SchedulerConfig::with_system_admin_admitted(|name| schedule.contains_job(name))
+    });
     unknown_jobs_message(&scheduler, schedule).or_else(|| {
         strict
             .then(|| unlisted_jobs_message(&scheduler, boot, schedule))

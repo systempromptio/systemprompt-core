@@ -103,6 +103,7 @@ pub trait GatewayOperations: Send + Sync + std::fmt::Debug {
     async fn recover_accounting(
         &self,
         kernel: &Resolved<'_>,
+        built: &crate::BuiltState,
     ) -> Result<usize, GatewayOperationsError>;
 
     async fn brain_model_client(

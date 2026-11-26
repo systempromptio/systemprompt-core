@@ -21,6 +21,7 @@ pub mod ai_safety_findings;
 pub mod ai_usage_anomaly;
 pub mod catalog_migration;
 pub mod thought_signatures;
+pub mod usage_report;
 pub mod user_provider_credentials;
 
 use systemprompt_database::DbPool;
@@ -42,6 +43,7 @@ pub use ai_safety_findings::{AiSafetyFindingRepository, InsertSafetyFinding};
 pub use ai_usage_anomaly::{AiUsageAnomalyRepository, HourlyUsageProfile};
 pub use catalog_migration::CatalogMigrationRepository;
 pub use thought_signatures::AiThoughtSignatureRepository;
+pub use usage_report::AiUsageReportRepository;
 pub use user_provider_credentials::{
     CREDENTIALS_OWNER, UserProviderCredentialMeta, UserProviderCredentialRepository,
 };

@@ -1,10 +1,11 @@
 //! `core content popular` against the database: the leaf parses its duration
-//! window, ranks a source's content from the analytics report views and
+//! window, ranks a source's content from the content member's report port and
 //! refuses a malformed window.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_analytics_entry::cli::content_popular::{PopularArgs, execute_with_pool};
+use systemprompt_content::ContentAudienceReportRepository;
 use systemprompt_database::DbPool;
 use systemprompt_extension::cli::CliConfig;
 use systemprompt_identifiers::SourceId;
@@ -52,6 +53,7 @@ async fn popular_lists_the_sources_content_from_the_report_views() {
             limit: 5,
         },
         &pool,
+        &ContentAudienceReportRepository::new(&pool),
         &cfg(),
     )
     .await
@@ -75,6 +77,7 @@ async fn popular_refuses_a_malformed_window() {
             limit: 5,
         },
         &pool,
+        &ContentAudienceReportRepository::new(&pool),
         &cfg(),
     )
     .await

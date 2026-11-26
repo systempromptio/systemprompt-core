@@ -90,11 +90,11 @@ pub(super) async fn execute(args: FleetRunArgs, host: &dyn CommandHost) -> Resul
 async fn tenant_credentials(
     tenant: &StoredTenant,
     hostname: &str,
-) -> Result<(SessionToken, ContextId)> {
+) -> Result<(SessionToken, Option<ContextId>)> {
     if tenant.provider.is_self_managed() {
         return Ok((
             operator_tenant_token(hostname).await?,
-            ContextId::generate(),
+            Some(ContextId::generate()),
         ));
     }
     let sessions_dir = get_cloud_paths().resolve(CloudPath::SessionsDir);
@@ -129,7 +129,7 @@ async fn run_on_tenant(
         let executor = RemoteCliExecutor::new(&tenant_base_url(hostname), timeout_secs)?;
         let request = RemoteCliRequest {
             token: &token,
-            context: Some(&context),
+            context: context.as_ref(),
             args,
         };
         anyhow::Ok(executor.execute(request, &mut sink).await?)

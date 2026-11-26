@@ -29,6 +29,8 @@ systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
 systemprompt-wire = { workspace = true }
 systemprompt-agent = { workspace = true }
+systemprompt-ai = { workspace = true }
+systemprompt-content = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-oauth-issuance = { workspace = true }

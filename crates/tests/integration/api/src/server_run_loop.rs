@@ -437,3 +437,50 @@ settings:
 }
 
 mod worker;
+
+mod without_mcp_member {
+    use std::time::Duration;
+
+    use systemprompt_api::services::server::{bind_and_serve, run_server};
+    use systemprompt_identifiers::ExtensionId;
+    use systemprompt_test_fixtures::{
+        ensure_test_bootstrap, fixture_admitted_without, fixture_app_context_scheduling_admitted,
+        fixture_config,
+    };
+
+    #[tokio::test]
+    async fn a_composition_without_the_mcp_member_and_no_enabled_server_reaches_readiness()
+    -> anyhow::Result<()> {
+        let b = ensure_test_bootstrap();
+        let ctx = fixture_app_context_scheduling_admitted(
+            fixture_config(&b.database_url),
+            fixture_admitted_without(&[
+                ExtensionId::new("mcp"),
+                ExtensionId::new("mcp-http"),
+                ExtensionId::new("agent"),
+                ExtensionId::new("agent-runs"),
+            ]),
+        )
+        .await?;
+        let early = bind_and_serve(
+            "127.0.0.1:0",
+            None,
+            systemprompt_runtime::ShutdownRequest::default(),
+            systemprompt_manifest::profile::ShutdownConfig::default(),
+        )
+        .await?;
+        let readiness = std::sync::Arc::clone(early.readiness());
+        let mut server = tokio::spawn(run_server((*ctx).clone(), None, early));
+        tokio::select! {
+            ready = readiness.wait_for_ready(60) => {
+                assert!(ready, "a host with nothing to supervise must boot");
+            },
+            early_exit = &mut server => {
+                panic!("run_server exited before readiness: {early_exit:?}");
+            },
+        }
+        server.abort();
+        let _aborted = tokio::time::timeout(Duration::from_secs(5), server).await;
+        Ok(())
+    }
+}

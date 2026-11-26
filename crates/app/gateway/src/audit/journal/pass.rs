@@ -15,6 +15,11 @@ use super::{
 };
 use crate::error::GatewayAuditResult as Result;
 
+#[must_use]
+pub fn recovery_admitted(built: &systemprompt_extension::BuiltState) -> bool {
+    built.contains(&systemprompt_identifiers::ExtensionId::new("ai"))
+}
+
 pub async fn recover(settlement: &Settlement) -> Result<usize> {
     let _pass = settlement.journal.recovering.lock().await;
     let outcome = settle_listed(settlement).await;

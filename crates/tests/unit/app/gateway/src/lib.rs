@@ -65,6 +65,8 @@ mod inspect_equals_send;
 #[cfg(test)]
 mod journal_open;
 #[cfg(test)]
+mod journal_recovery_admission;
+#[cfg(test)]
 mod journal_upgrade;
 #[cfg(test)]
 mod openai_chat_reasoning;

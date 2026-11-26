@@ -18,6 +18,11 @@ impl AiConfigValidator {
     pub fn new() -> Self {
         Self::default()
     }
+
+    #[must_use]
+    pub fn boxed(_services: &std::path::Path) -> Box<dyn DomainConfig> {
+        Box::new(Self::new())
+    }
 }
 
 impl DomainConfig for AiConfigValidator {

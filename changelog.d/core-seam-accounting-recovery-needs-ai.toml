@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "API"
+text = "Gateway accounting recovery runs only when the `ai` member, which owns `ai_requests`, is admitted; a composition without it starts instead of failing with \"relation ai_requests does not exist\"."

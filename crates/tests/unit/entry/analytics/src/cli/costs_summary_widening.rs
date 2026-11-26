@@ -7,8 +7,8 @@
 use std::cell::RefCell;
 
 use chrono::{DateTime, Duration, Utc};
-use systemprompt_analytics::models::reporting::CostSummaryRow;
 use systemprompt_analytics_entry::cli::costs::summary::resolve_window;
+use systemprompt_traits::usage_reports::ai::CostSummaryRow;
 
 fn assert_spans(actual: Duration, expected: Duration) {
     let drift = (actual - expected).num_milliseconds().abs();

@@ -20,7 +20,7 @@ fn test_builder(profile: &str) -> CliSessionBuilder {
         ),
         SessionToken::new("token-abc"),
         SessionId::new("sid-001"),
-        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+        Some(ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId")),
         SessionIdentity::new(
             unique_user_id("session-store"),
             Email::try_new("test@example.com").expect("valid Email"),
@@ -146,7 +146,7 @@ fn get_valid_session_returns_none_for_empty_token() {
         ),
         SessionToken::new(""),
         SessionId::new("sid"),
-        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+        Some(ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId")),
         SessionIdentity::new(
             unique_user_id("session-store"),
             Email::try_new("test@example.com").expect("valid Email"),
@@ -175,7 +175,14 @@ fn get_valid_session_mut_returns_mutable_ref() {
     session.set_context_id(ContextId::try_new(TEST_CONTEXT_ID_B).expect("valid ContextId"));
 
     let retrieved = store.get_session(&key).unwrap();
-    assert_eq!(retrieved.context_id.as_str(), TEST_CONTEXT_ID_B);
+    assert_eq!(
+        retrieved
+            .context_id
+            .as_ref()
+            .expect("session context")
+            .as_str(),
+        TEST_CONTEXT_ID_B
+    );
 }
 
 #[test]
@@ -534,7 +541,7 @@ fn serde_roundtrip_preserves_all_fields() {
         ),
         SessionToken::new("token-abc"),
         SessionId::new("sid-001"),
-        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+        Some(ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId")),
         SessionIdentity::new(
             user_id.clone(),
             Email::try_new("serde@test.com").expect("valid Email"),

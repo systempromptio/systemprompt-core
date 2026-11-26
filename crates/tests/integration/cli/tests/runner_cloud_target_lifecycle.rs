@@ -45,7 +45,7 @@ fn session_for(key: &SessionKey, issuer: &str, token: &str, context: ContextId) 
         ),
         SessionToken::new(token),
         SessionId::new(format!("session_{}", uuid::Uuid::new_v4().simple())),
-        context,
+        Some(context),
         SessionIdentity::new(
             UserId::new(format!("user_{}", uuid::Uuid::new_v4().simple())),
             Email::try_new("router@routing.invalid").expect("valid email"),
@@ -135,7 +135,10 @@ fn cloud_target_uses_only_the_profile_tenant_and_recovers_after_store_repair() {
         } => {
             assert_eq!(hostname, "routed.example.invalid");
             assert_eq!(token.as_str(), "routed-token");
-            assert_eq!(context.as_str(), routed_context.as_str());
+            assert_eq!(
+                context.as_ref().expect("session context").as_str(),
+                routed_context.as_str()
+            );
         },
         ExecutionTarget::Local | ExecutionTarget::SelfManaged { .. } => {
             panic!("a complete managed cloud profile must route with its stored session")
@@ -193,7 +196,10 @@ fn cloud_target_uses_only_the_profile_tenant_and_recovers_after_store_repair() {
         } => {
             assert_eq!(hostname, "routed.example.invalid");
             assert_eq!(token.as_str(), "repaired-token");
-            assert_eq!(context.as_str(), repaired_context.as_str());
+            assert_eq!(
+                context.as_ref().expect("session context").as_str(),
+                repaired_context.as_str()
+            );
         },
         ExecutionTarget::Local | ExecutionTarget::SelfManaged { .. } => {
             panic!("repaired cloud state must route with its stored session")

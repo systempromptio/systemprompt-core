@@ -9,3 +9,4 @@ mod tool_usage;
 
 mod external_session_db;
 mod tool_usage_owner_db;
+mod usage_report_db;

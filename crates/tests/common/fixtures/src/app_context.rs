@@ -385,6 +385,37 @@ pub async fn fixture_app_context_with_extensions(
     fixture_app_context_on_bootstrap(ensure_test_bootstrap(), config, admitted).await
 }
 
+// The bootstrap's services config with its scheduler narrowed to the jobs the
+// admitted members contribute, so a composition without a member boots
+// without naming that member's jobs.
+pub async fn fixture_app_context_scheduling_admitted(
+    config: Config,
+    admitted: Arc<Admitted>,
+) -> Result<Arc<AppContext>> {
+    let bootstrap = ensure_test_bootstrap();
+    let schedule = systemprompt_extension::AdmittedSchedule::of(admitted.built())?;
+    let mut services = (*fixture_services_state().config()).clone();
+    let mut scheduler = services
+        .scheduler
+        .take()
+        .unwrap_or_else(systemprompt_manifest::services::SchedulerConfig::with_system_admin);
+    scheduler
+        .jobs
+        .retain(|job| schedule.contains_job(job.name.as_str()));
+    scheduler
+        .bootstrap_jobs
+        .retain(|name| schedule.contains_job(name.as_str()));
+    services.scheduler = Some(scheduler);
+    let services =
+        systemprompt_loader::ServicesState::from_config(bootstrap.boot.profile(), services)?;
+    let database_url = config.database_url.clone();
+    build(
+        fixture_context_builder(bootstrap, config, admitted)?.with_services(services),
+        &database_url,
+    )
+    .await
+}
+
 pub async fn fixture_app_context_with_filter(
     database_url: &str,
     marketplace_filter: Arc<dyn MarketplaceFilter>,

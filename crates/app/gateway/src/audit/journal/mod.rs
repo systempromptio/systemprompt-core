@@ -21,7 +21,12 @@
 //! `BackgroundTasks`, never on the request path. On cancellation — the
 //! server's shutdown drain — the task runs one final settlement pass before
 //! it returns, so a node that terminates in order leaves its journal empty;
-//! the drain's background grace bounds that pass.
+//! the drain's background grace bounds that pass. Settlement and the orphan
+//! sweep write `ai_requests`, which the `ai` member owns, so recovery runs
+//! only when [`recovery_admitted`] finds that member admitted. Settlement and
+//! the orphan sweep write `ai_requests`, which the `ai` member owns, so the
+//! host runs recovery only when [`recovery_admitted`] finds that member
+//! admitted.
 //!
 //! Every pass publishes `gateway_journal_receipts` (receipts still held) and
 //! counts `gateway_journal_settle_failures_total` (receipts retained because
@@ -46,7 +51,7 @@ mod types;
 
 pub use log::{Fsync, JOURNAL_FSYNCS_TOTAL, JOURNAL_RECORDS_TOTAL, JournalSync};
 pub(crate) use ops::JournalLease;
-pub use pass::{flush_on_shutdown, recover, spawn_recovery};
+pub use pass::{flush_on_shutdown, recover, recovery_admitted, spawn_recovery};
 pub use reseal::JournalReseal;
 pub(crate) use reseal::reseal as reseal_segments;
 pub(super) use types::{CapturedToolCall, Completion, PartialUsage, Receipt};

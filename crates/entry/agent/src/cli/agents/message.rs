@@ -122,7 +122,13 @@ pub(super) async fn execute(args: MessageArgs, host: &dyn CommandHost) -> Result
     let context_id: ContextId = args
         .context
         .and_then(|s| ContextId::try_new(s).ok())
-        .unwrap_or_else(|| caller.context_id().clone());
+        .or_else(|| caller.context_id().cloned())
+        .ok_or_else(|| {
+            anyhow!(
+                "The CLI session has no conversation context; pass --context or run \
+                 'systemprompt admin session login'"
+            )
+        })?;
     let auth_token = caller.token().as_str();
 
     let task_id: Option<TaskId> = args.task.map(TaskId::new);

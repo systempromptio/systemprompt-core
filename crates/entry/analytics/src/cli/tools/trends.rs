@@ -7,17 +7,16 @@ use anyhow::Result;
 use clap::Args;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use systemprompt_analytics::ToolAnalyticsRepository;
-use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
 
 use super::{ToolTrendPoint, ToolTrendsOutput};
 use crate::cli::shared::{
     export_to_csv, format_date_range, format_period_label, parse_time_range, truncate_to_period,
 };
-use systemprompt_extension::cli::{ChartType, CliConfig, CommandOutput};
+use systemprompt_extension::cli::{ChartType, CommandOutput};
 use systemprompt_models::artifacts::{ChartArtifact, ChartDataset};
 use systemprompt_models::mcp::McpToolExecutionStatus;
+use systemprompt_traits::usage_reports::mcp::ToolUsageReport;
 
 #[derive(Debug, Args)]
 pub struct TrendsArgs {
@@ -46,23 +45,11 @@ pub struct TrendsArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute_with_pool(
-    args: TrendsArgs,
-    pool: &DbPool,
-    _config: &CliConfig,
-) -> Result<CommandOutput> {
-    let repo = ToolAnalyticsRepository::new(pool);
-    execute_internal(args, &repo).await
-}
-
-async fn execute_internal(
-    args: TrendsArgs,
-    repo: &ToolAnalyticsRepository,
-) -> Result<CommandOutput> {
+pub(super) async fn execute(args: TrendsArgs, repo: &dyn ToolUsageReport) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let rows = repo
-        .get_executions_for_trends(start, end, args.tool.as_deref())
+        .executions_for_trends(start, end, args.tool.as_deref())
         .await?;
 
     let mut buckets: HashMap<String, (i64, i64, i64)> = HashMap::new();
@@ -74,7 +61,7 @@ async fn execute_internal(
         );
         let entry = buckets.entry(period_key).or_insert((0, 0, 0));
         entry.0 += 1;
-        if row.status == Some(McpToolExecutionStatus::Success) {
+        if row.status.as_deref() == Some(McpToolExecutionStatus::Success.as_str()) {
             entry.1 += 1;
         }
         entry.2 += i64::from(row.execution_time_ms.unwrap_or(0));

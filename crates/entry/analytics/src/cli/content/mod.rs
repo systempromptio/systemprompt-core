@@ -2,7 +2,9 @@
 //!
 //! Defines the [`ContentCommands`] subcommand tree and the typed output shapes
 //! ([`ContentStatsOutput`], [`TopContentOutput`], [`ContentTrendsOutput`])
-//! rendered by the `analytics content` commands.
+//! rendered by the `analytics content` commands. Views and engagement are
+//! read from the analytics views; the content rows `top` names come from the
+//! content member's report port.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,9 +18,10 @@ use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::cli::shared::with_resolved_export;
+use crate::cli::shared::{report_port, with_resolved_export};
 use systemprompt_database::pool_from_handle;
 use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_traits::usage_reports::content::DynContentAudienceReport;
 
 #[derive(Debug, Subcommand)]
 pub enum ContentCommands {
@@ -85,9 +88,16 @@ pub async fn execute(command: ContentCommands, host: &dyn CommandHost) -> Result
             Ok(result)
         },
         ContentCommands::Top(args) => {
-            let result =
-                top::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
+            let content =
+                report_port::<DynContentAudienceReport>(host, "analytics content top", "content")
                     .await?;
+            let result = top::execute_with_pool(
+                with_resolved_export!(args, host),
+                &pool,
+                content.as_ref(),
+                host.output(),
+            )
+            .await?;
             Ok(result)
         },
         ContentCommands::Trends(args) => {

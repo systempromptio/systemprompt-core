@@ -93,6 +93,7 @@ fn the_mcp_member_provides_its_lookups_stores_tool_provider_and_tool_executions(
         provided,
         [
             TypeId::of::<DynToolExecutionLookup>(),
+            TypeId::of::<systemprompt_traits::usage_reports::mcp::DynToolUsageReport>(),
             TypeId::of::<Arc<dyn McpRegistryProvider>>(),
             TypeId::of::<Arc<McpServiceObserver>>(),
             TypeId::of::<systemprompt_extension::mcp::DynMcpSessionStore>(),

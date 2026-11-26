@@ -14,9 +14,7 @@ use systemprompt_analytics::{AnalyticsService, GeoIpDatabase};
 use systemprompt_extension::contribute::ContributionSink;
 use systemprompt_extension::{Contributions, Extension};
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_traits::{
-    DynContentPopularity, DynIpBanStore, DynRequestAnalytics, DynSessionBehaviourScorer,
-};
+use systemprompt_traits::{DynIpBanStore, DynRequestAnalytics, DynSessionBehaviourScorer};
 
 fn contributed() -> ContributionSink {
     let mut sink = ContributionSink::default();
@@ -80,10 +78,9 @@ fn the_analytics_member_provides_its_write_seams_views_repositories_and_scorer()
         [
             TypeId::of::<DynRequestAnalytics>(),
             TypeId::of::<Arc<GeoIpDatabase>>(),
-            TypeId::of::<DynContentPopularity>(),
+            TypeId::of::<systemprompt_traits::usage_reports::content::DynContentAudienceCounts>(),
             TypeId::of::<Arc<AnalyticsRepositories>>(),
             TypeId::of::<Arc<AnalyticsService>>(),
-            TypeId::of::<systemprompt_extension::profile_usage::DynProfileUsageSource>(),
             TypeId::of::<Arc<dyn systemprompt_traits::AnalyticsProvider>>(),
             TypeId::of::<Arc<dyn systemprompt_traits::FingerprintProvider>>(),
             TypeId::of::<DynSessionBehaviourScorer>(),
@@ -95,12 +92,9 @@ fn the_analytics_member_provides_its_write_seams_views_repositories_and_scorer()
         .filter(|p| p.is_sealed())
         .map(|p| p.type_id())
         .collect();
-    assert_eq!(
-        sealed,
-        [TypeId::of::<
-            systemprompt_extension::profile_usage::DynProfileUsageSource,
-        >()],
-        "only the profile-usage source, which reads any user's usage, is sealed"
+    assert!(
+        sealed.is_empty(),
+        "the profile-usage source, the one cross-user reader, is the ai member's to seal"
     );
 }
 

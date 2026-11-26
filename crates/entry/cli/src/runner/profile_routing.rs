@@ -241,7 +241,8 @@ async fn try_remote_routing(
     )?
     .tenant_base_url(&hostname);
     let args = args::reconstruct_args();
-    let exit_code = routing::execute_remote(&base_url, &token, &context, &args, 300).await?;
+    let exit_code =
+        routing::execute_remote(&base_url, &token, context.as_ref(), &args, 300).await?;
     if exit_code != 0 {
         bail!("Remote command exited with code {}", exit_code);
     }

@@ -158,4 +158,12 @@ impl SchedulerConfig {
             unlisted_jobs: UnlistedJobs::Default,
         }
     }
+
+    #[must_use]
+    pub fn with_system_admin_admitted(admitted: impl Fn(&str) -> bool) -> Self {
+        let mut config = Self::with_system_admin();
+        config.jobs.retain(|job| admitted(job.name.as_str()));
+        config.bootstrap_jobs.retain(|name| admitted(name.as_str()));
+        config
+    }
 }

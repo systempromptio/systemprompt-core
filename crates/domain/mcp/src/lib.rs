@@ -45,6 +45,7 @@ pub(crate) mod progress;
 pub mod repository;
 pub(crate) mod resources;
 pub(crate) mod response;
+pub(crate) mod schemas;
 pub mod services;
 pub(crate) mod tool;
 pub(crate) mod user_data;

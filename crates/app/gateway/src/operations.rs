@@ -11,7 +11,8 @@
 //!   ([`crate::audit::access_log::layer`]);
 //! - [`recover_accounting`](GatewayOperations::recover_accounting) settles the
 //!   receipts a previous process left in the accounting journal and starts the
-//!   periodic recovery pass;
+//!   periodic recovery pass, and settles nothing when the `ai` member, which
+//!   owns `ai_requests`, is not admitted;
 //! - [`brain_model_client`](GatewayOperations::brain_model_client) builds the
 //!   in-process [`GatewayClient`] the brain's capture consumer extracts
 //!   through, acting as the `brain` service account (ensured on first start,
@@ -87,7 +88,12 @@ impl GatewayOperations for GatewayKernelOperations {
     async fn recover_accounting(
         &self,
         kernel: &Resolved<'_>,
+        built: &systemprompt_extension::BuiltState,
     ) -> Result<usize, GatewayOperationsError> {
+        if !crate::audit::journal::recovery_admitted(built) {
+            tracing::debug!("ai member not admitted; gateway accounting recovery skipped");
+            return Ok(0);
+        }
         let settlement = repositories(kernel)?.settlement();
         let tasks = kernel.tasks().clone();
         let settled = crate::audit::journal::recover(&settlement)

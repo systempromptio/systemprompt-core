@@ -22,7 +22,7 @@ fn session() -> CallerSession {
         SessionToken::new("tok"),
         SessionId::new("sess-caller"),
         UserId::new("user-caller"),
-        ContextId::try_new(CALLER_CONTEXT).expect("a v4 context id"),
+        Some(ContextId::try_new(CALLER_CONTEXT).expect("a v4 context id")),
         UserType::Admin,
     )
 }

@@ -1,0 +1,29 @@
+[root]
+section = "Breaking"
+area = "Analytics"
+text = "The analytics reports over another member's report views read that member's report port (`systemprompt_traits::usage_reports`): `ai` provides `DynAiUsageReport` (costs, requests, gateway sessions, overview requests and cost), `agent` provides `DynAgentActivityReport` (agents, conversations, recent contexts, tool usage by agent), `mcp` provides `DynToolUsageReport` and `content` provides `DynContentAudienceReport`. In a composition without the owner, `analytics agents|conversations|tools|requests|costs` fail with `ReportUnavailable` naming the absent capability, and `analytics overview` leaves that member's cards out and lists them under `unavailable`. These commands now need the composition: under `--database-url` they are refused as requiring full profile initialization."
+
+[[crate]]
+name = "systemprompt-analytics"
+section = "Breaking"
+text = "`AgentAnalyticsRepository`, `ConversationAnalyticsRepository`, `CostAnalyticsRepository`, `RequestAnalyticsRepository`, `ToolAnalyticsRepository`, `ToolListParams`, `ContentAnalyticsRepository`, `ProfileUsageService`, the agent, request, tool and overview reporting rows and `AnalyticsService::cost_repo`/`profile_usage` are removed; `OverviewAnalyticsRepository` keeps the session counts. `ContentAudienceRepository` reads the analytics-owned content audience and provides `DynContentAudienceCounts`; the member no longer provides `DynContentPopularity` or `DynProfileUsageSource`."
+
+[[crate]]
+name = "systemprompt-ai"
+section = "Added"
+text = "`AiUsageReportRepository` implements `AiUsageReport` over the ai report views (and the `report_ai_user_names` view); `ProfileUsageService` moves here and is provided sealed as `DynProfileUsageSource`."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Added"
+text = "`AgentActivityReportRepository` implements `AgentActivityReport`; the member declares `report_agent_ai_usage_hourly`, `report_agent_ai_context_hourly` and `report_agent_tool_executions` over the ai and mcp report views."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Added"
+text = "`ToolUsageReportRepository` implements `ToolUsageReport` (`ToolListParams` with a typed `ToolListSort`)."
+
+[[crate]]
+name = "systemprompt-content"
+section = "Added"
+text = "`ContentAudienceReportRepository` implements `ContentAudienceReport`; the member provides `DynContentPopularity` (`ContentPopularityService`), ranking by the viewer counts analytics provides and by recency without it."

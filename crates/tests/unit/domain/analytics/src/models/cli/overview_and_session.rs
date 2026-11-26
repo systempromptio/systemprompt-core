@@ -1,78 +1,9 @@
-//! Tests for overview rows and session rows.
+//! Tests for session rows.
 
 use chrono::Utc;
-use systemprompt_analytics::models::{
-    LiveSessionRow, OverviewAgentRow, OverviewCostRow, OverviewRequestRow, OverviewToolRow,
-    SessionStatsRow, SessionTrendRow,
-};
+use systemprompt_analytics::models::{LiveSessionRow, SessionStatsRow, SessionTrendRow};
 use systemprompt_identifiers::SessionId;
 use systemprompt_test_fixtures::unique_user_id;
-
-mod overview_row_tests {
-    use super::*;
-
-    #[test]
-    fn agent_row_stores_values() {
-        let row = OverviewAgentRow {
-            active_agents: 10,
-            total_tasks: 500,
-            completed_tasks: 450,
-        };
-
-        assert_eq!(row.active_agents, 10);
-        assert_eq!(row.total_tasks, 500);
-        assert_eq!(row.completed_tasks, 450);
-    }
-
-    #[test]
-    fn request_row_stores_values() {
-        let row = OverviewRequestRow {
-            total: 10000,
-            total_tokens: Some(500000),
-            avg_latency: Some(150.5),
-        };
-
-        assert_eq!(row.total, 10000);
-        assert_eq!(row.total_tokens, Some(500000));
-        assert!((row.avg_latency.unwrap() - 150.5).abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn request_row_handles_none_values() {
-        let row = OverviewRequestRow {
-            total: 100,
-            total_tokens: None,
-            avg_latency: None,
-        };
-
-        assert_eq!(row.total, 100);
-        assert!(row.total_tokens.is_none());
-        assert!(row.avg_latency.is_none());
-    }
-
-    #[test]
-    fn tool_row_stores_values() {
-        let row = OverviewToolRow {
-            total: 5000,
-            successful: 4800,
-        };
-
-        assert_eq!(row.total, 5000);
-        assert_eq!(row.successful, 4800);
-    }
-
-    #[test]
-    fn cost_row_stores_value() {
-        let row = OverviewCostRow { cost: Some(12500) };
-        assert_eq!(row.cost, Some(12500));
-    }
-
-    #[test]
-    fn cost_row_handles_none() {
-        let row = OverviewCostRow { cost: None };
-        assert!(row.cost.is_none());
-    }
-}
 
 mod session_row_tests {
     use super::*;

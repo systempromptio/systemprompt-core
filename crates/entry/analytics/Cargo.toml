@@ -41,6 +41,7 @@ cli = [
     "dep:systemprompt-identifiers",
     "systemprompt-logging/cli",
     "dep:systemprompt-models",
+    "dep:systemprompt-traits",
     "dep:systemprompt-users",
     "dep:anyhow",
     "dep:chrono",

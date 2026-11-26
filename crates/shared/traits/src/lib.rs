@@ -138,6 +138,7 @@ pub mod storage;
 pub mod stream_drain;
 pub mod tool_executions;
 pub mod traffic_class_counts;
+pub mod usage_reports;
 pub mod user_retention;
 pub mod validation;
 

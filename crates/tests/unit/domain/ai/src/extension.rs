@@ -138,6 +138,14 @@ fn the_ai_member_provides_its_lookups_its_sealed_stores_and_the_inference_provid
                 true
             ),
             (TypeId::of::<systemprompt_models::ai::DynAiProvider>(), true),
+            (
+                TypeId::of::<systemprompt_traits::usage_reports::ai::DynAiUsageReport>(),
+                false
+            ),
+            (
+                TypeId::of::<systemprompt_extension::profile_usage::DynProfileUsageSource>(),
+                true
+            ),
         ]
     );
 }

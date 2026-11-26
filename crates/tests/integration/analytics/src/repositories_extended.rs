@@ -1,18 +1,25 @@
-//! Smoke integration tests covering the remaining repositories:
-//! cli_sessions, content_analytics, agents, tools,
-//! and per-user / platform cost paths not exercised by `costs.rs`.
+//! Smoke integration tests covering the remaining readers: cli sessions,
+//! content audience (the analytics views and the content member's port), and
+//! the agent, tool and AI cost report ports, including the per-user and
+//! platform cost paths not exercised by `costs.rs`.
 
 use anyhow::Result;
 use chrono::{Duration, TimeZone, Utc};
 use sqlx::PgPool;
-use systemprompt_analytics::{
-    AgentAnalyticsRepository, CliSessionAnalyticsRepository, ContentAnalyticsRepository,
-    CostAnalyticsRepository, ToolAnalyticsRepository, ToolListParams,
-};
+use systemprompt_agent::repository::AgentActivityReportRepository;
+use systemprompt_ai::AiUsageReportRepository;
+use systemprompt_analytics::{CliSessionAnalyticsRepository, ContentAudienceRepository};
+use systemprompt_content::ContentAudienceReportRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
+use systemprompt_mcp::repository::ToolUsageReportRepository;
 use systemprompt_models::UserId;
 use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_traits::usage_reports::agent::{AgentActivityReport, AgentSortOrder, ToolCaller};
+use systemprompt_traits::usage_reports::content::{
+    ContentAudienceCounts, ContentAudienceReport, source_endpoint_prefix,
+};
+use systemprompt_traits::usage_reports::mcp::{ToolListParams, ToolListSort, ToolUsageReport};
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
 
@@ -236,9 +243,14 @@ async fn agent_repository_smoke() -> Result<()> {
     let task_b = fx.insert_task(&agent).await?;
     fx.insert_ai_request_for_task(&task_a, 500).await?;
     fx.insert_ai_request_for_task(&task_b, 750).await?;
-    let repo = AgentAnalyticsRepository::new(&fx.db);
+    let repo = AgentActivityReportRepository::new(&fx.db);
 
-    for order in ["", "success_rate", "cost", "last_active", "task_count"] {
+    for order in [
+        AgentSortOrder::TaskCount,
+        AgentSortOrder::SuccessRate,
+        AgentSortOrder::Cost,
+        AgentSortOrder::LastActive,
+    ] {
         let listed = repo
             .list_agents(fx.window_start, fx.window_end, 10, order)
             .await?;
@@ -246,34 +258,39 @@ async fn agent_repository_smoke() -> Result<()> {
     }
 
     let exists = repo
-        .agent_exists(&agent, fx.window_start, fx.window_end)
+        .agent_task_count(&agent, fx.window_start, fx.window_end)
         .await?;
     assert!(exists >= 2);
     let summary = repo
-        .get_agent_summary(&agent, fx.window_start, fx.window_end)
+        .agent_summary(&agent, fx.window_start, fx.window_end)
         .await?;
     assert!(summary.total_tasks >= 2);
     let _breakdown = repo
-        .get_status_breakdown(&agent, fx.window_start, fx.window_end)
+        .status_breakdown(&agent, fx.window_start, fx.window_end)
         .await?;
     let _errors = repo
-        .get_top_errors(&agent, fx.window_start, fx.window_end)
+        .top_errors(&agent, fx.window_start, fx.window_end)
         .await?;
     let _hourly = repo
-        .get_hourly_distribution(&agent, fx.window_start, fx.window_end)
+        .hourly_distribution(&agent, fx.window_start, fx.window_end)
         .await?;
-    let stats = repo.get_stats(fx.window_start, fx.window_end, None).await?;
+    let stats = repo
+        .agent_stats(fx.window_start, fx.window_end, None)
+        .await?;
     assert!(stats.total_tasks >= 2);
     let _stats_f = repo
-        .get_stats(fx.window_start, fx.window_end, Some(&agent))
+        .agent_stats(fx.window_start, fx.window_end, Some(&agent))
         .await?;
-    let _ai_stats = repo.get_ai_stats(fx.window_start, fx.window_end).await?;
+    let ai_stats = repo.agent_ai_stats(fx.window_start, fx.window_end).await?;
+    assert!(ai_stats.total_cost_microdollars >= 1_250);
     let _trends = repo
-        .get_tasks_for_trends(fx.window_start, fx.window_end, None)
+        .task_samples(fx.window_start, fx.window_end, None)
         .await?;
-    let _trends_f = repo
-        .get_tasks_for_trends(fx.window_start, fx.window_end, Some(&agent))
+    let trends_f = repo
+        .task_samples(fx.window_start, fx.window_end, Some(&agent))
         .await?;
+    assert!(trends_f.len() >= 2);
+    assert!(trends_f.iter().all(|t| t.completed));
 
     fx.cleanup().await?;
     Ok(())
@@ -285,16 +302,20 @@ async fn tool_repository_smoke() -> Result<()> {
     let tool = format!("tool-{}", fx.tag);
     fx.insert_tool_execution(&tool, "success").await?;
     fx.insert_tool_execution(&tool, "failed").await?;
-    let repo = ToolAnalyticsRepository::new(&fx.db);
+    let repo = ToolUsageReportRepository::new(&fx.db);
 
-    for order in ["call_count", "success_rate", "p95_latency", "unknown_sort"] {
+    for order in [
+        ToolListSort::ExecutionCount,
+        ToolListSort::SuccessRate,
+        ToolListSort::AvgTime,
+    ] {
         let listed = repo
             .list_tools(ToolListParams {
                 start: fx.window_start,
                 end: fx.window_end,
                 limit: 10,
                 server_filter: None,
-                sort_order: order,
+                sort: order,
             })
             .await?;
         assert!(
@@ -309,37 +330,43 @@ async fn tool_repository_smoke() -> Result<()> {
             end: fx.window_end,
             limit: 10,
             server_filter: Some("test"),
-            sort_order: "call_count",
+            sort: ToolListSort::ExecutionCount,
         })
         .await?;
     assert!(filtered.iter().any(|r| r.tool_name.as_str() == tool));
 
-    let stats = repo.get_stats(fx.window_start, fx.window_end, None).await?;
+    let stats = repo.stats(fx.window_start, fx.window_end, None).await?;
     assert!(stats.total_executions >= 2);
     let _stats_f = repo
-        .get_stats(fx.window_start, fx.window_end, Some("test"))
+        .stats(fx.window_start, fx.window_end, Some("test"))
         .await?;
     let exists = repo
-        .tool_exists(&tool, fx.window_start, fx.window_end)
+        .tool_execution_count(&tool, fx.window_start, fx.window_end)
         .await?;
     assert!(exists >= 2);
     let _summary = repo
-        .get_tool_summary(&tool, fx.window_start, fx.window_end)
+        .tool_summary(&tool, fx.window_start, fx.window_end)
         .await?;
     let _status_break = repo
-        .get_status_breakdown(&tool, fx.window_start, fx.window_end)
+        .status_breakdown(&tool, fx.window_start, fx.window_end)
         .await?;
     let _top_errs = repo
-        .get_top_errors(&tool, fx.window_start, fx.window_end)
+        .top_errors(&tool, fx.window_start, fx.window_end)
         .await?;
-    let _by_agent = repo
-        .get_usage_by_agent(&tool, fx.window_start, fx.window_end)
+    let by_agent = AgentActivityReportRepository::new(&fx.db)
+        .tool_usage_by_agent(&tool, fx.window_start, fx.window_end)
         .await?;
+    assert!(
+        by_agent
+            .iter()
+            .any(|r| r.caller == ToolCaller::DirectCall && r.usage_count >= 2),
+        "executions outside any task are direct calls: {by_agent:?}"
+    );
     let _trend = repo
-        .get_executions_for_trends(fx.window_start, fx.window_end, None)
+        .executions_for_trends(fx.window_start, fx.window_end, None)
         .await?;
     let _trend_f = repo
-        .get_executions_for_trends(fx.window_start, fx.window_end, Some("tool"))
+        .executions_for_trends(fx.window_start, fx.window_end, Some("tool"))
         .await?;
 
     fx.cleanup().await?;
@@ -352,29 +379,27 @@ async fn cost_repository_per_user_paths() -> Result<()> {
     let task_a = fx.insert_task("agent-a").await?;
     fx.insert_ai_request_for_task(&task_a, 1_000).await?;
     fx.insert_ai_request_for_task(&task_a, 2_000).await?;
-    let repo = CostAnalyticsRepository::new(&fx.db);
+    let repo = AiUsageReportRepository::new(&fx.db);
     let summary = repo
-        .get_summary_for_user(&fx.user_typed, fx.window_start, fx.window_end)
+        .summary_for_user(&fx.user_typed, fx.window_start, fx.window_end)
         .await?;
     assert_eq!(summary.cost, Some(3_000));
     let by_model = repo
-        .get_breakdown_by_model_for_user(&fx.user_typed, fx.window_start, fx.window_end, 10)
+        .breakdown_by_model_for_user(&fx.user_typed, fx.window_start, fx.window_end, 10)
         .await?;
     assert!(!by_model.is_empty());
     let by_provider = repo
-        .get_breakdown_by_provider(fx.window_start, fx.window_end, 10)
+        .breakdown_by_provider(fx.window_start, fx.window_end, 10)
         .await?;
     assert!(!by_provider.is_empty());
     let by_model_all = repo
-        .get_breakdown_by_model(fx.window_start, fx.window_end, 10)
+        .breakdown_by_model(fx.window_start, fx.window_end, 10)
         .await?;
     assert!(!by_model_all.is_empty());
-    let trends = repo
-        .get_costs_for_trends(fx.window_start, fx.window_end)
-        .await?;
+    let trends = repo.cost_trends(fx.window_start, fx.window_end).await?;
     assert!(!trends.is_empty());
     let prev_cost = repo
-        .get_previous_cost(fx.window_start - Duration::days(2), fx.window_start)
+        .previous_cost(fx.window_start - Duration::days(2), fx.window_start)
         .await?;
     let _ = prev_cost;
 
@@ -391,10 +416,10 @@ async fn cost_breakdowns_skip_requests_rejected_before_routing() -> Result<()> {
     let task = fx.insert_task("agent-a").await?;
     fx.insert_ai_request_for_task(&task, 1_000).await?;
     fx.insert_rejected_ai_request().await?;
-    let repo = CostAnalyticsRepository::new(&fx.db);
+    let repo = AiUsageReportRepository::new(&fx.db);
 
     let by_model = repo
-        .get_breakdown_by_model(fx.window_start, fx.window_end, 10)
+        .breakdown_by_model(fx.window_start, fx.window_end, 10)
         .await?;
     assert!(
         by_model.iter().all(|r| r.name == "mod"),
@@ -402,7 +427,7 @@ async fn cost_breakdowns_skip_requests_rejected_before_routing() -> Result<()> {
     );
 
     let by_provider = repo
-        .get_breakdown_by_provider(fx.window_start, fx.window_end, 10)
+        .breakdown_by_provider(fx.window_start, fx.window_end, 10)
         .await?;
     assert!(
         by_provider.iter().all(|r| r.name == "prov"),
@@ -410,7 +435,7 @@ async fn cost_breakdowns_skip_requests_rejected_before_routing() -> Result<()> {
     );
 
     let by_model_user = repo
-        .get_breakdown_by_model_for_user(&fx.user_typed, fx.window_start, fx.window_end, 10)
+        .breakdown_by_model_for_user(&fx.user_typed, fx.window_start, fx.window_end, 10)
         .await?;
     assert!(by_model_user.iter().all(|r| r.name == "mod"));
 
@@ -419,20 +444,25 @@ async fn cost_breakdowns_skip_requests_rejected_before_routing() -> Result<()> {
 }
 
 #[tokio::test]
-async fn content_analytics_repository_smoke() -> Result<()> {
+async fn content_audience_smoke() -> Result<()> {
     let fx = Fixture::new().await?;
-    let repo = ContentAnalyticsRepository::new(&fx.db);
+    let repo = ContentAudienceRepository::new(&fx.db);
     let _top = repo
-        .get_top_content(fx.window_start, fx.window_end, 10)
+        .top_content_views(fx.window_start, fx.window_end, 10)
         .await?;
     let _stats = repo.get_stats(fx.window_start, fx.window_end).await?;
     let _trend = repo
         .get_content_for_trends(fx.window_start, fx.window_end)
         .await?;
-    let popular = repo
-        .popular_content(&SourceId::new(format!("src-{}", Uuid::new_v4())), 30, 5)
+    let source = SourceId::new(format!("src-{}", Uuid::new_v4()));
+    let viewers = repo
+        .endpoint_viewers(&source_endpoint_prefix(&source), 30)
         .await?;
-    assert!(popular.is_empty());
+    assert!(viewers.is_empty());
+    let items = ContentAudienceReportRepository::new(&fx.db)
+        .source_content(&source)
+        .await?;
+    assert!(items.is_empty());
 
     fx.cleanup().await?;
     Ok(())

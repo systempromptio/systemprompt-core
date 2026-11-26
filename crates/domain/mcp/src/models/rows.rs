@@ -13,6 +13,7 @@ use systemprompt_identifiers::{
 };
 
 use crate::repository::McpArtifactRecord;
+use systemprompt_traits::usage_reports::mcp::ToolListRow;
 
 #[derive(Debug)]
 pub(crate) struct McpArtifactRow {
@@ -71,6 +72,28 @@ impl From<McpArtifactRow> for McpArtifactRecord {
             secret_redactions: row.secret_redactions,
             created_at: row.created_at,
             expires_at: row.expires_at,
+        }
+    }
+}
+
+pub(crate) struct ToolListDbRow {
+    pub(crate) tool_name: String,
+    pub(crate) server_name: String,
+    pub(crate) execution_count: i64,
+    pub(crate) success_count: i64,
+    pub(crate) avg_time: f64,
+    pub(crate) last_used: DateTime<Utc>,
+}
+
+impl From<ToolListDbRow> for ToolListRow {
+    fn from(row: ToolListDbRow) -> Self {
+        Self {
+            tool_name: McpToolName::new(row.tool_name),
+            server_name: McpServerId::new(row.server_name),
+            execution_count: row.execution_count,
+            success_count: row.success_count,
+            avg_time: row.avg_time,
+            last_used: row.last_used,
         }
     }
 }
