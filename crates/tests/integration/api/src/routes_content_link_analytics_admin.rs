@@ -12,8 +12,8 @@ use axum::http::{Request, header};
 use systemprompt_api::services::server::{ReadinessState, setup_api_server};
 use systemprompt_database::DbPool;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, seed_admin_credential,
-    seed_bridge_credential, test_db_pool,
+    ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config,
+    seed_admin_credential, seed_bridge_credential, test_db_pool,
 };
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -31,7 +31,8 @@ async fn boot() -> anyhow::Result<(axum::Router, DbPool)> {
     let pool = test_db_pool().await;
     let mut config = fixture_config(&bootstrap.database_url);
     config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
-    let ctx = fixture_app_context_with_config(config).await?;
+    let ctx = fixture_app_context_with_extensions(config, super::common::reference_admitted(&[])?)
+        .await?;
     let router = setup_api_server(
         &ctx,
         systemprompt_api::services::server::routes::Composed {
@@ -48,7 +49,12 @@ async fn boot() -> anyhow::Result<(axum::Router, DbPool)> {
 fn read(template: &str, bearer: Option<&str>) -> anyhow::Result<Request<Body>> {
     let mut builder = Request::builder()
         .uri(template.replace("{id}", &Uuid::new_v4().to_string()))
-        .header(header::HOST, "127.0.0.1");
+        .header(header::HOST, "127.0.0.1")
+        .header(
+            header::USER_AGENT,
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 \
+             Safari/537.36",
+        );
     if let Some(token) = bearer {
         builder = builder.header(header::AUTHORIZATION, format!("Bearer {token}"));
     }
