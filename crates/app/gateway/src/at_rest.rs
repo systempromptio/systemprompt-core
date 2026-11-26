@@ -31,14 +31,11 @@ use std::sync::{Arc, Mutex};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_security::at_rest::{AtRestCipher, MasterKey};
 
-const JOURNAL_LABEL: &[u8] = b"systemprompt.gateway-journal.v1";
 const GATEWAY_MEMBER: &str = "gateway";
-const JOURNAL_DIR: &str = "gateway-journal";
 
-use chacha20poly1305::ChaCha20Poly1305;
-use chacha20poly1305::aead::KeyInit;
-
-use crate::audit::journal::{GatewayJournal, JournalReseal, reseal_segments};
+use crate::audit::journal::{
+    GatewayJournal, JOURNAL_DIR, JournalReseal, journal_cipher, reseal_segments,
+};
 use crate::error::GatewayAuditError;
 
 #[derive(Debug, thiserror::Error)]
@@ -51,12 +48,6 @@ pub enum GatewayAtRestError {
     Journal(#[source] GatewayAuditError),
     #[error("the gateway journal handle is poisoned")]
     Poisoned,
-    #[error(
-        "the gateway journal holds {segments} segment(s) sealed before 0.88 with receipts not yet \
-         settled; run `systemprompt admin secrets reseal --member gateway --apply` before \
-         starting the gateway"
-    )]
-    PreUpgradeJournal { segments: u64 },
 }
 
 /// The accounting journal and the at-rest cipher, keyed once from the
@@ -100,22 +91,6 @@ impl GatewayAtRest {
         if let Some(journal) = opened.as_ref() {
             return Ok(journal.clone());
         }
-        let master = key;
-        let key = master
-            .derive(JOURNAL_LABEL, &ExtensionId::new(GATEWAY_MEMBER))
-            .map_err(|_unkeyable| GatewayAtRestError::KeyNotHeld)?;
-        let pending = reseal_segments(
-            &state_dir.join(JOURNAL_DIR),
-            &ChaCha20Poly1305::new(&key.into()),
-            master,
-            false,
-        )
-        .map_err(GatewayAtRestError::Journal)?;
-        if pending.pre_088 > 0 {
-            return Err(GatewayAtRestError::PreUpgradeJournal {
-                segments: pending.pre_088,
-            });
-        }
         let journal = GatewayJournal::open(state_dir, key).map_err(GatewayAtRestError::Journal)?;
         *opened = Some(journal.clone());
         drop(opened);
@@ -128,16 +103,9 @@ impl GatewayAtRest {
             .state_dir
             .as_ref()
             .ok_or(GatewayAtRestError::NoStateDir)?;
-        let key = master
-            .derive(JOURNAL_LABEL, &ExtensionId::new(GATEWAY_MEMBER))
-            .map_err(|_unkeyable| GatewayAtRestError::KeyNotHeld)?;
-        reseal_segments(
-            &state_dir.join(JOURNAL_DIR),
-            &ChaCha20Poly1305::new(&key.into()),
-            master,
-            apply,
-        )
-        .map_err(GatewayAtRestError::Journal)
+        let cipher = journal_cipher(master).map_err(GatewayAtRestError::Journal)?;
+        reseal_segments(&state_dir.join(JOURNAL_DIR), &cipher, master, apply)
+            .map_err(GatewayAtRestError::Journal)
     }
 
     #[must_use]

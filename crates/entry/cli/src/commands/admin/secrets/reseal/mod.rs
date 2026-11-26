@@ -72,14 +72,13 @@ pub struct ColumnReport {
     pub member_sealed: u64,
     pub resealed: u64,
     pub undecodable: u64,
-    pub unkeyed: u64,
     pub unwritten: u64,
 }
 
 impl ColumnReport {
     #[must_use]
     pub const fn undecided(&self) -> u64 {
-        self.undecodable + self.unkeyed + self.unwritten
+        self.undecodable + self.unwritten
     }
 }
 
@@ -147,10 +146,6 @@ pub async fn reseal_column(
         let mut replacements = Vec::new();
         for row in &rows {
             report.total += 1;
-            if row.keys.iter().any(Option::is_none) {
-                report.unkeyed += 1;
-                continue;
-            }
             match ciphers.judge(column.layout, row) {
                 RowState::MemberSealed => report.member_sealed += 1,
                 RowState::Undecodable => report.undecodable += 1,
@@ -249,7 +244,6 @@ pub(super) async fn execute(args: ResealArgs, host: &dyn KernelHost) -> Result<C
                 member_sealed = report.member_sealed,
                 resealed = report.resealed,
                 undecodable = report.undecodable,
-                unkeyed = report.unkeyed,
                 unwritten = report.unwritten,
                 applied = args.apply,
                 "member re-seal"
@@ -274,8 +268,8 @@ pub(super) async fn execute(args: ResealArgs, host: &dyn KernelHost) -> Result<C
     if undecided > 0 {
         bail!(
             "{undecided} value(s) were left as they are: they opened under neither the raw scheme \
-             nor the member cipher (undecodable), their key has a NULL column so no row can be \
-             named (unkeyed), or they changed while being re-sealed (unwritten; re-run): {}",
+             nor the member cipher (undecodable), or they changed while being re-sealed \
+             (unwritten; re-run): {}",
             serde_json::to_string(&outputs).unwrap_or_default()
         );
     }

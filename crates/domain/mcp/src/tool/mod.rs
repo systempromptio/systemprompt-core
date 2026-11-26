@@ -7,6 +7,11 @@
 //! records the completion. [`McpToolExecutions`] is the per-server factory the
 //! member provides.
 //!
+//! `finish` takes the presented `ToolRun` as a key only: the execution is
+//! completed, and its artifact filed, under the tool, context and start time
+//! `begin` bound for that execution id on this executor. A run this executor
+//! did not begin, or one already finished, is refused.
+//!
 //! `INTENT_CLAIM_WINDOW_SECONDS` is how far back an execution may reach for
 //! an unclaimed intent. It is shared with the gateway's external-server audit
 //! so both correlate over one window.
@@ -44,6 +49,7 @@ pub const INTENT_CLAIM_WINDOW_SECONDS: i64 = 120;
 
 #[derive(Clone, Debug)]
 pub struct McpToolExecutor {
+    in_flight: Arc<execution::InFlightRuns>,
     tool_usage_repo: Arc<ToolUsageRepository>,
     intent_claims: Option<IntentClaimService>,
     ingest: Arc<ArtifactIngest>,
@@ -70,6 +76,7 @@ impl McpToolExecutor {
             verification: callers,
         } = server;
         Self {
+            in_flight: Arc::default(),
             intent_claims: intents
                 .map(|intents| IntentClaimService::new(intents, Arc::clone(&tool_usage_repo))),
             tool_usage_repo,
@@ -93,7 +100,10 @@ impl McpToolExecutor {
             return ctx.clone();
         };
         if let Some(call_id) = ctx.ai_tool_call_id() {
-            if let Err(e) = intent_claims.claim_exact(call_id, exec_id).await {
+            if let Err(e) = intent_claims
+                .claim_exact(call_id, ctx.session_id(), exec_id)
+                .await
+            {
                 tracing::warn!(tool = %tool_name, %exec_id, error = %e, "Intent not claimed");
             }
             return ctx.clone();

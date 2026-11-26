@@ -53,6 +53,7 @@ fn identity(user: &AuthenticatedUser) -> McpHopIdentity {
         purpose: None,
         interaction: None,
         mcp_session: None,
+        execution: None,
     }
 }
 

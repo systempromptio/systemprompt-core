@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "CLI"
+text = "`admin secrets reseal` re-seals a row whose declared key has a NULL column through the same compare-and-swap, which now also compares the nonce; an audit failure after the writes says the values were re-sealed."

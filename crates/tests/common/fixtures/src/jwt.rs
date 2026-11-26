@@ -171,6 +171,7 @@ pub fn mint_mcp_hop(
         purpose: None,
         interaction: None,
         mcp_session: mcp_session.map(str::to_owned),
+        execution: None,
     };
     test_token_authority(issuer)
         .mint_mcp_hop(server, &identity)
@@ -198,6 +199,7 @@ pub fn fixture_hop_identity(
         purpose: ctx.caller_purpose().map(str::to_owned),
         interaction: None,
         mcp_session: None,
+        execution: Some(systemprompt_models::auth::McpHopExecution::of(ctx)),
     }
 }
 

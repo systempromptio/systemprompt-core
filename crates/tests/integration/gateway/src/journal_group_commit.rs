@@ -78,9 +78,7 @@ async fn opened_audit(repos: &GatewayRepositories, owner: &UserId) -> GatewayAud
 fn journal_with(state: &Path, sync: Arc<dyn JournalSync>) -> GatewayJournal {
     GatewayJournal::open_with(
         state,
-        systemprompt_test_fixtures::ensure_test_secrets_bootstrap()
-            .encryption_master_key()
-            .expect("encryption master key"),
+        &systemprompt_test_fixtures::fixture_master_key(),
         sync,
     )
     .expect("gateway journal opens")

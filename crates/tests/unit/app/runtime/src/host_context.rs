@@ -264,6 +264,7 @@ async fn the_token_authority_the_host_holds_verifies_and_never_signs() {
         purpose: None,
         interaction: None,
         mcp_session: None,
+        execution: None,
     };
     let refused = tokens
         .mint_mcp_hop(&server, &identity)

@@ -36,6 +36,7 @@ fn identity() -> McpHopIdentity {
         purpose: None,
         interaction: None,
         mcp_session: Some("mcp-sess-1".to_owned()),
+        execution: None,
     }
 }
 

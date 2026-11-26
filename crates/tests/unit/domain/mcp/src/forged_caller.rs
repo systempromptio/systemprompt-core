@@ -6,9 +6,12 @@ use rmcp::model::CallToolRequestParams;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use systemprompt_ai::repository::AiRequestRepository;
-use systemprompt_extension::mcp::{McpToolHandler, VerifiedCaller, execute};
+use systemprompt_extension::mcp::{
+    McpToolHandler, ToolExecution, ToolOutput, ToolRun, VerifiedCaller, execute,
+};
 use systemprompt_identifiers::{
-    AgentName, ContextId, JwtToken, McpExecutionId, McpServerId, SessionId, TraceId, UserId,
+    AgentName, AiToolCallId, ContextId, JwtToken, McpExecutionId, McpServerId, McpToolName,
+    SessionId, TaskId, TraceId, UserId,
 };
 use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_mcp::services::ui_renderer::UiRendererRegistry;
@@ -166,4 +169,163 @@ async fn a_token_cannot_carry_another_session() {
     let mut other = ctx;
     other.request.session_id = SessionId::new("s-stolen");
     assert_refused(VerifiedCaller::presented(token, other)).await;
+}
+
+fn admitted() -> (JwtToken, RequestContext) {
+    let caller = fixture_verified_caller(&McpServerId::new(SERVER), &ctx_for("user-a"));
+    (caller.hop_token().clone(), caller.context().clone())
+}
+
+#[tokio::test]
+async fn an_edited_context_id_is_refused() {
+    let (token, ctx) = admitted();
+    assert_refused(VerifiedCaller::presented(
+        token,
+        ctx.with_context_id(ContextId::generate()),
+    ))
+    .await;
+}
+
+#[tokio::test]
+async fn an_edited_task_id_is_refused() {
+    let (token, ctx) = admitted();
+    assert_refused(VerifiedCaller::presented(
+        token,
+        ctx.with_task_id(TaskId::new("task-of-another-conversation")),
+    ))
+    .await;
+}
+
+#[tokio::test]
+async fn an_edited_trace_id_is_refused() {
+    let (token, mut ctx) = admitted();
+    ctx.execution.trace_id = TraceId::new("t-another-trace");
+    assert_refused(VerifiedCaller::presented(token, ctx)).await;
+}
+
+#[tokio::test]
+async fn an_edited_ai_tool_call_id_is_refused() {
+    let (token, ctx) = admitted();
+    assert_refused(VerifiedCaller::presented(
+        token,
+        ctx.with_ai_tool_call_id(AiToolCallId::new("call-of-another-session")),
+    ))
+    .await;
+}
+
+#[tokio::test]
+async fn an_edited_agent_name_is_refused() {
+    let (token, ctx) = admitted();
+    assert_refused(VerifiedCaller::presented(
+        token,
+        ctx.with_agent_name(AgentName::try_new("agent-elsewhere").expect("agent")),
+    ))
+    .await;
+}
+
+#[tokio::test]
+async fn an_edited_user_record_is_refused() {
+    let user = systemprompt_models::auth::AuthenticatedUser::new(
+        UserId::new("user-rec"),
+        "user-rec".to_owned(),
+        "user-rec@example.test".to_owned(),
+        vec![systemprompt_models::auth::Permission::User],
+    );
+    let ctx = ctx_for("user-rec").with_user(user.clone());
+    let caller = fixture_verified_caller(&McpServerId::new(SERVER), &ctx);
+    let mut edited = user;
+    edited.roles.push("admin".to_owned());
+    edited.email = "someone-else@example.test".to_owned();
+    assert_refused(VerifiedCaller::presented(
+        caller.hop_token().clone(),
+        caller.context().clone().with_user(edited),
+    ))
+    .await;
+}
+
+#[tokio::test]
+async fn a_run_the_executor_did_not_begin_is_refused_at_finish() {
+    let exec = executor().await;
+    let forged = ToolRun {
+        exec_id: McpExecutionId::generate(),
+        tool_name: McpToolName::new("witness"),
+        context: ctx_for("user-b"),
+        started_at: chrono::Utc::now(),
+    };
+    let outcome = exec
+        .finish(
+            forged,
+            Ok(ToolOutput {
+                value: serde_json::json!({"forged": true}),
+                summary: "forged".to_owned(),
+                artifact_type: "text".to_owned(),
+                title: None,
+                text_body: None,
+                terse_wire: false,
+            }),
+            &ClientProfile::unknown(),
+        )
+        .await;
+    assert!(outcome.is_err(), "a forged run files nothing");
+}
+
+#[tokio::test]
+async fn finish_records_under_the_context_begin_bound_not_the_presented_run() {
+    let exec = executor().await;
+    let ctx = ctx_for("user-a");
+    let caller = fixture_verified_caller(&McpServerId::new(SERVER), &ctx);
+    let mut run = exec
+        .begin(
+            McpToolName::new("witness"),
+            &CallToolRequestParams::new("witness".to_owned()),
+            &caller,
+        )
+        .await
+        .expect("begin");
+    let bound = run.context.execution.context_id.clone();
+    run.context = run.context.with_context_id(ContextId::generate());
+    let exec_id = run.exec_id.clone();
+    exec.finish(
+        run,
+        Ok(ToolOutput {
+            value: serde_json::json!({"ok": true}),
+            summary: "ok".to_owned(),
+            artifact_type: "text".to_owned(),
+            title: None,
+            text_body: None,
+            terse_wire: false,
+        }),
+        &ClientProfile::unknown(),
+    )
+    .await
+    .expect("a run this executor began finishes");
+    let db = test_db_pool().await;
+    let recorded: Option<String> = sqlx::query_scalar(
+        "SELECT context_id FROM mcp_artifacts WHERE mcp_execution_id = $1 LIMIT 1",
+    )
+    .bind(exec_id.as_str())
+    .fetch_one(db.pool().as_ref())
+    .await
+    .expect("the finished run filed an artifact");
+    assert_eq!(
+        recorded.as_deref(),
+        Some(bound.as_str()),
+        "the artifact is filed under the bound context"
+    );
+    let again = ToolRun {
+        exec_id,
+        tool_name: McpToolName::new("witness"),
+        context: ctx,
+        started_at: chrono::Utc::now(),
+    };
+    assert!(
+        exec.finish(
+            again,
+            Err(McpError::internal_error("second finish", None)),
+            &ClientProfile::unknown()
+        )
+        .await
+        .is_err(),
+        "a run is finished once"
+    );
 }

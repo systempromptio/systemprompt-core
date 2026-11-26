@@ -104,7 +104,6 @@ fn report(column: &ResealColumn, counts: [u64; 4]) -> ColumnReport {
         member_sealed: counts[1],
         resealed: counts[2],
         undecodable: counts[3],
-        unkeyed: 0,
         unwritten: 0,
     }
 }
@@ -317,7 +316,7 @@ async fn a_table_not_recorded_to_the_member_is_refused() {
 }
 
 #[tokio::test]
-async fn a_row_with_a_null_key_is_counted_unkeyed_and_left_as_it_is() {
+async fn a_row_with_a_null_key_is_resealed_by_its_key_and_its_ciphertext() {
     let schema = ScratchSchema::create("resealnull").await;
     let pool = schema.pool(2).await;
     sqlx::query(
@@ -343,28 +342,74 @@ async fn a_row_with_a_null_key_is_counted_unkeyed_and_left_as_it_is() {
     let applied = reseal_column(&store, &COLUMN, &ciphers, true)
         .await
         .expect("apply");
-    assert_eq!(applied.total, 2);
-    assert_eq!(applied.resealed, 1);
-    assert_eq!(
-        applied.unkeyed, 1,
-        "the NULL-keyed row is reported, not silently skipped"
-    );
+    assert_eq!((applied.total, applied.resealed), (2, 2));
     assert_eq!(
         applied.undecided(),
-        1,
-        "the run is not complete while it remains"
+        0,
+        "a NULL key column leaves the operator nothing to do"
     );
-    let untouched: Vec<u8> =
+    let null_keyed: Vec<u8> =
         sqlx::query_scalar("SELECT ciphertext FROM reseal_credentials WHERE user_id IS NULL")
             .fetch_one(&pool)
             .await
             .expect("read back");
     assert!(
-        !untouched.starts_with(MEMBER_CIPHER_ENVELOPE.as_bytes()),
-        "an unkeyed row is never written"
+        null_keyed.starts_with(MEMBER_CIPHER_ENVELOPE.as_bytes()),
+        "the NULL-keyed row is re-sealed"
     );
+    let opened = member_cipher("acme")
+        .open(std::str::from_utf8(&null_keyed).expect("an envelope is text"))
+        .expect("the re-sealed value opens under the member cipher");
+    assert_eq!(opened, b"token");
     let again = reseal_column(&store, &COLUMN, &ciphers, true)
         .await
         .expect("again");
-    assert_eq!((again.resealed, again.unkeyed), (0, 1));
+    assert_eq!(
+        (again.member_sealed, again.resealed, again.undecided()),
+        (2, 0, 0)
+    );
+}
+
+#[tokio::test]
+async fn a_null_keyed_row_whose_nonce_changed_is_not_written() {
+    let schema = ScratchSchema::create("resealnonce").await;
+    let pool = schema.pool(2).await;
+    sqlx::query(
+        "CREATE TABLE reseal_credentials (user_id TEXT, provider TEXT NOT NULL, ciphertext BYTEA \
+         NOT NULL, nonce BYTEA NOT NULL)",
+    )
+    .execute(&pool)
+    .await
+    .expect("create");
+    let (nonce, sealed) = raw_seal(b"token");
+    sqlx::query("INSERT INTO reseal_credentials VALUES (NULL, 'github', $1, $2)")
+        .bind(&sealed)
+        .bind(nonce.to_vec())
+        .execute(&pool)
+        .await
+        .expect("seed");
+    let store = ResealStore::new(Arc::new(pool.clone()));
+    let target = systemprompt_database::admin::ResealTable::new(
+        COLUMN.table,
+        COLUMN.keys,
+        COLUMN.ciphertext,
+        Some("nonce"),
+    )
+    .expect("target");
+    let rows = store.page(&target, None, 10).await.expect("page");
+    sqlx::query("UPDATE reseal_credentials SET nonce = '\\x010101010101010101010101'")
+        .execute(&pool)
+        .await
+        .expect("a concurrent writer changes the nonce");
+    let written = store
+        .replace(
+            &target,
+            &[systemprompt_database::admin::Replacement {
+                row: &rows[0],
+                ciphertext: b"replacement".to_vec(),
+            }],
+        )
+        .await
+        .expect("replace");
+    assert_eq!(written, 0, "a row whose nonce changed is never overwritten");
 }

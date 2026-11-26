@@ -8,7 +8,8 @@
 //! an execution already carries (an exact execution recorded before its
 //! intent row existed, or one whose own claim failed). Such an intent is
 //! handed to the execution that holds it and the claim moves on to the next
-//! candidate. Every execution row must exist before a claim names it.
+//! candidate. Every execution row must exist before a claim names it, and an
+//! exact claim takes only an intent asked for in the claimant's own session.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -53,9 +54,10 @@ impl IntentClaimService {
     pub async fn claim_exact(
         &self,
         call: &AiToolCallId,
+        session_id: &SessionId,
         execution: &McpExecutionId,
     ) -> McpDomainResult<bool> {
-        Ok(self.intents.claim(call, execution).await?)
+        Ok(self.intents.claim(call, session_id, execution).await?)
     }
 
     pub async fn claim_inferred(
@@ -80,7 +82,8 @@ impl IntentClaimService {
             {
                 Ok(IntentStamp::Stamped) => return Ok(Some(call)),
                 Ok(IntentStamp::HeldBy(holder)) => {
-                    self.hand_over(&call, execution, &holder).await?;
+                    self.hand_over(&call, session_id, execution, &holder)
+                        .await?;
                 },
                 Ok(IntentStamp::Refused) => {
                     self.intents.release(&call, execution).await?;
@@ -112,11 +115,12 @@ impl IntentClaimService {
     async fn hand_over(
         &self,
         call: &AiToolCallId,
+        session_id: &SessionId,
         from: &McpExecutionId,
         holder: &McpExecutionId,
     ) -> McpDomainResult<()> {
         self.intents.release(call, from).await?;
-        let handed = self.intents.claim(call, holder).await?;
+        let handed = self.intents.claim(call, session_id, holder).await?;
         tracing::info!(
             %call,
             claimant = %from,

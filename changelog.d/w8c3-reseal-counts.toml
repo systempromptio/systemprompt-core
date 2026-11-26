@@ -1,7 +1,7 @@
 [root]
 section = "Fixed"
 area = "CLI"
-text = "`admin secrets reseal` reports rows whose key has a NULL column and rows that changed while being re-sealed, exits non-zero while any remain, and records the completed counts in a second decision row."
+text = "`admin secrets reseal` reports rows that changed while being re-sealed, exits non-zero while any remain, and records the completed counts in a second decision row."
 
 [[crate]]
 name = "systemprompt-database"
@@ -11,4 +11,4 @@ text = "`SealedRow.keys` is `Vec<Option<String>>`; `ResealStore::page` takes the
 [[crate]]
 name = "systemprompt-cli"
 section = "Breaking"
-text = "`ColumnReport` gains `unkeyed` and `unwritten`."
+text = "`ColumnReport` gains `unwritten`."
