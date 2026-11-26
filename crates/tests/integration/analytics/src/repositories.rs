@@ -1,5 +1,6 @@
-//! Smoke integration tests covering every repository on the
-//! `systemprompt_analytics` crate. The tests insert just enough data to drive
+//! Smoke integration tests covering the `systemprompt_analytics` repositories
+//! and the report ports the `ai` and `agent` members implement over their
+//! report views. The tests insert just enough data to drive
 //! each public query path, asserting cheaply that the call succeeds and that
 //! shape/aggregate invariants hold. They focus on covering query branches
 //! (engaged_only, with_filters, attribution edges) rather than business logic.
@@ -7,17 +8,22 @@
 use anyhow::Result;
 use chrono::{Duration, TimeZone, Utc};
 use sqlx::PgPool;
-use systemprompt_analytics::models::reporting::RequestListFilter;
+use systemprompt_agent::repository::AgentActivityReportRepository;
+use systemprompt_ai::AiUsageReportRepository;
 use systemprompt_analytics::models::{
     AnalyticsEventType, CreateAnalyticsEventInput, CreateEngagementEventInput, FlagReason,
 };
 use systemprompt_analytics::{
-    AnalyticsEventsRepository, ConversationAnalyticsRepository, EngagementRepository,
-    OverviewAnalyticsRepository, RequestAnalyticsRepository, TrafficAnalyticsRepository,
+    AnalyticsEventsRepository, EngagementRepository, OverviewAnalyticsRepository,
+    TrafficAnalyticsRepository,
 };
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_mcp::repository::ToolUsageReportRepository;
 use systemprompt_test_fixtures::test_db_pool;
+use systemprompt_traits::usage_reports::agent::AgentActivityReport;
+use systemprompt_traits::usage_reports::ai::RequestListFilter;
+use systemprompt_traits::usage_reports::mcp::ToolUsageReport;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use uuid::Uuid;
 
@@ -277,23 +283,25 @@ async fn overview_repository_smoke() -> Result<()> {
     .await?;
 
     let repo = OverviewAnalyticsRepository::new(&fx.db);
-    let conv_count = repo
-        .get_conversation_count(fx.window_start, fx.window_end)
-        .await?;
-    let _agent = repo
-        .get_agent_metrics(fx.window_start, fx.window_end)
-        .await?;
-    let req = repo
-        .get_request_metrics(fx.window_start, fx.window_end)
-        .await?;
-    let _tool = repo
-        .get_tool_metrics(fx.window_start, fx.window_end)
-        .await?;
     let active = repo.get_active_session_count(fx.window_start).await?;
     let total = repo
         .get_total_session_count(fx.window_start, fx.window_end)
         .await?;
-    let cost = repo.get_cost(fx.window_start, fx.window_end).await?;
+
+    let agents = AgentActivityReportRepository::new(&fx.db);
+    let ai = AiUsageReportRepository::new(&fx.db);
+    let tools = ToolUsageReportRepository::new(&fx.db);
+    let conv_count = agents.context_count(fx.window_start, fx.window_end).await?;
+    let agent = agents.agent_metrics(fx.window_start, fx.window_end).await?;
+    let req = ai.request_metrics(fx.window_start, fx.window_end).await?;
+    let tool = tools
+        .overview_tool_metrics(fx.window_start, fx.window_end)
+        .await?;
+    let cost = ai.overview_cost(fx.window_start, fx.window_end).await?;
+
+    assert_eq!(agent.total_tasks, 0, "the fixture seeds no agent task");
+    assert_eq!(tool.total, 0, "the fixture seeds no tool execution");
+    assert!(req.total_tokens.unwrap_or(0) >= 50);
 
     assert!(conv_count >= 1);
     assert!(req.total >= 1);
@@ -379,18 +387,18 @@ async fn request_analytics_repository_smoke() -> Result<()> {
     fx.insert_ai_request("m1", 100, 10).await?;
     fx.insert_ai_request("m2", 200, 20).await?;
 
-    let repo = RequestAnalyticsRepository::new(&fx.db);
-    let stats = repo.get_stats(fx.window_start, fx.window_end, None).await?;
+    let repo = AiUsageReportRepository::new(&fx.db);
+    let stats = repo
+        .request_stats(fx.window_start, fx.window_end, None)
+        .await?;
     assert!(stats.total >= 2);
     let stats_filtered = repo
-        .get_stats(fx.window_start, fx.window_end, Some("m1"))
+        .request_stats(fx.window_start, fx.window_end, Some("m1"))
         .await?;
     assert!(stats_filtered.total >= 1);
-    let models = repo.list_models(fx.window_start, fx.window_end, 10).await?;
+    let models = repo.model_usage(fx.window_start, fx.window_end, 10).await?;
     assert!(models.iter().any(|m| m.model == "m1"));
-    let trends = repo
-        .get_requests_for_trends(fx.window_start, fx.window_end)
-        .await?;
+    let trends = repo.request_trends(fx.window_start, fx.window_end).await?;
     assert!(trends.len() >= 2);
     let listed = repo
         .list_requests(fx.window_start, fx.window_end, &RequestListFilter::new(100))
@@ -439,9 +447,9 @@ async fn rejected_requests_are_excluded_from_model_mix_but_listed() -> Result<()
     fx.insert_ai_request("m1", 100, 10).await?;
     fx.insert_rejected_ai_request().await?;
 
-    let repo = RequestAnalyticsRepository::new(&fx.db);
+    let repo = AiUsageReportRepository::new(&fx.db);
 
-    let models = repo.list_models(fx.window_start, fx.window_end, 10).await?;
+    let models = repo.model_usage(fx.window_start, fx.window_end, 10).await?;
     assert!(
         models.iter().all(|m| m.model == "m1"),
         "a pre-routing rejection must not appear as a model in the mix"
@@ -462,18 +470,16 @@ async fn rejected_requests_are_excluded_from_model_mix_but_listed() -> Result<()
 }
 
 #[tokio::test]
-async fn conversation_repository_smoke() -> Result<()> {
+async fn conversation_report_smoke() -> Result<()> {
     let fx = Fixture::new().await?;
-    let repo = ConversationAnalyticsRepository::new(&fx.db);
+    let repo = AgentActivityReportRepository::new(&fx.db);
     let _agent = repo
         .list_agent_contexts(fx.window_start, fx.window_end, 50, None)
         .await?;
-    let _gw = repo
+    let _gw = AiUsageReportRepository::new(&fx.db)
         .list_gateway_sessions(fx.window_start, fx.window_end, 50, None)
         .await?;
-    let ctx_ct = repo
-        .get_context_count(fx.window_start, fx.window_end)
-        .await?;
+    let ctx_ct = repo.context_count(fx.window_start, fx.window_end).await?;
     assert!(ctx_ct >= 1);
 
     sqlx::query(
@@ -486,9 +492,7 @@ async fn conversation_repository_smoke() -> Result<()> {
     .bind(fx.window_start + Duration::minutes(1))
     .execute(&fx.pool)
     .await?;
-    let ctx_ct_after = repo
-        .get_context_count(fx.window_start, fx.window_end)
-        .await?;
+    let ctx_ct_after = repo.context_count(fx.window_start, fx.window_end).await?;
     assert_eq!(
         ctx_ct_after, ctx_ct,
         "cli_session contexts must be excluded from conversation counts"
@@ -502,20 +506,16 @@ async fn conversation_repository_smoke() -> Result<()> {
             .all(|c| c.context_id.as_str() != format!("repo_cli_{}", fx.tag)),
         "cli_session contexts must be excluded from conversation listings"
     );
-    let _tasks = repo.get_task_stats(fx.window_start, fx.window_end).await?;
-    let msg = repo
-        .get_message_count(fx.window_start, fx.window_end)
-        .await?;
+    let _tasks = repo.task_stats(fx.window_start, fx.window_end).await?;
+    let msg = repo.message_count(fx.window_start, fx.window_end).await?;
     assert!(msg >= 0);
     let ctx_ts = repo
-        .get_context_timestamps(fx.window_start, fx.window_end)
+        .context_timestamps(fx.window_start, fx.window_end)
         .await?;
     assert!(!ctx_ts.is_empty());
-    let _task_ts = repo
-        .get_task_timestamps(fx.window_start, fx.window_end)
-        .await?;
+    let _task_ts = repo.task_timestamps(fx.window_start, fx.window_end).await?;
     let _msg_ts = repo
-        .get_message_timestamps(fx.window_start, fx.window_end)
+        .message_timestamps(fx.window_start, fx.window_end)
         .await?;
 
     fx.cleanup().await?;

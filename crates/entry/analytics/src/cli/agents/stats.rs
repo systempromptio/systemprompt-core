@@ -6,13 +6,12 @@
 use anyhow::Result;
 use clap::Args;
 use std::path::PathBuf;
-use systemprompt_analytics::AgentAnalyticsRepository;
-use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
 
 use super::AgentStatsOutput;
 use crate::cli::shared::{export_single_to_csv, parse_time_range};
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
+use systemprompt_traits::usage_reports::agent::AgentActivityReport;
 
 #[derive(Debug, Args)]
 pub struct StatsArgs {
@@ -34,23 +33,14 @@ pub struct StatsArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute_with_pool(
+pub(super) async fn execute(
     args: StatsArgs,
-    pool: &DbPool,
-    _config: &CliConfig,
-) -> Result<CommandOutput> {
-    let repo = AgentAnalyticsRepository::new(pool);
-    execute_internal(args, &repo).await
-}
-
-async fn execute_internal(
-    args: StatsArgs,
-    repo: &AgentAnalyticsRepository,
+    repo: &dyn AgentActivityReport,
 ) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
-    let stats = repo.get_stats(start, end, args.agent.as_deref()).await?;
-    let ai_stats = repo.get_ai_stats(start, end).await?;
+    let stats = repo.agent_stats(start, end, args.agent.as_deref()).await?;
+    let ai_stats = repo.agent_ai_stats(start, end).await?;
 
     let success_rate = if stats.total_tasks > 0 {
         (stats.completed_tasks as f64 / stats.total_tasks as f64) * 100.0

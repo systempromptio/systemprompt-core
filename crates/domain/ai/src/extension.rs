@@ -2,7 +2,8 @@
 //! provides, and the AI jobs, retention purges and rollup drains.
 //!
 //! Open: the request attribution lookup, database-only and keyed by the
-//! caller's own request.
+//! caller's own request, and `DynAiUsageReport`, the usage and cost reports
+//! over this member's report views that the analytics commands read.
 //!
 //! Sealed (kernel code and core provide fns read them; no member command,
 //! job, runner, plane or route state does):
@@ -23,7 +24,11 @@
 //!   service lists and runs no tools) and the agent member's context
 //!   materializer (optional). When the catalog serves no default model it is
 //!   [`InferenceNotConfigured`], which answers every call with a typed
-//!   configuration error.
+//!   configuration error;
+//! - after governance, `DynProfileUsageSource`: the profile usage windows of
+//!   any user, read by the profile route and page, with the agent member's
+//!   recent-conversation report when it is provided (read optionally: without
+//!   it the summary lists no recent conversations).
 //!
 //! Its schema names no table of an optional member: the tool-call intent's
 //! execution id is a soft link to the mcp member's executions, and the
@@ -40,14 +45,19 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
+use systemprompt_extension::profile_usage::DynProfileUsageSource;
 use systemprompt_models::attribution::DynRequestAttributionLookup;
+use systemprompt_traits::usage_reports::agent::DynAgentActivityReport;
+use systemprompt_traits::usage_reports::ai::DynAiUsageReport;
 use systemprompt_traits::{
     DynCatalogMigrationPort, DynSafetyFindingsReader, DynToolCallIntentClaims,
 };
 
 use crate::repository::{
-    AiRequestRepository, AiSafetyFindingRepository, CatalogMigrationRepository,
+    AiRequestRepository, AiSafetyFindingRepository, AiUsageReportRepository,
+    CatalogMigrationRepository,
 };
+use crate::services::ProfileUsageService;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AiExtension;
@@ -62,6 +72,7 @@ impl Extension for AiExtension {
     }
 
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        c.domain_config(systemprompt_manifest::validators::AiConfigValidator::boxed);
         for schema in request_schemas().into_iter().chain(gateway_schemas()) {
             c.schema(schema);
         }
@@ -97,6 +108,7 @@ impl Extension for AiExtension {
                 },
             )
             .provide_sealed_after_governance(crate::provides::inference);
+        contribute_usage_reports(c);
         crate::jobs::contribute(c);
         c.user_purge(UserPurgeTable {
             table: "ai_requests",
@@ -131,6 +143,24 @@ impl Extension for AiExtension {
         });
         Ok(())
     }
+}
+
+fn contribute_usage_reports(c: &mut Contributions<'_>) {
+    c.provide(
+        |r: &Resolved<'_>| -> Result<DynAiUsageReport, ProvideError> {
+            let db = r.get::<DbPool>()?;
+            Ok(Arc::new(AiUsageReportRepository::new(&db)))
+        },
+    )
+    .provide_sealed_after_governance(
+        |r: &Resolved<'_>| -> Result<DynProfileUsageSource, ProvideError> {
+            let db = r.get::<DbPool>()?;
+            Ok(Arc::new(ProfileUsageService::new(
+                AiUsageReportRepository::new(&db),
+                r.optional::<DynAgentActivityReport>(),
+            )))
+        },
+    );
 }
 
 fn request_schemas() -> Vec<SchemaDefinition> {

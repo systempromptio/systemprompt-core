@@ -20,3 +20,6 @@ mod search_repository_tests;
 
 #[cfg(test)]
 mod link_service_tests;
+
+#[cfg(test)]
+mod popularity_tests;

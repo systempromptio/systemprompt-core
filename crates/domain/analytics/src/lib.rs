@@ -1,7 +1,7 @@
 //! Analytics domain crate for systemprompt.io.
 //!
-//! Provides session, fingerprint, engagement, conversation, content,
-//! tool, agent, and cost analytics on top of the `systemprompt-database`
+//! Provides session, fingerprint, engagement, traffic and content-audience
+//! analytics on top of the `systemprompt-database`
 //! abstraction. Public surface is a typed [`AnalyticsError`] boundary plus a
 //! family of repositories and services consumed by `systemprompt-api`,
 //! `systemprompt-cli`, and `systemprompt-scheduler`.
@@ -32,26 +32,22 @@ pub use geoip::{GeoIpDatabase, GeoIpUnreadable};
 pub use error::{AnalyticsError, Result};
 
 pub use models::{
-    AnalyticsEventBatchResponse, AnalyticsEventCreated, AnalyticsEventType, ContextGroupRow,
-    ContextSummaryRow, ConversionEventData, CreateAnalyticsEventBatchInput,
-    CreateAnalyticsEventInput, CreateEngagementEventInput, EngagementEvent, EngagementEventData,
-    EngagementOptionalMetrics, FingerprintAnalysisResult, FingerprintReputation, FlagReason,
-    LinkClickEventData, RecentContextRow, ScrollEventData,
+    AnalyticsEventBatchResponse, AnalyticsEventCreated, AnalyticsEventType, ConversionEventData,
+    CreateAnalyticsEventBatchInput, CreateAnalyticsEventInput, CreateEngagementEventInput,
+    EngagementEvent, EngagementEventData, EngagementOptionalMetrics, FingerprintAnalysisResult,
+    FingerprintReputation, FlagReason, LinkClickEventData, ScrollEventData,
 };
 pub use repository::{
-    ABUSE_THRESHOLD_FOR_BAN, AgentAnalyticsRepository, AnalyticsEventsRepository,
-    AnalyticsRetention, CliSessionAnalyticsRepository, ContentAnalyticsRepository,
-    ConversationAnalyticsRepository, CostAnalyticsRepository, EngagementRepository,
-    FingerprintRepository, HIGH_REQUEST_THRESHOLD, HIGH_VELOCITY_RPM, MAX_SESSIONS_PER_FINGERPRINT,
-    NavigationQuery, OverviewAnalyticsRepository, PageQuery, RequestAnalyticsRepository,
-    SUSTAINED_VELOCITY_MINUTES, SessionSignalsRepository, ToolAnalyticsRepository, ToolListParams,
-    TrafficAnalyticsRepository,
+    ABUSE_THRESHOLD_FOR_BAN, AnalyticsEventsRepository, AnalyticsRetention,
+    CliSessionAnalyticsRepository, ContentAudienceRepository, ContentViewsEntry, ContentViewsRow,
+    EngagementRepository, FingerprintRepository, HIGH_REQUEST_THRESHOLD, HIGH_VELOCITY_RPM,
+    MAX_SESSIONS_PER_FINGERPRINT, NavigationQuery, OverviewAnalyticsRepository, PageQuery,
+    SUSTAINED_VELOCITY_MINUTES, SessionSignalsRepository, TrafficAnalyticsRepository,
 };
 pub use services::{
     AnalyticsService, BEHAVIORAL_BOT_THRESHOLD, BehavioralAnalysisInput, BehavioralAnalysisResult,
-    BehavioralBotDetector, BehavioralSignal, ProfileUsageService, SessionAnalytics,
-    SessionAnalyticsBuilder, SessionBehaviourService, SignalType, collect_analysis_input,
-    detection,
+    BehavioralBotDetector, BehavioralSignal, SessionAnalytics, SessionAnalyticsBuilder,
+    SessionBehaviourService, SignalType, collect_analysis_input, detection,
 };
 
 #[cfg(feature = "geolocation")]

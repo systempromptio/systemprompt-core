@@ -19,9 +19,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::AgentName;
 
-use crate::cli::shared::with_resolved_export;
-use systemprompt_database::pool_from_handle;
+use crate::cli::shared::{report_port, with_resolved_export};
 use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_traits::usage_reports::agent::DynAgentActivityReport;
 
 #[derive(Debug, Subcommand)]
 pub enum AgentsCommands {
@@ -113,31 +113,29 @@ pub struct HourlyDistributionItem {
 }
 
 pub async fn execute(command: AgentsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
-    let pool = pool_from_handle(host.db().await?)?;
     match command {
         AgentsCommands::Stats(args) => {
-            let result =
-                stats::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
-                    .await?;
-            Ok(result)
+            let report = agent_report(host, "analytics agents stats").await?;
+            stats::execute(with_resolved_export!(args, host), report.as_ref()).await
         },
         AgentsCommands::List(args) => {
-            let result =
-                list::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
-                    .await?;
-            Ok(result)
+            let report = agent_report(host, "analytics agents list").await?;
+            list::execute(with_resolved_export!(args, host), report.as_ref()).await
         },
         AgentsCommands::Trends(args) => {
-            let result =
-                trends::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
-                    .await?;
-            Ok(result)
+            let report = agent_report(host, "analytics agents trends").await?;
+            trends::execute(with_resolved_export!(args, host), report.as_ref()).await
         },
         AgentsCommands::Show(args) => {
-            let result =
-                show::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
-                    .await?;
-            Ok(result)
+            let report = agent_report(host, "analytics agents show").await?;
+            show::execute(with_resolved_export!(args, host), report.as_ref()).await
         },
     }
+}
+
+async fn agent_report(
+    host: &dyn CommandHost,
+    report: &'static str,
+) -> Result<DynAgentActivityReport> {
+    report_port::<DynAgentActivityReport>(host, report, "agents").await
 }

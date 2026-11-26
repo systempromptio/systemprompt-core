@@ -1,43 +1,7 @@
 # owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
-src/repository/agents/detail_queries.rs#31eb9d4e78
-# owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
 src/repository/cli_sessions.rs#61693a9011
 # owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
 src/repository/cli_sessions.rs#fc4d01a5bd
-# owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
-src/repository/content_analytics.rs#1856398fb4
-# owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
-src/repository/content_analytics.rs#300907981c
-# owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
-src/repository/content_analytics.rs#35b4b35eb0
-# owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
-src/repository/content_analytics.rs#a14cd71553
-# owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
-src/repository/conversations.rs#5473c59b71
-# owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
-src/repository/conversations.rs#6258af892e
-# owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
-src/repository/conversations.rs#66f31232b1
-# owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
-src/repository/conversations.rs#79df5d63a3
-# owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
-src/repository/conversations.rs#bdcfaef331
-# owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
-src/repository/overview.rs#61693a9011
-# owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
-src/repository/overview.rs#bdcfaef331
-# owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
-src/repository/overview.rs#e65f333cfe
-# owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
-src/repository/tools/detail_queries.rs#0e0a6ea12e
-# owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
-src/repository/tools/detail_queries.rs#4e34237dc6
-# owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
-src/repository/tools/detail_queries.rs#845e184e9c
-# owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
-src/repository/tools/detail_queries.rs#8ae0a32cac
-# owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
-src/repository/tools/detail_queries.rs#c704199b8a
 # owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
 src/repository/traffic/audience.rs#26346a7980
 # owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
@@ -56,3 +20,15 @@ src/repository/traffic/mod.rs#b9577605cb
 src/repository/traffic/pages.rs#9f767c9310
 # owner: domain/analytics; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
 src/repository/traffic/pages.rs#e1d50858cb
+# owner: domain/analytics; reason: grandfathered ledger read relocated from domain/analytics with the member's report port (the owning member now answers it); debt to burn down onto a rollup
+src/repository/content_audience.rs#300907981c
+# owner: domain/analytics; reason: grandfathered ledger read relocated from domain/analytics with the member's report port (the owning member now answers it); debt to burn down onto a rollup
+src/repository/content_audience.rs#a14cd71553
+# owner: domain/analytics; reason: grandfathered ledger read relocated from domain/analytics with the member's report port (the owning member now answers it); debt to burn down onto a rollup
+src/repository/overview.rs#61693a9011
+# owner: domain/analytics; reason: grandfathered ledger read relocated from domain/analytics with the member's report port (the owning member now answers it); debt to burn down onto a rollup
+src/repository/overview.rs#e65f333cfe
+# owner: domain/analytics; reason: grandfathered ledger read relocated from domain/analytics with the member's report port (the owning member now answers it); debt to burn down onto a rollup
+src/repository/content_audience.rs#18cc967b21
+# owner: domain/analytics; reason: grandfathered ledger read relocated from domain/analytics with the member's report port (the owning member now answers it); debt to burn down onto a rollup
+src/repository/content_audience.rs#a4f4451b90

@@ -14,7 +14,8 @@ use systemprompt_extension::cli::CliConfig;
 use systemprompt_identifiers::SessionId;
 use systemprompt_runtime::DatabaseContext;
 use systemprompt_test_fixtures::{
-    seed_user_row, seed_user_session, test_database_url, test_db_pool, unique_user_id,
+    report_ports_kernel, seed_user_row, seed_user_session, test_database_url, test_db_pool,
+    unique_user_id,
 };
 use uuid::Uuid;
 
@@ -37,6 +38,7 @@ fn table_ctx(pool: &DbPool) -> CommandContext {
         DatabaseContext::from_pool(pool.clone()),
         test_database_url(),
     )
+    .with_kernel(report_ports_kernel(pool))
 }
 
 async fn seed(pool: &DbPool) {

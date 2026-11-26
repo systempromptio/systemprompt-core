@@ -6,7 +6,12 @@
 //! read, the content repositories (`Arc<ContentRepositories>`), which the
 //! `content-http` routes read, and the content–file links
 //! (`DynContentFileLinks`, open as the repository is), which the
-//! `content files` commands read. The links read their stored files through
+//! `content files` commands read; the content-audience report port
+//! (`DynContentAudienceReport`, open), which the analytics content commands
+//! read; and the audience ranking (`DynContentPopularity`, open) the content
+//! prerender orders by, provided after the early provides so it reads the
+//! viewer counts (`DynContentAudienceCounts`) the analytics member provides
+//! when that member is admitted. The links read their stored files through
 //! the `DynLinkedFileSource` the kernel's `files` member provides, which
 //! this member requires.
 //!
@@ -22,14 +27,20 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_extension::content_files::{DynContentFileLinks, DynLinkedFileSource};
 use systemprompt_extension::prelude::*;
-use systemprompt_traits::DynContentCatalogStats;
+use systemprompt_traits::usage_reports::content::{
+    DynContentAudienceCounts, DynContentAudienceReport,
+};
+use systemprompt_traits::{DynContentCatalogStats, DynContentPopularity};
 
 use crate::branding_provider::default_branding_provider;
 use crate::contract::ContentSlot;
 use crate::homepage_prerenderer::default_homepage_prerenderer;
 use crate::list_branding_provider::default_list_branding_provider;
 use crate::list_items_renderer::default_list_items_renderer;
-use crate::repository::{ContentFileRepository, ContentRepositories, ContentRepository};
+use crate::repository::{
+    ContentAudienceReportRepository, ContentFileRepository, ContentRepositories, ContentRepository,
+};
+use crate::services::ContentPopularityService;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ContentExtension;
@@ -44,6 +55,7 @@ impl Extension for ContentExtension {
     }
 
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        c.domain_config(systemprompt_manifest::validators::ContentConfigValidator::boxed);
         for schema in schemas() {
             c.schema(schema);
         }
@@ -64,6 +76,18 @@ impl Extension for ContentExtension {
                     r.get::<DynLinkedFileSource>()?,
                 ));
                 Ok(links)
+            })
+            .provide(|r: &Resolved<'_>| {
+                let report: DynContentAudienceReport =
+                    Arc::new(ContentAudienceReportRepository::new(&r.get::<DbPool>()?));
+                Ok(report)
+            })
+            .provide_after_governance(|r: &Resolved<'_>| {
+                let popularity: DynContentPopularity = Arc::new(ContentPopularityService::new(
+                    ContentAudienceReportRepository::new(&r.get::<DbPool>()?),
+                    r.optional::<DynContentAudienceCounts>(),
+                ));
+                Ok(popularity)
             });
         c.slot::<ContentSlot>()
             .page_prerenderer(|_: &Resolved<'_>| Ok(default_homepage_prerenderer()))

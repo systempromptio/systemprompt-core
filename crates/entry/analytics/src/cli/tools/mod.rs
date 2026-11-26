@@ -19,9 +19,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{AgentName, McpServerId, McpToolName};
 
-use crate::cli::shared::with_resolved_export;
-use systemprompt_database::pool_from_handle;
+use crate::cli::shared::{report_port, with_resolved_export};
 use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_traits::usage_reports::mcp::DynToolUsageReport;
 
 #[derive(Debug, Subcommand)]
 pub enum ToolsCommands {
@@ -90,7 +90,14 @@ pub struct ToolShowOutput {
     pub summary: ToolStatsOutput,
     pub status_breakdown: Vec<StatusBreakdownItem>,
     pub top_errors: Vec<ErrorItem>,
-    pub usage_by_agent: Vec<AgentUsageItem>,
+    pub usage_by_agent: AgentUsageSection,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum AgentUsageSection {
+    Available { agents: Vec<AgentUsageItem> },
+    Unavailable { reason: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -114,31 +121,23 @@ pub struct AgentUsageItem {
 }
 
 pub async fn execute(command: ToolsCommands, host: &dyn CommandHost) -> Result<CommandOutput> {
-    let pool = pool_from_handle(host.db().await?)?;
+    let report = |name: &'static str| report_port::<DynToolUsageReport>(host, name, "mcp");
     match command {
         ToolsCommands::Stats(args) => {
-            let result =
-                stats::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
-                    .await?;
-            Ok(result)
+            let port = report("analytics tools stats").await?;
+            stats::execute(with_resolved_export!(args, host), port.as_ref()).await
         },
         ToolsCommands::List(args) => {
-            let result =
-                list::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
-                    .await?;
-            Ok(result)
+            let port = report("analytics tools list").await?;
+            list::execute(with_resolved_export!(args, host), port.as_ref()).await
         },
         ToolsCommands::Trends(args) => {
-            let result =
-                trends::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
-                    .await?;
-            Ok(result)
+            let port = report("analytics tools trends").await?;
+            trends::execute(with_resolved_export!(args, host), port.as_ref()).await
         },
         ToolsCommands::Show(args) => {
-            let result =
-                show::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
-                    .await?;
-            Ok(result)
+            let port = report("analytics tools show").await?;
+            show::execute(with_resolved_export!(args, host), port.as_ref(), host).await
         },
     }
 }

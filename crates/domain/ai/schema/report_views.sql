@@ -78,3 +78,10 @@ JOIN ai_requests r ON r.id = src.request_id
 WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = r.user_id AND d.status = 'deleted'
 );
+
+-- The display name of each user the AI reports group by, for the per-user
+-- cost breakdown; the email stays in the source table.
+CREATE OR REPLACE VIEW report_ai_user_names AS
+SELECT src.id, src.name
+FROM users src
+WHERE src.status <> 'deleted';

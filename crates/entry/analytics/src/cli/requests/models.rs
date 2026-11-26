@@ -6,13 +6,12 @@
 use anyhow::Result;
 use clap::Args;
 use std::path::PathBuf;
-use systemprompt_analytics::RequestAnalyticsRepository;
-use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
+use systemprompt_traits::usage_reports::ai::AiUsageReport;
 
 use super::{ModelUsageRow, ModelsOutput};
 use crate::cli::shared::{export_to_csv, parse_time_range};
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct ModelsArgs {
@@ -39,22 +38,10 @@ pub struct ModelsArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute_with_pool(
-    args: ModelsArgs,
-    pool: &DbPool,
-    _config: &CliConfig,
-) -> Result<CommandOutput> {
-    let repo = RequestAnalyticsRepository::new(pool);
-    execute_internal(args, &repo).await
-}
-
-async fn execute_internal(
-    args: ModelsArgs,
-    repo: &RequestAnalyticsRepository,
-) -> Result<CommandOutput> {
+pub(super) async fn execute(args: ModelsArgs, repo: &dyn AiUsageReport) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
-    let rows = repo.list_models(start, end, args.limit).await?;
+    let rows = repo.model_usage(start, end, args.limit).await?;
 
     let total_requests: i64 = rows.iter().map(|r| r.request_count).sum();
 

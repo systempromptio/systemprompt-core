@@ -7,18 +7,23 @@ use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 use clap::Args;
 use std::path::{Path, PathBuf};
-use systemprompt_analytics::ToolAnalyticsRepository;
-use systemprompt_analytics::models::reporting::{
-    ToolAgentUsageRow, ToolCaller, ToolErrorRow, ToolStatusBreakdownRow, ToolSummaryRow,
-};
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::McpToolName;
 use systemprompt_logging::CliService;
 
-use super::{AgentUsageItem, ErrorItem, StatusBreakdownItem, ToolShowOutput, ToolStatsOutput};
-use crate::cli::shared::{export_single_to_csv, parse_time_range};
+use super::{
+    AgentUsageItem, AgentUsageSection, ErrorItem, StatusBreakdownItem, ToolShowOutput,
+    ToolStatsOutput,
+};
+use crate::cli::shared::{export_single_to_csv, parse_time_range, report_port};
 use systemprompt_extension::cli::parsers::parse_mcp_tool_name;
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_traits::usage_reports::ReportUnavailable;
+use systemprompt_traits::usage_reports::agent::{
+    DynAgentActivityReport, ToolAgentUsageRow, ToolCaller,
+};
+use systemprompt_traits::usage_reports::mcp::{
+    ToolErrorRow, ToolStatusBreakdownRow, ToolSummaryRow, ToolUsageReport,
+};
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -40,20 +45,15 @@ pub struct ShowArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute_with_pool(
+pub(super) async fn execute(
     args: ShowArgs,
-    pool: &DbPool,
-    _config: &CliConfig,
+    repo: &dyn ToolUsageReport,
+    host: &dyn CommandHost,
 ) -> Result<CommandOutput> {
-    let repo = ToolAnalyticsRepository::new(pool);
-    execute_internal(args, &repo).await
-}
-
-async fn execute_internal(args: ShowArgs, repo: &ToolAnalyticsRepository) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let tool = args.tool.as_str();
-    let count = repo.tool_exists(tool, start, end).await?;
+    let count = repo.tool_execution_count(tool, start, end).await?;
     if count == 0 {
         return Err(anyhow!(
             "Tool '{}' not found in the specified time range",
@@ -61,10 +61,10 @@ async fn execute_internal(args: ShowArgs, repo: &ToolAnalyticsRepository) -> Res
         ));
     }
 
-    let summary_row = repo.get_tool_summary(tool, start, end).await?;
-    let status_breakdown_rows = repo.get_status_breakdown(tool, start, end).await?;
-    let top_errors_rows = repo.get_top_errors(tool, start, end).await?;
-    let usage_by_agent_rows = repo.get_usage_by_agent(tool, start, end).await?;
+    let summary_row = repo.tool_summary(tool, start, end).await?;
+    let status_breakdown_rows = repo.status_breakdown(tool, start, end).await?;
+    let top_errors_rows = repo.top_errors(tool, start, end).await?;
+    let usage_by_agent = usage_by_agent(host, tool, start, end).await?;
 
     let period = format_period(start, end);
     let output = ToolShowOutput {
@@ -73,10 +73,39 @@ async fn execute_internal(args: ShowArgs, repo: &ToolAnalyticsRepository) -> Res
         summary: build_summary(period, &summary_row),
         status_breakdown: build_status_breakdown(status_breakdown_rows),
         top_errors: build_top_errors(top_errors_rows),
-        usage_by_agent: build_usage_by_agent(usage_by_agent_rows),
+        usage_by_agent,
     };
 
     render_output(args.export.as_deref(), &output)
+}
+
+async fn usage_by_agent(
+    host: &dyn CommandHost,
+    tool: &str,
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+) -> Result<AgentUsageSection> {
+    let port = match report_port::<DynAgentActivityReport>(
+        host,
+        "analytics tools show (by agent)",
+        "agents",
+    )
+    .await
+    {
+        Ok(port) => port,
+        Err(err) => {
+            let reason = err
+                .downcast_ref::<ReportUnavailable>()
+                .map(ToString::to_string);
+            return reason.map_or(Err(err), |reason| {
+                Ok(AgentUsageSection::Unavailable { reason })
+            });
+        },
+    };
+    let rows = port.tool_usage_by_agent(tool, start, end).await?;
+    Ok(AgentUsageSection::Available {
+        agents: build_usage_by_agent(rows),
+    })
 }
 
 fn format_period(start: DateTime<Utc>, end: DateTime<Utc>) -> String {

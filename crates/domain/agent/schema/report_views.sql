@@ -47,3 +47,24 @@ FROM agent_task_rollup_hourly src
 WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
 );
+
+-- The columns of the ai and mcp members' report views that the agent
+-- activity report joins with agent tasks and contexts. The agent member
+-- requires both members, so their views exist whenever this one is installed.
+
+CREATE OR REPLACE VIEW report_agent_ai_usage_hourly AS
+SELECT
+    src.bucket, src.user_id, src.agent_name, src.request_count,
+    src.cost_microdollars
+FROM report_ai_usage_hourly src;
+
+CREATE OR REPLACE VIEW report_agent_ai_context_hourly AS
+SELECT
+    src.bucket, src.user_id, src.context_id, src.model, src.agent_name,
+    src.traffic, src.request_count, src.last_activity
+FROM report_ai_context_hourly src;
+
+CREATE OR REPLACE VIEW report_agent_tool_executions AS
+SELECT
+    src.mcp_execution_id, src.tool_name, src.task_id, src.created_at
+FROM report_mcp_tool_executions src;

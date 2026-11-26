@@ -6,13 +6,12 @@
 use anyhow::Result;
 use clap::Args;
 use std::path::PathBuf;
-use systemprompt_analytics::RequestAnalyticsRepository;
-use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
+use systemprompt_traits::usage_reports::ai::AiUsageReport;
 
 use super::RequestStatsOutput;
 use crate::cli::shared::{export_single_to_csv, parse_time_range};
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Args)]
 pub struct StatsArgs {
@@ -34,22 +33,12 @@ pub struct StatsArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute_with_pool(
-    args: StatsArgs,
-    pool: &DbPool,
-    _config: &CliConfig,
-) -> Result<CommandOutput> {
-    let repo = RequestAnalyticsRepository::new(pool);
-    execute_internal(args, &repo).await
-}
-
-async fn execute_internal(
-    args: StatsArgs,
-    repo: &RequestAnalyticsRepository,
-) -> Result<CommandOutput> {
+pub(super) async fn execute(args: StatsArgs, repo: &dyn AiUsageReport) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
-    let row = repo.get_stats(start, end, args.model.as_deref()).await?;
+    let row = repo
+        .request_stats(start, end, args.model.as_deref())
+        .await?;
 
     let cache_hit_rate = if row.total > 0 {
         (row.cache_hits as f64 / row.total as f64) * 100.0

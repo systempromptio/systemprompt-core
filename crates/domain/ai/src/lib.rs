@@ -90,8 +90,8 @@ pub use services::providers::{GeminiImageProvider, ImageProvider, ImageProviderC
 
 pub use repository::{
     AiGatewayPolicyRepository, AiQuotaBucketRepository, AiRequestPayloadRepository,
-    AiRequestRepository, AiSafetyFindingRepository, GatewayPolicyRow, IncrementParams,
-    InsertSafetyFinding, QuotaBucketDelta, QuotaBucketState, UpsertPayloadParams,
+    AiRequestRepository, AiSafetyFindingRepository, AiUsageReportRepository, GatewayPolicyRow,
+    IncrementParams, InsertSafetyFinding, QuotaBucketDelta, QuotaBucketState, UpsertPayloadParams,
 };
 
 pub use services::personal_credentials::{PersonalKeyEntry, PersonalProviderCredentials};
@@ -99,6 +99,7 @@ pub use services::personal_keys::{
     PersonalKeyError, PersonalKeyRequest, credential_endpoints, credential_label,
     personal_credential, personal_credentials, store_personal_key, verify_personal_key,
 };
+pub use services::profile_usage::ProfileUsageService;
 pub use services::upstream::{
     EndpointBinding, PresentedCredential, UpstreamCall, UpstreamDialect, UpstreamTarget,
     UpstreamTargetError,

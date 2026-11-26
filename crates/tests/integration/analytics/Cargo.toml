@@ -12,7 +12,11 @@ workspace = true
 
 [dependencies]
 reqwest = { workspace = true }
+systemprompt-agent = { workspace = true }
+systemprompt-ai = { workspace = true }
 systemprompt-analytics = { workspace = true }
+systemprompt-content = { workspace = true }
+systemprompt-mcp = { workspace = true }
 systemprompt-analytics-entry = { workspace = true, features = ["http"] }
 systemprompt-extension = { workspace = true }
 systemprompt-runtime = { workspace = true }

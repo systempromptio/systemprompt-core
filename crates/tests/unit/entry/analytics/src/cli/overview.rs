@@ -35,32 +35,33 @@ fn format_period_renders_minute_precision_range() {
 fn sample_output() -> OverviewOutput {
     OverviewOutput {
         period: "2026-07-01 00:00 to 2026-07-02 00:00".to_owned(),
-        conversations: ConversationMetrics {
+        conversations: Some(ConversationMetrics {
             total: 12,
             change_percent: Some(25.5),
-        },
-        agents: AgentMetrics {
+        }),
+        agents: Some(AgentMetrics {
             active_count: 3,
             total_tasks: 40,
             success_rate: 97.5,
-        },
-        requests: RequestMetrics {
+        }),
+        requests: Some(RequestMetrics {
             total: 200,
             total_tokens: 12345,
             avg_latency_ms: 850,
-        },
-        tools: ToolMetrics {
+        }),
+        tools: Some(ToolMetrics {
             total_executions: 55,
             success_rate: 90.0,
-        },
+        }),
         sessions: SessionMetrics {
             active: 4,
             total_today: 9,
         },
-        costs: CostMetrics {
+        costs: Some(CostMetrics {
             total_cost_microdollars: 1_500_000,
             change_percent: None,
-        },
+        }),
+        unavailable: Vec::new(),
     }
 }
 
@@ -85,4 +86,24 @@ fn export_overview_csv_writes_headers_and_row() {
         row.ends_with(','),
         "empty cost change renders as empty cell"
     );
+}
+
+#[test]
+fn export_overview_csv_leaves_unavailable_sections_empty() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("overview.csv");
+    let output = OverviewOutput {
+        conversations: None,
+        agents: None,
+        requests: None,
+        tools: None,
+        costs: None,
+        unavailable: vec!["agents".to_owned()],
+        ..sample_output()
+    };
+    export_overview_csv(&output, &path).unwrap();
+
+    let csv = std::fs::read_to_string(&path).unwrap();
+    let row = csv.lines().nth(1).unwrap();
+    assert_eq!(row, "2026-07-01 00:00 to 2026-07-02 00:00,,,,,,,,,,,4,9,,");
 }

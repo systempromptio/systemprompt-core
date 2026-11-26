@@ -6,13 +6,12 @@
 use anyhow::Result;
 use clap::{Args, ValueEnum};
 use std::path::PathBuf;
-use systemprompt_analytics::AgentAnalyticsRepository;
-use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
 
 use super::{AgentListOutput, AgentListRow};
 use crate::cli::shared::{export_to_csv, parse_time_range};
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
+use systemprompt_traits::usage_reports::agent::{AgentActivityReport, AgentSortOrder};
 
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
 pub enum AgentSortBy {
@@ -23,13 +22,13 @@ pub enum AgentSortBy {
     LastActive,
 }
 
-impl AgentSortBy {
-    const fn as_str(&self) -> &'static str {
-        match self {
-            Self::TaskCount => "task_count",
-            Self::SuccessRate => "success_rate",
-            Self::Cost => "cost",
-            Self::LastActive => "last_active",
+impl From<AgentSortBy> for AgentSortOrder {
+    fn from(sort: AgentSortBy) -> Self {
+        match sort {
+            AgentSortBy::TaskCount => Self::TaskCount,
+            AgentSortBy::SuccessRate => Self::SuccessRate,
+            AgentSortBy::Cost => Self::Cost,
+            AgentSortBy::LastActive => Self::LastActive,
         }
     }
 }
@@ -67,22 +66,13 @@ pub struct ListArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute_with_pool(
+pub(super) async fn execute(
     args: ListArgs,
-    pool: &DbPool,
-    _config: &CliConfig,
-) -> Result<CommandOutput> {
-    let repo = AgentAnalyticsRepository::new(pool);
-    execute_internal(args, &repo).await
-}
-
-async fn execute_internal(
-    args: ListArgs,
-    repo: &AgentAnalyticsRepository,
+    repo: &dyn AgentActivityReport,
 ) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let rows = repo
-        .list_agents(start, end, args.limit, args.sort_by.as_str())
+        .list_agents(start, end, args.limit, args.sort_by.into())
         .await?;
 
     let agents: Vec<AgentListRow> = rows

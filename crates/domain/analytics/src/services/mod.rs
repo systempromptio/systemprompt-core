@@ -12,7 +12,6 @@ pub mod ai_crawler_keywords;
 mod behavioral_detector;
 pub mod detection;
 pub(crate) mod extractor;
-mod profile_usage;
 mod providers;
 mod service;
 mod session_behaviour;
@@ -23,6 +22,5 @@ pub use behavioral_detector::{
     BehavioralBotDetector, BehavioralSignal, SignalType,
 };
 pub use extractor::{SessionAnalytics, SessionAnalyticsBuilder};
-pub use profile_usage::ProfileUsageService;
 pub use service::AnalyticsService;
 pub use session_behaviour::{SessionBehaviourService, collect_analysis_input};

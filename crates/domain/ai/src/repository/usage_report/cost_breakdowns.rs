@@ -1,0 +1,174 @@
+//! Platform-wide spend breakdowns for [`AiUsageReportRepository`]: by model,
+//! provider, billing source and agent, all over the hourly rollup
+//! (`report_ai_usage_hourly`) widened to whole UTC hours at the window's
+//! start. The billing-source split reads the rollup's personal-key share and
+//! the agent of a request is the one its task had when it was written.
+//!
+//! Copyright (c) systemprompt.io — Business Source License 1.1.
+//! See <https://systemprompt.io> for licensing details.
+
+use chrono::{DateTime, Utc};
+use systemprompt_traits::RepositoryError;
+use systemprompt_traits::usage_reports::ai::CostBreakdownRow;
+
+use super::AiUsageReportRepository;
+
+impl AiUsageReportRepository {
+    pub async fn breakdown_by_model(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        limit: i64,
+    ) -> Result<Vec<CostBreakdownRow>, RepositoryError> {
+        sqlx::query_as!(
+            CostBreakdownRow,
+            r#"
+            SELECT
+                model as "name!",
+                COALESCE(SUM(cost_microdollars), 0)::bigint as "cost!",
+                SUM(request_count)::bigint as "requests!",
+                COALESCE(SUM(tokens), 0)::bigint as "tokens!"
+            FROM report_ai_usage_hourly
+            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
+              AND traffic = 'production'
+              AND model <> ''
+            GROUP BY model
+            ORDER BY SUM(cost_microdollars) DESC NULLS LAST
+            LIMIT $3
+            "#,
+            start,
+            end,
+            limit
+        )
+        .fetch_all(self.pool.as_ref())
+        .await
+        .map_err(Into::into)
+    }
+
+    pub async fn breakdown_by_provider(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        limit: i64,
+    ) -> Result<Vec<CostBreakdownRow>, RepositoryError> {
+        sqlx::query_as!(
+            CostBreakdownRow,
+            r#"
+            SELECT
+                provider as "name!",
+                COALESCE(SUM(cost_microdollars), 0)::bigint as "cost!",
+                SUM(request_count)::bigint as "requests!",
+                COALESCE(SUM(tokens), 0)::bigint as "tokens!"
+            FROM report_ai_usage_hourly
+            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
+              AND traffic = 'production'
+              AND provider <> ''
+            GROUP BY provider
+            ORDER BY SUM(cost_microdollars) DESC NULLS LAST
+            LIMIT $3
+            "#,
+            start,
+            end,
+            limit
+        )
+        .fetch_all(self.pool.as_ref())
+        .await
+        .map_err(Into::into)
+    }
+
+    pub async fn breakdown_by_billing_source(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        limit: i64,
+    ) -> Result<Vec<CostBreakdownRow>, RepositoryError> {
+        sqlx::query_as!(
+            CostBreakdownRow,
+            r#"
+            WITH totals AS (
+                SELECT
+                    COALESCE(SUM(cost_microdollars), 0)::bigint AS cost,
+                    COALESCE(SUM(request_count), 0)::bigint AS requests,
+                    COALESCE(SUM(tokens), 0)::bigint AS tokens,
+                    COALESCE(SUM(user_key_cost_microdollars), 0)::bigint AS key_cost,
+                    COALESCE(SUM(user_key_request_count), 0)::bigint AS key_requests,
+                    COALESCE(SUM(user_key_tokens), 0)::bigint AS key_tokens,
+                    COALESCE(SUM(user_subscription_cost_microdollars), 0)::bigint AS sub_cost,
+                    COALESCE(SUM(user_subscription_request_count), 0)::bigint AS sub_requests,
+                    COALESCE(SUM(user_subscription_tokens), 0)::bigint AS sub_tokens
+                FROM report_ai_usage_hourly
+                WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
+                  AND traffic = 'production'
+            )
+            SELECT
+                split.name as "name!",
+                split.cost as "cost!",
+                split.requests as "requests!",
+                split.tokens as "tokens!"
+            FROM totals t
+            CROSS JOIN LATERAL (VALUES
+                ('platform', t.cost - t.key_cost - t.sub_cost,
+                 t.requests - t.key_requests - t.sub_requests,
+                 t.tokens - t.key_tokens - t.sub_tokens),
+                ('user_key', t.key_cost, t.key_requests, t.key_tokens),
+                ('user_subscription', t.sub_cost, t.sub_requests, t.sub_tokens)
+            ) AS split(name, cost, requests, tokens)
+            WHERE split.requests > 0
+            ORDER BY split.cost DESC
+            LIMIT $3
+            "#,
+            start,
+            end,
+            limit
+        )
+        .fetch_all(self.pool.as_ref())
+        .await
+        .map_err(Into::into)
+    }
+
+    pub async fn breakdown_by_agent(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        limit: i64,
+    ) -> Result<Vec<CostBreakdownRow>, RepositoryError> {
+        sqlx::query_as!(
+            CostBreakdownRow,
+            r#"
+            (
+                SELECT
+                    agent_name as "name!",
+                    COALESCE(SUM(cost_microdollars), 0)::bigint as "cost!",
+                    SUM(request_count)::bigint as "requests!",
+                    COALESCE(SUM(tokens), 0)::bigint as "tokens!"
+                FROM report_ai_usage_hourly
+                WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
+                  AND traffic = 'production'
+                  AND agent_name <> ''
+                GROUP BY agent_name
+                ORDER BY SUM(cost_microdollars) DESC NULLS LAST
+                LIMIT $3
+            )
+            UNION ALL
+            (
+                SELECT
+                    'unattributed' as "name!",
+                    COALESCE(SUM(cost_microdollars), 0)::bigint as "cost!",
+                    COALESCE(SUM(request_count), 0)::bigint as "requests!",
+                    COALESCE(SUM(tokens), 0)::bigint as "tokens!"
+                FROM report_ai_usage_hourly
+                WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
+                  AND traffic = 'production'
+                  AND agent_name = ''
+                HAVING SUM(request_count) > 0
+            )
+            "#,
+            start,
+            end,
+            limit
+        )
+        .fetch_all(self.pool.as_ref())
+        .await
+        .map_err(Into::into)
+    }
+}

@@ -7,15 +7,14 @@ use anyhow::Result;
 use clap::Args;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use systemprompt_analytics::CostAnalyticsRepository;
-use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
+use systemprompt_traits::usage_reports::ai::AiUsageReport;
 
 use super::{CostTrendPoint, CostTrendsOutput};
 use crate::cli::shared::{
     export_to_csv, format_date_range, format_period_label, parse_time_range, truncate_to_period,
 };
-use systemprompt_extension::cli::{ChartType, CliConfig, CommandOutput};
+use systemprompt_extension::cli::{ChartType, CommandOutput};
 use systemprompt_models::artifacts::{ChartArtifact, ChartDataset};
 
 #[derive(Debug, Args)]
@@ -42,22 +41,10 @@ pub struct TrendsArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute_with_pool(
-    args: TrendsArgs,
-    pool: &DbPool,
-    _config: &CliConfig,
-) -> Result<CommandOutput> {
-    let repo = CostAnalyticsRepository::new(pool);
-    execute_internal(args, &repo).await
-}
-
-async fn execute_internal(
-    args: TrendsArgs,
-    repo: &CostAnalyticsRepository,
-) -> Result<CommandOutput> {
+pub(super) async fn execute(args: TrendsArgs, repo: &dyn AiUsageReport) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
-    let rows = repo.get_costs_for_trends(start, end).await?;
+    let rows = repo.cost_trends(start, end).await?;
 
     let mut buckets: HashMap<String, (i64, i64, i64)> = HashMap::new();
     let mut total_cost: i64 = 0;

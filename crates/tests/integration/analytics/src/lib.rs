@@ -5,13 +5,7 @@
 //! systemprompt-core schema applied (run `systemprompt-test-migrate` first).
 
 #[cfg(test)]
-mod costs;
-
-#[cfg(test)]
 mod repositories;
-
-#[cfg(test)]
-mod popularity;
 
 #[cfg(test)]
 mod report_views_reinstall;

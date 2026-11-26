@@ -11,7 +11,6 @@ publish = false
 workspace = true
 
 [dependencies]
-systemprompt-analytics = { workspace = true }
 systemprompt-analytics-entry = { workspace = true, features = ["cli", "content-commands"] }
 systemprompt-cli = { workspace = true }
 systemprompt-database = { workspace = true }
@@ -28,6 +27,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
 systemprompt-agent = { workspace = true }
+systemprompt-content = { workspace = true }
+systemprompt-traits = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }

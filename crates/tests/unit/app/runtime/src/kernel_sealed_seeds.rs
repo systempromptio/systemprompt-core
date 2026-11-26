@@ -303,7 +303,7 @@ async fn no_open_value_carries_a_member_sealed_capability() {
         ),
         (
             type_name::<systemprompt_extension::profile_usage::DynProfileUsageSource>(),
-            carrier::<systemprompt_analytics::ProfileUsageService>(),
+            carrier::<systemprompt_ai::ProfileUsageService>(),
         ),
         (
             type_name::<systemprompt_extension::mcp::DynMcpSessionStore>(),

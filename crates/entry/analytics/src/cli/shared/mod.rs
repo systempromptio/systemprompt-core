@@ -10,6 +10,7 @@
 
 pub mod export;
 pub mod output;
+pub mod report;
 pub mod time;
 
 pub(crate) use export::with_resolved_export;
@@ -21,6 +22,7 @@ pub use output::{
     BreakdownData, BreakdownItem, MetricCard, StatsSummary, TrendData, TrendPoint, format_change,
     format_cost, format_number, format_percent, format_tokens,
 };
+pub use report::report_port;
 pub use systemprompt_extension::cli::time_format::format_date_range;
 pub use time::{
     format_duration_ms, format_period_label, format_timestamp, parse_duration, parse_since,

@@ -1,2 +1,14 @@
 # owner: domain/agent; reason: grandfathered ledger read that predates lint-ledger-reads (baseline may only shrink): debt to burn down, or a documented raw-window analytics query no rollup answers
 src/repository/context/message/queries.rs#1b1b181983
+# owner: domain/agent; reason: grandfathered ledger read relocated from domain/analytics with the member's report port (the owning member now answers it); debt to burn down onto a rollup
+src/repository/usage_report/agents.rs#31eb9d4e78
+# owner: domain/agent; reason: grandfathered ledger read relocated from domain/analytics with the member's report port (the owning member now answers it); debt to burn down onto a rollup
+src/repository/usage_report/conversations.rs#6258af892e
+# owner: domain/agent; reason: grandfathered ledger read relocated from domain/analytics with the member's report port (the owning member now answers it); debt to burn down onto a rollup
+src/repository/usage_report/conversations.rs#79df5d63a3
+# owner: domain/agent; reason: grandfathered ledger read relocated from domain/analytics with the member's report port (the owning member now answers it); debt to burn down onto a rollup
+src/repository/usage_report/conversations.rs#bdcfaef331
+# owner: domain/agent; reason: grandfathered ledger read relocated from domain/analytics with the member's report port (the owning member now answers it); debt to burn down onto a rollup
+src/repository/usage_report/agents.rs#33118ef382
+# owner: domain/agent; reason: grandfathered ledger read relocated from domain/analytics with the member's report port (the owning member now answers it); debt to burn down onto a rollup
+src/repository/usage_report/conversations.rs#3b1ad33d77

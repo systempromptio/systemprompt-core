@@ -18,9 +18,9 @@ use clap::{Args, Subcommand};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::cli::shared::with_resolved_export;
-use systemprompt_database::pool_from_handle;
+use crate::cli::shared::{report_port, with_resolved_export};
 use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_traits::usage_reports::ai::DynAiUsageReport;
 
 /// `analytics requests` with no subcommand runs the stats aggregate.
 ///
@@ -105,31 +105,29 @@ pub struct ModelsOutput {
 }
 
 pub async fn execute(args: RequestsArgs, host: &dyn CommandHost) -> Result<CommandOutput> {
-    let pool = pool_from_handle(host.db().await?)?;
     match args.cmd.unwrap_or(RequestsCommands::Stats(args.stats)) {
         RequestsCommands::Stats(args) => {
-            let result =
-                stats::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
+            let report =
+                report_port::<DynAiUsageReport>(host, "analytics requests stats", "gateway")
                     .await?;
-            Ok(result)
+            stats::execute(with_resolved_export!(args, host), report.as_ref()).await
         },
         RequestsCommands::List(args) => {
-            let result =
-                list::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
-                    .await?;
-            Ok(result)
+            let report =
+                report_port::<DynAiUsageReport>(host, "analytics requests list", "gateway").await?;
+            list::execute(with_resolved_export!(args, host), report.as_ref()).await
         },
         RequestsCommands::Trends(args) => {
-            let result =
-                trends::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
+            let report =
+                report_port::<DynAiUsageReport>(host, "analytics requests trends", "gateway")
                     .await?;
-            Ok(result)
+            trends::execute(with_resolved_export!(args, host), report.as_ref()).await
         },
         RequestsCommands::Models(args) => {
-            let result =
-                models::execute_with_pool(with_resolved_export!(args, host), &pool, host.output())
+            let report =
+                report_port::<DynAiUsageReport>(host, "analytics requests models", "gateway")
                     .await?;
-            Ok(result)
+            models::execute(with_resolved_export!(args, host), report.as_ref()).await
         },
     }
 }

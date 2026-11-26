@@ -6,14 +6,14 @@
 use anyhow::Result;
 use clap::{Args, ValueEnum};
 use std::path::PathBuf;
-use systemprompt_analytics::CostAnalyticsRepository;
-use systemprompt_analytics::models::reporting::{CostBreakdownRow, CostUserBreakdownRow};
-use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
+use systemprompt_traits::usage_reports::ai::{
+    AiUsageReport, CostBreakdownRow, CostUserBreakdownRow,
+};
 
 use super::{CostBreakdownItem, CostBreakdownOutput};
 use crate::cli::shared::{export_to_csv, parse_time_range};
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum BreakdownType {
@@ -53,48 +53,39 @@ pub struct BreakdownArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute_with_pool(
+pub(super) async fn execute(
     args: BreakdownArgs,
-    pool: &DbPool,
-    _config: &CliConfig,
-) -> Result<CommandOutput> {
-    let repo = CostAnalyticsRepository::new(pool);
-    execute_internal(args, &repo).await
-}
-
-async fn execute_internal(
-    args: BreakdownArgs,
-    repo: &CostAnalyticsRepository,
+    repo: &dyn AiUsageReport,
 ) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let rows: Vec<Share> = match args.by {
         BreakdownType::Model => repo
-            .get_breakdown_by_model(start, end, args.limit)
+            .breakdown_by_model(start, end, args.limit)
             .await?
             .into_iter()
             .map(Share::from)
             .collect(),
         BreakdownType::Provider => repo
-            .get_breakdown_by_provider(start, end, args.limit)
+            .breakdown_by_provider(start, end, args.limit)
             .await?
             .into_iter()
             .map(Share::from)
             .collect(),
         BreakdownType::Agent => repo
-            .get_breakdown_by_agent(start, end, args.limit)
+            .breakdown_by_agent(start, end, args.limit)
             .await?
             .into_iter()
             .map(Share::from)
             .collect(),
         BreakdownType::BillingSource => repo
-            .get_breakdown_by_billing_source(start, end, args.limit)
+            .breakdown_by_billing_source(start, end, args.limit)
             .await?
             .into_iter()
             .map(Share::from)
             .collect(),
         BreakdownType::User => repo
-            .get_breakdown_by_user(start, end, args.limit)
+            .breakdown_by_user(start, end, args.limit)
             .await?
             .into_iter()
             .map(Share::from)

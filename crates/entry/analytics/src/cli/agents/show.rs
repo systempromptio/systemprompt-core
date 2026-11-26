@@ -7,11 +7,6 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use clap::Args;
 use std::path::{Path, PathBuf};
-use systemprompt_analytics::AgentAnalyticsRepository;
-use systemprompt_analytics::models::reporting::{
-    AgentErrorRow, AgentHourlyRow, AgentStatusBreakdownRow, AgentSummaryRow,
-};
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::AgentName;
 use systemprompt_logging::CliService;
 use systemprompt_models::artifacts::NoticeLine;
@@ -21,8 +16,11 @@ use super::{
     StatusBreakdownItem,
 };
 use crate::cli::shared::{export_single_to_csv, parse_time_range};
+use systemprompt_extension::cli::CommandOutput;
 use systemprompt_extension::cli::parsers::parse_agent_name;
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_traits::usage_reports::agent::{
+    AgentActivityReport, AgentErrorRow, AgentHourlyRow, AgentStatusBreakdownRow, AgentSummaryRow,
+};
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -44,31 +42,22 @@ pub struct ShowArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute_with_pool(
+pub(super) async fn execute(
     args: ShowArgs,
-    pool: &DbPool,
-    _config: &CliConfig,
-) -> Result<CommandOutput> {
-    let repo = AgentAnalyticsRepository::new(pool);
-    execute_internal(args, &repo).await
-}
-
-async fn execute_internal(
-    args: ShowArgs,
-    repo: &AgentAnalyticsRepository,
+    repo: &dyn AgentActivityReport,
 ) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let agent = args.agent.as_str();
-    let count = repo.agent_exists(agent, start, end).await?;
+    let count = repo.agent_task_count(agent, start, end).await?;
     if count == 0 {
         return Ok(no_activity_output(&args.agent));
     }
 
-    let summary_row = repo.get_agent_summary(agent, start, end).await?;
-    let status_breakdown_rows = repo.get_status_breakdown(agent, start, end).await?;
-    let top_errors_rows = repo.get_top_errors(agent, start, end).await?;
-    let hourly_rows = repo.get_hourly_distribution(agent, start, end).await?;
+    let summary_row = repo.agent_summary(agent, start, end).await?;
+    let status_breakdown_rows = repo.status_breakdown(agent, start, end).await?;
+    let top_errors_rows = repo.top_errors(agent, start, end).await?;
+    let hourly_rows = repo.hourly_distribution(agent, start, end).await?;
 
     let period = format_period(start, end);
     let output = AgentShowOutput {

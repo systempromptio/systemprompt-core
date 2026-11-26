@@ -7,9 +7,8 @@
 //! by the member owning those tables, so the member installs with the kernel
 //! alone.
 //!
-//! On every host it provides the content audience ranking
-//! ([`DynContentPopularity`]) the
-//! content prerender orders its popular lists by.
+//! It provides the per-endpoint viewer counts (`DynContentAudienceCounts`)
+//! the content member ranks its popular lists by.
 //!
 //! It provides its repositories (`Arc<AnalyticsRepositories>`), built from the
 //! kernel's database pool, the session store the `users` member provides and
@@ -22,9 +21,7 @@
 //! [`DynSessionBehaviourScorer`]
 //! the request-analytics middleware hands each tracked request's session to,
 //! and the open request-analytics write (`DynRequestAnalytics`) that
-//! middleware records each tracked request through. It provides the profile
-//! usage derivation **sealed** as `DynProfileUsageSource` (a read names any
-//! user), which the gateway's bridge profile usage route reads.
+//! middleware records each tracked request through.
 //!
 //! It contributes the analytics jobs (session classification, the on-demand
 //! geo backfill, the two detectors that feed the IP ban list, and the
@@ -42,13 +39,10 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
-use systemprompt_extension::profile_usage::DynProfileUsageSource;
 
-use crate::repository::CostAnalyticsRepository;
-use crate::services::ProfileUsageService;
-use systemprompt_traits::{
-    DynContentPopularity, DynIpBanStore, DynSessionBehaviourScorer, DynSessionTelemetry,
-};
+use crate::repository::ContentAudienceRepository;
+use systemprompt_traits::usage_reports::content::DynContentAudienceCounts;
+use systemprompt_traits::{DynIpBanStore, DynSessionBehaviourScorer, DynSessionTelemetry};
 
 use systemprompt_logging::AnalyticsRepository;
 use systemprompt_models::{ContentConfigRaw, ContentRouting};
@@ -58,7 +52,7 @@ use crate::jobs::{
     FingerprintReputationPurge, GhostSessionCleanupJob, LinkFactsRollupJob,
     MaliciousIpBlacklistJob, NoJsCleanupJob,
 };
-use crate::repository::{AnalyticsRepositories, ContentAnalyticsRepository};
+use crate::repository::AnalyticsRepositories;
 use crate::{AnalyticsService, GeoIpDatabase, SessionBehaviourService};
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -83,9 +77,9 @@ impl Extension for AnalyticsExtension {
             .provide(crate::provides::geoip_database)
             .provide(|r: &Resolved<'_>| {
                 let db = r.get::<DbPool>()?;
-                let popularity: DynContentPopularity =
-                    Arc::new(ContentAnalyticsRepository::new(&db));
-                Ok(popularity)
+                let counts: DynContentAudienceCounts =
+                    Arc::new(ContentAudienceRepository::new(&db));
+                Ok(counts)
             })
             .provide(|r: &Resolved<'_>| {
                 let db = r.get::<DbPool>()?;
@@ -106,12 +100,6 @@ impl Extension for AnalyticsExtension {
                     routing,
                     &repositories,
                 )))
-            })
-            .provide_sealed(|r: &Resolved<'_>| {
-                let usage: DynProfileUsageSource = Arc::new(ProfileUsageService::new(
-                    CostAnalyticsRepository::new(&r.get::<DbPool>()?),
-                ));
-                Ok(usage)
             })
             .provide(crate::provides::analytics_provider)
             .provide(crate::provides::fingerprint_provider)

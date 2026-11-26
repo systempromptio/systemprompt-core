@@ -11,7 +11,6 @@ mod engagement;
 mod events;
 mod fingerprint;
 pub mod reporting;
-mod rows;
 
 pub use engagement::{CreateEngagementEventInput, EngagementEvent, EngagementOptionalMetrics};
 pub use events::{
@@ -21,15 +20,6 @@ pub use events::{
 };
 pub use fingerprint::{FingerprintAnalysisResult, FingerprintReputation, FlagReason};
 pub use reporting::{
-    AgentAiStatsRow, AgentErrorRow, AgentHourlyRow, AgentListRow, AgentStatsRow,
-    AgentStatusBreakdownRow, AgentSummaryRow, AgentTaskRow, BotTotalsRow, BotTypeRow,
-    ContentStatsRow, ContentTrendRow, ContextGroupRow, ContextSummaryRow, ConversationListRow,
-    CostBreakdownRow, CostSummaryRow, CostTrendRow, CostUserBreakdownRow, DeviceRow,
-    GatewaySessionListRow, GeoRow, LiveSessionRow, ModelUsageRow, OverviewAgentRow,
-    OverviewCostRow, OverviewRequestRow, OverviewToolRow, PreviousCostRow, RecentContextRow,
-    RequestListFilter, RequestListRow, RequestStatsRow, RequestTrendRow, SessionStatsRow,
-    SessionTrendRow, TimestampRow, ToolAgentUsageRow, ToolCaller, ToolErrorRow, ToolExecutionRow,
-    ToolListRow, ToolStatsRow, ToolStatusBreakdownRow, ToolSummaryRow, TopContentRow,
-    TrafficNavigationRow, TrafficPageRow, TrafficSourceRow,
+    BotTotalsRow, BotTypeRow, ContentStatsRow, ContentTrendRow, DeviceRow, GeoRow, LiveSessionRow,
+    SessionStatsRow, SessionTrendRow, TrafficNavigationRow, TrafficPageRow, TrafficSourceRow,
 };
-pub(crate) use rows::{AgentListDbRow, RecentContextDbRow, ToolAgentUsageDbRow, ToolListDbRow};

@@ -6,13 +6,12 @@
 use anyhow::Result;
 use clap::Args;
 use std::path::PathBuf;
-use systemprompt_analytics::ToolAnalyticsRepository;
-use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
 
 use super::ToolStatsOutput;
 use crate::cli::shared::{export_single_to_csv, parse_time_range};
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::CommandOutput;
+use systemprompt_traits::usage_reports::mcp::ToolUsageReport;
 
 #[derive(Debug, Args)]
 pub struct StatsArgs {
@@ -34,22 +33,10 @@ pub struct StatsArgs {
     pub export: Option<PathBuf>,
 }
 
-pub(super) async fn execute_with_pool(
-    args: StatsArgs,
-    pool: &DbPool,
-    _config: &CliConfig,
-) -> Result<CommandOutput> {
-    let repo = ToolAnalyticsRepository::new(pool);
-    execute_internal(args, &repo).await
-}
-
-async fn execute_internal(
-    args: StatsArgs,
-    repo: &ToolAnalyticsRepository,
-) -> Result<CommandOutput> {
+pub(super) async fn execute(args: StatsArgs, repo: &dyn ToolUsageReport) -> Result<CommandOutput> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
-    let row = repo.get_stats(start, end, args.tool.as_deref()).await?;
+    let row = repo.stats(start, end, args.tool.as_deref()).await?;
 
     let success_rate = if row.total_executions > 0 {
         (row.successful as f64 / row.total_executions as f64) * 100.0

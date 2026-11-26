@@ -1,0 +1,100 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                mc.id as \"id!: ContentId\",\n                mc.slug as \"slug!\",\n                mc.title as \"title!\",\n                mc.kind as \"kind!\",\n                mc.source_id as \"source_id!: SourceId\",\n                mc.category_id as \"category_id?: CategoryId\",\n                mc.published_at as \"published_at!\"\n            FROM report_markdown_content mc\n            WHERE mc.source_id = $1\n            ORDER BY mc.published_at DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: ContentId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "report_markdown_content",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "slug!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "report_markdown_content",
+            "name": "slug"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "title!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "report_markdown_content",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "report_markdown_content",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "source_id!: SourceId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "report_markdown_content",
+            "name": "source_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "category_id?: CategoryId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "report_markdown_content",
+            "name": "category_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "published_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "report_markdown_content",
+            "name": "published_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "04ce2e5cc584ebff04d9916c3e8fc7a2b907b63dea904c78fcbdc454b6e61209"
+}

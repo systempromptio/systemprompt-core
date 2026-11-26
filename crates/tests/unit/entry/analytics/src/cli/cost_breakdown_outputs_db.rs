@@ -8,7 +8,9 @@ use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_database::DbPool;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_runtime::DatabaseContext;
-use systemprompt_test_fixtures::{DisposableDb, seed_user_row, unique_user_id};
+use systemprompt_test_fixtures::{
+    DisposableDb, report_ports_kernel, seed_user_row, unique_user_id,
+};
 use uuid::Uuid;
 
 #[derive(Debug, Parser)]
@@ -38,6 +40,7 @@ fn ctx(pool: &DbPool, database_url: &str) -> CommandContext {
         DatabaseContext::from_pool(pool.clone()),
         database_url.to_owned(),
     )
+    .with_kernel(report_ports_kernel(pool))
 }
 
 struct Seed {
