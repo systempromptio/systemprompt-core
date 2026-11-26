@@ -59,6 +59,6 @@ What this does **not** test is prompt quality: whether a real model, given the h
 |---|---|
 | S1 | Unit and crate tests on three systems |
 | S2 | All of the above, golden scenarios, parity ledger classified, migrated tests, screenshot tour |
-| S3 to S7 | Everything S2 established, unchanged, plus what the stage adds |
+| S4 to S8 | Everything S2 established, unchanged, plus what the stage adds |
 
 A stage that needs to change an existing scenario's expected trace says so in its stage file and has the change reviewed. Expected traces are not regenerated in bulk.

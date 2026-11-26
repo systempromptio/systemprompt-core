@@ -17,6 +17,7 @@ agents can work on it at the same time without colliding.
 3. **The extension** is the single build site for any device product: a one-line `main`, a composition, the window and views, brand, theme, packaging and the product's own members. It lives in the template (MIT) and is forked by installs, with the layout installs already use.
 4. **The bridge is retired.** Its non-GUI code becomes core device crates; its window is rewritten as native views in the extension; the no-window composition keeps its product name. Core's release stops building, testing and signing a desktop binary.
 5. **The standalone harness repository is dissolved**: engine and governance into core, shell into the template.
+6. **Sessions of the native engine live on the instance.** The loop runs on the server; a device executes only the tools that must touch the user's machine, behind its own permission rules; every client renders the same session from one stream.
 
 ## Layout
 
@@ -24,7 +25,7 @@ agents can work on it at the same time without colliding.
 |---|---|
 | [`stages/overview.md`](stages/overview.md) | **Start here to do work.** Stages, waves, the crate list, the dependency graph, what runs in parallel |
 | [`stages/operating-model.md`](stages/operating-model.md) | How a lane works, what it owns, and the three validation levels |
-| `stages/s0-…` to `stages/s7-…` | One file per stage: waves, lanes, owned paths, gates, exit criteria |
+| `stages/s0-…` to `stages/s8-…` | One file per stage: waves, lanes, owned paths, gates, exit criteria |
 | [`testing/`](testing/) | The deterministic test strategy: scripted instance, golden scenarios, comparison against a reference agent, migrated test catalogue, evidence |
 | [`architecture/`](architecture/) | The specification the stages implement |
 | [`risks-and-decisions.md`](risks-and-decisions.md) | Risks with mitigations; every decision taken; the few still open |
@@ -43,6 +44,7 @@ agents can work on it at the same time without colliding.
 | `08-platforms-and-packaging.md` | Windows, macOS, Linux; packaging and signing |
 | `09-quality-and-gates.md` | Standards, gates, security review |
 | `10-release-and-fleet-handover.md` | Release after the change; moving installed bridges |
+| `11-server-owned-sessions.md` | The native engine's loop on the server; tool requests to a device; the session stream every client renders |
 
 Phone apps built from the same extension are specified in the sibling set, [`../mobile/`](../mobile/README.md).
 
@@ -69,10 +71,11 @@ D10 to D26 (crate list, publishing, contract placement, layout, naming, Linux, d
 | S0 Foundations | Not started |
 | S1 Lift | Not started |
 | S2 Parity and proof | Not started |
-| S3 Device composition | Not started |
-| S4 Bridge split and integration | Not started |
-| S5 Platforms, packaging, signing | Not started |
-| S6 Fleet handover and bridge removal | Not started |
-| S7 Server half and orchestration | Not started |
+| S3 Server-owned sessions | Not started |
+| S4 Device composition | Not started |
+| S5 Bridge split and integration | Not started |
+| S6 Platforms, packaging, signing | Not started |
+| S7 Fleet handover and bridge removal | Not started |
+| S8 Server half and orchestration | Not started |
 
 Update this table in the commit that closes a stage.

@@ -88,3 +88,15 @@ A script is an ordered list of turns. Each turn matches the next model request a
 ## 5. Its own tests
 
 The scripted instance is tested against the linked core wire types: a manifest it signs verifies with the production verifier; a stream it encodes decodes with the production decoder to the scripted turn. If core changes a wire type, these tests fail before any scenario does.
+
+## 6. After the loop moves to the server
+
+From S3 the native engine's loop runs on the instance, so a scenario needs a real server loop, a scripted model behind it, and something standing in for the device.
+
+| Double | Role |
+|---|---|
+| Scripted model | The same turn scripts, served behind the real gateway pipeline in process, so quotas, audit and policy run as in production |
+| Scripted device | Answers tool requests from a fixture workspace through the real tool host. It can be told to drop its connection, answer late, answer twice, or never answer, to exercise resume, expiry and idempotency |
+| Second client | Opens the same session mid-turn and asserts it reconstructs the same state from snapshot and deltas |
+
+The scripted instance keeps its role for everything that is still a device talking to an instance: sign-in, key trust, sync, heartbeat, and the proxy path used by third-party agents.

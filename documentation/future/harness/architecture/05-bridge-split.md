@@ -4,7 +4,7 @@ Rule: **core owns everything that carries trust or that the server also runs; th
 
 Method: **split in place first.** Inside core, the modules are carved out of `bin/bridge` into core device crates under the layer rules, with their tests, while the bridge binary still builds on them and ships a release that way. Only when that release has run in production is the remaining window code replaced by the extension. No module is refactored in the commit that moves it.
 
-Line counts are from `future` at `d17b79b70`. The target crate names are proposals; S4 fixes them (see `02-target-architecture.md` section 3 on crate count).
+Line counts are from `future` at `d17b79b70`. The target crate names are proposals; S5 fixes them (see `02-target-architecture.md` section 3 on crate count).
 
 ## 1. To core
 

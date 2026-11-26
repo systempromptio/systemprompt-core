@@ -38,7 +38,7 @@ Small on purpose. Everything else in core stays behind it.
 | `Documents` | List; read; comments |
 | `Appearance` | The brand and theme declarations as plain data |
 | `Diagnostics` | Version, linked core version, a redacted state dump for support |
-| Screen models | One per feature slice (section 7): the snapshot each screen renders and its actions |
+| Client state machines | One per feature slice (section 7): the domain state each surface draws from, and its actions |
 
 ```rust
 #[derive(uniffi::Object)]
@@ -91,26 +91,32 @@ Anything that needs a system prompt (a biometric sheet, the passkey sheet, the b
 
 The phone is a composition in the harness's sense, built by `systemprompt-mobile` from the `device` and `client` slices only (`02-target-architecture.md` section 5). Members contribute logic exactly as on the desktop: a settings block, a session observer, a notification category, a projection of a manifest entry. They cannot contribute a screen: screens are native code (`05-native-apps.md` section 5).
 
-## 7. Screen models
+## 7. Shared client state machines
 
-Each feature slice provides one screen model in core, in the `client` part of `systemprompt-harness`. The desktop views render it directly; Swift and Kotlin render it through the bindings.
+Each feature slice provides its state machine in core, in the `client` part of `systemprompt-harness`. The desktop uses it directly; Swift and Kotlin use it through the bindings.
 
-| Model | Holds | Offers |
-|---|---|---|
-| `SignInModel` | Instance, the available sign-in paths, progress, key-trust prompt | Begin, complete, accept key |
-| `ChatModel` | Agents, conversations, the assembled streamed reply, tool activity | Open, send, retry |
-| `RunsModel` | The caller's runs with filters; one run's ordered events and outputs | Queue, cancel, load more |
-| `ApprovalsModel` | Pending requests in order; recent decisions | Allow, deny with feedback |
-| `InboxModel` | The feed, unread count, the destination each notification opens | Mark read, open |
-| `DocumentsModel` | The list; a document's content and comments | Open, load more |
-| `PreferencesModel` | Appearance, notification preferences, diagnostics | Change, sign out |
+| State machine | Owns |
+|---|---|
+| Session stream | Opening a session from snapshot; applying ordered events and state deltas; resuming from a sequence number; the two waiting states |
+| Approval queue | Pending requests in order; one idempotent decision; the outcome when another client decided first |
+| Inbox | The feed, unread count, and resolving a notification id to a destination |
+| Documents | Paging and the comment thread |
+| Sign-in | The three sign-in paths, key trust, sync state |
+| Preferences | The user's own settings |
 
 Conventions:
 
-- A model exposes an immutable snapshot and a change callback. The native side renders the snapshot and calls actions; it never mutates state.
-- A model owns its streams: opening, resuming from a cursor, and closing in the background.
-- A model reports loading, empty, error and stale explicitly, so every platform shows the same states.
-- A model contains no layout, no text formatting beyond what is a fact, and no platform type.
+- A state machine exposes the current domain state and a change callback, and accepts actions. It owns its streams.
+- It reports loading, empty, error, stale and waiting explicitly.
+- It does **not** decide what a screen shows: no grouping, no formatting, no field selection, no layout. Each surface shapes its own screens from the domain state. This is what keeps a fork free to redraw a screen without a core change.
+
+## 7a. Who owns the binding library
+
+The final library that iOS and Android link is built by a crate in the extension (`extensions/mobile/core`), not by core. The binding generator, in its library mode, generates bindings for every annotated crate linked into one library. So:
+
+- `systemprompt-mobile` in core is an ordinary Rust crate that annotates the shared surface.
+- The extension's crate depends on it, adds the fork's own annotated members, and builds the single static or shared library.
+- A fork can therefore expose its own Rust logic to Swift and Kotlin without changing core.
 
 ## 8. What stays out of the shared core
 

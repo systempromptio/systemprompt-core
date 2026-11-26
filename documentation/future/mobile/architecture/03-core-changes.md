@@ -8,7 +8,7 @@ Five server changes, two extensions of device crates, one new crate. All land on
 |---|---|---|---|---|---|
 | C1 | Push channel | `domain/notifications` | No | No (delivery only) | M1 |
 | C2 | Device records and push tokens | `domain/users`, `entry/notifications` | No | Yes (who may register a token for whom) | M1 |
-| C3 | Runs list and the approval step | `app/agent-runs`, `entry/agent-runs` | No | Yes (who may decide) | M1 |
+| C3 | Notifications on waiting states; lists; starting a session from a phone. The session model itself comes from the harness's server-owned sessions stage | `app/agent-runs`, `entry/agent-runs`, `domain/notifications` | No | Yes (who may decide; which desktop may be bound) | M1 |
 | C4 | Association files | `entry/api` well-known routes; profile configuration | No | Yes (which apps the domain vouches for) | M1 |
 | C5 | Discovery and downloads for phones | `shared/models` bridge instance types; `entry/gateway` release routes | No | No | M1 |
 | C6 | Typed client calls | `systemprompt-client` | No | No | M2 |
@@ -16,7 +16,7 @@ Five server changes, two extensions of device crates, one new crate. All land on
 | C8 | The binding layer | `systemprompt-mobile` | **Yes** | No | M2 |
 | C9 | Closure gate for the phone composition | Gate scripts | No | No | M0 |
 
-`systemprompt-mobile` is the ninth new crate of the two programmes. It has to be its own crate because it is built as a static and a dynamic library and carries the binding generator's scaffolding; no existing crate can take that build shape.
+`systemprompt-mobile` is the ninth new crate of the two programmes. It is an ordinary Rust crate that annotates the surface exposed to Swift and Kotlin, kept separate so no other crate depends on the binding generator. The final library is built by a crate in the extension (`04-shared-core-and-bindings.md` section 7a).
 
 No new host. A phone makes no model call and receives no host profile; it is identified by the existing iOS and Android client ids.
 
@@ -35,23 +35,19 @@ No new host. A phone makes no model call and receives no host profile; it is ide
 - Signing out, revoking a device, or deleting a user removes its tokens. The user-purge inventory lists the new table.
 - The admin device list shows platform and app version.
 
-## 4. C3 — Runs list and the approval step
+## 4. C3 — Sessions, runs and waiting states
 
-**List.** `GET` on the runs collection returns the caller's own runs, newest first, paged, filterable by state.
+Most of what a phone needs here is delivered by the harness's server-owned sessions stage, not by the mobile stages: the session list, the per-turn event stream with snapshot and deltas, the `awaiting_approval` and `awaiting_device` states, and approvals through the governance approval table that already exists ([harness set](../../harness/architecture/11-server-owned-sessions.md)).
 
-**Approval.** A run can pause for a person.
+What remains for the mobile stages:
 
 | Element | Design |
 |---|---|
-| When | A run is queued with a permission mode that asks. When the agent requests a tool the mode does not pre-allow, the adapter raises a permission request instead of deciding locally |
-| State | The run moves to `awaiting_approval`; an event of kind `approval_requested` is stored with the tool, a redacted summary of its input and a request id |
-| Notify | A notification with high attention is written in the same transaction, so push and the in-app stream both carry it |
-| Decide | `POST` to the run's approvals with the request id and `allow` or `deny`, optionally with feedback for the agent. Only the run's owner may decide. The first decision wins; a second receives the recorded outcome |
-| Resume | The adapter returns the decision to the agent; an `approval_decided` event is stored; the run continues or the tool is refused |
-| Timeout | A request with no decision after a configured interval is **denied**, never allowed |
-| Audit | Request, decision, decider, client and time are in the run's events and the governance journal |
-
-Which hosts can pause: those whose headless mode supports a permission hook. For the native engine (harness S7) the pause is native. A host that cannot pause is refused at queue time when an asking mode is requested; it is never silently run in a permissive mode.
+| Notify on a wait | Entering `awaiting_approval`, or `awaiting_device` beyond a short interval, writes a high-attention notification in the same transaction, so push and the in-app stream both carry it |
+| Decide from any client | Only the session's owner. The first decision is recorded; a later one receives that outcome. A timeout denies |
+| List | The caller's sessions and other server-side runs, newest first, paged, filterable by state |
+| Start from a phone | A session with no workspace device, or one bound to a named desktop of the same user that is online |
+| Hosts that cannot pause | Other agents run as server-side runs are refused at queue time when an asking mode is requested; never run permissively |
 
 ## 5. C4 — Association files
 

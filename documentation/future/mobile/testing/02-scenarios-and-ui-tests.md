@@ -35,7 +35,7 @@ Each scenario is data: the scripted instance's configuration, the steps taken th
 
 On the host, in core's test workspace: start the scripted instance; build the phone composition with an in-memory keystore supplied through the platform contract; run the steps through `systemprompt-mobile`'s Rust API; assert the reported facts and the instance's request log; assert no unscripted request and no unconsumed script.
 
-These run fast, on every stage gate, and catch nearly every behavioural defect before a simulator starts. Because screen models are in core, a scenario also asserts the snapshot each screen would render, so the same assertion covers desktop, iOS and Android.
+These run fast, on every stage gate, and catch nearly every behavioural defect before a simulator starts. Because the state machines are in core, a scenario also asserts the domain state each surface draws from, so the same assertion covers desktop, iOS and Android.
 
 Each scenario belongs to a feature slice and runs only in compositions that include it; one extra scenario builds a composition with a single feature and asserts the others are absent.
 

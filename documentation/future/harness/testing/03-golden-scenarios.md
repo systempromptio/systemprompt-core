@@ -47,7 +47,7 @@ Twenty-four scenarios. Each runs on both wire protocols.
 | 23 | Compaction | Crossing the headroom triggers a summary with the fixed sections and a verbatim tail |
 | 24 | Revert to a message | Files return to the snapshot; later messages removed |
 
-Later sets, added by the stages that need them: an MCP tool over stdio and over HTTP against a local test server; a fetch against a local server; LSP diagnostics after an edit against a stub language server; managed skills, rules and a managed MCP server arriving by manifest; each managed host's profile (S4).
+Later sets, added by the stages that need them: an MCP tool over stdio and over HTTP against a local test server; a fetch against a local server; LSP diagnostics after an edit against a stub language server; managed skills, rules and a managed MCP server arriving by manifest; each managed host's profile (S5).
 
 ## 3. The normalised trace
 
@@ -83,7 +83,7 @@ Normalisation rules:
 
 ## 4. Running a scenario through the harness
 
-Through the headless `run` command added in S2-A2, which uses the same engine, governor and tools as the window. The suite lives in core's test workspace and runs on Windows, macOS and Linux:
+Through the headless `run` command added in S2-A2, which uses the same engine and tools as the window. At S2 the loop runs in that process. From S3 the loop runs on the instance and `run` is a client of it with the test machine as workspace device; the scenario files and expected traces do not change, which is what proves the move. The suite lives in core's test workspace and runs on Windows, macOS and Linux:
 
 1. Start the scripted instance with the scenario's manifest, turns and verdicts.
 2. Create a fresh data root; sign in with `login --stdin` and the instance's test PAT.

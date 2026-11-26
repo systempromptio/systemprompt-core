@@ -2,20 +2,20 @@
 
 ## 1. What the phone is
 
-A client of the company's instance. Everything it shows and does happens on the server.
+A client of the company's instance. Everything it shows and does happens on the server. Since sessions of the native engine also live on the instance ([harness set](../../harness/architecture/11-server-owned-sessions.md)), a phone sees every such session, can start one, and can start one whose tools execute on the user's own desktop when that desktop is online. A phone executes nothing itself.
 
 | The phone does | The phone does not |
 |---|---|
 | Sign in to an instance; hold a sealed credential | Run an agent loop |
 | Chat with the instance's agents | Run tools, a shell or a language server |
-| Start, watch, steer and cancel server-side agent runs | Attach to a session on someone's desktop |
+| Start, watch, steer and cancel server-side agent runs | Execute any tool; act as a workspace device |
 | Approve or deny a run's tool requests | Call the model gateway directly |
 | Receive push notifications; open the run or document they refer to | Manage other coding agents |
 | Read documents and their comments | Hold provider keys or a loopback proxy |
 
 Why this boundary: inference and governance already live on the instance, and server-side runs already exist. A phone that only observes and decides needs no engine, no file access and no background execution, which are the things phone operating systems restrict.
 
-Named as out of scope, not forgotten: attaching to a desktop session (needs a relay through the instance); an on-device agent loop; a public store listing; a shared push relay.
+Named as out of scope, not forgotten: an on-device agent loop or tool host; a public store listing; a shared push relay.
 
 ## 2. Layers
 
@@ -39,7 +39,7 @@ SwiftUI app (iOS)                Jetpack Compose app (Android)        extension
 ```
 
 - **The native apps own only drawing and system integration**: layout, lists, text entry, the share sheet, biometric prompts, push registration, deep links, accessibility.
-- **The shared core owns all behaviour, including what each screen shows.** A screen model per feature holds the state, consumes the streams and offers the actions. A rule fixed in Rust is fixed on both phones and on the desktop.
+- **The shared core owns all behaviour.** A state machine per feature holds the domain state, consumes the streams and offers the actions. A rule fixed in Rust is fixed on both phones and on the desktop. How a screen groups and presents that state is each app's own.
 - **The instance owns truth**: runs, events, approvals, documents and policy.
 
 ## 3. Languages per repository
@@ -80,7 +80,7 @@ The harness defines a device build as a composition of slices. A phone build is 
 | `documents` | Read documents and comments | Yes |
 | `preferences` | The user's own settings: appearance, notification preferences, sign out, diagnostics | Yes |
 
-Each feature slice is one unit across all its parts: a screen model in core, a feature module in each app, its scenarios, and its tour states. Opting in happens in three places that agree:
+Each feature slice is one unit across all its parts: a state machine in core, a feature module in each app, its scenarios, and its tour states. Opting in happens in three places that agree:
 
 1. **At build:** the composition names the slices; the Android project includes only those feature modules and the iOS project only those feature targets. A slice left out is not in the binary.
 2. **By the instance:** member policy (`harness.members`) can disable a slice that was built in; the app hides it.
@@ -92,22 +92,23 @@ A closure gate holds this: a phone build links no server crate, no window toolki
 
 ## 5a. What is shared with the desktop harness
 
-Everything except drawing.
+Everything where bugs and security issues live; nothing that decides how a screen looks.
 
 | Layer | Desktop | iOS | Android |
 |---|---|---|---|
 | Sign-in, sealing, key trust, sync | `systemprompt-device` | same crate | same crate |
 | Typed calls and streams | `systemprompt-client` | same crate | same crate |
-| Screen models per feature (state, stream handling, actions) | the `client` feature slices | same code, through the bindings | same code, through the bindings |
+| Client state machines per feature (stream reduction and resume, the approval queue, notification routing) | the `client` feature slices | same code, through the bindings | same code, through the bindings |
+| What a screen shows (grouping, formatting, field choice) | its own | its own | its own |
 | Brand and theme | one declaration | same declaration | same declaration |
 | Instance control over features | member policy | same | same |
 | Scenarios and the scripted instance | one suite | same suite | same suite |
 | Screen-and-state list | one list | same list | same list |
 | Drawing and system integration | Rust window toolkit | SwiftUI | Jetpack Compose |
 
-The desktop harness gains views for the same server-side features (harness stage S7), rendering the same screen models. A chat with an instance agent, a server-side run, an approval and the inbox are therefore the same on all three.
+Every client renders a session from the same server-published stream, so a session, an approval and the inbox are the same everywhere. The web console consumes the same stream with a small script; it shares the protocol and the scenario suite, not the Rust code.
 
-One difference remains by decision: a session running in the desktop's local engine is not visible on a phone.
+The shared layer is deliberately state machines, not screen-shaped models: a phone's compact approval card and a desktop's full diff review need different data, and a fork must be able to redraw a screen without a core change.
 
 ## 6. How phone, desktop, web and server link
 

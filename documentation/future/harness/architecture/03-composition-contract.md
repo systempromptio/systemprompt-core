@@ -1,6 +1,6 @@
 # 03. The device composition contract
 
-Status: specification draft. The Rust below is shape, not final signatures; S3 fixes them against the `future` contract as it stands then.
+Status: specification draft. The Rust below is shape, not final signatures; S4 fixes them against the `future` contract as it stands then.
 
 ## 1. Shared machinery with the server
 
@@ -17,6 +17,8 @@ Why not a feature split of `systemprompt-extension`: cargo merges features acros
 One untangling is required: the state type currently names a database handle. That reference moves to the server side.
 
 Acceptance: `systemprompt-harness` and everything it depends on link no SQL parser, database driver or HTTP-server crate. The closure gate proves it.
+
+Since the native engine's loop runs on the instance (`11-server-owned-sessions.md`), the device composition holds the tool host and the client features, not the governor or the loop. Where this file's tables list engine contributions (tools, agents, commands, prompt sections), they are declared by members linked into the server-side engine; a device member contributes tool *executors*, views, themes and settings.
 
 ## 2. The member trait
 
@@ -111,7 +113,7 @@ An extension adds members and can remove optional ones. It cannot replace a core
 
 | Reserved to core standing | Why |
 |---|---|
-| The instance `Governor` | The governed-by-construction property |
+| The instance `Governor` (now in process on the server) | The governed-by-construction property |
 | Account storage, sealing, JWT renewal, `auth_provider` | Credentials never pass through extension code |
 | Manifest trust and acceptance | Signature, version order, skew |
 | The loopback secret and scoped-token derivation | Root credential for every managed agent |

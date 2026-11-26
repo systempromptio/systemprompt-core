@@ -4,7 +4,7 @@
 
 **Entry.** S0 closed.
 
-**Principle.** This stage relocates and adapts. It merges the eleven engine crates into one because nothing should move twice, but it does not redesign: the code keeps its `Governor` contract and its fixed composition. Restructuring starts in S3, after S2 has built the tests that make restructuring safe.
+**Principle.** This stage relocates and adapts. It merges the eleven engine crates into one because nothing should move twice, but it does not redesign: the code keeps its `Governor` contract and its fixed composition. Restructuring starts in S4, after S2 has built the tests that make restructuring safe.
 
 ## Where everything lands
 
@@ -24,7 +24,7 @@
 | Packaging | Template `packaging/harness/` | MIT |
 | The 29 gates | Core's or the template's existing gates, per the lift manifest; the remainder dropped | — |
 
-`systemprompt-device` receives the harness's own sign-in, sealing, client and sync code here. S4 replaces it with the bridge's; until then the bridge is untouched.
+`systemprompt-device` receives the harness's own sign-in, sealing, client and sync code here. S5 replaces it with the bridge's; until then the bridge is untouched.
 
 ## Wave A — two import lanes, parallel (one per repository)
 
@@ -43,7 +43,7 @@ Four in core, each owning module directories of the new crates; two in the templ
 
 | Lane | Repository | Owned paths | Work |
 |---|---|---|---|
-| **S1-B1 Engine leaves** | core | `systemprompt-engine/src/{config,store,llm}/**`; `crates/shared/identifiers/**` additions | Crate boundaries become module boundaries: paths, visibility per the manifest. Typed ids into `identifiers`. Owned-task type replaced. Model transport compiles as is; moving it onto core's wire codecs is S3 |
+| **S1-B1 Engine leaves** | core | `systemprompt-engine/src/{config,store,llm}/**`; `crates/shared/identifiers/**` additions | Crate boundaries become module boundaries: paths, visibility per the manifest. Typed ids into `identifiers`. Owned-task type replaced. Model transport compiles as is; moving it onto core's wire codecs is S4 |
 | **S1-B2 Engine tools and protocols** | core | `systemprompt-engine/src/{tools,mcp,lsp,workspace}/**` | The same for these modules |
 | **S1-B3 Engine loop** | core | `systemprompt-engine/src/{prompt,run}/**` | The same; `NullGovernor` moves to the test workspace |
 | **S1-B4 Device, governance, Drive** | core | `systemprompt-device/src/**`; `systemprompt-harness/src/**`; `systemprompt-drive/src/**`; `crates/shared/models/src/bridge/**` additions | The same. Wire types that duplicate `models::bridge` are deleted for it; the string host id becomes `HostKind::Harness` |
@@ -111,6 +111,6 @@ The combined test count equals the harness repository's at the pinned commit (94
 
 ## What this stage deliberately leaves alone
 
-- The fixed composition, the untyped extensions map, the built-in tool list. S3.
-- The duplication between `systemprompt-device` and the bridge. S4.
-- macOS and Linux packaging, signing, Linux desktop. S5.
+- The fixed composition, the untyped extensions map, the built-in tool list. S4.
+- The duplication between `systemprompt-device` and the bridge. S5.
+- macOS and Linux packaging, signing, Linux desktop. S6.

@@ -27,7 +27,7 @@ The two apps mirror each other's structure and names so a change is made in the 
 
 ## 2. Features and screens
 
-Each feature is an opt-in slice (`02-target-architecture.md` section 5): a screen model in core and one feature module in each app. A build includes only the features its composition names.
+Each feature is an opt-in slice (`02-target-architecture.md` section 5): a state machine in core and one feature module in each app. A build includes only the features its composition names.
 
 | Feature | Screens | Opt-in |
 |---|---|---|
@@ -43,7 +43,7 @@ Home is not a feature: it is assembled from whichever features are present (acti
 
 There is no administration on the phone: no management of users, devices, policy, the marketplace or the instance. That stays in the web console.
 
-Each feature is a lane's worth of work per platform (`../stages/m3-native-apps.md`), and less than it would otherwise be, because the screen model is shared: a feature module draws a snapshot and forwards actions.
+Each feature is a lane's worth of work per platform (`../stages/m3-native-apps.md`). Stream handling, ordering and races are in the shared state machine; a feature module shapes and draws its screens and forwards actions.
 
 ## 3. Brand and theme
 
