@@ -2,7 +2,9 @@
 // renders names only those ids. A host added to `HostKind` without a mirror
 // entry would render without a logo or a label and be invisible to a reader of
 // the page; a fixture naming an id the Rust side dropped would preview a host
-// the shipped app can never show.
+// the shipped app can never show. An unmanaged host (`UNMANAGED_HOSTS` in
+// bin/bridge/src/integration/sync_only.rs) is a known id the bridge never
+// lists, so no fixture names it.
 import test from "node:test";
 import assert from "node:assert/strict";
 
@@ -10,10 +12,12 @@ import { HOST_ID, HOST_IDS } from "/assets/js/utils/host-ids.js";
 import { fixture, fixtureNames } from "./fixtures.mjs";
 
 const KINDS = new Set(["desktop-app", "cli-tool"]);
+const UNMANAGED = new Set([HOST_ID.harness]);
+const LISTED_IDS = HOST_IDS.filter((id) => !UNMANAGED.has(id));
 
-test("the mirror lists seven distinct kebab-case ids", () => {
-  assert.equal(HOST_IDS.length, 7);
-  assert.equal(new Set(HOST_IDS).size, 7);
+test("the mirror lists eight distinct kebab-case ids", () => {
+  assert.equal(HOST_IDS.length, 8);
+  assert.equal(new Set(HOST_IDS).size, 8);
   for (const id of HOST_IDS) {
     assert.match(id, /^[a-z]+(-[a-z]+)*$/, `${id} is not a kebab-case host id`);
   }
@@ -32,14 +36,16 @@ test("every fixture host is a known id with a known packaging", () => {
     for (const host of fixture(name).host_apps || []) {
       assert.ok(HOST_IDS.includes(host.id), `${name}.json names unknown host '${host.id}'`);
       assert.ok(KINDS.has(host.kind), `${name}.json: ${host.id} has kind '${host.kind}'`);
+      assert.ok(!UNMANAGED.has(host.id), `${name}.json lists unmanaged host '${host.id}'`);
     }
   }
 });
 
-test("the setup page's healthy state lists all seven hosts with their packaging", () => {
+test("the setup page's healthy state lists all seven managed hosts with their packaging", () => {
   const hosts = fixture("healthy").host_apps;
   const ids = hosts.map((h) => h.id).sort();
-  assert.deepEqual(ids, [...HOST_IDS].sort());
+  assert.equal(LISTED_IDS.length, 7);
+  assert.deepEqual(ids, [...LISTED_IDS].sort());
   const byId = new Map(hosts.map((h) => [h.id, h]));
   assert.equal(byId.get(HOST_ID.codex).kind, "desktop-app");
   assert.equal(byId.get(HOST_ID.codexCli).kind, "cli-tool");
