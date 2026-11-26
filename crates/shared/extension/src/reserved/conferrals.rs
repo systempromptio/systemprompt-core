@@ -20,7 +20,8 @@
 //! reads it, and the kernel refuses any other member's provide of its type.
 //! A member reads only its own handle, through its provide fns, factories and
 //! slot builds (`Resolved::member_cipher`, `Resolved::share_tokens`,
-//! `Resolved::git_source_sync`, `Resolved::token_minter`); a command's or a
+//! `Resolved::git_source_sync`, `Resolved::token_minter`,
+//! `Resolved::broker_calls`); a command's or a
 //! route set's resolution reads none, and an undeclared row, an absent issuer
 //! or an issuer from another provider is the `MissingDependency` of the
 //! handle type, so the provide fails typed and boot names the grant.
@@ -31,7 +32,9 @@
 use std::any::{TypeId, type_name};
 
 use systemprompt_models::auth::ScopedTokenMinter;
-use systemprompt_traits::{DynConferralIssuer, GitSourceSync, MemberCipher, ShareTokenSigner};
+use systemprompt_traits::{
+    BrokerCallVerifier, DynConferralIssuer, GitSourceSync, MemberCipher, ShareTokenSigner,
+};
 
 use super::CoreId;
 
@@ -158,6 +161,7 @@ pub enum InstallConferral {
     ShareTokens,
     GitSourceSync,
     ScopedTokens,
+    BrokerCalls,
 }
 
 pub const INSTALL_CONFERRALS: &[InstallConferral] = &[
@@ -165,6 +169,7 @@ pub const INSTALL_CONFERRALS: &[InstallConferral] = &[
     InstallConferral::ShareTokens,
     InstallConferral::GitSourceSync,
     InstallConferral::ScopedTokens,
+    InstallConferral::BrokerCalls,
 ];
 
 impl InstallConferral {
@@ -175,13 +180,16 @@ impl InstallConferral {
             Self::ShareTokens => "share-tokens",
             Self::GitSourceSync => "git-source-sync",
             Self::ScopedTokens => "scoped-tokens",
+            Self::BrokerCalls => "broker-calls",
         }
     }
 
     #[must_use]
     pub const fn provider(self) -> &'static str {
         match self {
-            Self::MemberCipher | Self::ShareTokens | Self::ScopedTokens => CoreId::Kernel.id(),
+            Self::MemberCipher | Self::ShareTokens | Self::ScopedTokens | Self::BrokerCalls => {
+                CoreId::Kernel.id()
+            },
             Self::GitSourceSync => "managed_resources",
         }
     }
@@ -193,6 +201,7 @@ impl InstallConferral {
             Self::ShareTokens => TypeId::of::<DynConferralIssuer<dyn ShareTokenSigner>>(),
             Self::GitSourceSync => TypeId::of::<DynConferralIssuer<dyn GitSourceSync>>(),
             Self::ScopedTokens => TypeId::of::<DynConferralIssuer<dyn ScopedTokenMinter>>(),
+            Self::BrokerCalls => TypeId::of::<DynConferralIssuer<dyn BrokerCallVerifier>>(),
         }
     }
 
@@ -203,6 +212,7 @@ impl InstallConferral {
             Self::ShareTokens => type_name::<DynConferralIssuer<dyn ShareTokenSigner>>(),
             Self::GitSourceSync => type_name::<DynConferralIssuer<dyn GitSourceSync>>(),
             Self::ScopedTokens => type_name::<DynConferralIssuer<dyn ScopedTokenMinter>>(),
+            Self::BrokerCalls => type_name::<DynConferralIssuer<dyn BrokerCallVerifier>>(),
         }
     }
 }

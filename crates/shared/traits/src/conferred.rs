@@ -1,9 +1,10 @@
 //! The capabilities the kernel confers on a member in place of a sealed seed.
 //!
 //! They are an encrypt/decrypt handle over the deployment's master key
-//! ([`MemberCipher`]), a share-token signer ([`ShareTokenSigner`]) and a
-//! Git source sync handle ([`GitSourceSync`]); the scoped token minter is
-//! beside the token authority in `systemprompt_models::auth`.
+//! ([`MemberCipher`]), a share-token signer ([`ShareTokenSigner`]), a
+//! Git source sync handle ([`GitSourceSync`]) and a verify-only check of
+//! core's credential-broker calls ([`BrokerCallVerifier`]); the scoped token
+//! minter is beside the token authority in `systemprompt_models::auth`.
 //!
 //! Core holds one [`ConferralIssuer`] per capability, sealed. A member never
 //! reads an issuer: it reads its own handle through `Resolved`, which the
@@ -59,6 +60,24 @@ pub enum MemberCipherError {
 }
 
 pub const MEMBER_CIPHER_ENVELOPE: &str = "spmc1.";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum BrokerCallRefused {
+    #[error("the request carries no credential-broker header")]
+    Absent,
+    #[error("the credential-broker header does not match")]
+    Mismatch,
+}
+
+/// Verifies that a request to a member's connector token route comes from
+/// core's credential broker.
+///
+/// The handle answers only whether the presented header matches; it holds
+/// no secret (a keyed digest of it) and has no accessor, so a member can
+/// verify core's broker calls without being able to make one.
+pub trait BrokerCallVerifier: Send + Sync + std::fmt::Debug {
+    fn verify(&self, headers: &http::HeaderMap) -> Result<(), BrokerCallRefused>;
+}
 
 /// Authenticated encryption under a key derived for one member.
 ///

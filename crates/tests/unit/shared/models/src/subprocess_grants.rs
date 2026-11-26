@@ -157,3 +157,25 @@ fn a_grant_round_trips_through_its_manifest_spelling() {
         "SERP_API_KEY"
     );
 }
+
+#[test]
+fn the_broker_secret_is_never_granted_and_names_the_verifier() {
+    for raw in [
+        "mcp_credential_broker_secret",
+        "custom:mcp_credential_broker_secret",
+        "custom:MCP_CREDENTIAL_BROKER_SECRET",
+    ] {
+        let refused = raw.parse::<SecretGrant>();
+        assert_eq!(
+            refused,
+            Err(SecretGrantError::BrokerSecretWithheld),
+            "{raw}"
+        );
+        let message = refused.expect_err("refused").to_string();
+        assert!(message.contains("BrokerCallVerifier"), "{message}");
+    }
+    assert!(
+        "custom:acme_broker_key".parse::<SecretGrant>().is_ok(),
+        "negative control: another custom name is grantable"
+    );
+}

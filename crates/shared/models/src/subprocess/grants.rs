@@ -170,6 +170,12 @@ pub enum SecretGrantError {
     )]
     MasterKeyWithheld,
     #[error(
+        "the MCP credential broker secret is never granted: a member that serves a connector \
+         token route checks core's broker calls with its conferred verifier \
+         (`InstallConferral::BrokerCalls`, `BrokerCallVerifier`)"
+    )]
+    BrokerSecretWithheld,
+    #[error(
         "the database URLs and verification keys are granted to every child; remove '{name}' from \
          secrets"
     )]
@@ -204,6 +210,9 @@ impl std::str::FromStr for SecretGrant {
             if name == "encryption_master_key" {
                 return Err(SecretGrantError::MasterKeyWithheld);
             }
+            if name == systemprompt_traits::MCP_CREDENTIAL_BROKER_SECRET {
+                return Err(SecretGrantError::BrokerSecretWithheld);
+            }
             return Ok(ProviderSecret::from_name(&name).map_or(Self::Custom(name), Self::Provider));
         }
         let name = raw.to_ascii_lowercase();
@@ -215,6 +224,9 @@ impl std::str::FromStr for SecretGrant {
         }
         if name == "encryption_master_key" {
             return Err(SecretGrantError::MasterKeyWithheld);
+        }
+        if name == systemprompt_traits::MCP_CREDENTIAL_BROKER_SECRET {
+            return Err(SecretGrantError::BrokerSecretWithheld);
         }
         if name == "storage" {
             return Ok(Self::Storage);

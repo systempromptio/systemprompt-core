@@ -18,6 +18,13 @@
 //! verifier accepts it, and one member's signer verifies nothing another member
 //! signed.
 //!
+//! [`BrokerCallVerifiers`] holds a keyed digest of the
+//! `mcp_credential_broker_secret`, never the secret: HMAC-SHA-256 under the
+//! label `systemprompt.broker-call.v1`. A member's verifier digests the
+//! presented `x-systemprompt-credential-broker` header the same way and
+//! compares in constant time, so it answers whether a call is core's broker
+//! and can neither reveal the secret nor present it.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -30,8 +37,8 @@ use hmac::{Hmac, Mac};
 use sha2::Sha256;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_traits::{
-    ConferralIssuer, MemberCipher, MemberCipherError, MemberGrant, SHARE_TOKEN_MAX_TTL,
-    ShareTokenError, ShareTokenSigner,
+    BrokerCallRefused, BrokerCallVerifier, ConferralIssuer, MemberCipher, MemberCipherError,
+    MemberGrant, SHARE_TOKEN_MAX_TTL, ShareTokenError, ShareTokenSigner,
 };
 
 use crate::at_rest::{AtRestCipher, AtRestCipherError, AtRestHashError, MasterKey, keyed_hmac};
@@ -215,5 +222,72 @@ impl ShareTokenSigner for MemberShareTokenSigner {
             return Err(ShareTokenError::Expired);
         }
         Ok(payload.to_vec())
+    }
+}
+
+const BROKER_CALL_LABEL: &[u8] = b"systemprompt.broker-call.v1";
+
+/// The sealed issuer of every member's broker-call verifier.
+#[derive(Clone)]
+pub struct BrokerCallVerifiers {
+    keyed: Hmac<Sha256>,
+    digest: Arc<[u8]>,
+}
+
+impl std::fmt::Debug for BrokerCallVerifiers {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("BrokerCallVerifiers(<redacted>)")
+    }
+}
+
+impl BrokerCallVerifiers {
+    #[must_use]
+    pub fn from_secret(secret: &str) -> Option<Self> {
+        if secret.is_empty() {
+            return None;
+        }
+        let keyed = keyed_hmac(BROKER_CALL_LABEL).ok()?;
+        let mut mac = keyed.clone();
+        mac.update(secret.as_bytes());
+        Some(Self {
+            keyed,
+            digest: Arc::from(mac.finalize().into_bytes().as_slice()),
+        })
+    }
+}
+
+impl ConferralIssuer<dyn BrokerCallVerifier> for BrokerCallVerifiers {
+    fn issue(&self, grant: &MemberGrant) -> Arc<dyn BrokerCallVerifier> {
+        Arc::new(MemberBrokerCallVerifier {
+            keyed: self.keyed.clone(),
+            digest: Arc::clone(&self.digest),
+            member: grant.member.clone(),
+        })
+    }
+}
+
+struct MemberBrokerCallVerifier {
+    keyed: Hmac<Sha256>,
+    digest: Arc<[u8]>,
+    member: ExtensionId,
+}
+
+impl std::fmt::Debug for MemberBrokerCallVerifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MemberBrokerCallVerifier")
+            .field("member", &self.member)
+            .finish_non_exhaustive()
+    }
+}
+
+impl BrokerCallVerifier for MemberBrokerCallVerifier {
+    fn verify(&self, headers: &axum::http::HeaderMap) -> Result<(), BrokerCallRefused> {
+        let presented = headers
+            .get(systemprompt_identifiers::headers::CREDENTIAL_BROKER)
+            .ok_or(BrokerCallRefused::Absent)?;
+        let mut mac = self.keyed.clone();
+        mac.update(presented.as_bytes());
+        mac.verify_slice(&self.digest)
+            .map_err(|_e| BrokerCallRefused::Mismatch)
     }
 }
