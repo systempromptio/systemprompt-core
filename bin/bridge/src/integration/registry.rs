@@ -92,12 +92,14 @@ pub fn find_host_by_id(id: HostKind) -> Option<&'static dyn HostApp> {
 ///
 /// Every caller acting on a user-supplied host id resolves it through
 /// [`resolve_host`] rather than treating a [`find_host_by_id`] miss as an
-/// unknown id: a sync-only agent is ordinary, and only
-/// [`ResolvedHost::Unknown`] is a caller error.
+/// unknown id: a sync-only agent is ordinary, an unmanaged host is known but
+/// left to configure itself, and only [`ResolvedHost::Unknown`] is a caller
+/// error.
 #[derive(Clone, Copy)]
 pub enum ResolvedHost {
     Local(&'static dyn HostApp),
     SyncOnly(&'static super::sync_only::SyncOnlyAgent),
+    Unmanaged(HostKind),
     Unknown,
 }
 
@@ -106,6 +108,7 @@ impl std::fmt::Debug for ResolvedHost {
         match *self {
             Self::Local(host) => f.debug_tuple("Local").field(&host.id()).finish(),
             Self::SyncOnly(agent) => f.debug_tuple("SyncOnly").field(&agent.id).finish(),
+            Self::Unmanaged(host) => f.debug_tuple("Unmanaged").field(&host).finish(),
             Self::Unknown => f.write_str("Unknown"),
         }
     }
@@ -118,6 +121,9 @@ pub fn resolve_host(id: HostKind) -> ResolvedHost {
     }
     if let Some(agent) = super::sync_only::sync_only_agent(id) {
         return ResolvedHost::SyncOnly(agent);
+    }
+    if super::sync_only::is_unmanaged(id) {
+        return ResolvedHost::Unmanaged(id);
     }
     ResolvedHost::Unknown
 }

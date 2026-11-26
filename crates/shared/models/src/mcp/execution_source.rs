@@ -65,7 +65,8 @@ impl ExecutionSource {
             crate::bridge::host::HostProduct::OpenCode => Self::HookOpenCode,
             crate::bridge::host::HostProduct::Claude
             | crate::bridge::host::HostProduct::Codex
-            | crate::bridge::host::HostProduct::Hermes => Self::HookClaudeCode,
+            | crate::bridge::host::HostProduct::Hermes
+            | crate::bridge::host::HostProduct::Harness => Self::HookClaudeCode,
         }
     }
 }

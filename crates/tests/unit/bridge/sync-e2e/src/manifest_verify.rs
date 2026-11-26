@@ -57,6 +57,7 @@ fn manifest_for(user_id: UserId) -> SignedManifest {
         revocations: vec![],
         enabled_hosts: vec![],
         host_model_protocols: std::collections::BTreeMap::default(),
+        host_extensions: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
         desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),

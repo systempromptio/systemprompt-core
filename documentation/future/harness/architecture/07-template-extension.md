@@ -70,4 +70,4 @@ The template is MIT. `extensions/harness/*` is MIT. It links core's BUSL-1.1 cra
 
 ## 7. Toolkit
 
-`gpui-kit` is pinned at `=0.9.1`. Five unmaintained-crate advisories arrive only through it; they are recorded in the template's `deny.toml` with reasons, not core's. Type-erased contributed views and Linux (Wayland and X11) support are **unverified** for this pin. S3 prototypes one contributed view. Linux desktop is a requirement: if the pin does not support it, S5 raises or patches the pin and re-checks every view.
+`gpui-kit` is pinned at `=0.9.1`. Five unmaintained-crate advisories arrive only through it; they are recorded in the template's `deny.toml` with reasons, not core's. Type-erased contributed views and Linux (Wayland and X11) support are **unverified** for this pin. S5 prototypes one contributed view. Linux desktop is a requirement: if the pin does not support it, S7 raises or patches the pin and re-checks every view.

@@ -117,6 +117,7 @@ fn sample_manifest() -> SignedManifest {
         revocations: vec!["revoked_one".into()],
         enabled_hosts: vec![],
         host_model_protocols: Default::default(),
+        host_extensions: Default::default(),
         artifacts: vec![ArtifactEntry {
             id: LibraryArtifactId::try_new("opportunities").unwrap(),
             name: "Opportunities".into(),

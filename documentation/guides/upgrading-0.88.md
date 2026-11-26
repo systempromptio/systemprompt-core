@@ -22,6 +22,8 @@ How to move a deployment and the code built on the `systemprompt` crates from 0.
 | `server.instance_id` on a local profile | A local profile that sets none and has no platform hostname resolves `local-<profile name>-<machine fingerprint>` (a hash of the OS machine id, else the host name) instead of a random id per process: the server, its services and a CLI on the same machine share it, so the CLI sees the services the running server started, and another machine never resolves it. `infra services cleanup` reaps service rows only when no live server holds the instance claim; otherwise it leaves them and says so. Markers named `instance-<32 hex>` that earlier releases left under `<storage root>/.systemprompt/instances/` are no longer pruned; they affect only the boot-time shared-storage diagnostic, which may warn that a local root looks shared. Delete them to silence it | Review, on local profiles |
 | Rate limits | Identity-keyed windows are shared across replicas when the users member provides them (the reference composition does); address-keyed throttles are per replica, so the effective limit across N replicas is N times the published rate | Review |
 | At-rest ciphertext | After `infra db migrate`, list the members with pending columns with `systemprompt admin secrets reseal`. Then run `systemprompt admin secrets reseal --member <id> --apply` for each listed member, core members (`ai`) included. A runtime read of a value that has not been re-sealed fails with an error naming the command. Run `systemprompt admin secrets reseal --member gateway --apply` too: it re-keys journal segments an older release left unsettled, and the gateway refuses to open its journal while one is present | Yes |
+| Host `harness` | Every instance enables the new host `harness` unless `external_agents.harness.enabled` is `false`. A bridge built against 0.87 refuses a manifest that names a host it does not know, so upgrade bridges with the gateway or disable the host until they are | Yes, while 0.87 bridges are in use |
+| `external_agents.<host>.extensions` | New, optional: the extension ids the signed manifest's `host_extensions` names for that host. Services validation refuses a malformed or repeated id, or extensions on an entry whose key names no host | No |
 | Extensions and installs | Port each member to `contribute` and each binary to `Composition`; see [authoring extensions](authoring-extensions.md) and the entries below | Yes, for custom members |
 
 ## Every breaking change
@@ -242,6 +244,12 @@ Each entry below is one breaking change of this release, with its migration wher
 
 - The gateway accounting journal is an append-only, encrypted, group-committed segment log: concurrent requests share one fsync instead of several each. Receipts written by older releases in the per-file format are not replayed — drain a node (let it settle its pending receipts) before upgrading it.
 - `GatewaySurfaceRoutes::consumer_catalog` is replaced by `managed_consumer: Option<ManagedConsumer>`, which builds the `marketplace-http` consumer routes from the marketplace route state; the API no longer depends on `systemprompt-marketplace`. Migrate by reading `ManagedConsumer::catalog`.
+
+## Hosts
+
+- `HostKind` and `HostProduct` gain `Harness` (`harness`, a desktop app speaking both the Anthropic Messages and the OpenAI Chat Completions wire), `ClientKind` gains `Harness` (declarable as `x-systemprompt-client: harness`, User-Agent product `harness`) and `EvaluatorClient` gains `Harness` (consumer plans and session bindings for `host=harness`). Migrate an exhaustive `match` by adding the arm.
+- `SignedManifest` gains `host_extensions` and `ExternalAgentConfig` gains `extensions`. Migrate a struct literal by setting them.
+- The bridge configures, syncs and lists nothing for `harness`: `model_view::host_client` is `host_clients`, returning every client family a host lists models for, and `ResolvedHost` and `SelectionError` gain `Unmanaged`. Migrate a white-label crate by calling `host_clients` and adding the arms.
 
 ## Identifiers
 

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use systemprompt_bridge::drift::{DesiredProfile, EntryRole};
-use systemprompt_bridge::gateway::model_view::{HostClients, host_client};
+use systemprompt_bridge::gateway::model_view::{HostClients, host_clients};
 use systemprompt_bridge::integration::host_app::{
     AppInstallState, ConfigFormat, DesiredError, GeneratedProfile, HostApp, HostAppError,
     HostAppKind, HostAppSnapshot, ProbeEnv, ProfileFactsError, ProfileGenInputs, ProfileInstalled,
@@ -213,13 +213,14 @@ fn a_filter_of_only_unknown_tags_yields_no_families_at_all() {
 fn every_registered_host_has_a_client_family() {
     for host in systemprompt_bridge::integration::host_apps() {
         let expected = match host.id() {
-            HostKind::ClaudeCode | HostKind::ClaudeDesktop => ClientFamily::Claude,
+            HostKind::ClaudeCode | HostKind::ClaudeDesktop => vec![ClientFamily::Claude],
             HostKind::Codex
             | HostKind::CodexCli
             | HostKind::OpenCode
             | HostKind::OpenCodeCli
-            | HostKind::Hermes => ClientFamily::OpenAi,
+            | HostKind::Hermes => vec![ClientFamily::OpenAi],
+            HostKind::Harness => vec![ClientFamily::Claude, ClientFamily::OpenAi],
         };
-        assert_eq!(host_client(host.id()), expected, "{:?}", host.id());
+        assert_eq!(host_clients(host.id()), expected, "{:?}", host.id());
     }
 }

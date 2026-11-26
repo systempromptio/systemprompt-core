@@ -56,6 +56,7 @@ fn manifest(
         revocations: vec![],
         enabled_hosts: vec![],
         host_model_protocols: Default::default(),
+        host_extensions: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
         desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),

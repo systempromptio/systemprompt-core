@@ -72,6 +72,11 @@ pub async fn manifest(
         enabled_hosts,
         host_model_protocols,
     } = load_per_user_context(&state, &claims.user_id, services.instance_hosts()).await?;
+    let host_extensions = services
+        .instance_host_extensions()
+        .into_iter()
+        .filter(|(host, _)| enabled_hosts.contains(host))
+        .collect();
     let per_user_at = Instant::now();
 
     let manifest = SignedManifest {
@@ -96,6 +101,7 @@ pub async fn manifest(
         revocations,
         enabled_hosts,
         host_model_protocols,
+        host_extensions,
         artifacts,
         allow_claude_ai_connectors: bridge_policy.allow_claude_ai_connectors,
         desktop_policy,

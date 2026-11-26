@@ -42,6 +42,9 @@ Simulators and emulators can be driven and captured directly, so the tour needs 
 | 18 | Signed out by a refused credential | Light |
 | 19 | Large text size | Light |
 | 20 | A second brand and theme | Light, dark |
+| 21 | Composer with a photo and a file attached | Light |
+| 22 | Dictation in progress | Light |
+| 23 | Schedules | Light |
 
 Captures are checked automatically only for being non-blank and the expected size. They are evidence for a person, laid out side by side by platform, not a pixel gate.
 
@@ -73,6 +76,7 @@ On one real iPhone and one real Android phone, before anyone outside the maintai
 - Sign in three ways: browser sheet, passkey, pairing code scanned from the web admin.
 - Receive a real push with the app closed; confirm the lock screen shows no content; open it to the right run.
 - Decide an approval from the notification after unlock; decide another inside the app.
+- Dictate a message; take a photo and attach it; share a file into the app from another app.
 - Biometric gate when policy asks.
 - Kill the app mid-stream; reopen; the chat resumes without a gap.
 - Airplane mode during a decision; reconnect; the recorded outcome is shown.

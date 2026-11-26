@@ -1,19 +1,5 @@
 # Changelog
 
-## [Unreleased]
-
-### Breaking
-
-- **Breaking:** **Cloud:** `CloudCredentials`, `StoredTenant` and `TenantStore` no longer implement `validator::Validate`. Each has an inherent `validate()` returning `CloudStoreValidationError`, with the same rules: the API URL parses, and a tenant name is not empty. Migrate a caller that imported the trait by dropping the import, and one that matched `validator::ValidationErrors` by matching the new enum.
-
-### Changed
-
-- **Dependencies:** `validator` is no longer a dependency, and `tabled` and `tracing-subscriber` are built without the default features nothing used (`tracing-subscriber`'s `ansi`, `tabled`'s `macros` and `assert`). Nine crates leave the build. `cargo deny` refuses `validator` in any workspace.
-
-### Fixed
-
-- **API (security):** the content link analytics reads (`GET /api/v1/content/links`, `/links/{link_id}/performance`, `/links/{link_id}/clicks`, `/links/campaigns/{campaign_id}/performance` and `/links/journey`) require an admin. They were mounted on the public content router, so an unauthenticated caller could read every click's user id, session id, IP address, user agent and referrer. An anonymous caller and a non-admin user are now refused. Content reads, `/links/generate` and `/r/{short_code}` are unchanged.
-
 ## [0.87.0] - 2026-11-24
 
 ### Breaking

@@ -1,0 +1,19 @@
+[root]
+section = "Added"
+area = "Bridge manifest"
+text = "The signed manifest carries `host_extensions`, a map from host id to the extension ids the instance enables for that host. `external_agents.<host>.extensions` in the services tree sets it, and the manifest names only hosts the user has enabled. An extension id is 1 to 64 lowercase letters, digits or hyphens starting with a letter, listed once, on an entry whose key names a known host; anything else fails services validation. The field is omitted when no host has extensions, so such a manifest is signed byte for byte as before."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "`bridge::manifest::SignedManifest` gains `host_extensions: BTreeMap<HostKind, Vec<String>>`, skipped when empty. Migrate a struct literal by setting it."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Breaking"
+text = "`services::ExternalAgentConfig` gains `extensions` and `validate`, which `ServicesConfig::validate` runs; `ServicesConfig::instance_host_extensions` and `services::external_agent_host` are added. Migrate a struct literal by setting `extensions`."
+
+[[crate]]
+name = "systemprompt-gateway-entry"
+section = "Added"
+text = "`GET /v1/bridge/manifest` signs `host_extensions` for the hosts the caller has enabled."

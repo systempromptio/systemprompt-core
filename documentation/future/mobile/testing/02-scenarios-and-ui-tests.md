@@ -30,12 +30,16 @@ Each scenario is data: the scripted instance's configuration, the steps taken th
 | 22 | Sign out | Token revoked on the instance; sealed credential removed | Preferences |
 | 23 | Credential refused by the instance | Signed out; state says why | Any |
 | 24 | Managed configuration locks the instance | No other instance can be added | Sign-in |
+| 25 | Attach a photo and a file to a message | Uploaded through the existing routes; referenced in the prompt; placed in the workspace when the session has one | Chat |
+| 26 | Attachment over the instance's limit | Refused before upload; the limit shown | Chat |
+| 27 | Dictated text | Text supplied by the platform's recogniser lands in the composer and is sent only when the user sends it; no audio request reaches the instance | Chat |
+| 28 | Create, pause and run a schedule | A `Remote` session appears when it fires | Runs |
 
 ## 2. Running a scenario through the shared core
 
 On the host, in core's test workspace: start the scripted instance; build the phone composition with an in-memory keystore supplied through the platform contract; run the steps through `systemprompt-mobile`'s Rust API; assert the reported facts and the instance's request log; assert no unscripted request and no unconsumed script.
 
-These run fast, on every stage gate, and catch nearly every behavioural defect before a simulator starts. Because screen models are in core, a scenario also asserts the snapshot each screen would render, so the same assertion covers desktop, iOS and Android.
+These run fast, on every stage gate, and catch nearly every behavioural defect before a simulator starts. Because the state machines are in core, a scenario also asserts the domain state each surface draws from, so the same assertion covers desktop, iOS and Android.
 
 Each scenario belongs to a feature slice and runs only in compositions that include it; one extra scenario builds a composition with a single feature and asserts the others are absent.
 
@@ -62,4 +66,4 @@ The launch-argument sign-in exists in debug builds only and is compiled out of r
 
 ## 5. What automated tests do not cover
 
-Real push delivery; biometrics; keystores across a reboot; the system sign-in sheet's real behaviour; installation from the instance and from the beta channel; device-management configuration on a managed phone. These are the manual walk (`03-evidence.md` section 4).
+Real push delivery; real speech recognition and the real camera (UI tests inject recognised text and a fixture image); biometrics; keystores across a reboot; the system sign-in sheet's real behaviour; installation from the instance and from the beta channel; device-management configuration on a managed phone. These are the manual walk (`03-evidence.md` section 4).

@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS ai_request_client_evidence (
             'host-token', 'bridge-secret', 'declared', 'native-marker', 'user-agent', 'none', 'internal', 'unknown')),
     attested_host TEXT
         CONSTRAINT ai_request_client_evidence_attested_host_check CHECK (attested_host IS NULL OR attested_host IN (
-            'claude-code', 'claude-desktop', 'codex', 'opencode', 'hermes', 'pi', 'other', 'internal', 'unknown')),
+            'claude-code', 'claude-desktop', 'codex', 'opencode', 'hermes', 'harness', 'pi', 'other', 'internal', 'unknown')),
     declared_client TEXT CHECK (length(declared_client) <= 64),
     native_marker TEXT
         CONSTRAINT ai_request_client_evidence_native_marker_check CHECK (native_marker IS NULL OR native_marker IN (

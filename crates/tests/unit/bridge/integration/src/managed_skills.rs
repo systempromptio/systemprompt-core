@@ -113,6 +113,7 @@ fn manifest(skills: Vec<SkillEntry>) -> SignedManifest {
         revocations: vec![],
         enabled_hosts: vec![HostKind::Hermes, HostKind::OpenCode],
         host_model_protocols: BTreeMap::new(),
+        host_extensions: Default::default(),
         artifacts: vec![],
         allow_claude_ai_connectors: false,
         desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),

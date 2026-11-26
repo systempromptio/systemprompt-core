@@ -11,6 +11,12 @@
 //! [`MANIFEST_SCHEMA_VERSION`] of the consuming bridge, which then refuses
 //! with an upgrade message instead of a signature error.
 //!
+//! `host_extensions` maps a host id to the extension ids the instance
+//! enables for that host (a client compiled with optional feature extensions
+//! turns on only those named; an absent host or an empty map enables none).
+//! It is skipped when empty, so a manifest that enables no extension
+//! serialises, and is signed, byte for byte as before the field existed.
+//!
 //! Signing, signature verification, and manifest construction live in
 //! the bridge crate (`bin/bridge/src/gateway/manifest.rs`) alongside
 //! the gateway client. Those layers pull in `ed25519-dalek` and
@@ -126,6 +132,8 @@ pub struct SignedManifest {
     pub enabled_hosts: Vec<HostKind>,
     #[serde(default)]
     pub host_model_protocols: BTreeMap<HostKind, Vec<String>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub host_extensions: BTreeMap<HostKind, Vec<String>>,
     #[serde(default)]
     pub artifacts: Vec<ArtifactEntry>,
     #[serde(default)]

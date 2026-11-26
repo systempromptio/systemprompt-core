@@ -146,5 +146,8 @@ pub fn host_for(kind: HostKind) -> Execution {
         HostKind::ClaudeDesktop | HostKind::Codex | HostKind::OpenCode => Execution::Unsupported {
             reason: "desktop applications do not run headless; queue the CLI packaging",
         },
+        HostKind::Harness => Execution::Unsupported {
+            reason: "the harness desktop app has no headless packaging",
+        },
     }
 }

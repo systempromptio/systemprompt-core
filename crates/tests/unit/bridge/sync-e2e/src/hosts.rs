@@ -256,6 +256,7 @@ fn manifest(enabled_hosts: Vec<HostKind>, populated: bool, suffix: &str) -> Sign
         revocations: vec![],
         enabled_hosts,
         host_model_protocols: std::collections::BTreeMap::default(),
+        host_extensions: Default::default(),
         artifacts,
         allow_claude_ai_connectors: false,
         desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),

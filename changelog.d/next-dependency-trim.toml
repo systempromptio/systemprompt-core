@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "Dependencies"
+text = "`validator` is no longer a dependency, and `tabled` and `tracing-subscriber` are built without the default features nothing used (`tracing-subscriber`'s `ansi`, `tabled`'s `macros` and `assert`). `cargo deny` refuses `validator` in any workspace."

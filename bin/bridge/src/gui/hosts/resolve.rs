@@ -1,6 +1,6 @@
 //! Host resolution for GUI operations.
 //!
-//! Distinguishes installable and sync-only hosts from unknown IDs.
+//! Distinguishes installable, sync-only and unmanaged hosts from unknown IDs.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -37,6 +37,22 @@ pub(crate) fn resolve_or_reply(
                     "changed": false,
                     "reason": "sync-only",
                     "detail": agent.description,
+                })),
+                reply_to,
+            );
+            None
+        },
+        ResolvedHost::Unmanaged(id) => {
+            app.append_log(format!(
+                "[{host_id}] {action}: nothing to do — the bridge configures nothing for this \
+                 host; it reads the instance manifest itself"
+            ));
+            finish(
+                app,
+                Ok(json!({
+                    "host_id": id,
+                    "changed": false,
+                    "reason": "unmanaged",
                 })),
                 reply_to,
             );

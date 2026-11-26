@@ -37,9 +37,9 @@ Not missing, though it might look so: a device authorization grant. Authorizatio
 
 | From the harness stages | Used here for |
 |---|---|
-| `systemprompt-device` in core (harness S1; bridge code in S4) | Sign-in, key trust, sealed credentials, sync; this set adds its iOS and Android platform modules |
-| `systemprompt-harness` composition and slices (harness S3) | The phone is one more composition: the `device` slice and a client slice, nothing else |
-| `BrandDecl` and `ThemeDecl` as data (harness S3) | One brand and theme source for desktop and phone |
+| `systemprompt-device` in core (harness S1; bridge code in S6) | Sign-in, key trust, sealed credentials, sync; this set adds its iOS and Android platform modules |
+| `systemprompt-harness` composition and slices (harness S5) | The phone is one more composition: the `device` slice and a client slice, nothing else |
+| `BrandDecl` and `ThemeDecl` as data (harness S5) | One brand and theme source for desktop and phone |
 | The scripted instance (harness S0 and S2) | Every phone test |
-| The native engine as a server-side run adapter (harness S7) | Runs whose approvals and events are native rather than adapted from another agent |
+| The runtime and its modes, and the session record (harness S4) | A phone runs sessions in `Remote` mode; the session list, per-turn stream and approvals are the same record every client renders |
 | The template's `extensions/` layout, flavours and patch mechanism | `extensions/mobile/` and a `mobile` flavour |

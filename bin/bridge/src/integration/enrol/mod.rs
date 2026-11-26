@@ -79,6 +79,10 @@ impl Report {
 pub enum SelectionError {
     #[error("--host {id}: unknown host id; known ids: {known}")]
     Unknown { id: String, known: String },
+    #[error(
+        "--host {id}: the bridge configures nothing for this host; it reads the instance manifest itself"
+    )]
+    Unmanaged { id: HostKind },
 }
 
 /// What one requested id turned out to be.
@@ -119,6 +123,7 @@ pub fn resolve(selection: &Selection) -> Result<Vec<Target>, SelectionError> {
         match resolve_host(id) {
             ResolvedHost::Local(host) => targets.push(Target::Local(host)),
             ResolvedHost::SyncOnly(agent) => targets.push(Target::SyncOnly(agent)),
+            ResolvedHost::Unmanaged(id) => return Err(SelectionError::Unmanaged { id }),
             ResolvedHost::Unknown => {
                 return Err(SelectionError::Unknown {
                     id: id.as_str().to_owned(),

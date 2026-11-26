@@ -23,6 +23,7 @@ fn catalog_entry(id: &str, enabled: bool) -> (ExternalAgentId, ExternalAgentConf
             platforms: Vec::new(),
             docs_url: None,
             desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
+            extensions: Vec::new(),
         },
     )
 }
@@ -74,6 +75,7 @@ fn snake_case_catalog_ids_map_onto_kebab_case_host_ids() {
             HostKind::OpenCode,
             HostKind::OpenCodeCli,
             HostKind::Hermes,
+            HostKind::Harness,
         ]
     );
 }
@@ -112,4 +114,65 @@ fn a_catalog_entry_without_default_enabled_reaches_every_user() {
     }))
     .expect("parses");
     assert!(file.default_enabled);
+}
+
+fn with_extensions(id: &str, extensions: &[&str]) -> (ExternalAgentId, ExternalAgentConfig) {
+    let (key, mut agent) = catalog_entry(id, true);
+    agent.extensions = extensions.iter().map(|ext| (*ext).to_owned()).collect();
+    (key, agent)
+}
+
+#[test]
+fn host_extensions_follow_the_catalog_entry_of_each_enabled_host() {
+    let mut services = ServicesConfig::default();
+    assert!(services.instance_host_extensions().is_empty());
+    services.external_agents.extend([
+        with_extensions("harness", &["governance", "drive", "brain"]),
+        with_extensions("codex_cli", &[]),
+    ]);
+    let extensions = services.instance_host_extensions();
+    assert_eq!(
+        extensions.keys().copied().collect::<Vec<_>>(),
+        [HostKind::Harness],
+        "a host with no extensions is absent, not an empty list"
+    );
+    assert_eq!(
+        extensions[&HostKind::Harness],
+        ["governance", "drive", "brain"]
+    );
+    services
+        .validate()
+        .expect("well-formed extension ids validate");
+}
+
+#[test]
+fn a_disabled_host_carries_no_extensions() {
+    let mut services = ServicesConfig::default();
+    let (key, mut agent) = with_extensions("harness", &["drive"]);
+    agent.enabled = false;
+    services.external_agents.insert(key, agent);
+    assert!(services.instance_host_extensions().is_empty());
+}
+
+#[test]
+fn malformed_repeated_or_hostless_extensions_fail_validation() {
+    for (id, extensions, needle) in [
+        ("harness", &["Drive"][..], "lowercase"),
+        ("harness", &["drive", "drive"][..], "listed twice"),
+        ("harness", &[""][..], "lowercase"),
+        ("harness", &["9lives"][..], "lowercase"),
+        ("cursor", &["drive"][..], "names no known host"),
+    ] {
+        let mut services = ServicesConfig::default();
+        services
+            .external_agents
+            .extend([with_extensions(id, extensions)]);
+        let err = services
+            .validate()
+            .expect_err("an invalid extension list must not validate");
+        assert!(
+            err.to_string().contains(needle),
+            "{id} {extensions:?}: {err}"
+        );
+    }
 }
