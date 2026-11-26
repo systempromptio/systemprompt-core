@@ -233,18 +233,16 @@ impl AiUsageReportRepository {
             GatewaySessionListRow,
             r#"
             SELECT
-                ar.session_id as "session_id!: SessionId",
-                MIN(ar.user_id) as "user_id!: UserId",
-                COALESCE(SUM(ar.message_count), 0)::bigint as "message_count!",
-                MIN(ar.created_at) as "created_at!",
-                MAX(ar.created_at) as "updated_at!"
-            FROM report_ai_requests ar
-            WHERE ar.task_id IS NULL
-              AND ar.session_id IS NOT NULL
-              AND ar.created_at >= $1 AND ar.created_at < $2
-              AND ($4::text IS NULL OR ar.user_id = $4)
-            GROUP BY ar.session_id
-            ORDER BY MAX(ar.created_at) DESC
+                gs.session_id as "session_id!: SessionId",
+                MIN(gs.user_id) as "user_id!: UserId",
+                COALESCE(SUM(gs.message_count), 0)::bigint as "message_count!",
+                MIN(gs.first_at) as "created_at!",
+                MAX(gs.last_at) as "updated_at!"
+            FROM report_ai_gateway_session_hourly gs
+            WHERE gs.bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND gs.bucket < $2
+              AND ($4::text IS NULL OR gs.user_id = $4)
+            GROUP BY gs.session_id
+            ORDER BY MAX(gs.last_at) DESC
             LIMIT $3
             "#,
             start,

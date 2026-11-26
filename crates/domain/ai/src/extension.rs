@@ -272,6 +272,11 @@ fn gateway_schemas() -> Vec<SchemaDefinition> {
             include_str!("../schema/ai_context_rollup_hourly.sql"),
         )
         .with_required_columns(columns(&["bucket", "context_id", "request_count"])),
+        SchemaDefinition::new(
+            "ai_gateway_session_rollup_hourly",
+            include_str!("../schema/ai_gateway_session_rollup_hourly.sql"),
+        )
+        .with_required_columns(columns(&["bucket", "session_id", "request_count"])),
         SchemaDefinition::sql_only(include_str!("../schema/report_views.sql")),
         SchemaDefinition::new(
             "user_provider_credentials",

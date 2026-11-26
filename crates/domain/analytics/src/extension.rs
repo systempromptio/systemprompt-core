@@ -7,6 +7,10 @@
 //! by the member owning those tables, so the member installs with the kernel
 //! alone.
 //!
+//! It owns the content audience rollups (`content_engagement_rollup_hourly`,
+//! `analytics_page_view_rollup_hourly`) and binds their backfill to the
+//! kernel's rollup drainer.
+//!
 //! It provides the per-endpoint viewer counts (`DynContentAudienceCounts`)
 //! the content member ranks its popular lists by.
 //!
@@ -36,9 +40,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::prelude::*;
+use systemprompt_extension::projection::kernel::BackfillRollups;
+use systemprompt_extension::ProjectionDrain;
 
 use crate::repository::ContentAudienceRepository;
 use systemprompt_traits::usage_reports::content::DynContentAudienceCounts;
@@ -54,6 +61,9 @@ use crate::jobs::{
 };
 use crate::repository::AnalyticsRepositories;
 use crate::{AnalyticsService, GeoIpDatabase, SessionBehaviourService};
+
+const ROLLUP_BATCH: i32 = 24;
+const ROLLUP_BUDGET: Duration = Duration::from_secs(15);
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AnalyticsExtension;
@@ -117,6 +127,18 @@ impl Extension for AnalyticsExtension {
             .job(BehavioralAnalysisJob)
             .job(MaliciousIpBlacklistJob)
             .job(LinkFactsRollupJob)
+            .projection::<BackfillRollups>(ProjectionDrain {
+                projection: "content_engagement_rollup_hourly",
+                projector: "refresh_content_engagement_rollup_hourly",
+                batch: ROLLUP_BATCH,
+                budget: ROLLUP_BUDGET,
+            })
+            .projection::<BackfillRollups>(ProjectionDrain {
+                projection: "analytics_page_view_rollup_hourly",
+                projector: "refresh_analytics_page_view_rollup_hourly",
+                batch: ROLLUP_BATCH,
+                budget: ROLLUP_BUDGET,
+            })
             .retention(RetentionDecl::Purge(Arc::new(EngagementEventsPurge)))
             .retention(RetentionDecl::Purge(Arc::new(FingerprintReputationPurge)));
         c.owner_reassignment(OwnerReassignment {
@@ -152,6 +174,11 @@ fn schemas() -> Vec<SchemaDefinition> {
             include_str!("../schema/fingerprint_reputation.sql"),
         )
         .with_required_columns(vec!["fingerprint_hash".into()]),
+        SchemaDefinition::new(
+            "content_engagement_rollup_hourly",
+            include_str!("../schema/content_audience_rollups.sql"),
+        )
+        .with_required_columns(vec!["bucket".into(), "content_id".into(), "views".into()]),
         SchemaDefinition::sql_only(include_str!("../schema/report_views.sql")),
     ]
 }

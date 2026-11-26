@@ -1,0 +1,37 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                tu.agent_name as \"agent_name!\",\n                SUM(tu.execution_count)::bigint as \"usage_count!\"\n            FROM report_agent_tool_usage_hourly tu\n            WHERE tu.tool_name ILIKE $1\n              AND tu.bucket >= date_trunc('hour', $2::timestamptz, 'UTC') AND tu.bucket < $3\n            GROUP BY tu.agent_name\n            ORDER BY 2 DESC\n            LIMIT 10\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "agent_name!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "report_agent_tool_usage_hourly",
+            "name": "agent_name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "usage_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      true,
+      null
+    ]
+  },
+  "hash": "0d33b5f5d090682127784970b8b6264749452d72c7f3affb00b359cc9ac6a910"
+}

@@ -3,7 +3,7 @@
 //! [`AgentActivityReport`] reads the member's report views and the views it
 //! declares over the ai and mcp members' report views
 //! (`report_agent_ai_usage_hourly`, `report_agent_ai_context_hourly`,
-//! `report_agent_tool_executions`).
+//! `report_agent_tool_usage_hourly`).
 //!
 //! Per-agent task listings aggregate the hourly task rollup and the hourly AI
 //! usage rollup per agent before joining them, both widened to whole UTC

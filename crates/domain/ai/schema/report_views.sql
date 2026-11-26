@@ -56,6 +56,15 @@ WHERE NOT EXISTS (
     SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
 );
 
+CREATE OR REPLACE VIEW report_ai_gateway_session_hourly AS
+SELECT
+    src.bucket, src.session_id, src.user_id, src.request_count,
+    src.message_count, src.first_at, src.last_at
+FROM ai_gateway_session_rollup_hourly src
+WHERE NOT EXISTS (
+    SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
+);
+
 -- A request's attribution scopes (dimension/value pairs), keyed by
 -- report_ai_requests.id; visible while the request's user is.
 CREATE OR REPLACE VIEW report_ai_request_attributions AS

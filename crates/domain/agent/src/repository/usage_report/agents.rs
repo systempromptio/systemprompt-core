@@ -166,12 +166,12 @@ impl AgentActivityReportRepository {
             ToolCallerDbRow,
             r#"
             SELECT
-                COALESCE(at.agent_name, CASE WHEN te.task_id IS NULL THEN 'Direct Call' ELSE 'Unlinked Task' END) as "agent_name",
-                COUNT(*)::bigint as "usage_count!"
-            FROM report_agent_tool_executions te
-            LEFT JOIN report_agent_tasks at ON at.task_id = te.task_id
-            WHERE te.tool_name ILIKE $1 AND te.created_at >= $2 AND te.created_at < $3
-            GROUP BY COALESCE(at.agent_name, CASE WHEN te.task_id IS NULL THEN 'Direct Call' ELSE 'Unlinked Task' END)
+                tu.agent_name as "agent_name!",
+                SUM(tu.execution_count)::bigint as "usage_count!"
+            FROM report_agent_tool_usage_hourly tu
+            WHERE tu.tool_name ILIKE $1
+              AND tu.bucket >= date_trunc('hour', $2::timestamptz, 'UTC') AND tu.bucket < $3
+            GROUP BY tu.agent_name
             ORDER BY 2 DESC
             LIMIT 10
             "#,

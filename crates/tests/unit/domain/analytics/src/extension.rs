@@ -12,6 +12,7 @@ use systemprompt_analytics::extension::AnalyticsExtension;
 use systemprompt_analytics::repository::AnalyticsRepositories;
 use systemprompt_analytics::{AnalyticsService, GeoIpDatabase};
 use systemprompt_extension::contribute::ContributionSink;
+use systemprompt_extension::projection::kernel::BackfillRollups;
 use systemprompt_extension::{Contributions, Extension};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_traits::{DynIpBanStore, DynRequestAnalytics, DynSessionBehaviourScorer};
@@ -118,4 +119,29 @@ fn the_analytics_member_declares_its_schemas() {
             "{moved} is retired"
         );
     }
+}
+
+#[test]
+fn the_content_audience_rollups_are_bound_to_the_kernel_backfill_drainer() {
+    let sink = contributed();
+    let projections: Vec<(&str, &str)> = sink
+        .projections()
+        .iter()
+        .filter(|entry| entry.is_for::<BackfillRollups>())
+        .map(|entry| (entry.drain().projection, entry.drain().projector))
+        .collect();
+    assert_eq!(
+        projections,
+        [
+            (
+                "content_engagement_rollup_hourly",
+                "refresh_content_engagement_rollup_hourly"
+            ),
+            (
+                "analytics_page_view_rollup_hourly",
+                "refresh_analytics_page_view_rollup_hourly"
+            ),
+        ]
+    );
+    assert_eq!(sink.projections().len(), 2);
 }

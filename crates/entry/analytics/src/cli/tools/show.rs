@@ -166,7 +166,7 @@ fn build_usage_by_agent(rows: Vec<ToolAgentUsageRow>) -> Vec<AgentUsageItem> {
         .map(|row| AgentUsageItem {
             agent_name: match row.caller {
                 ToolCaller::Agent(name) => Some(name),
-                ToolCaller::DirectCall | ToolCaller::UnlinkedTask => None,
+                ToolCaller::Unattributed => None,
             },
             count: row.usage_count,
             percentage: if agent_total > 0 {
