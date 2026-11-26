@@ -17,6 +17,9 @@ const MIGRATION_026: &str =
 const MIGRATION_027: &str = include_str!(
     "../../../../../../domain/ai/schema/migrations/027_ai_request_client_attestation.sql"
 );
+const MIGRATION_059: &str = include_str!(
+    "../../../../../../domain/ai/schema/migrations/059_ai_requests_client_kind_harness.sql"
+);
 const MIGRATION_034: &str = include_str!(
     "../../../../../../domain/ai/schema/migrations/034_claude_metadata_json_marker.sql"
 );
@@ -49,20 +52,36 @@ fn assert_list_is_exactly(list: &str, values: impl Iterator<Item = &'static str>
 
 #[test]
 fn client_kind_strings_are_all_in_every_check_list() {
-    for sql in [BASE_SCHEMA, MIGRATION_027] {
+    for (sql, constraint) in [
+        (BASE_SCHEMA, "ai_requests_client_kind_check"),
+        (MIGRATION_059, "ai_requests_client_kind_widened"),
+    ] {
         assert_list_is_exactly(
-            check_list(sql, "ai_requests_client_kind_check"),
+            check_list(sql, constraint),
             ClientKind::ALL.iter().map(|kind| kind.as_str()),
             "client_kind CHECK",
         );
     }
-    for sql in [EVIDENCE_SCHEMA, MIGRATION_027] {
+    for (sql, constraint) in [
+        (
+            EVIDENCE_SCHEMA,
+            "ai_request_client_evidence_attested_host_check",
+        ),
+        (
+            MIGRATION_059,
+            "ai_request_client_evidence_attested_host_widened",
+        ),
+    ] {
         assert_list_is_exactly(
-            check_list(sql, "ai_request_client_evidence_attested_host_check"),
+            check_list(sql, constraint),
             ClientKind::ALL.iter().map(|kind| kind.as_str()),
             "attested_host CHECK",
         );
     }
+    assert!(
+        !check_list(MIGRATION_027, "ai_requests_client_kind_check").contains("'harness'"),
+        "027 is history; harness arrived in 059"
+    );
     assert!(
         !check_list(MIGRATION_026, "ai_requests_client_kind_check").contains("'pi'"),
         "026 is history; pi arrived in 027"

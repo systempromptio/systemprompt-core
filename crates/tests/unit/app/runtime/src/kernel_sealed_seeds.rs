@@ -438,6 +438,14 @@ async fn no_open_value_carries_a_member_sealed_capability() {
             carrier::<systemprompt_gateway::at_rest::JournalFiles>(),
         ),
         (
+            type_name::<systemprompt_extension::router::DynDocumentsKernel>(),
+            carrier::<systemprompt_documents::http::kernel::DocumentsKernelService>(),
+        ),
+        (
+            type_name::<systemprompt_extension::router::DynGatewayOperations>(),
+            carrier::<systemprompt_gateway::operations::GatewayKernelOperations>(),
+        ),
+        (
             type_name::<Arc<systemprompt_gateway::GatewayHostHandles>>(),
             carrier::<systemprompt_gateway::GatewayHostHandles>(),
         ),

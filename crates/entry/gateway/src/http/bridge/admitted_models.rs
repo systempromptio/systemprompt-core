@@ -13,7 +13,9 @@
 //! subset of the caller's candidates; no hook, secret name or principal leaves
 //! core. A bearer core does not verify is refused, never answered with a
 //! default. A child host confers nothing (`ConferralsWithheld`), so the issuer
-//! is withheld there.
+//! is withheld there; so it is on a composition with no request
+//! authenticator or no bridge settings view, so the conferral reads
+//! `Withheld` rather than failing the composition.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -63,7 +65,9 @@ impl AdmittedModelsIssuer {
             .get::<Option<Arc<GatewaySettingsView>>>()?
             .ok_or(ProvideError::Withheld)?;
         Ok(Arc::new(Self {
-            authenticator: r.get::<DynRequestAuthenticator>()?,
+            authenticator: r
+                .optional::<DynRequestAuthenticator>()
+                .ok_or(ProvideError::Withheld)?,
             services: r.get::<ServicesView>()?,
             authz_hook: Arc::new(LateAuthzHook::new(r.get::<AuthzHookCell>()?)),
             settings,

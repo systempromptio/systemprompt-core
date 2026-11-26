@@ -11,7 +11,9 @@
 //! builds here — the API-key check over the user repository, with the key
 //! lifetime the runtime config sets, and the context materializer over the
 //! context repository — and, sealed, the issuer of the `admitted-models`
-//! install conferral (per-caller model admission, answered inside core). The
+//! install conferral (per-caller model admission, answered inside core),
+//! provided early so an install's own early provide reads it (core members
+//! resolve before install members). The
 //! API mount resolves the surface's state scoped to this member, so the
 //! engines, at-rest material and session mint reach it only through their
 //! conferral rows.
@@ -82,7 +84,7 @@ mod surface {
         )
         .provide_sealed_after_governance(repositories)
         .provide_sealed_after_host_seeds(host_handles)
-        .provide_sealed_after_governance(AdmittedModelsIssuer::provide);
+        .provide_sealed(AdmittedModelsIssuer::provide);
     }
 
     fn host_handles(r: &Resolved<'_>) -> Result<Arc<GatewayHostHandles>, ProvideError> {

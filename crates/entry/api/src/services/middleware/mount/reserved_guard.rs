@@ -12,10 +12,9 @@
 //! not decode to UTF-8 is refused the same way, and so is a segment that a
 //! normalising proxy could read differently: one that decodes to `.` or
 //! `..`, or contains `/`, `\\` or `;`. The site fallback is refused more
-//! ([`guarded_site`]): every core route family as well (the API base and
-//! every path the static fallback treats as an API path, `/mcp` and
-//! `/otel`), whatever the method, so a core path's request and its bearer
-//! never reach an install's site.
+//! ([`guarded_site`]): every core route family as well (`/api` and everything
+//! under the API base, `/mcp` and `/otel`), whatever the method, so a core
+//! path's request and its bearer never reach an install's site.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -47,10 +46,10 @@ fn decoded_path(path: &str) -> Option<String> {
 
 fn falls_under_core_family(path: &str) -> bool {
     decoded_path(path).is_none_or(|decoded| {
-        crate::services::static_content::is_api_path(&decoded)
+        decoded == ApiPaths::API_BASE
+            || decoded.starts_with(&format!("{}/", ApiPaths::API_BASE))
             || ApiPaths::is_mcp(&decoded)
             || ApiPaths::is_otel(&decoded)
-            || decoded == ApiPaths::API_BASE.trim_end_matches('/')
     })
 }
 

@@ -93,7 +93,15 @@ async fn a_member_that_declared_nothing_gets_no_handle() {
 
 #[tokio::test]
 async fn without_the_gateway_member_a_declared_read_is_missing_not_empty() {
-    let ctx = context().await;
+    let boot = ensure_test_bootstrap();
+    let ctx = systemprompt_test_fixtures::fixture_app_context_with_extensions(
+        systemprompt_test_fixtures::fixture_config(&boot.database_url),
+        systemprompt_test_fixtures::fixture_admitted_without(&[
+            systemprompt_identifiers::ExtensionId::new("gateway-http"),
+        ]),
+    )
+    .await
+    .expect("a composition without gateway-http builds");
     let kernel =
         resolve(&ctx, vec![observing("models-no-gateway", true)], false).expect("resolves");
     assert!(missing(&kernel));
