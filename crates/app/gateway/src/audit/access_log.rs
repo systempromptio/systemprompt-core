@@ -1,7 +1,8 @@
 //! Access-log records for gateway requests.
 //!
 //! A gateway request produces two records. The `headers` record is written by
-//! the HTTP middleware when the response head is ready; for a streamed
+//! the HTTP middleware [`layer`] wraps the gateway surface in, when the
+//! response head is ready; for a streamed
 //! response that is long before the outcome is known, so a `terminal` record
 //! is written by [`log_gateway_terminal`] once the body has finished —
 //! carrying the true status, the full elapsed time, and any upstream error.
@@ -25,7 +26,15 @@
 
 use std::time::Instant;
 
+use axum::Router;
+use axum::extract::{OriginalUri, Request, State};
+use axum::middleware::Next;
+use axum::response::Response;
+use systemprompt_identifiers::TraceId;
 use systemprompt_logging::{LogActor, LogEntry, LogLevel, LoggingRuntime};
+use systemprompt_models::ApiPaths;
+
+use crate::surface::GatewayLogIdentity;
 
 pub const PHASE_HEADERS: &str = "headers";
 pub const PHASE_TERMINAL: &str = "terminal";
@@ -144,4 +153,84 @@ pub fn log_gateway_terminal(logging: &LoggingRuntime, outcome: TerminalOutcome<'
     )
     .with_metadata(metadata);
     logging.enqueue(entry);
+}
+
+pub fn layer(logging: &LoggingRuntime, router: Router) -> Router {
+    router.layer(axum::middleware::from_fn_with_state(
+        logging.clone(),
+        log_gateway_request,
+    ))
+}
+
+fn gateway_log_actor(logging: &LoggingRuntime, resp: &Response) -> LogActor {
+    resp.extensions().get::<GatewayLogIdentity>().map_or_else(
+        || logging.platform_actor(TraceId::system()),
+        |identity| {
+            LogActor::new(
+                identity.user.clone(),
+                identity.session.clone(),
+                identity.trace.clone(),
+            )
+        },
+    )
+}
+
+async fn log_gateway_request(
+    State(logging): State<LoggingRuntime>,
+    req: Request,
+    next: Next,
+) -> Response {
+    let method = req.method().clone();
+    // Why: Axum strips the mount prefix from `req.uri()` inside a nested router.
+    let path = req.extensions().get::<OriginalUri>().map_or_else(
+        || format!("{}{}", ApiPaths::GATEWAY_BASE, req.uri().path()),
+        |orig| orig.path().to_owned(),
+    );
+    let started = Instant::now();
+    let mut req = req;
+    req.extensions_mut().insert(GatewayAccessLog {
+        method: method.to_string(),
+        path: path.clone(),
+        started,
+    });
+    let resp = next.run(req).await;
+    let status = resp.status().as_u16();
+    let elapsed_ms = started.elapsed().as_millis() as u64;
+
+    let metadata = serde_json::json!({
+        "kind": "access_log",
+        "method": method.to_string(),
+        "path": path,
+        "status": status,
+        "elapsed_ms": elapsed_ms,
+        "phase": PHASE_HEADERS,
+    });
+
+    let level = level_for(status);
+    let persist = persists_access_record(&path, status);
+
+    if status >= 500 {
+        tracing::error!(method = %method, path = %path, status, elapsed_ms, "gateway request failed");
+    } else if status >= 400 {
+        tracing::warn!(method = %method, path = %path, status, elapsed_ms, "gateway request rejected");
+    } else if persist {
+        tracing::info!(method = %method, path = %path, status, elapsed_ms, "gateway request");
+    } else {
+        tracing::debug!(method = %method, path = %path, status, elapsed_ms, "gateway poll");
+    }
+
+    if !persist {
+        return resp;
+    }
+
+    let entry = LogEntry::new(
+        level,
+        LOG_TARGET,
+        format!("{method} {path} -> {status} ({elapsed_ms}ms)"),
+        gateway_log_actor(&logging, &resp),
+    )
+    .with_metadata(metadata);
+    logging.enqueue(entry);
+
+    resp
 }

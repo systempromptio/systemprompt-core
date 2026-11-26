@@ -3,8 +3,8 @@
 //! The `http` feature carries the gateway's handlers ([`http`]): the
 //! inference proxy, the token count and, with `otel`, the telemetry ingest.
 //! [`extension::GatewayHttpExtension`] (`gateway-http`) contributes them as a
-//! [`GatewaySurface`](systemprompt_gateway::GatewaySurface) the API mount
-//! builds and layers, so the API server does not name this crate.
+//! [`GatewaySurface`](systemprompt_extension::router::GatewaySurface) the API
+//! mount builds and layers, so the API server does not name this crate.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

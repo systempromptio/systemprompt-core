@@ -101,7 +101,7 @@ pub(super) const NOT_USER_OWNED: &[Row] = &[
     free("gateway/http/otel/mod.rs::routes", "POST", "ApiPaths::OTEL", INGEST),
     free("gateway/http/otel/mod.rs::routes", "POST", "ApiPaths::OTEL_REST_ROUTE", INGEST),
     free("gateway/http/sessions.rs::public_router", "POST", r#""/sessions""#, BRIDGE_SELF),
-    free("routes/internal/mod.rs::links_router", "POST", r#""/""#, MCP_HOP),
+    free("documents/http/internal_links.rs::links_router", "POST", r#""/""#, MCP_HOP),
     free("files/http/issues/mod.rs::router", "GET", r#""/admin""#, ADMIN),
     free("files/http/issues/mod.rs::router", "PATCH", r#""/admin/{id}""#, ADMIN),
     free("marketplace/http/managed/consumer/mod.rs::router", "GET", "ApiPaths::api_v1_relative(ApiPaths::CONSUMER_BUNDLE_ROUTE)", CONSUMER),

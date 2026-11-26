@@ -35,7 +35,7 @@ systemprompt-provider-contracts = { workspace = true }
 systemprompt-config = { workspace = true }
 jsonwebtoken = { workspace = true }
 systemprompt-traits = { workspace = true, features = ["sqlx"] }
-systemprompt-extension = { workspace = true, features = ["sqlx", "mcp"] }
+systemprompt-extension = { workspace = true, features = ["sqlx", "mcp", "router"] }
 systemprompt-database = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-logging = { workspace = true, features = ["cli"] }

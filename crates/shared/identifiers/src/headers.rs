@@ -11,9 +11,10 @@
 //! per-session header an `OpenCode` client sends and a metered provider reads.
 //! `MEMORY` is the request header a client sends as `off` to opt out of
 //! team-memory recall, and `MEMORY_IDS` the response header naming the facts
-//! that were injected. `PLATFORM_PREFIX` is the namespace every
-//! platform-owned `x-systemprompt-*` header lives in, for code that withholds
-//! the whole class rather than one name.
+//! that were injected; `RECOVERY_COUNT` the response header counting the
+//! upstream recoveries a gateway response took. `PLATFORM_PREFIX` is the
+//! namespace every platform-owned `x-systemprompt-*` header lives in, for code
+//! that withholds the whole class rather than one name.
 //!
 //! [`ALL`] lists every header name defined here and [`PREFIXES`] every
 //! namespace, so a boundary that must not leak this platform's headers (a
@@ -56,6 +57,7 @@ pub const CREDENTIAL_BROKER: &str = "x-systemprompt-credential-broker";
 pub const MCP_HOP: &str = "x-systemprompt-mcp-hop";
 pub const MEMORY: &str = "x-systemprompt-memory";
 pub const MEMORY_IDS: &str = "x-systemprompt-memory-ids";
+pub const RECOVERY_COUNT: &str = "x-systemprompt-recovery-count";
 pub const COLLAB_FORWARDED: &str = "x-systemprompt-collab-forwarded";
 pub const INGESTION_EVENT_ID: &str = "x-ingestion-event-id";
 pub const BRIDGE_MANIFEST_SCHEMA: &str = "x-bridge-manifest-schema";
@@ -93,6 +95,7 @@ pub const ALL: &[&str] = &[
     MCP_HOP,
     MEMORY,
     MEMORY_IDS,
+    RECOVERY_COUNT,
     COLLAB_FORWARDED,
     INGESTION_EVENT_ID,
     BRIDGE_MANIFEST_SCHEMA,

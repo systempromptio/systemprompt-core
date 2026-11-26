@@ -3,7 +3,8 @@
 //! The recorder installs once per process with core's histogram buckets plus
 //! those every extension declares through `Extension::metrics`; each
 //! extension descriptor is described after install so `/metrics` carries its
-//! help text.
+//! help text. The gateway's latency histograms and stream gauge are the
+//! `gateway` member's descriptors, so a node without it installs none.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -61,14 +62,6 @@ pub fn install_recorder(
     }
     let handle = builder
         .add_global_label("instance", instance_id.as_str())
-        .set_buckets_for_metric(
-            Matcher::Full(systemprompt_gateway::GATEWAY_OVERHEAD_SECONDS.to_owned()),
-            &systemprompt_gateway::OVERHEAD_BUCKETS,
-        )?
-        .set_buckets_for_metric(
-            Matcher::Full(systemprompt_gateway::GATEWAY_UPSTREAM_DURATION_SECONDS.to_owned()),
-            &systemprompt_gateway::UPSTREAM_BUCKETS,
-        )?
         .set_buckets_for_metric(
             Matcher::Full(HTTP_REQUEST_DURATION_SECONDS.to_owned()),
             &HTTP_BUCKETS,
@@ -129,16 +122,6 @@ fn describe_metrics() {
         HTTP_REQUEST_DURATION_SECONDS,
         metrics::Unit::Seconds,
         "HTTP request duration by method, matched path and status"
-    );
-    metrics::describe_histogram!(
-        systemprompt_gateway::GATEWAY_OVERHEAD_SECONDS,
-        metrics::Unit::Seconds,
-        "Time the gateway added to a completed inference request, excluding the upstream call"
-    );
-    metrics::describe_histogram!(
-        systemprompt_gateway::GATEWAY_UPSTREAM_DURATION_SECONDS,
-        metrics::Unit::Seconds,
-        "Upstream provider call duration for a completed inference request"
     );
 }
 

@@ -1557,7 +1557,10 @@ async fn coverage_guard_dispatch(model: &str, status: http::StatusCode) -> anyho
         .deploy(model, [format!("{PROVIDER}/api").as_str()])
         .build();
     let mut di = inputs(&cred, canonical_request(model, false), false);
-    di.engines = systemprompt_api::routes::gateway::gateway_engines(&coverage_guard_kernel())
+    di.engines = coverage_guard_kernel()
+        .state()
+        .find::<std::sync::Arc<systemprompt_gateway::GatewayEngines>>()
+        .cloned()
         .expect("the gateway member provides its engines");
     let id = di.ctx.ai_request_id.clone();
     let error = GatewayService::dispatch(

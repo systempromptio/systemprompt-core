@@ -1,7 +1,7 @@
 //! The `gateway-http` handlers and the surface that builds them.
 //!
 //! [`GatewayHttpSurface`] implements
-//! [`GatewaySurface`]: from the
+//! [`GatewaySurface`] (the contract `systemprompt-extension` defines): from the
 //! route-scoped state of `gateway-http` it builds the inference proxy
 //! (`/messages`, `/responses`, `/chat/completions`, each bound to an
 //! [`InboundAdapter`]), `/messages/count_tokens` and, with the `otel`
@@ -21,7 +21,9 @@
 //!
 //! The gateway repositories are built per mount from the route-scoped state
 //! ([`gateway_repositories`]), with the at-rest material conferred on
-//! `gateway-http`.
+//! `gateway-http` and the [`GatewayHostHandles`] the member built from the
+//! host seeds in its own sealed provide; a host that does not seed them
+//! refuses the build (`HostUnseeded`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -51,15 +53,15 @@ use axum::Router;
 use axum::routing::{get, post};
 use systemprompt_database::DbPool;
 use systemprompt_extension::bridge_catalog::DynBridgeCatalogSource;
+use systemprompt_extension::router::{
+    GatewayRouteState, GatewaySurface, GatewaySurfaceError, GatewaySurfaceRoutes,
+};
 use systemprompt_gateway::protocol::inbound::InboundAdapter;
 use systemprompt_gateway::protocol::inbound::anthropic_messages::AnthropicMessagesInbound;
 use systemprompt_gateway::protocol::inbound::openai_chat::OpenAiChatInbound;
 use systemprompt_gateway::protocol::inbound::openai_responses::OpenAiResponsesInbound;
-use systemprompt_gateway::surface::ManagedConsumer;
 use systemprompt_gateway::surface::repositories::gateway_repositories;
-use systemprompt_gateway::{
-    GatewayEngines, GatewayRouteState, GatewaySurface, GatewaySurfaceError, GatewaySurfaceRoutes,
-};
+use systemprompt_gateway::{GatewayEngines, GatewayHostHandles};
 use systemprompt_traits::{DynContextMaterializer, DynGatewaySessionMint};
 
 use self::bridge::BridgeRouteState;
@@ -77,8 +79,12 @@ impl GatewaySurface for GatewayHttpSurface {
         &self,
         state: GatewayRouteState<'_>,
     ) -> Result<GatewaySurfaceRoutes, GatewaySurfaceError> {
-        let GatewayRouteState { resolved, host } = state;
+        let GatewayRouteState { resolved } = state;
         let own = resolved.get::<Arc<GatewayHttpRepositories>>()?;
+        let host = resolved
+            .get::<Option<Arc<GatewayHostHandles>>>()?
+            .ok_or(GatewaySurfaceError::HostUnseeded)?;
+        let host = GatewayHostHandles::clone(&host);
         let db = resolved.get::<DbPool>()?;
         let contexts = resolved.optional::<DynContextMaterializer>();
         let repos = gateway_repositories(&resolved, &host, contexts, &db)?;
@@ -128,9 +134,7 @@ impl GatewaySurface for GatewayHttpSurface {
         Ok(GatewaySurfaceRoutes {
             traffic,
             principal_bound: credential_routes,
-            managed_consumer: bridge
-                .as_ref()
-                .map(|bridge| ManagedConsumer::new(bridge::consumer_catalog(bridge))),
+            consumer_catalog: bridge.as_ref().map(bridge::consumer_catalog),
             public_sessions: sessions::public_router(sessions::SessionsState {
                 mint: session_mint,
                 analytics,
@@ -143,7 +147,7 @@ impl GatewaySurface for GatewayHttpSurface {
 fn bridge_state(
     resolved: &systemprompt_extension::prelude::Resolved<'_>,
     own: &GatewayHttpRepositories,
-    host: &systemprompt_gateway::GatewayHostHandles,
+    host: &GatewayHostHandles,
 ) -> Result<Option<BridgeRouteState>, GatewaySurfaceError> {
     let (Some(signer), Some(releases), Some(settings), Some(events)) = (
         resolved.get::<Option<Arc<GatewayManifestSigner>>>()?,

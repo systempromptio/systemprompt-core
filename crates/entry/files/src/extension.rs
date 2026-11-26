@@ -2,10 +2,10 @@
 //! and the files commands.
 //!
 //! With `http` it contributes the open
-//! [`DynFilesSurface`](systemprompt_documents::http::surface::DynFilesSurface)
+//! [`DynFilesSurface`](systemprompt_extension::router::DynFilesSurface)
 //! the API mount builds the document, upload, public-link and issue routes
 //! from (see [`crate::http`]), the open
-//! [`DynDriveSurface`](systemprompt_documents::http::surface::DynDriveSurface)
+//! [`DynDriveSurface`](systemprompt_extension::router::DynDriveSurface)
 //! the bridge Drive feed is built from, and the open
 //! [`FilesHttpSettings`](crate::http::FilesHttpSettings) it copies out of the
 //! application configuration, and provides sealed the
@@ -66,8 +66,8 @@ mod surface {
     use std::sync::Arc;
 
     use systemprompt_database::DbPool;
-    use systemprompt_documents::http::surface::{DynDriveSurface, DynFilesSurface};
     use systemprompt_extension::prelude::*;
+    use systemprompt_extension::router::{DynDriveSurface, DynFilesSurface};
     use systemprompt_users::UserRepository;
 
     use systemprompt_manifest::Config;

@@ -30,7 +30,7 @@ use systemprompt_governance::policy::{
     ChainEntryOutcome, ChainEntryResult, Evaluation, GovernanceEngine, GovernedInput,
     PolicyContext, SECRET_SCAN_ID, SecretFinding,
 };
-use systemprompt_identifiers::PolicyId;
+use systemprompt_identifiers::{PolicyId, headers};
 use systemprompt_wire::canonical::CanonicalRequest;
 use systemprompt_wire::inspect;
 use systemprompt_wire::inspect::{ForwardedSurface, SurfaceBudget};
@@ -40,7 +40,6 @@ pub use self::redact::{
 };
 pub use self::repair::repair_prompt;
 use crate::protocol::outbound::PreparedBody;
-use crate::service::RECOVERY_COUNT_HEADER;
 
 const INCOMPLETE_INSPECTION_MESSAGE: &str = "Prompt could not be completely inspected; shorten \
                                              the conversation or remove large attachments \
@@ -230,6 +229,6 @@ pub fn attach_recovery_count(response: &mut Response, count: usize) {
     if count > 0 {
         response
             .headers_mut()
-            .insert(RECOVERY_COUNT_HEADER, HeaderValue::from(count));
+            .insert(headers::RECOVERY_COUNT, HeaderValue::from(count));
     }
 }

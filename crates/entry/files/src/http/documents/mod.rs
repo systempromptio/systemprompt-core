@@ -58,8 +58,8 @@ use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{MethodRouter, delete, get, patch, post, put};
 use systemprompt_documents::http::body_limit;
-use systemprompt_documents::http::surface::{FilesRouteState, FilesSurfaceError};
 use systemprompt_documents::tokens::DocumentLinkTokens;
+use systemprompt_extension::router::{FilesRouteState, FilesSurfaceError};
 use systemprompt_files::documents::DocumentService;
 #[cfg(feature = "collab")]
 use systemprompt_files::documents::collab::CollabService;
@@ -84,7 +84,7 @@ pub struct DocumentsState {
     pub(crate) tokens: Arc<DocumentLinkTokens>,
     pub(crate) contexts: DynContextDirectory,
     pub(crate) ui_session: UiSessionConfig,
-    pub(crate) client_ip: systemprompt_documents::http::surface::ClientIpResolver,
+    pub(crate) client_ip: systemprompt_extension::router::ClientIpResolver,
     #[cfg(feature = "collab")]
     pub(crate) collab: Arc<CollabService>,
     #[cfg(feature = "collab")]

@@ -16,6 +16,11 @@
 //! are bounded by the server-wide pre-auth address throttle and are logged
 //! at debug only.
 //!
+//! The documents member builds this router for the API through the
+//! [`DocumentsKernel`](systemprompt_extension::router::DocumentsKernel)
+//! contract; the API mounts it handler-verified by the MCP hop token under
+//! `/api/v1/internal/links`.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -26,21 +31,19 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use axum::{Json, Router};
 use http::HeaderMap;
-use systemprompt_documents::links::{
-    LinkMintError, LinkMinter, LinkRequest, mint_verified, verify_link_hop,
-};
+use systemprompt_extension::router::{ApiHttpError, DynSubjectCharge};
 use systemprompt_identifiers::headers;
 use systemprompt_models::api::{ApiError, ErrorCode};
 
-use crate::kernel::{ApiHttpError, SubjectThrottle};
+use crate::links::{LinkMintError, LinkMinter, LinkRequest, mint_verified, verify_link_hop};
 
 #[derive(Debug)]
 struct LinksState {
     minter: LinkMinter,
-    throttle: Option<Arc<SubjectThrottle>>,
+    throttle: Option<DynSubjectCharge>,
 }
 
-pub fn links_router(minter: LinkMinter, throttle: Option<Arc<SubjectThrottle>>) -> Router {
+pub fn links_router(minter: LinkMinter, throttle: Option<DynSubjectCharge>) -> Router {
     Router::new()
         .route("/", post(issue_link))
         .with_state(Arc::new(LinksState { minter, throttle }))
@@ -72,7 +75,7 @@ async fn issue_link(
         && let Err(throttled) =
             throttle.charge(&format!("{}:{}", request.server, claims.identity.user_id))
     {
-        return throttled.into_response();
+        return throttled;
     }
     match mint_verified(&state.minter, &claims, &request).await {
         Ok(link) => Json(link).into_response(),

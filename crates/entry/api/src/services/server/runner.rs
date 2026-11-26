@@ -66,13 +66,13 @@ pub async fn run_server(
         admitted: ctx.admitted(),
         kernel: ctx.kernel(),
     };
-    let engines = super::builder::admitted_gateway_engines(&composed);
+    let gateway = super::builder::admitted_gateway_operations(&composed);
     let scheduler_handle = start_role_phases(
         &ctx,
         plan,
         events.as_ref(),
         early.scheduler_health(),
-        engines.as_ref(),
+        gateway.as_ref(),
     )
     .await?;
     super::boot_steps::reconcile_document_folders(&ctx).await?;
@@ -86,10 +86,10 @@ pub async fn run_server(
         composed,
         events.as_ref(),
         early.readiness(),
-        engines.as_ref(),
+        gateway.as_ref(),
     )?
     .layer(axum::Extension(Arc::clone(early.scheduler_health())));
-    super::boot_steps::start_accounting_recovery(&ctx).await?;
+    super::boot_steps::start_accounting_recovery(&ctx, gateway.as_ref()).await?;
     let addr = format!("{}:{}", config.host, config.port);
 
     early.activate(router);
@@ -121,7 +121,7 @@ async fn start_role_phases(
     plan: LifecyclePlan,
     events: Option<&StartupEventSender>,
     scheduler_health: &SchedulerHealth,
-    engines: Option<&Arc<systemprompt_gateway::GatewayEngines>>,
+    gateway: Option<&systemprompt_extension::router::DynGatewayOperations>,
 ) -> Result<Option<SchedulerHandle>> {
     start_event_bridge(ctx)?;
     start_governance_watch(ctx)?;
@@ -147,7 +147,7 @@ async fn start_role_phases(
         None
     };
     if plan.runner_services {
-        let brain = super::brain::brain_consumer(ctx, engines).await?;
+        let brain = super::brain::brain_consumer(ctx, gateway).await?;
         start_runner_services(ctx, brain)?;
     }
     Ok(scheduler_handle)

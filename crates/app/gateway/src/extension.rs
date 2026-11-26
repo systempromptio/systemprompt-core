@@ -18,6 +18,12 @@
 //! member is admitted, so every tool result is scanned by the installation's
 //! policy.
 //!
+//! It also provides, sealed and after its engines, the
+//! [`GatewayKernelOperations`] the API calls through the shared
+//! `GatewayOperations` contract (the access log, accounting recovery and the
+//! brain's model client), and declares the gateway's latency histograms and
+//! stream gauge, so a node without the member installs none of them.
+//!
 //! It builds the bridge routes' narrow views
 //! ([`crate::surface::views`]) from the sealed signing keys, secret lookup,
 //! configuration, system admin, services root and event router, and provides
@@ -64,8 +70,42 @@ use crate::surface::views::{
 use systemprompt_extension::DynSealedFiles;
 
 use crate::contract::{OutboundSlot, OverrideSlot, RouteSelectorSlot, SafetyScannerSlot};
+use crate::operations::GatewayKernelOperations;
 use crate::policies::GatewayPoliciesPlane;
 use crate::registry::GatewayEngines;
+use systemprompt_extension::router::DynGatewayOperations;
+use systemprompt_extension::{MetricDescriptor, MetricKind};
+
+const METRICS: [MetricDescriptor; 4] = [
+    MetricDescriptor {
+        name: crate::audit::metrics::GATEWAY_OVERHEAD_SECONDS,
+        help: "Time the gateway added to a completed inference request, excluding the upstream \
+               call, in seconds",
+        kind: MetricKind::Histogram {
+            buckets: &crate::audit::metrics::OVERHEAD_BUCKETS,
+        },
+    },
+    MetricDescriptor {
+        name: crate::audit::metrics::GATEWAY_UPSTREAM_DURATION_SECONDS,
+        help: "Upstream provider call duration for a completed inference request, in seconds",
+        kind: MetricKind::Histogram {
+            buckets: &crate::audit::metrics::UPSTREAM_BUCKETS,
+        },
+    },
+    MetricDescriptor {
+        name: crate::audit::phases::GATEWAY_PHASE_SECONDS,
+        help: "Gateway request time by phase (admission, upstream_first_byte, stream, finalize), \
+               in seconds",
+        kind: MetricKind::Histogram {
+            buckets: &crate::audit::phases::PHASE_BUCKETS,
+        },
+    },
+    MetricDescriptor {
+        name: crate::audit::phases::GATEWAY_STREAMS_IN_FLIGHT,
+        help: "Streamed gateway response bodies still being written by this process",
+        kind: MetricKind::Gauge,
+    },
+];
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GatewayExtension;
@@ -86,6 +126,16 @@ impl Extension for GatewayExtension {
         c.slot::<SafetyScannerSlot>();
         c.slot::<OutboundSlot>();
         c.provide_conferred_after_governance(ConferralRow::GatewayEngines, provide_engines);
+        c.provide_sealed_after_governance(
+            |r: &Resolved<'_>| -> Result<DynGatewayOperations, ProvideError> {
+                Ok(Arc::new(GatewayKernelOperations::new(
+                    r.get::<Arc<GatewayEngines>>()?,
+                )))
+            },
+        );
+        for metric in METRICS {
+            c.metric(metric);
+        }
         c.provide_conferred(
             ConferralRow::GatewayAtRest,
             |r: &Resolved<'_>| -> Result<Arc<GatewayAtRest>, ProvideError> { Ok(at_rest(r)) },

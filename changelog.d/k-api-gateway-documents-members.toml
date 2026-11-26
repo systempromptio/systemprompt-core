@@ -1,0 +1,24 @@
+[root]
+section = "Breaking"
+area = "Kernel floor: gateway and document store"
+text = "`systemprompt-api` no longer depends on `systemprompt-gateway` or `systemprompt-documents`. The gateway surface, files surface and Drive surface contracts move to `systemprompt_extension::router` (`GatewaySurface`, `GatewayRouteState`, `GatewaySurfaceRoutes`, `GatewaySurfaceError`, `FilesSurface`, `DriveSurface`, `FilesRouteState`, `FilesHostHandles`, `FilesRoutes`, `DocumentRoutes`, `TokenGatedRoutes`, `FilesSurfaceError`), joined by the sealed `GatewayOperations` (the `gateway` member's access log, accounting recovery and brain model client) and `DocumentsKernel` (the `documents` member's internal link router, folder-entity boot step and discovery block), which only those core members may provide. The facade's `api` feature no longer composes the `gateway`, `gateway-http`, `documents` and `files` members: `ai` brings the gateway members and `files` the document store. A composition without them mounts no gateway or internal link route (404) and reports `endpoints.documents` as disabled; an enabled brain without the gateway member refuses to start."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`routes::gateway::host_handles`, `routes::gateway::gateway_engines`, `routes::gateway::access_log`, `routes::documents::link_tokens` and `routes::internal` are removed; `routes::gateway::gateway_operations` returns the `gateway` member's `DynGatewayOperations`, and `configure_routes_for_role` no longer takes the gateway engines. Migrate by resolving `systemprompt_gateway::GatewayHostHandles::resolve(&ctx.kernel().resolved())`, reading `Arc<GatewayEngines>` from the kernel state and building the internal link router with `systemprompt_documents::http::internal_links::links_router`."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Breaking"
+text = "`GatewaySurface`, `DynGatewaySurface`, `GatewayRouteState`, `GatewaySurfaceRoutes` and `GatewaySurfaceError` move to `systemprompt_extension::router`; `GatewayRouteState` carries only the route-scoped resolution, and `gateway-http` builds its `GatewayHostHandles` (new `GatewayHostHandles::resolve`) in its own sealed provide. `surface::ManagedConsumer` is removed: the routes carry the bridge `DynConsumerCatalog` as `consumer_catalog`. `service::RECOVERY_COUNT_HEADER` is `systemprompt_identifiers::headers::RECOVERY_COUNT`. The member declares its latency histograms and stream gauge, and provides the sealed `GatewayKernelOperations`; `audit::access_log::layer` is the access-log middleware."
+
+[[crate]]
+name = "systemprompt-documents"
+section = "Breaking"
+text = "`http::surface` is removed; its contracts are in `systemprompt_extension::router`, and `FilesSurfaceError::Unbound` no longer carries `DocumentsUnbound`. `DocumentsDiscovery::of_state` is `DocumentsDiscovery::of_resolved`. The internal link router is `http::internal_links::links_router`, charging a `DynSubjectCharge`, and the member provides the sealed `http::kernel::DocumentsKernelService`."
+
+[[crate]]
+name = "systemprompt"
+section = "Breaking"
+text = "The `api` feature no longer enables `systemprompt-gateway`, `systemprompt-gateway-entry`, `systemprompt-documents` or `systemprompt-files`: `ai` composes the `gateway` and `gateway-http` members and gates `systemprompt::gateway`, and `files` composes `documents`, `files` and `files-http` and gates `systemprompt::documents`. Migrate a subset build that serves the gateway or the document store by enabling `ai` or `files`."

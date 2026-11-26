@@ -65,7 +65,6 @@ use crate::registry::GatewayEngines;
 use systemprompt_governance::policy::GovernanceEngine;
 
 pub const REQUEST_ID_HEADER: &str = "x-systemprompt-request-id";
-pub const RECOVERY_COUNT_HEADER: &str = "x-systemprompt-recovery-count";
 
 #[derive(Debug, Clone, Copy)]
 pub struct GatewayService;

@@ -106,8 +106,6 @@ async fn configure_routes_for_role_mounts_the_gateway_regardless_of_the_configur
         },
         NodeRole::Gateway,
         None,
-        &systemprompt_api::routes::gateway::gateway_engines(ctx.kernel())
-            .expect("the gateway member provides its engines"),
     )?;
     assert!(is_mounted(&gateway, "/v1/models").await?);
     Ok(())

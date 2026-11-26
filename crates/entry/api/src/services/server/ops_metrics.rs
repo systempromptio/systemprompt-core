@@ -1,5 +1,6 @@
-//! Operational signals for running many replicas: gateway phases and streams,
-//! pool acquire wait, scheduler jobs, projection backlog and dropped log rows.
+//! Operational signals for running many replicas: pool acquire wait,
+//! scheduler jobs, projection backlog and dropped log rows. The gateway's
+//! phase histogram and stream gauge are the `gateway` member's descriptors.
 //!
 //! sqlx hands the pool straight to every query, so there is no central
 //! `acquire` to time. `db_pool_acquire_seconds{pool}` is instead a probe: every
@@ -47,10 +48,6 @@ const BACKLOG_INTERVAL: Duration = Duration::from_secs(30);
 pub(super) fn with_buckets(builder: PrometheusBuilder) -> Result<PrometheusBuilder, BuildError> {
     builder
         .set_buckets_for_metric(
-            Matcher::Full(systemprompt_gateway::GATEWAY_PHASE_SECONDS.to_owned()),
-            &systemprompt_gateway::PHASE_BUCKETS,
-        )?
-        .set_buckets_for_metric(
             Matcher::Full(DB_POOL_ACQUIRE_SECONDS.to_owned()),
             &ACQUIRE_BUCKETS,
         )?
@@ -61,15 +58,6 @@ pub(super) fn with_buckets(builder: PrometheusBuilder) -> Result<PrometheusBuild
 }
 
 pub(super) fn describe() {
-    metrics::describe_histogram!(
-        systemprompt_gateway::GATEWAY_PHASE_SECONDS,
-        metrics::Unit::Seconds,
-        "Gateway request time by phase (admission, upstream_first_byte, stream, finalize)"
-    );
-    metrics::describe_gauge!(
-        systemprompt_gateway::GATEWAY_STREAMS_IN_FLIGHT,
-        "Streamed gateway response bodies still being written by this process"
-    );
     metrics::describe_histogram!(
         DB_POOL_ACQUIRE_SECONDS,
         metrics::Unit::Seconds,

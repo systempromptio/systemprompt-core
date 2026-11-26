@@ -74,12 +74,10 @@ systemprompt-extension = { workspace = true, features = ["router"] }
 systemprompt-runtime = { workspace = true }
 systemprompt-oauth-issuance = { workspace = true }
 systemprompt-logging = { workspace = true }
-systemprompt-documents = { workspace = true, features = ["http"] }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-scheduler = { workspace = true }
-systemprompt-gateway = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }

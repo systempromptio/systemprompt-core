@@ -15,6 +15,11 @@
 //! It contributes the `documents` toolset to the MCP host's `ToolsetSlot`,
 //! so a hosted server lists it only in a composition that admits this member.
 //!
+//! With `http` it provides, sealed, the
+//! [`DocumentsKernelService`](crate::http::kernel::DocumentsKernelService) the
+//! API reaches through the shared `DocumentsKernel` contract: the internal
+//! link route, the folder-entity boot step and the discovery block.
+//!
 //! It also provides, sealed, the user lookup a hosted MCP server's document
 //! tools read (`Arc<DocumentsMcpUsers>`), so the child host builds no user
 //! repository of its own.
@@ -64,6 +69,12 @@ impl Extension for DocumentsExtension {
                 ConferralRow::DriveTokens,
                 |r: &Resolved<'_>| -> Result<DynDriveTokens, ProvideError> { Ok(drive_tokens(r)) },
             );
+        #[cfg(feature = "http")]
+        c.provide_sealed(
+            |_r: &Resolved<'_>| -> Result<systemprompt_extension::router::DynDocumentsKernel, ProvideError> {
+                Ok(Arc::new(crate::http::kernel::DocumentsKernelService))
+            },
+        );
         Ok(())
     }
 }

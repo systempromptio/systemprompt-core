@@ -78,6 +78,23 @@ impl CoreTerms {
         substitutable: &[],
     };
 
+    #[cfg(any(
+        feature = "files",
+        feature = "content",
+        feature = "analytics",
+        feature = "notifications",
+        feature = "marketplace",
+        feature = "mcp-servers",
+        feature = "agents",
+        feature = "identity",
+        feature = "brain",
+        feature = "cloud",
+        feature = "slack",
+        feature = "teams",
+        all(feature = "api", feature = "files"),
+        all(feature = "api", feature = "ai"),
+        all(feature = "api", feature = "agent-runs"),
+    ))]
     pub(super) const fn conferred(core: CoreId) -> Self {
         Self {
             required: false,

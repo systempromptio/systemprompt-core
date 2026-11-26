@@ -37,9 +37,8 @@
 //! | `agents` | the `systemprompt::agent` module, the `agent` and `agent-http` members | A2A agents, their registry and routes. In `reference`. |
 //! | `mcp-servers` | the `systemprompt-mcp` re-export in `systemprompt::mcp`, the `mcp` and `mcp-http` members | Hosted MCP servers and their routes. In `reference`. |
 //! | `marketplace` | the `systemprompt::marketplace` module, the `managed_resources` and `marketplace-http` members | Plugins, skills and managed resources. In `reference`. |
-//! | `issues` | the `systemprompt::issues` module and the `issues` member | Issue report intake and triage. In `reference`. |
 //! | `identity` | the `identity-http` member | The OAuth/OIDC, SSO, session and API-key routes. In `reference`. |
-//! | `reference` | `runtime`, `mcp`, `ai`, `cloud`, `identity`, `loader`, `storage`, `client`, `analytics`, `agents`, `mcp-servers`, `content`, `marketplace`, `files`, `agent-runs`, `notifications`, `brain`, `issues`, `files-office`, `files-pdf`, `files-collab-loro`, `otel` and `bridge` | The reference composition: building a product binary, and the composition of this crate's own `systemprompt` binary. The `slack` and `teams` modules stay opt-in. |
+//! | `reference` | `runtime`, `mcp`, `ai`, `cloud`, `identity`, `loader`, `storage`, `client`, `analytics`, `agents`, `mcp-servers`, `content`, `marketplace`, `files`, `agent-runs`, `notifications`, `brain`, `files-office`, `files-pdf`, `files-collab-loro`, `otel` and `bridge` | The reference composition: building a product binary, and the composition of this crate's own `systemprompt` binary. The `slack` and `teams` modules stay opt-in. |
 //!
 //! Crates are reachable as a module of the same name (`systemprompt::models`,
 //! `systemprompt::agent`, …) gated on its feature, with three exceptions:
@@ -167,8 +166,8 @@ pub mod api {
 /// The AI gateway: protocol translation, gateway policies and the
 /// safety-scanner, route-selector and system-prompt-override extension
 /// contracts.
-#[cfg(feature = "api")]
-#[cfg_attr(docsrs, doc(cfg(feature = "api")))]
+#[cfg(feature = "ai")]
+#[cfg_attr(docsrs, doc(cfg(feature = "ai")))]
 pub mod gateway {
     pub use systemprompt_gateway::*;
 }
@@ -264,10 +263,10 @@ pub mod oauth_issuance {
     pub use systemprompt_oauth_issuance::*;
 }
 
-#[cfg(any(feature = "api", feature = "files-office", feature = "files-pdf"))]
+#[cfg(any(feature = "files", feature = "files-office", feature = "files-pdf"))]
 #[cfg_attr(
     docsrs,
-    doc(cfg(any(feature = "api", feature = "files-office", feature = "files-pdf")))
+    doc(cfg(any(feature = "files", feature = "files-office", feature = "files-pdf")))
 )]
 pub mod files {
     pub use systemprompt_files::*;

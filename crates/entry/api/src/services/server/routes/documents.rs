@@ -1,5 +1,5 @@
 //! Mounts the routes the `files-http` member's
-//! [`FilesSurface`](systemprompt_documents::http::surface::FilesSurface)
+//! [`FilesSurface`](systemprompt_extension::router::FilesSurface)
 //! builds: `/api/v1/documents`, `/api/v1/document-folders` and
 //! `/api/v1/uploads`, the anonymous public-link open `/s/{token}` and
 //! `/api/v1/issues`; and, separately, `/api/v1/internal/links`. The document
@@ -17,7 +17,9 @@
 //! content-budget rate scope; triage authorization is the routes' own check
 //! on the triage roles or admin. Internal links authenticate by the MCP hop
 //! token they are presented, not a session, and are served wherever managed
-//! MCP servers run, a worker included.
+//! MCP servers run, a worker included; the `documents` member builds their
+//! router through its sealed `DocumentsKernel`, and without that member they
+//! are not mounted (404).
 //!
 //! Documents, uploads, folders and the OAuth `/revoke` route are the only
 //! routers mounted behind the context middleware that admits a person's UI
@@ -26,12 +28,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::sync::Arc;
-
 use axum::Router;
-use systemprompt_documents::http::surface::{DynFilesSurface, FilesRouteState, FilesRoutes};
-use systemprompt_documents::links::LinkMinter;
 use systemprompt_extension::reserved::CoreId;
+use systemprompt_extension::router::{
+    DynFilesSurface, DynSubjectCharge, FilesRouteState, FilesRoutes,
+};
 use systemprompt_extension::{
     AuthzPolicy, ContextKind, HandlerVerifier, RateBudget, RateLimit, RouteGroup, RouteProtection,
 };
@@ -40,8 +41,7 @@ use systemprompt_models::modules::ApiPaths;
 
 use super::RouteMountError;
 use super::protocol::{MountCtx, declare};
-use crate::routes::documents::{DocumentsMountError, files_host_handles, link_tokens};
-use crate::routes::internal::links_router;
+use crate::routes::documents::files_host_handles;
 
 const DOCUMENTS_RATE: RateLimit = RateLimit::new("documents", RateBudget::Content);
 const ISSUES_RATE: RateLimit = RateLimit::new("issues", RateBudget::Content);
@@ -151,28 +151,32 @@ pub(super) fn mount_internal_links(
     if !crate::services::server::boot_steps::documents_enabled(mount.ctx) {
         return Ok(router);
     }
-    let handles = systemprompt_documents::bound_handles(mount.ctx.kernel().state())
-        .map_err(|source| RouteMountError::initialization("internal_links", source))?;
-    let documents = handles.service.clone().ok_or_else(|| {
-        RouteMountError::initialization("internal_links", DocumentsMountError::Disabled)
-    })?;
-    let tokens = link_tokens(mount.ctx).ok_or_else(|| {
-        RouteMountError::initialization("internal_links", DocumentsMountError::MissingLinkTokens)
-    })?;
-    let state = mount.ctx.kernel().state();
-    let config = state.get::<Arc<systemprompt_manifest::Config>>()?;
-    let minter = LinkMinter {
-        tokens,
-        documents,
-        uploads: Arc::clone(&handles.uploads),
-        services: state.get::<systemprompt_loader::ServicesState>()?.clone(),
-        api_external_url: config.api_external_url.clone(),
+    let Some(documents) = crate::services::server::boot_steps::documents_kernel(mount.ctx) else {
+        tracing::info!(
+            reason = "documents_member_not_admitted",
+            "Internal link routes not mounted"
+        );
+        return Ok(router);
     };
-    let per_second = config.rate_limits.content_per_second;
+    let per_second = mount
+        .ctx
+        .kernel()
+        .state()
+        .get::<std::sync::Arc<systemprompt_manifest::Config>>()?
+        .rate_limits
+        .content_per_second;
+    let throttle = mount
+        .layers
+        .limits
+        .subject_throttle(per_second)
+        .map(|throttle| -> DynSubjectCharge { throttle });
+    let links = documents
+        .internal_links(&mount.ctx.kernel().resolved(), throttle)
+        .map_err(|source| RouteMountError::initialization("internal_links", source))?;
     Ok(mount.mount(
         router,
         declare(
-            links_router(minter, mount.layers.limits.subject_throttle(per_second)),
+            links,
             ApiPaths::INTERNAL_LINKS,
             AuthzPolicy::handler_verified(HandlerVerifier::McpHopToken),
             ContextKind::HandlerResolved,

@@ -16,9 +16,9 @@ use axum::Router;
 use axum::body::Body;
 use axum::extract::ConnectInfo;
 use axum::http::{Request, StatusCode, header};
-use systemprompt_api::routes::internal::links_router;
 use systemprompt_api::services::server::{ReadinessState, setup_api_server};
 use systemprompt_database::DbPool;
+use systemprompt_documents::http::internal_links::links_router;
 use systemprompt_documents::links::{
     ApiLinkIssuer, IssuedLink, LinkIssueError, LinkIssuer, LinkMinter, LinkRefusal, LinkTarget,
 };

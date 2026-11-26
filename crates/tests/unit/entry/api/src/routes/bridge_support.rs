@@ -2,7 +2,7 @@ use axum::body::Body;
 use axum::http::{HeaderMap, Request};
 use axum::response::Response;
 use systemprompt_extension::reserved::CoreId;
-use systemprompt_gateway::{GatewayRouteState, GatewaySurface, GatewaySurfaceRoutes};
+use systemprompt_extension::router::{GatewayRouteState, GatewaySurface, GatewaySurfaceRoutes};
 use systemprompt_gateway_entry::http::GatewayHttpSurface;
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::ApiPaths;
@@ -20,7 +20,6 @@ pub fn surface_routes(ctx: &AppContext) -> GatewaySurfaceRoutes {
     GatewayHttpSurface
         .build(GatewayRouteState {
             resolved: ctx.kernel().route_scoped(&owner, standing, &[]),
-            host: systemprompt_api::routes::gateway::host_handles(ctx).expect("host handles"),
         })
         .expect("the gateway surface builds")
 }

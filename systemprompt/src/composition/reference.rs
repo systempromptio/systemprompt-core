@@ -107,9 +107,9 @@ fn domain_members() -> Vec<Member> {
         Member::core::<systemprompt_agent::AgentExtension>(CoreTerms::OPTIONAL),
         #[cfg(feature = "analytics")]
         Member::core::<systemprompt_analytics::AnalyticsExtension>(CoreTerms::REQUIRED),
-        #[cfg(feature = "files")]
+        #[cfg(all(feature = "api", feature = "files"))]
         Member::core::<systemprompt_documents::extension::DocumentsExtension>(CoreTerms::REQUIRED),
-        #[cfg(feature = "api")]
+        #[cfg(all(feature = "api", feature = "files"))]
         Member::core::<systemprompt_files::FilesExtension>(CoreTerms::REQUIRED),
         #[cfg(feature = "content")]
         Member::core::<systemprompt_content::ContentExtension>(CoreTerms::OPTIONAL),
@@ -121,7 +121,7 @@ fn domain_members() -> Vec<Member> {
         Member::core::<systemprompt_brain::BrainExtension>(CoreTerms::OPTIONAL),
         #[cfg(feature = "notifications")]
         Member::core::<systemprompt_notifications::NotificationsExtension>(CoreTerms::OPTIONAL),
-        #[cfg(feature = "api")]
+        #[cfg(all(feature = "api", feature = "ai"))]
         Member::core::<systemprompt_gateway::extension::GatewayExtension>(CoreTerms::OPTIONAL),
         #[cfg(feature = "agent-runs")]
         Member::core::<systemprompt_agent_runs::AgentRunsExtension>(CoreTerms::OPTIONAL),
@@ -138,7 +138,7 @@ fn entry_members() -> Vec<Member> {
         Member::core::<systemprompt_content_entry::extension::ContentHttpExtension>(
             CoreTerms::conferred(CoreId::ContentHttp),
         ),
-        #[cfg(feature = "files")]
+        #[cfg(all(feature = "api", feature = "files"))]
         Member::core::<systemprompt_files_entry::extension::FilesHttpExtension>(
             CoreTerms::conferred(CoreId::FilesHttp),
         ),
@@ -166,7 +166,7 @@ fn entry_members() -> Vec<Member> {
         Member::core::<systemprompt_agent_entry::extension::AgentHttpExtension>(
             CoreTerms::conferred(CoreId::AgentHttp),
         ),
-        #[cfg(feature = "api")]
+        #[cfg(all(feature = "api", feature = "ai"))]
         Member::core::<systemprompt_gateway_entry::extension::GatewayHttpExtension>(
             CoreTerms::conferred(CoreId::GatewayHttp),
         ),

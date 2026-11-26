@@ -2,16 +2,17 @@
 //! `identity-http` members build.
 //!
 //! `gateway_mount_parts` calls the `gateway-http` member's
-//! [`GatewaySurface`](systemprompt_gateway::GatewaySurface) with that
-//! member's route-scoped state and hands the server its parts: the inference
-//! and bridge traffic, the principal-bound routes (placed behind
-//! `registered::verified`, the kernel's gateway verifier), the public
-//! session mint, the bridge credential exchange `identity-http` builds, and
-//! every admitted capability gateway route ([`registered`]). The server
-//! protects each part handler-verified by the gateway credential with its own
-//! rate limit and bearer window and wraps everything in `with_access_log`;
-//! [`gateway_router`] returns the same routes unlimited for tests. A member
-//! that is not admitted contributes nothing, so its routes answer 404.
+//! [`GatewaySurface`](systemprompt_extension::router::GatewaySurface) with
+//! that member's route-scoped state and hands the server its parts: the
+//! inference and bridge traffic, the principal-bound routes (placed behind
+//! `registered::verified`, the kernel's gateway verifier), the public session
+//! mint, the bridge credential exchange `identity-http` builds, and every
+//! admitted capability gateway route ([`registered`]). The server protects
+//! each part handler-verified by the gateway credential with its own rate
+//! limit and bearer window and wraps everything in the access log the
+//! `gateway` member's operations layer on; [`gateway_router`] returns the
+//! same routes unlimited for tests. A member that is not admitted contributes
+//! nothing, so its routes answer 404.
 //!
 //! The bridge credential-exchange half is budgeted apart from inference
 //! traffic because the two have opposite shapes: inference is high-volume and
@@ -22,20 +23,15 @@
 //! so its polling and inference never starve each other.
 //!
 //! The bridge Drive routes are the `files-http` member's
-//! [`DriveSurface`](systemprompt_documents::http::surface::DriveSurface),
-//! built with that member's route-scoped state: they hold the `DynDriveTokens`
-//! view the `documents` member confers on `files-http`, never the token
+//! [`DriveSurface`](systemprompt_extension::router::DriveSurface), built
+//! with that member's route-scoped state: they hold the `DynDriveTokens` view
+//! the `documents` member confers on `files-http`, never the token
 //! authority, and do not depend on `gateway-http`'s standing. They are
 //! mounted when `files-http` is admitted and the document store is enabled.
 //!
-//! The gateway repositories are built from the unscoped kernel resolution
-//! only for the boot paths inside this crate (settlement recovery, the brain
-//! recall sink); no other crate reaches that builder.
-//!
-//! [`gateway_engines`] builds the engines from the resolved kernel: the
-//! adapter, scanner, override and route-selector sets are the gateway's built
-//! slots and the guards are the kernel-built set of every admitted member's
-//! guard factory, so nothing a disabled member contributed runs.
+//! [`gateway_operations`] reads the `gateway` member's sealed
+//! [`GatewayOperations`](systemprompt_extension::router::GatewayOperations);
+//! their presence is the one test of whether the gateway is composed.
 //!
 //! The access log layer is outside every limiter so that a refused request
 //! still produces a record; an instance 429ing every sign-in shows it in its
@@ -44,36 +40,24 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod access_log;
 pub mod builtin;
 pub mod registered;
 
 use axum::Router;
-use std::sync::Arc;
-use systemprompt_database::DbPool;
-use systemprompt_documents::http::surface::{DynDriveSurface, FilesSurfaceError};
 use systemprompt_extension::Admitted;
 use systemprompt_extension::reserved::CoreId;
-use systemprompt_gateway::surface::ManagedConsumer;
-use systemprompt_gateway::{
-    DynGatewaySurface, GatewayEngines, GatewayHostHandles, GatewayRouteState, GatewaySurfaceError,
-    GatewaySurfaceRoutes,
+use systemprompt_extension::router::{
+    DynConsumerCatalog, DynDriveSurface, DynGatewayOperations, DynGatewaySurface,
+    FilesSurfaceError, GatewayRouteState, GatewaySurfaceError, GatewaySurfaceRoutes,
 };
-use systemprompt_governance::authz::SharedAuthzHook;
-use systemprompt_governance::policy::GovernanceEngine;
 use systemprompt_identifiers::ExtensionId;
-use systemprompt_loader::{BootContext, ServicesState};
-use systemprompt_logging::LoggingRuntime;
 use systemprompt_models::auth::DynRequestAuthenticator;
-use systemprompt_provider_contracts::{DependencyProvider, MissingDependency};
+use systemprompt_provider_contracts::DependencyProvider;
 use systemprompt_runtime::{AppContext, Kernel};
-use systemprompt_traits::{AppContext as _, ConfigWatch};
 
-use self::access_log::log_gateway_request;
 use self::builtin::confined;
 
 fn surface_routes(
-    ctx: &AppContext,
     admitted: &Admitted,
     kernel: &Kernel,
 ) -> Result<GatewaySurfaceRoutes, GatewaySurfaceError> {
@@ -86,41 +70,7 @@ fn surface_routes(
     };
     surface.build(GatewayRouteState {
         resolved: kernel.route_scoped(&owner, standing, &[]),
-        host: host_handles(ctx)?,
     })
-}
-
-pub fn host_handles(ctx: &AppContext) -> Result<GatewayHostHandles, MissingDependency> {
-    let state = ctx.kernel().state();
-    let profile = state.get::<BootContext>()?.profile();
-    Ok(GatewayHostHandles {
-        services: state.get::<ServicesState>()?.clone(),
-        governance: state.get::<ConfigWatch<GovernanceEngine>>()?.clone(),
-        authz_hook: Arc::clone(state.get::<SharedAuthzHook>()?),
-        analytics: ctx.analytics_provider(),
-        logging: state.get::<LoggingRuntime>()?.clone(),
-        payload_cap_bytes: profile.payload_cap_bytes(),
-        quota: profile.quota_config(),
-        unapplied_plane: profile.unapplied_plane_mode(),
-        brain: profile.brain.clone(),
-        tenant_id: profile
-            .cloud
-            .as_ref()
-            .and_then(|cloud| cloud.tenant_id.clone()),
-    })
-}
-
-pub(crate) fn gateway_repositories(
-    ctx: &AppContext,
-) -> Result<systemprompt_gateway::GatewayRepositories, GatewaySurfaceError> {
-    systemprompt_gateway::surface::repositories::gateway_repositories(
-        &ctx.kernel().resolved(),
-        &host_handles(ctx)?,
-        ctx.kernel()
-            .resolved()
-            .optional::<systemprompt_traits::DynContextMaterializer>(),
-        ctx.kernel().state().get::<DbPool>()?,
-    )
 }
 
 fn drive_routes(admitted: &Admitted, kernel: &Kernel) -> Result<Router, FilesSurfaceError> {
@@ -163,7 +113,7 @@ pub(crate) fn gateway_mount_parts(
                 ExtensionId::new("users"),
             )
         })?;
-    let routes = surface_routes(ctx, admitted, kernel)?;
+    let routes = surface_routes(admitted, kernel)?;
     let registered = registered::admitted_gateway_routes(admitted, kernel, &authenticator)?;
     let principal_bound = registered::verified(routes.principal_bound, &authenticator);
     let drive = drive_routes(admitted, kernel)?;
@@ -172,13 +122,13 @@ pub(crate) fn gateway_mount_parts(
         traffic: confined(traffic),
         bridge_auth: confined(bridge_auth),
         public_sessions: routes.public_sessions,
-        managed_consumer: routes.managed_consumer,
+        consumer_catalog: routes.consumer_catalog,
         registered,
     })
 }
 
-pub fn gateway_engines(kernel: &Kernel) -> Option<Arc<GatewayEngines>> {
-    kernel.state().find::<Arc<GatewayEngines>>().cloned()
+pub fn gateway_operations(kernel: &Kernel) -> Option<DynGatewayOperations> {
+    kernel.state().find::<DynGatewayOperations>().cloned()
 }
 
 pub fn gateway_router(
@@ -186,8 +136,8 @@ pub fn gateway_router(
     admitted: &Admitted,
     kernel: &Kernel,
 ) -> anyhow::Result<Router> {
-    gateway_engines(kernel).ok_or_else(|| {
-        anyhow::anyhow!("the gateway member is not admitted; no gateway engines are built")
+    let gateway = gateway_operations(kernel).ok_or_else(|| {
+        anyhow::anyhow!("the gateway member is not admitted; no gateway route is built")
     })?;
     let bridge_auth = crate::services::server::routes::identity_bridge_auth(ctx, admitted, kernel)?
         .unwrap_or_default();
@@ -198,17 +148,14 @@ pub fn gateway_router(
         .fold(parts.traffic.merge(parts.bridge_auth), |routes, group| {
             routes.merge(group.router)
         });
-    Ok(with_access_log(
-        ctx.kernel().state().get::<LoggingRuntime>()?,
-        routes,
-    ))
+    Ok(gateway.access_log(&ctx.kernel().resolved(), routes)?)
 }
 
 pub(crate) struct GatewayMountParts {
     pub(crate) traffic: Router,
     pub(crate) bridge_auth: Router,
     pub(crate) public_sessions: Router,
-    pub(crate) managed_consumer: Option<ManagedConsumer>,
+    pub(crate) consumer_catalog: Option<DynConsumerCatalog>,
     pub(crate) registered: Vec<registered::RegisteredGatewayRoutes>,
 }
 
@@ -216,11 +163,4 @@ impl std::fmt::Debug for GatewayMountParts {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GatewayMountParts").finish_non_exhaustive()
     }
-}
-
-pub(crate) fn with_access_log(logging: &LoggingRuntime, router: Router) -> Router {
-    router.layer(axum::middleware::from_fn_with_state(
-        logging.clone(),
-        log_gateway_request,
-    ))
 }

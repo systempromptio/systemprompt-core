@@ -1,4 +1,5 @@
-//! The document store's HTTP surface contract.
+//! The document store's contracts the API composes without naming the files
+//! capability.
 //!
 //! The `files-http` member contributes a [`FilesSurface`]: one builder the
 //! API mount calls with the route-scoped state of `files-http`
@@ -17,6 +18,17 @@
 //! does not hold. [`DriveSurface`] builds the bridge Drive feed the API
 //! mounts under the gateway from the same route-scoped resolution.
 //!
+//! The `documents` member provides, sealed, the one [`DocumentsKernel`] of
+//! the process: the `/api/v1/internal/links` router (the API mounts it
+//! handler-verified by the MCP hop token and hands it the per-subject
+//! [`SubjectCharge`] it charges after verifying the hop), the boot step that
+//! registers the document folders as access-control entities, and the
+//! `endpoints.documents` block of the root discovery document. Kernel code
+//! calls it with the kernel's own resolution, the same authority the API read
+//! the document store and the link token authority with before they moved
+//! behind this contract. Without the member the API mounts no internal link
+//! route (404), runs no folder reconcile and reports the store as disabled.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -26,9 +38,10 @@ use std::sync::Arc;
 use axum::Router;
 use axum::extract::ConnectInfo;
 use axum::http::HeaderMap;
-use systemprompt_extension::prelude::{MissingDependency, Resolved};
-use systemprompt_files::documents::DocumentsUnbound;
-use systemprompt_traits::UserProvider;
+use axum::response::Response;
+use systemprompt_traits::{BoxedSource, UserProvider};
+
+use crate::{MissingDependency, Resolved};
 
 /// Builds the document, upload and issue handler routes from the
 /// `files-http` route state.
@@ -113,12 +126,53 @@ impl std::fmt::Debug for TokenGatedRoutes {
     }
 }
 
-#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum FilesSurfaceError {
     #[error(transparent)]
     Resolve(#[from] MissingDependency),
     #[error("the files routes need the document store")]
-    Unbound(#[from] DocumentsUnbound),
+    Unbound,
     #[error("the document routes need a user provider")]
     MissingUserProvider,
+    #[error("the document routes need the document store enabled")]
+    Disabled,
+    #[error("the document folder entities do not reconcile")]
+    Reconcile(#[source] BoxedSource),
+    #[error("the documents discovery block does not serialise")]
+    Discovery(#[source] serde_json::Error),
 }
+
+/// A per-subject limiter a handler charges with a key it derives from a
+/// credential it verified; a refusal is the response the handler returns.
+pub trait SubjectCharge: Send + Sync + std::fmt::Debug {
+    fn charge(&self, key: &str) -> Result<(), Response>;
+}
+
+pub type DynSubjectCharge = Arc<dyn SubjectCharge>;
+
+/// The `documents` member's kernel-facing work: the internal link router,
+/// the folder-entity boot step and the discovery block.
+///
+/// Held as `Arc<dyn DocumentsKernel>` in the kernel state, hence
+/// `#[async_trait]`.
+#[async_trait::async_trait]
+pub trait DocumentsKernel: Send + Sync + std::fmt::Debug {
+    fn internal_links(
+        &self,
+        kernel: &Resolved<'_>,
+        throttle: Option<DynSubjectCharge>,
+    ) -> Result<Router, FilesSurfaceError>;
+
+    async fn reconcile_folder_entities(
+        &self,
+        kernel: &Resolved<'_>,
+    ) -> Result<u64, FilesSurfaceError>;
+
+    fn discovery(
+        &self,
+        kernel: &Resolved<'_>,
+        base: &str,
+    ) -> Result<serde_json::Value, FilesSurfaceError>;
+}
+
+pub type DynDocumentsKernel = Arc<dyn DocumentsKernel>;
