@@ -167,6 +167,10 @@ lint-layers:
 lint-kernel-deps:
     python3 ./scripts/lint-kernel-deps.py
 
+# Reject a server kernel crate reaching a device crate, and a device crate naming a server crate above shared
+lint-device-closure:
+    python3 ./scripts/lint-device-closure.py
+
 # Reject a capability feature cfg anywhere but a mod declaration or the facade
 lint-capability-cfg:
     python3 ./scripts/lint-capability-cfg.py

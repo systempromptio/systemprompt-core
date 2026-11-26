@@ -1,0 +1,44 @@
+[root]
+section = "Added"
+area = "Device crates"
+text = "New crates `systemprompt-device` and `systemprompt-machine` (infra layer), `systemprompt-engine`, `systemprompt-proxy`, `systemprompt-hosts`, `systemprompt-drive` and `systemprompt-runner` (domain layer) and `systemprompt-harness` (app layer) are the device crates. Each declares no items and has no dependencies. `just lint-layers` holds each at its layer, and `just lint-device-closure` refuses a server kernel crate that names a device crate and a device crate that names a server crate above the shared layer."
+
+[[crate]]
+name = "systemprompt-device"
+section = "Added"
+text = "New crate. It declares no items and has no dependencies."
+
+[[crate]]
+name = "systemprompt-machine"
+section = "Added"
+text = "New crate. It declares no items and has no dependencies."
+
+[[crate]]
+name = "systemprompt-engine"
+section = "Added"
+text = "New crate. It declares no items and has no dependencies."
+
+[[crate]]
+name = "systemprompt-proxy"
+section = "Added"
+text = "New crate. It declares no items and has no dependencies."
+
+[[crate]]
+name = "systemprompt-hosts"
+section = "Added"
+text = "New crate. It declares no items and has no dependencies."
+
+[[crate]]
+name = "systemprompt-drive"
+section = "Added"
+text = "New crate. It declares no items and has no dependencies."
+
+[[crate]]
+name = "systemprompt-runner"
+section = "Added"
+text = "New crate. It declares no items and has no dependencies."
+
+[[crate]]
+name = "systemprompt-harness"
+section = "Added"
+text = "New crate. It declares no items and has no dependencies."

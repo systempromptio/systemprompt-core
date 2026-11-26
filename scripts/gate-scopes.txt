@@ -56,6 +56,7 @@ lint-no-untyped-admin       unit    cheap    sql     0.1s
 check-headers               unit    cheap    sql     0.2s
 lint-layers                 global  cheap    sql     0.1s; the cargo dependency graph
 lint-kernel-deps            global  cheap    sql     0.1s; the cargo dependency graph
+lint-device-closure         global  cheap    sql     0.1s; the cargo dependency graph against the kernel rows of units.txt
 lint-capability-cfg         global  cheap    errors  0.3s; crates/ (minus crates/tests) token scan against the capability features of units.txt and the facade
 lint-domain-protocol-deps   global  cheap    sql     0.1s; the cargo dependency graph
 lint-capability-deps        global  cheap    sql     0.1s; the cargo dependency graph against the units of units.txt
