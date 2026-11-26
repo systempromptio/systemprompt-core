@@ -2,7 +2,8 @@
 //!
 //! [`HostKind`] is the one definition of host identity shared by the gateway
 //! (which advertises the hosts it serves and attests their traffic) and the
-//! bridge (which enrols, syncs and mints loopback credentials per host). Its
+//! bridge (which enrols, syncs and mints loopback credentials for every host
+//! whose [`HostKind::config_owner`] is [`ConfigOwner::Bridge`]). Its
 //! wire form is the kebab-case host id (`claude-code`, `codex-cli`, …), the
 //! same string every bridge config file and loopback token scope already
 //! carries. This module is the only place those ids are spelled.
@@ -44,6 +45,18 @@ pub enum HostKind {
 pub enum HostAppKind {
     DesktopApp,
     CliTool,
+}
+
+/// Who writes a host's configuration and holds its loopback credential.
+///
+/// The bridge enrols, syncs and mints a loopback credential for a
+/// [`ConfigOwner::Bridge`] host. A [`ConfigOwner::Host`] host reads and
+/// verifies the signed manifest itself: the bridge writes it no profile,
+/// lists it nowhere and issues it no credential.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ConfigOwner {
+    Bridge,
+    Host,
 }
 
 /// The product behind one or more [`HostKind`] packagings. Every packaging of
@@ -103,6 +116,20 @@ impl HostKind {
             Self::OpenCode | Self::OpenCodeCli => HostProduct::OpenCode,
             Self::Hermes => HostProduct::Hermes,
             Self::Harness => HostProduct::Harness,
+        }
+    }
+
+    #[must_use]
+    pub const fn config_owner(self) -> ConfigOwner {
+        match self {
+            Self::ClaudeCode
+            | Self::ClaudeDesktop
+            | Self::Codex
+            | Self::CodexCli
+            | Self::OpenCode
+            | Self::OpenCodeCli
+            | Self::Hermes => ConfigOwner::Bridge,
+            Self::Harness => ConfigOwner::Host,
         }
     }
 

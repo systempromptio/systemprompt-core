@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use serde_json::json;
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{ConfigOwner, HostKind};
 
 use crate::config;
 use crate::gateway::GatewayClient;
@@ -24,6 +24,22 @@ pub(crate) fn on_enabled_set_requested(
     enabled: bool,
     reply_to: ReplyId,
 ) {
+    if host_id.config_owner() != ConfigOwner::Bridge {
+        app.append_log(format!(
+            "[{host_id}] enable preference: nothing to do — the bridge configures nothing for \
+             this host; it reads the instance manifest itself"
+        ));
+        finish(
+            app,
+            Ok(json!({
+                "host_id": host_id,
+                "changed": false,
+                "reason": "unmanaged",
+            })),
+            reply_to,
+        );
+        return;
+    }
     app.append_log(format!(
         "[{host_id}] {} for this account",
         if enabled { "turning on" } else { "turning off" }

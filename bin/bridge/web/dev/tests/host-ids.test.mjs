@@ -11,9 +11,14 @@ import { fixture, fixtureNames } from "./fixtures.mjs";
 
 const KINDS = new Set(["desktop-app", "cli-tool"]);
 
-test("the mirror lists seven distinct kebab-case ids", () => {
-  assert.equal(HOST_IDS.length, 7);
-  assert.equal(new Set(HOST_IDS).size, 7);
+// The harness app owns its configuration (`HostKind::config_owner` is `Host`):
+// the bridge sends no entry for it, so the mirror spells its id and no fixture
+// lists it.
+const LISTED_HOST_IDS = HOST_IDS.filter((id) => id !== HOST_ID.harness);
+
+test("the mirror lists eight distinct kebab-case ids", () => {
+  assert.equal(HOST_IDS.length, 8);
+  assert.equal(new Set(HOST_IDS).size, 8);
   for (const id of HOST_IDS) {
     assert.match(id, /^[a-z]+(-[a-z]+)*$/, `${id} is not a kebab-case host id`);
   }
@@ -30,16 +35,20 @@ test("app and CLI packagings of a product are both listed", () => {
 test("every fixture host is a known id with a known packaging", () => {
   for (const name of fixtureNames()) {
     for (const host of fixture(name).host_apps || []) {
-      assert.ok(HOST_IDS.includes(host.id), `${name}.json names unknown host '${host.id}'`);
+      assert.ok(
+        LISTED_HOST_IDS.includes(host.id),
+        `${name}.json names '${host.id}', which the bridge never lists`,
+      );
       assert.ok(KINDS.has(host.kind), `${name}.json: ${host.id} has kind '${host.kind}'`);
     }
   }
 });
 
-test("the setup page's healthy state lists all seven hosts with their packaging", () => {
+test("the setup page's healthy state lists every host the bridge configures with its packaging", () => {
   const hosts = fixture("healthy").host_apps;
   const ids = hosts.map((h) => h.id).sort();
-  assert.deepEqual(ids, [...HOST_IDS].sort());
+  assert.equal(LISTED_HOST_IDS.length, 7);
+  assert.deepEqual(ids, [...LISTED_HOST_IDS].sort());
   const byId = new Map(hosts.map((h) => [h.id, h]));
   assert.equal(byId.get(HOST_ID.codex).kind, "desktop-app");
   assert.equal(byId.get(HOST_ID.codexCli).kind, "cli-tool");

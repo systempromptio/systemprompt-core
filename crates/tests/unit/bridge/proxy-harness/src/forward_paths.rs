@@ -666,7 +666,8 @@ fn otel_posts_require_a_loopback_or_host_credential_and_are_rewritten_under_v1()
         let host_token = systemprompt_bridge::proxy::scoped_token::host_token(
             &systemprompt_bridge::ids::LoopbackSecret::new(SECRET),
             systemprompt_bridge::integration::HostKind::ClaudeDesktop,
-        );
+        )
+        .expect("the bridge owns this host's configuration");
         let with_host_token = h
             .post_with("/otel/v1/traces", host_token.as_str(), "payload")
             .await;
@@ -1208,7 +1209,8 @@ fn a_host_token_forwards_verified_attestation_instead_of_caller_claims() {
         let host_token = systemprompt_bridge::proxy::scoped_token::host_token(
             &systemprompt_bridge::ids::LoopbackSecret::new(SECRET),
             systemprompt_bridge::integration::HostKind::ClaudeDesktop,
-        );
+        )
+        .expect("the bridge owns this host's configuration");
 
         let response = Harness::client()
             .post(h.url("/v1/messages"))

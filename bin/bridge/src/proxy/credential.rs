@@ -5,7 +5,9 @@
 //! (a plugin's `hooks.json`, Claude Desktop's managed preferences) accepts
 //! only the token derived for that surface. Each class is fail-closed: a
 //! credential that does not fit the route is refused, never downgraded to a
-//! raw-secret check.
+//! raw-secret check. A host token is recognised only for the hosts
+//! [`credentialed_hosts`] lists, the ones whose configuration the bridge
+//! owns; a token scoped to any other host is no credential on any route.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,7 +17,7 @@ use crate::proxy::forward::path::ProxyPath;
 use crate::proxy::scoped_token::{self, TokenScope};
 use crate::proxy::secret;
 use systemprompt_models::ApiPaths;
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{ConfigOwner, HostKind};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LoopbackCredential {
@@ -145,8 +147,13 @@ pub fn authenticate(
     }
 }
 
-fn presenting_host(presented: &str, secret: &ProxySecret) -> Option<HostKind> {
+pub fn credentialed_hosts() -> impl Iterator<Item = HostKind> {
     HostKind::ALL
         .into_iter()
+        .filter(|host| host.config_owner() == ConfigOwner::Bridge)
+}
+
+fn presenting_host(presented: &str, secret: &ProxySecret) -> Option<HostKind> {
+    credentialed_hosts()
         .find(|host| scoped_token::verify(presented, secret, &TokenScope::Host(*host)))
 }

@@ -243,8 +243,9 @@ Each entry below is one breaking change of this release, with its migration wher
 ## Hosts
 
 - `HostKind` and `HostProduct` gain `Harness` (`harness`, a desktop app speaking both the Anthropic Messages and the OpenAI Chat Completions wire), `ClientKind` gains `Harness` (declarable as `x-systemprompt-client: harness`, User-Agent product `harness`) and `EvaluatorClient` gains `Harness` (consumer plans and session bindings for `host=harness`). Migrate an exhaustive `match` by adding the arm.
+- `HostKind::config_owner()` returns `ConfigOwner::Host` for `harness` and `ConfigOwner::Bridge` for every other host: it names who writes a host's configuration and holds its loopback credential. Decide what to do for a host from it, not from the host id.
 - `SignedManifest` gains `host_extensions` and `ExternalAgentConfig` gains `extensions`. Migrate a struct literal by setting them.
-- The bridge configures, syncs and lists nothing for `harness`: `model_view::host_client` is `host_clients`, returning every client family a host lists models for, and `ResolvedHost` and `SelectionError` gain `Unmanaged`. Migrate a white-label crate by calling `host_clients` and adding the arms.
+- The bridge configures, syncs, lists and credentials nothing for a host whose `config_owner()` is `ConfigOwner::Host` (`harness`): `credential-helper --host harness` exits 64, the loopback proxy accepts no host token scoped to it, and a `register_host_app!` or `register_host_sync!` registration for it is dropped. `scoped_token::host_token` and `ProfileFacts::inputs_for` return a `Result` whose error is `HostOwnsConfig` (`scoped_token::desktop_host_token` and `ProfileFacts::desktop_inputs` are the infallible Claude Desktop forms), and `DesiredError` and `ProfileInputsError` gain `HostOwned`. `model_view::host_client` is `host_clients`, returning every client family a host lists models for, and `ResolvedHost` and `SelectionError` gain `Unmanaged`. Migrate a white-label crate by calling `host_clients`, handling the two `Result`s and adding the arms.
 
 ## Identifiers
 

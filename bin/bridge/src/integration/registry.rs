@@ -4,7 +4,10 @@
 //! [`register_host_app!`](crate::register_host_app) below, and white-label
 //! crates can supply their own implementation of a host without editing core.
 //! Every registration is keyed by its [`HostKind`] — the closed set of hosts
-//! the gateway knows — so a host outside that set cannot be registered.
+//! the gateway knows — so a host outside that set cannot be registered. A
+//! registration whose id or profile identity is a host that owns its
+//! configuration ([`ConfigOwner::Host`]) is refused: the bridge writes no
+//! profile and derives no credential for such a host, whoever registers it.
 //! Registrations carry a `priority` (built-ins use 0); the registry sorts by
 //! descending priority then `id()`, then **dedups by `id()` keeping the
 //! highest-priority entry** — so a white-label crate can shadow a built-in
@@ -16,7 +19,7 @@
 use std::collections::BTreeSet;
 use std::sync::LazyLock;
 
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{ConfigOwner, HostKind};
 
 use super::host_app::HostApp;
 
@@ -57,6 +60,11 @@ register_host_app!(super::hermes::HERMES_HOST);
 register_host_app!(super::opencode::OPENCODE_APP_HOST);
 register_host_app!(super::opencode::OPENCODE_CLI_HOST);
 
+fn bridge_configures(app: &dyn HostApp) -> bool {
+    app.id().config_owner() == ConfigOwner::Bridge
+        && app.profile_identity().config_owner() == ConfigOwner::Bridge
+}
+
 struct Registry {
     hosts: Vec<&'static dyn HostApp>,
 }
@@ -72,6 +80,17 @@ static REGISTRY: LazyLock<Registry> = LazyLock::new(|| {
     let mut seen: BTreeSet<HostKind> = BTreeSet::new();
     let mut hosts: Vec<&'static dyn HostApp> = regs
         .into_iter()
+        .filter(|r| {
+            let admitted = bridge_configures(r.app);
+            if !admitted {
+                tracing::warn!(
+                    host = %r.app.id(),
+                    profile_identity = %r.app.profile_identity(),
+                    "host app registration refused: the host owns its configuration"
+                );
+            }
+            admitted
+        })
         .filter(|r| seen.insert(r.app.id()))
         .map(|r| r.app)
         .collect();
@@ -92,9 +111,9 @@ pub fn find_host_by_id(id: HostKind) -> Option<&'static dyn HostApp> {
 ///
 /// Every caller acting on a user-supplied host id resolves it through
 /// [`resolve_host`] rather than treating a [`find_host_by_id`] miss as an
-/// unknown id: a sync-only agent is ordinary, an unmanaged host is known but
-/// left to configure itself, and only [`ResolvedHost::Unknown`] is a caller
-/// error.
+/// unknown id: a sync-only agent is ordinary, a host that owns its
+/// configuration ([`ConfigOwner::Host`]) is known but unmanaged, and only
+/// [`ResolvedHost::Unknown`] is a caller error.
 #[derive(Clone, Copy)]
 pub enum ResolvedHost {
     Local(&'static dyn HostApp),
@@ -116,14 +135,14 @@ impl std::fmt::Debug for ResolvedHost {
 
 #[must_use]
 pub fn resolve_host(id: HostKind) -> ResolvedHost {
+    if id.config_owner() != ConfigOwner::Bridge {
+        return ResolvedHost::Unmanaged(id);
+    }
     if let Some(host) = find_host_by_id(id) {
         return ResolvedHost::Local(host);
     }
     if let Some(agent) = super::sync_only::sync_only_agent(id) {
         return ResolvedHost::SyncOnly(agent);
-    }
-    if super::sync_only::is_unmanaged(id) {
-        return ResolvedHost::Unmanaged(id);
     }
     ResolvedHost::Unknown
 }
