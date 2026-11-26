@@ -9,8 +9,13 @@
 //! ([`GatewayAuditError::PreUpgradeJournal`](crate::GatewayAuditError)), and
 //! `systemprompt admin secrets reseal --member gateway --apply` rewrites the
 //! frames that open frame by frame under the journal key, so recovery settles
-//! their receipts on the next boot. A segment no frame of which opens under
-//! either key holds nothing any key recovers and is left to recovery as torn.
+//! their receipts on the next boot. A frame that opens under neither key
+//! (corrupt, or sealed under a rotated key) and a torn tail are never dropped:
+//! the rewrite keeps their bytes verbatim after the resealed frames, so
+//! recovery settles every resealed receipt before it reaches them, and the
+//! report counts them (`frames_kept_unopened`). A segment no frame of which
+//! opens under either key holds nothing any key recovers and is left to
+//! recovery as torn.
 //!
 //! The rewrite goes to a sibling `.reseal` file, synced, then renamed over the
 //! segment, and the directory is synced. The rename is the only commit point:
@@ -42,12 +47,37 @@ pub struct JournalReseal {
     pub pre_088: u64,
     pub resealed: u64,
     pub undecodable: u64,
+    pub frames_kept_unopened: u64,
+}
+
+struct Rewrite {
+    plains: Vec<Vec<u8>>,
+    unopened: Vec<u8>,
+    unopened_frames: u64,
 }
 
 enum Judged {
     Current,
-    Pre088(Vec<Vec<u8>>),
+    Pre088(Rewrite),
     Undecodable,
+}
+
+enum Scheme {
+    Current,
+    Pre088,
+}
+
+fn open_frame(
+    current: &ChaCha20Poly1305,
+    master: &MasterKey,
+    body: &[u8],
+) -> Option<(Vec<u8>, Scheme)> {
+    let (nonce, sealed) = split_body(body)?;
+    current
+        .decrypt(&Nonce::from(nonce), sealed)
+        .map(|plain| (plain, Scheme::Current))
+        .or_else(|_| pre_088::open(master, &nonce, sealed).map(|plain| (plain, Scheme::Pre088)))
+        .ok()
 }
 
 fn judge(current: &ChaCha20Poly1305, master: &MasterKey, bytes: &[u8]) -> Judged {
@@ -58,20 +88,30 @@ fn judge(current: &ChaCha20Poly1305, master: &MasterKey, bytes: &[u8]) -> Judged
     let mut opens_current = false;
     let mut opens_pre_088 = false;
     let mut plains = Vec::new();
-    for (_, body) in &framed.bodies {
-        let Some((nonce, sealed)) = split_body(body) else {
-            continue;
-        };
-        if let Ok(plain) = current.decrypt(&Nonce::from(nonce), sealed) {
-            opens_current = true;
+    let mut unopened = Vec::new();
+    let mut unopened_frames = 0;
+    for (at, body) in &framed.bodies {
+        if let Some((plain, scheme)) = open_frame(current, master, body) {
+            match scheme {
+                Scheme::Current => opens_current = true,
+                Scheme::Pre088 => opens_pre_088 = true,
+            }
             plains.push(plain);
-        } else if let Ok(plain) = pre_088::open(master, &nonce, sealed) {
-            opens_pre_088 = true;
-            plains.push(plain);
+        } else {
+            unopened_frames += 1;
+            unopened.extend_from_slice(&bytes[*at..*at + 4 + body.len()]);
         }
     }
+    if let Some((at, _)) = framed.cut {
+        unopened_frames += 1;
+        unopened.extend_from_slice(&bytes[at..]);
+    }
     if opens_pre_088 {
-        Judged::Pre088(plains)
+        Judged::Pre088(Rewrite {
+            plains,
+            unopened,
+            unopened_frames,
+        })
     } else if opens_current {
         Judged::Current
     } else {
@@ -79,7 +119,7 @@ fn judge(current: &ChaCha20Poly1305, master: &MasterKey, bytes: &[u8]) -> Judged
     }
 }
 
-fn rewrite(path: &Path, current: &ChaCha20Poly1305, plains: &[Vec<u8>]) -> Result<()> {
+fn rewrite(path: &Path, current: &ChaCha20Poly1305, rewrite: &Rewrite) -> Result<()> {
     let staged = path.with_extension(STAGED_SUFFIX);
     match fs::remove_file(&staged) {
         Ok(()) => {},
@@ -87,9 +127,10 @@ fn rewrite(path: &Path, current: &ChaCha20Poly1305, plains: &[Vec<u8>]) -> Resul
         Err(error) => return Err(error.into()),
     }
     let mut file = segment::create(&staged)?;
-    for plain in plains {
+    for plain in &rewrite.plains {
         file.write_all(&seal_plain(current, plain)?)?;
     }
+    file.write_all(&rewrite.unopened)?;
     file.sync_all()?;
     drop(file);
     fs::rename(&staged, path)?;
@@ -120,10 +161,11 @@ pub(crate) fn reseal(
         match judge(current, master, &fs::read(&path)?) {
             Judged::Current => report.current += 1,
             Judged::Undecodable => report.undecodable += 1,
-            Judged::Pre088(plains) => {
+            Judged::Pre088(staged) => {
                 report.pre_088 += 1;
+                report.frames_kept_unopened += staged.unopened_frames;
                 if apply {
-                    rewrite(&path, current, &plains)?;
+                    rewrite(&path, current, &staged)?;
                     report.resealed += 1;
                 }
             },

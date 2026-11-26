@@ -124,6 +124,40 @@ fn a_damaged_first_frame_does_not_hide_the_pre_088_frames_after_it() {
 }
 
 #[test]
+fn a_reseal_keeps_the_frames_no_key_opens_and_the_torn_tail() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let damaged = damaged_frame();
+    let torn = b"\x10\x00\x00\x00half".to_vec();
+    let segment = plant(
+        dir.path(),
+        &[
+            pre_088_frame(),
+            damaged.clone(),
+            pre_088_frame(),
+            torn.clone(),
+        ],
+    );
+    let at_rest = at_rest(dir.path());
+    let dry = at_rest.reseal_journal(false).expect("dry run");
+    assert_eq!(
+        (dry.pre_088, dry.frames_kept_unopened),
+        (1, 2),
+        "the damaged frame and the torn tail are counted, not dropped"
+    );
+    let applied = at_rest.reseal_journal(true).expect("apply");
+    assert_eq!((applied.resealed, applied.frames_kept_unopened), (1, 2));
+    let bytes = std::fs::read(&segment).expect("read");
+    let mut kept = damaged;
+    kept.extend_from_slice(&torn);
+    assert!(
+        bytes.ends_with(&kept),
+        "the unopened frame and the torn tail are kept verbatim after the resealed frames"
+    );
+    let again = at_rest.reseal_journal(false).expect("again");
+    assert_eq!((again.pre_088, again.current), (0, 1));
+}
+
+#[test]
 fn a_segment_no_key_opens_is_undecodable_and_does_not_block_the_journal() {
     let dir = tempfile::tempdir().expect("tempdir");
     plant(dir.path(), &[damaged_frame(), damaged_frame()]);

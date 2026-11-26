@@ -231,13 +231,15 @@ impl AdmittedReseals {
 }
 
 /// The counts of one member's sealed files, judged by the scheme each opens
-/// under.
+/// under; `kept_unopened` counts the records inside re-sealed files that no
+/// key opens, kept verbatim rather than re-sealed.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct SealedFilesReport {
     pub total: u64,
     pub current: u64,
     pub resealed: u64,
     pub undecodable: u64,
+    pub kept_unopened: u64,
 }
 
 #[derive(Debug, Error)]

@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Gateway"
+text = "A journal reseal keeps every frame no key opens and the torn tail verbatim after the resealed frames, and reports them (`frames_kept_unopened`, surfaced as `unwritten` in `admin secrets reseal`)."

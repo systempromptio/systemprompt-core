@@ -117,6 +117,9 @@ impl GatewayAtRest {
                     key,
                     &ExtensionId::new(systemprompt_ai::repository::CREDENTIALS_OWNER),
                 )
+                .map_err(|error| {
+                    tracing::warn!(error = %error, "the credentials cipher does not derive; sealed credentials are withheld");
+                })
                 .ok()
             })
             .unwrap_or_else(AtRestCipher::withheld)
@@ -156,6 +159,7 @@ impl systemprompt_extension::SealedFiles for JournalFiles {
                 report.pre_088
             },
             undecodable: report.undecodable,
+            kept_unopened: report.frames_kept_unopened,
         })
     }
 }
