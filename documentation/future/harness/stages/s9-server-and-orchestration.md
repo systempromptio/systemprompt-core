@@ -31,9 +31,10 @@ Each is an ordinary capability unit: a domain crate, an entry crate with HTTP, c
 
 | Lane | Capability |
 |---|---|
-| **S9-C1** | Tasks and routines |
-| **S9-C2** | Remote control |
-| **S9-C3** | Brain surface on the device |
+| **S9-C1** | Routines that chain sessions and other agents, built on scheduled sessions (S4) and the runner |
+| **S9-C2** | Further capabilities as they are designed |
+
+Scheduled sessions and memory are not here: they are built in S4 and shown on the desktop in S5. Following a session from a phone is the mobile set's.
 
 ## Stage gate (L2)
 

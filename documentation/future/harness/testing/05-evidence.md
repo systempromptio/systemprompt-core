@@ -56,6 +56,12 @@ The packaged application is launched, pointed at the scripted instance, moved th
 | 18 | Revert confirmation and the result | Light |
 | 19 | Signed out by a refused credential | Light |
 | 20 | About, with version and build provenance | Light |
+| 21 | The mode selector, with an unavailable mode and its reason | Light |
+| 22 | Two sessions on one repository, each in its own working copy | Light |
+| 23 | The integrated terminal | Light, dark |
+| 24 | The preview pane showing a served page | Light |
+| 25 | Schedules: list, one paused after repeated failure | Light |
+| 26 | Memory: what a turn recalled; removing an item | Light |
 
 Later stages extend the list: contributed views and themes (S5); the hosts, marketplace, first-run and inbox views and the tray (S6); Linux, and a sealed sign-in surviving a relaunch (S7).
 

@@ -58,6 +58,8 @@ Each kernel member is a facade feature of `systemprompt`, so a build links only 
 | `lockdown` | Enforced machine policy | `machine` | Core, optional |
 | `runner` | Start and observe sessions in other agents | The host slices it drives | Core, optional |
 | `drive`, `update` | Folder sync; self-update | `device` | Core, optional |
+| `terminal`, `preview` | The integrated terminal; the preview pane, which is the only place a web view exists (`12-workbench-and-automation.md`) | `engine` | Core and extension, optional |
+| `schedules`, `memory` | Scheduled `Remote` sessions; recall and learning through core's memory capability | `engine` | Core, optional |
 | `client` and its feature slices (`chat`, `runs`, `approvals`, `inbox`, `documents`) | Client state machines for everything that runs on the server: session stream, approval queue, inbox, documents. Shared with the phone apps ([mobile set](../../mobile/architecture/02-target-architecture.md)) | `device` | Core, optional, each opt-in |
 | `shell`, `tray` | Window and views; background presence | `device` | Extension |
 

@@ -67,11 +67,11 @@ Estimates, in lines of code, to show proportion. Nothing has been measured.
 | Server changes (M1): push, devices, association files, notifications on approvals, `Remote` sessions from a phone. The runtime and session record are the harness's S4 | Rust | 5,000 |
 | Client calls, platform modules, client state machines, binding layer (M2) | Rust | 8,000 |
 | Core tests for the above | Rust | 8,000 |
-| iOS app (M3) | Swift | 8,000 |
-| Android app (M3) | Kotlin | 8,000 |
+| iOS app (M3), including dictation, camera and attachments | Swift | 9,000 |
+| Android app (M3), including dictation, camera and attachments | Kotlin | 9,000 |
 | UI tests and tour (M5) | Swift, Kotlin | 4,000 |
 | Build, signing and release scripts (M0, M4) | Shell, workflow | 1,500 |
-| **Total** | | **about 42,000** |
+| **Total** | | **about 44,000** |
 
 For scale: the harness repository is about 82,000 lines and the bridge about 75,000. The phone work is roughly a quarter of the two together. The runtime, its `Remote` mode, the session record and approvals are built once in the harness's S4 for every client, which is why the mobile server share is small.
 

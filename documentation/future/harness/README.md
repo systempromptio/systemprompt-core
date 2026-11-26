@@ -45,6 +45,7 @@ agents can work on it at the same time without colliding.
 | `09-quality-and-gates.md` | Standards, gates, security review |
 | `10-release-and-fleet-handover.md` | Release after the change; moving installed bridges |
 | `11-execution-modes.md` | One loop in core; the `Unrestricted`, `Sandboxed` and `Remote` modes; the sandbox policy; the instance as the record of every session |
+| `12-workbench-and-automation.md` | Parallel sessions with isolated working copies, the integrated terminal, the preview pane, scheduled sessions, memory |
 
 Phone apps built from the same extension are specified in the sibling set, [`../mobile/`](../mobile/README.md).
 

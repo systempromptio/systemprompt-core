@@ -25,13 +25,14 @@ The prototype is deleted. Its report fixes the backend choice and the default po
 
 **Wave gate (L1).** Offline check of core.
 
-## Wave B — three lanes, parallel
+## Wave B — four lanes, parallel
 
 | Lane | Repository | Owned paths | Work |
 |---|---|---|---|
 | **S3-B1 Tools onto the environment** | core | `systemprompt-engine/src/tools/**`, `…/workspace/**`, `…/lsp/**`, `…/mcp/**` | Every effect a tool has (process, file, path, network) goes through `ExecutionEnvironment`. The host environment implements it directly. A gate fails on a tool that reaches the world another way. No behaviour change in `Unrestricted` |
 | **S3-B2 Sandbox backends** | core | `systemprompt-engine/src/environment/sandbox/**` (platform modules) | The macOS and Linux backends, enforcing one `SandboxPolicy`. In `Sandboxed` the **whole runtime** starts inside the sandbox, so file tools, language servers, MCP child processes and anything a dependency spawns are confined by the operating system, not only by the environment trait. The instance is on the network allowlist so model calls and the session record still work |
 | **S3-B3 Availability and policy** | core, template | `systemprompt-engine/src/environment/availability/**`; the shell's mode selector | Availability computed per surface and platform. `Sandboxed` is refused where no backend exists, including native Windows. A sandbox denial raises a request to widen the policy for this session (a path or a destination), answered like any approval. Policy presets, including one that admits the common package registries. The mode shown on every session |
+| **S3-B4 Isolated working copies** | core | `systemprompt-engine/src/workspace/isolation/**` | `WorkspaceIsolation` (`../architecture/12-workbench-and-automation.md` section 1): a session may run in its own linked working copy on its own branch. Required when a second writing session starts on a repository that already has one. Cleanup only when the branch holds nothing unmerged and unpushed, or on confirmation. Recorded with the session |
 
 **Wave gate (L1).** Offline check of core on Linux; the source gates.
 
@@ -40,7 +41,7 @@ The prototype is deleted. Its report fixes the backend choice and the default po
 | Lane | Repository | Owned paths | Work |
 |---|---|---|---|
 | **S3-C1 Conformance suite** | core | The sandbox conformance area in the test workspace | For each backend: write outside a root; read outside scope; reach a disallowed destination; escape the process limits; read a filtered environment variable; a child of a child; a symlink out of a root |
-| **S3-C2 Scenarios in both local modes** | core | The golden runner | Every golden scenario in `Unrestricted` and in `Sandboxed`, against the same expected traces. New scenarios: an unavailable mode is refused with its reason; a denial followed by an approved widening; a denial followed by a refused one |
+| **S3-C2 Scenarios in both local modes** | core | The golden runner | Every golden scenario in `Unrestricted` and in `Sandboxed`, against the same expected traces. New scenarios: two sessions on one repository, each in its own working copy, neither seeing the other's changes; cleanup refused while a branch holds unpushed work; an unavailable mode is refused with its reason; a denial followed by an approved widening; a denial followed by a refused one |
 
 ## Wave D — review, one lane
 
@@ -63,6 +64,7 @@ The prototype is deleted. Its report fixes the backend choice and the default po
 1. Stage gate green.
 2. One loop exists, in `systemprompt-engine`. No tool reaches the world except through the execution environment.
 3. `Sandboxed` confines the whole runtime, and a sandbox that cannot start refuses the session.
+4. Two sessions can work on one repository at once without colliding.
 
 ## Decisions reserved to people
 

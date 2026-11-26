@@ -32,8 +32,8 @@ Each feature is an opt-in slice (`02-target-architecture.md` section 5): a state
 | Feature | Screens | Opt-in |
 |---|---|---|
 | Sign-in | Choose or enter an instance; sign in (browser sheet, passkey); scan a pairing code; key-trust prompt; sync state | Always present |
-| Chat | Agents; a conversation with streamed text, tool activity and attachments | Yes |
-| Runs | Run list with filters; a run's live events; outputs; start; cancel | Yes |
+| Chat | Agents; a conversation with streamed text and tool activity; a composer with dictation, camera, photo and file attachments | Yes |
+| Runs | Run list with filters; a run's live events; outputs; start; cancel; schedules (create, pause, run now) | Yes |
 | Approvals | A request with the tool and a redacted summary; allow or deny with feedback; recent decisions | Yes |
 | Inbox | The notification feed; push | Yes |
 | Documents | List; a document with comments | Yes |
@@ -86,11 +86,27 @@ The last row is the phone's substitute for mount points and is deliberately mode
 | Passkeys | The system passkey sheet, enabled by the association file | The credential manager, enabled by the asset-links file |
 | Deep links | Universal links and the brand's custom scheme | Verified app links and the brand's custom scheme |
 | Push | Registration, categories with allow and deny actions, a service extension only if content must be fetched before display | A messaging service, a notification channel per category, actions |
+| Dictation | The system's on-device speech recognition into the composer | The system's on-device speech recognition into the composer |
+| Camera and photos | The system camera and photo picker; images attached to a message | The same |
+| Files | The system document picker and the share sheet into the app | The system document picker and share targets |
 | Managed configuration | Reads the default instance and pinned key from device-management app configuration | The same, from managed restrictions |
 | Biometric gate | Before unsealing, when policy asks | Same |
 | Accessibility | Dynamic type, VoiceOver labels | Font scale, TalkBack labels |
 
 An approval can be decided from the notification itself, after the device's own unlock.
+
+## 6a. Input: dictation, camera and attachments
+
+| Input | Design |
+|---|---|
+| Dictation | Speech is turned into text on the device by the operating system and placed in the composer for the user to edit before sending. No audio leaves the phone and nothing is added to the instance. Where on-device recognition is unavailable for a language, dictation is not offered; it does not fall back to a network service |
+| Camera and photos | A photo or picked image is attached to the message. It is uploaded through the instance's existing upload routes and referenced from the prompt |
+| Files | A document from the picker, or one shared into the app from another app, is attached the same way |
+| Limits | Size and type limits are the instance's, reported to the app, and enforced on the server. An attachment over the limit is refused before upload starts |
+| Sessions with a workspace | In a `Remote` session with a workspace, an attachment is placed in the session's workspace as well as referenced in the prompt |
+| Policy | An instance may disable attachments or dictation through member policy |
+
+Dictation is input assistance, not a voice conversation: the agent does not speak, and there is no continuous listening.
 
 ## 7. Licence
 

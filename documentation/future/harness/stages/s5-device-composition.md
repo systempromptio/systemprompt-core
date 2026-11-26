@@ -39,9 +39,21 @@ Serial: every other lane in this stage compiles against S5-A1.
 
 **Wave gate (L1).** Offline check of what compiles on Linux; the rest at L2.
 
+## Wave D — workbench, four lanes, parallel
+
+Specification: `../architecture/12-workbench-and-automation.md`. Each is a member contributed through the sink, which is the test that the sink is sufficient for real features.
+
+| Lane | Repository | Owned paths | Work |
+|---|---|---|---|
+| **S5-D1 Terminal** | core, template | `systemprompt-engine/src/terminal/**`; `extensions/harness/views/terminal/**` | A pseudo-terminal through the session's execution environment, in every mode, and a native terminal view at a dock mount point. Untrusted output filtered. Not in the session record unless attached |
+| **S5-D2 Preview** | core, template | `systemprompt-engine/src/preview/**`; `extensions/harness/views/preview/**`; the instance's per-session preview proxy | Detection of a listening port. A pane using the platform's web view, confined to the session's preview origin with no bridge into the app; system browser as fallback. For `Remote`, an authenticated per-session proxy address |
+| **S5-D3 Parallel sessions, schedules and memory views** | template | `extensions/harness/views/{sessions,schedules,memory}/**` | Starting a session in its own working copy; finishing one (merge, pull request, discard). Creating, pausing and running schedules. Seeing what a turn recalled and removing a remembered item |
+| **S5-D4 Workbench review** **(review)** | — | None | The terminal as a user-driven execution path; the preview pane's confinement and the proxy's authentication; that the web view exists only in the `preview` slice |
+
 ## Stage gate (L2)
 
 - Every S1 and S2 check, unchanged, on all three systems. No expected trace edited.
+- New: a terminal session in each mode; a preview of a served page locally and through the remote proxy; the screenshot tour gains the terminal, the preview pane, parallel sessions, schedules and memory.
 - New: a composition-boot test per windowless form the lifted code can express (`run`, `serve` without a window); the outside member's tool runs in a golden scenario; its view and theme appear on the screenshot tour.
 - The harness composes itself only through the sink: a gate fails on a kernel crate naming a member crate.
 

@@ -74,6 +74,12 @@ Added to `systemprompt-client`: agents and contexts; runs (queue, list, get, can
 
 Specified in `04-shared-core-and-bindings.md`.
 
+## 9a. Attachments
+
+No new server mechanism. The typed client calls (C6) gain the instance's existing multipart upload routes, and a prompt may reference uploaded files. Two points need confirming in M0: that the gateway accepts image input for the models an instance offers, and the size limits the upload routes enforce.
+
+Dictation adds nothing to core.
+
 ## 10. What does not change
 
 - No change to the gateway's model routes, the governor, or host identity.

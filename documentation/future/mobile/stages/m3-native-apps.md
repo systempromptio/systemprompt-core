@@ -23,9 +23,9 @@ Serial before the rest: every later lane builds on the shell and the design comp
 
 | Feature | iOS lane | Android lane | State machine |
 |---|---|---|---|
-| Runs | **M3-B1** `ios/Features/Runs/**` | **M3-B2** `android/feature/runs/**` | Session stream; lists |
+| Runs | **M3-B1** `ios/Features/Runs/**` | **M3-B2** `android/feature/runs/**` | Session stream; lists; schedules |
 | Approvals | **M3-B3** `ios/Features/Approvals/**` | **M3-B4** `android/feature/approvals/**` | Approval queue; notification actions |
-| Chat | **M3-B5** `ios/Features/Chat/**` | **M3-B6** `android/feature/chat/**` | Session stream |
+| Chat | **M3-B5** `ios/Features/Chat/**` | **M3-B6** `android/feature/chat/**` | Session stream; the composer with on-device dictation, camera, photo and file attachments, and the share-into-app entry point |
 
 Six lanes exceed the cap of four: open Runs and Approvals first, Chat as lanes free up.
 

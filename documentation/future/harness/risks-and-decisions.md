@@ -42,6 +42,9 @@
 | 28 | Sandbox friction | A strict policy breaks package installs, language servers and similar | The prototype measures what breaks; presets; a per-session widening request answered like an approval |
 | 29 | Repository checkout for remote sessions | Needs per-user credentials for source hosts on the instance; what the existing connectors offer is unverified | Established by the S4 prototype before the contract is written |
 | 27 | `Unrestricted` is exactly that | Full access to the user's machine | The mode is typed, recorded and shown on every client; an instance or an administrator can forbid it; permission rules and sensitive-target asks still apply |
+| 30 | A web view in the shell | The preview pane brings back a browser engine the harness had excluded | Confined to one origin, no bridge, its own opt-in slice, system-browser fallback, independent review |
+| 31 | Unattended execution | A scheduled session runs with no one watching | `Remote` only; per-user caps; approvals deny on timeout; a failing schedule pauses itself; independent review |
+| 32 | Memory retains the wrong thing | Something sensitive or wrong is recalled later | The memory capability's own validation and policy; recall is visible per turn; a user can remove an item; an instance can disable the slice |
 | 23 | Two programmes on one branch | The `future` programme owns `future` | This programme's lanes use their own branches and merge into `future` only at agreed points |
 
 ## 3. Decisions taken
@@ -77,6 +80,10 @@ D1 to D9 are in `README.md`. Settled on 2026-11-26, and applied throughout this 
 | D35 | Remote isolation | A typed level: the Linux sandbox always; a container per session by default where more than one organisation's users share an instance; a small virtual machine where the hosting offers it |
 | D36 | Provenance | A session record reported by a device is marked as such wherever it is stored or shown |
 | D37 | Prototypes | The sandbox stage and the remote stage each begin with a throwaway prototype that fixes the backend, default policy and isolation level |
+| D38 | Parallel sessions | A session may run in its own linked working copy on its own branch; required for a second writing session on one repository. A working copy with unmerged, unpushed work is never removed silently |
+| D39 | Terminal | A user's terminal in the session's workspace, inheriting the session's mode and sandbox |
+| D40 | Preview pane | The platform's web view, confined to the session's preview origin with no bridge into the app. The single exception to the shell having no web view; an opt-in slice |
+| D41 | Scheduled sessions and memory | Built in S4 and shown in S5, not left to the last stage. Schedules start `Remote` sessions only. Memory uses core's memory capability; the runtime keeps no store of its own |
 | D26 | Signing | The reference builds reuse the identities the bridge release uses today; each install signs its own brand |
 
 Consequences worth restating:

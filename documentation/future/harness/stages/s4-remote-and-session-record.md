@@ -34,12 +34,14 @@ Both are deleted. Their reports fix the default isolation level and the checkout
 
 **Wave gate (L1).** Offline check of core's root workspace; the source gates.
 
-## Wave C — two lanes, parallel
+## Wave C — four lanes, parallel
 
 | Lane | Repository | Owned paths | Work |
 |---|---|---|---|
 | **S4-C1 Clients onto the stream** | template | The shell's session state | The desktop renders sessions in every mode from the instance's stream. A record reported by a device is labelled. Starting a session offers `Remote` with its workspace choices |
 | **S4-C2 Scenarios** | core | The golden runner and doubles | Every golden scenario in `Remote` against the same expected traces. New scenarios: a local session's stream opened on a second client mid-turn; upload resumes after a disconnect with no gap and no duplicate; control sent while the device is offline; a remote session with no workspace; one with a repository checkout; two remote sessions that cannot see each other; a remote session at its resource limit |
+| **S4-C3 Scheduled sessions** | core | A schedules area in the agent-runs entry crate; a job in core's scheduler | A stored prompt, workspace source, agent and schedule that starts a `Remote` session when it fires (`../architecture/12-workbench-and-automation.md` section 4). Create, list, pause, run on demand. Per-user caps; a schedule that fails repeatedly pauses itself. An unanswered approval denies |
+| **S4-C4 Memory** | core | `systemprompt-engine/src/memory/**` | Recall before a turn through core's memory capability, contributed as a prompt section and recorded in the turn. The closed turn emitted for learning. Routes for a user to see what was recalled, see what is held, and remove an item. An opt-in slice an instance can disable (section 5) |
 
 ## Wave D — reviews, parallel, read-only
 
@@ -47,6 +49,7 @@ Both are deleted. Their reports fix the default isolation level and the checkout
 |---|---|
 | **S4-D1** **(review)** | Remote: isolation between sessions; credential scope for checkouts; network egress; resource limits |
 | **S4-D2** **(review)** | The record and control: ownership, addressing, replay, provenance |
+| **S4-D3** **(review)** | Scheduled sessions (unattended execution: limits, approvals, who may create) and memory (what is retained, per-user scope, removal) |
 
 ## Stage gate (L2)
 
@@ -55,6 +58,8 @@ Both are deleted. Their reports fix the default isolation level and the checkout
 | Golden scenarios | The same normalised traces in all three modes |
 | Session record | A session in any mode is listed and readable on a second client; its stream resumes without loss |
 | Isolation | The two-session and resource-limit scenarios pass at the configured isolation level |
+| Scheduled sessions | A schedule fires and its session appears in the owner's list; a failing schedule pauses itself |
+| Memory | A fact learned in one session is recalled in a later one, shown as recalled, and gone after the user removes it |
 | Reviews | No open high-rated finding |
 | Evidence run | A `Remote` session started from one client and followed on another; a local session followed on a second client |
 

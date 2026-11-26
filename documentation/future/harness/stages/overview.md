@@ -87,14 +87,15 @@ Counts are lanes that can be open at once, before the cap of four in `operating-
 | S2 | C | 3 | Tour and evidence scripts; fourth migration batch |
 | S3 | P | 1 | Sandbox prototype, thrown away |
 | S3 | A | 1 then a review | Contract |
-| S3 | B | 3 | Tools onto the environment; sandbox backends; availability and policy |
+| S3 | B | 4 | Tools onto the environment; sandbox backends; availability and policy; isolated working copies |
 | S3 | C | 2 | Conformance suite; scenarios in both local modes |
 | S4 | P | 2 | Remote isolation prototype; record and checkout prototype |
 | S4 | A | 1 then a review | Contract |
 | S4 | B | 3 | Session record; remote runtime; local publish and control |
-| S4 | C | 2 | Clients onto the stream; scenarios |
+| S4 | C | 4 | Clients onto the stream; scenarios; scheduled sessions; memory |
 | S5 | A | 1 then a review | Contract first |
 | S5 | B, C | 3 each | Members by crate |
+| S5 | D | 3 then a review | Terminal; preview pane; views for parallel sessions, schedules and memory |
 | S6 | A–F | 3 each | Bottom-up by the bridge's own layer order |
 | S7 | A–C | 3 to 4 | One lane per platform concern group |
 | S8 | — | 3, then people | Mostly decisions and observation |

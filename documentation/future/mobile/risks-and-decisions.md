@@ -70,6 +70,9 @@ M0-A1 closes the unconfirmed and assumed items.
 | M15 | Every feature (chat, runs, approvals, inbox, documents, preferences) is an opt-in slice: chosen at build, switchable by the instance, with navigation built from what is admitted | A fixed feature set |
 | M16 | No administration on the phone; settings are the user's own preferences only | Admin and governance screens on the phone |
 | M17 | The full feature set is the scope; there is no reduced first cut | Shipping a subset first |
+| M19 | Dictation is on-device speech recognition into the composer; no audio leaves the phone | A voice conversation mode; a network speech service |
+| M20 | Camera, photo and file attachments use the instance's existing upload routes, with its limits | A separate attachment service |
+| M21 | Schedules are part of the runs feature on the phone | A separate feature |
 
 ## 4. Decisions still open
 
