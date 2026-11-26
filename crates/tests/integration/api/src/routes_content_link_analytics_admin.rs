@@ -31,9 +31,17 @@ async fn boot() -> anyhow::Result<(axum::Router, DbPool)> {
     let pool = test_db_pool().await;
     let mut config = fixture_config(&bootstrap.database_url);
     config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
-    let ctx = fixture_app_context_with_config(&pool, config)?;
-    let router = setup_api_server(&ctx, None, &std::sync::Arc::new(ReadinessState::new()))
-        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
+    let ctx = fixture_app_context_with_config(config).await?;
+    let router = setup_api_server(
+        &ctx,
+        systemprompt_api::services::server::routes::Composed {
+            admitted: ctx.admitted(),
+            kernel: ctx.kernel(),
+        },
+        None,
+        &std::sync::Arc::new(ReadinessState::new()),
+    )
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     Ok((router, pool))
 }
 
