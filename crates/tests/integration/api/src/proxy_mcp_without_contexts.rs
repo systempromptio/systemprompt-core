@@ -5,8 +5,10 @@
 //! API router, and any context a request names is replaced by the context
 //! derived from the verified session. Where a member provides a directory the
 //! ownership check is as strict as with the agent member: a context the caller
-//! does not own, and a lookup that fails, are refused before the backend sees
-//! anything.
+//! does not own, a lookup that fails, a malformed context id and a caller no
+//! credential verifies are refused before the backend sees anything, on a
+//! managed and on an external server. A directory withheld on this host is
+//! refused the same way: it cannot be read, so it is not taken for absent.
 
 use std::collections::{BTreeSet, HashMap};
 use std::net::SocketAddr;
@@ -54,11 +56,12 @@ fn flavour_mcp_members() -> BTreeSet<&'static str> {
         .collect()
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum Directory {
     Absent,
     OwnsOnly,
     Fails,
+    Withheld,
 }
 
 struct StubDirectory {
@@ -113,7 +116,7 @@ impl CallerContexts for StubCaller<'_> {
 struct DirectoryMember {
     owner: UserId,
     owned: ContextId,
-    fails: bool,
+    mode: Directory,
 }
 
 impl Extension for DirectoryMember {
@@ -129,10 +132,14 @@ impl Extension for DirectoryMember {
         let directory: DynContextDirectory = Arc::new(StubDirectory {
             owner: self.owner.clone(),
             owned: self.owned.clone(),
-            fails: self.fails,
+            fails: self.mode == Directory::Fails,
         });
+        let withheld = self.mode == Directory::Withheld;
         c.provide(
             move |_: &Resolved<'_>| -> Result<DynContextDirectory, ProvideError> {
+                if withheld {
+                    return Err(ProvideError::Withheld);
+                }
                 Ok(Arc::clone(&directory))
             },
         );
@@ -143,8 +150,11 @@ impl Extension for DirectoryMember {
 struct Harness {
     api: String,
     backend: MockServer,
+    open_backend: MockServer,
     ctx: Arc<AppContext>,
     server: String,
+    open_server: String,
+    external_server: String,
     caller: AuthedFixture,
     owned: ContextId,
     _bootstrap: systemprompt_test_fixtures::TestBootstrap,
@@ -161,9 +171,10 @@ async fn mount_backend(backend: &MockServer, server: &str) {
     let session = format!("sess-{server}");
     Mock::given(method("POST"))
         .and(path("/mcp"))
-        .and(body_partial_json(
-            serde_json::json!({"method": "initialize"}),
-        ))
+        .and(body_partial_json(serde_json::json!({
+            "jsonrpc": "2.0", "id": 0, "method": "initialize",
+            "params": {"clientInfo": {"name": format!("systemprompt-cli-{server}")}}
+        })))
         .respond_with(move |request: &Request| {
             let body: serde_json::Value = request.body_json().expect("json body");
             ResponseTemplate::new(200)
@@ -182,17 +193,17 @@ async fn mount_backend(backend: &MockServer, server: &str) {
         .await;
     Mock::given(method("POST"))
         .and(path("/mcp"))
-        .and(body_partial_json(
-            serde_json::json!({"method": "notifications/initialized"}),
-        ))
+        .and(body_partial_json(serde_json::json!({
+            "jsonrpc": "2.0", "method": "notifications/initialized"
+        })))
         .respond_with(ResponseTemplate::new(202))
         .mount(backend)
         .await;
     Mock::given(method("POST"))
         .and(path("/mcp"))
-        .and(body_partial_json(
-            serde_json::json!({"method": "tools/list"}),
-        ))
+        .and(body_partial_json(serde_json::json!({
+            "jsonrpc": "2.0", "id": 1, "method": "tools/list"
+        })))
         .respond_with(|request: &Request| {
             let body: serde_json::Value = request.body_json().expect("json body");
             ResponseTemplate::new(200)
@@ -214,6 +225,28 @@ async fn mount_backend(backend: &MockServer, server: &str) {
         .mount(backend)
         .await;
 }
+
+async fn mount_external_provider(backend: &MockServer) {
+    Mock::given(method("POST"))
+        .and(path(EXTERNAL_PATH))
+        .respond_with(|request: &Request| {
+            let body: serde_json::Value = request.body_json().expect("json body");
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "application/json")
+                .set_body_json(serde_json::json!({
+                    "jsonrpc": "2.0", "id": body["id"],
+                    "result": {
+                        "protocolVersion": "2025-11-25",
+                        "capabilities": {"tools": {}},
+                        "serverInfo": {"name": "external-stub", "version": "1.0.0"}
+                    }
+                }))
+        })
+        .mount(backend)
+        .await;
+}
+
+const EXTERNAL_PATH: &str = "/external/mcp";
 
 fn flavour_mcp_composition(extra: Option<DirectoryMember>) -> Vec<Box<dyn Extension>> {
     let keep = flavour_mcp_members();
@@ -272,30 +305,43 @@ async fn harness(directory: Directory) -> anyhow::Result<Harness> {
         .listener(mcp_range_listener()?)
         .start()
         .await;
-    let server = format!("ctxless_{}", &Uuid::new_v4().simple().to_string()[..10]);
+    let open_backend = MockServer::builder()
+        .listener(mcp_range_listener()?)
+        .start()
+        .await;
+    let suffix = &Uuid::new_v4().simple().to_string()[..10];
+    let server = format!("ctxless_{suffix}");
+    let open_server = format!("ctxopen_{suffix}");
+    let external_server = format!("ctxext_{suffix}");
     mount_backend(&backend, &server).await;
+    mount_backend(&open_backend, &open_server).await;
+    mount_external_provider(&backend).await;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let api = format!("http://{}", listener.local_addr()?);
     let yaml = format!(
-        "mcp_servers:\n  {server}:\n    server_type: internal\n    binary: {server}-bin\n    port: {port}\n    enabled: true\n    tool_policy: allow\n    display_in_web: false\n    oauth:\n      required: true\n      scopes: [admin]\n      audience: mcp\n",
-        port = backend.address().port()
+        "mcp_servers:\n  {server}:\n    server_type: internal\n    binary: {server}-bin\n    port: {port}\n    enabled: true\n    tool_policy: allow\n    display_in_web: false\n    oauth:\n      required: true\n      scopes: [admin]\n      audience: mcp\n  {open_server}:\n    server_type: internal\n    binary: {open_server}-bin\n    port: {open_port}\n    enabled: true\n    tool_policy: allow\n    display_in_web: false\n    oauth:\n      required: false\n      scopes: []\n      audience: mcp\n  {external_server}:\n    server_type: external\n    endpoint: {backend_uri}{EXTERNAL_PATH}\n    enabled: true\n    tool_policy: allow\n    display_in_web: false\n    oauth:\n      required: true\n      scopes: [admin]\n      audience: mcp\n",
+        port = backend.address().port(),
+        open_port = open_backend.address().port(),
+        backend_uri = backend.uri(),
     );
     let bootstrap = systemprompt_test_fixtures::bootstrap::init_isolated_bootstrap(&api, &yaml);
-    let manifest_dir = bootstrap.system_path.join("extensions").join(&server);
-    std::fs::create_dir_all(&manifest_dir)?;
-    std::fs::write(
-        manifest_dir.join("manifest.yaml"),
-        format!("extension:\n  type: mcp\n  name: {server}\n  binary: {server}-bin\n"),
-    )?;
+    for name in [&server, &open_server] {
+        let manifest_dir = bootstrap.system_path.join("extensions").join(name);
+        std::fs::create_dir_all(&manifest_dir)?;
+        std::fs::write(
+            manifest_dir.join("manifest.yaml"),
+            format!("extension:\n  type: mcp\n  name: {name}\n  binary: {name}-bin\n"),
+        )?;
+    }
 
     let owner = UserId::generate();
     let owned = ContextId::generate();
     let extra = match directory {
         Directory::Absent => None,
-        Directory::OwnsOnly | Directory::Fails => Some(DirectoryMember {
+        Directory::OwnsOnly | Directory::Fails | Directory::Withheld => Some(DirectoryMember {
             owner: owner.clone(),
             owned: owned.clone(),
-            fails: matches!(directory, Directory::Fails),
+            mode: directory,
         }),
     };
     let admitted = fixture_admitted_of(flavour_mcp_composition(extra));
@@ -305,15 +351,21 @@ async fn harness(directory: Directory) -> anyhow::Result<Harness> {
         admitted,
     )
     .await?;
-    ServiceRepository::new(ctx.db_pool(), ctx.config().instance_id.clone())
-        .create_service(CreateServiceInput {
-            name: &ServiceName::new(server.as_str()),
-            module_name: ServiceModule::Mcp,
-            status: ServiceStatus::Running,
-            port: backend.address().port(),
-            binary_mtime: None,
-        })
-        .await?;
+    let services = ServiceRepository::new(ctx.db_pool(), ctx.config().instance_id.clone());
+    for (name, port) in [
+        (&server, backend.address().port()),
+        (&open_server, open_backend.address().port()),
+    ] {
+        services
+            .create_service(CreateServiceInput {
+                name: &ServiceName::new(name.as_str()),
+                module_name: ServiceModule::Mcp,
+                status: ServiceStatus::Running,
+                port,
+                binary_mtime: None,
+            })
+            .await?;
+    }
     let mut caller = caller_credential(&ctx).await?;
     if !matches!(directory, Directory::Absent) {
         caller = AuthedFixture {
@@ -361,8 +413,11 @@ async fn harness(directory: Directory) -> anyhow::Result<Harness> {
     Ok(Harness {
         api,
         backend,
+        open_backend,
         ctx,
         server,
+        open_server,
+        external_server,
         caller,
         owned,
         _bootstrap: bootstrap,
@@ -386,7 +441,17 @@ async fn backend_posts(backend: &MockServer) -> Vec<Request> {
         .await
         .expect("recorded backend requests")
         .into_iter()
-        .filter(|request| request.method.as_str() == "POST")
+        .filter(|request| request.method.as_str() == "POST" && request.url.path() == "/mcp")
+        .collect()
+}
+
+async fn external_posts(backend: &MockServer) -> Vec<Request> {
+    backend
+        .received_requests()
+        .await
+        .expect("recorded backend requests")
+        .into_iter()
+        .filter(|request| request.url.path() == EXTERNAL_PATH)
         .collect()
 }
 
@@ -420,16 +485,34 @@ fn forwarded_context(h: &Harness, request: &Request) -> ContextId {
 }
 
 fn initialize(h: &Harness, context: &ContextId) -> reqwest::RequestBuilder {
-    reqwest::Client::new()
-        .post(format!("{}/api/v1/mcp/{}/mcp", h.api, h.server))
-        .header("accept", "application/json, text/event-stream")
-        .header("authorization", format!("Bearer {}", h.caller.jwt.as_str()))
-        .header("x-context-id", context.as_str())
-        .json(&serde_json::json!({
-            "jsonrpc": "2.0", "id": 0, "method": "initialize",
-            "params": {"protocolVersion": "2025-11-25", "capabilities": {},
-                       "clientInfo": {"name": "contextless-probe", "version": "1"}}
-        }))
+    initialize_on(
+        &h.api,
+        &h.server,
+        Some(h.caller.jwt.as_str()),
+        Some(context.as_str()),
+    )
+}
+
+fn initialize_on(
+    api: &str,
+    server: &str,
+    bearer: Option<&str>,
+    context: Option<&str>,
+) -> reqwest::RequestBuilder {
+    let mut request = reqwest::Client::new()
+        .post(format!("{api}/api/v1/mcp/{server}/mcp"))
+        .header("accept", "application/json, text/event-stream");
+    if let Some(bearer) = bearer {
+        request = request.header("authorization", format!("Bearer {bearer}"));
+    }
+    if let Some(context) = context {
+        request = request.header("x-context-id", context);
+    }
+    request.json(&serde_json::json!({
+        "jsonrpc": "2.0", "id": 0, "method": "initialize",
+        "params": {"protocolVersion": "2025-11-25", "capabilities": {},
+                   "clientInfo": {"name": format!("systemprompt-cli-{server}"), "version": "1"}}
+    }))
 }
 
 #[tokio::test]
@@ -526,5 +609,132 @@ async fn with_a_directory_a_failed_lookup_is_refused() -> anyhow::Result<()> {
     let body = response.text().await?;
     assert!(body.contains("context_lookup_failed"), "{body}");
     assert!(backend_posts(&h.backend).await.is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn with_a_directory_a_malformed_context_id_is_refused() -> anyhow::Result<()> {
+    let h = harness(Directory::OwnsOnly).await?;
+    let response = initialize_on(
+        &h.api,
+        &h.server,
+        Some(h.caller.jwt.as_str()),
+        Some("not-a-context"),
+    )
+    .send()
+    .await?;
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    let body = response.text().await?;
+    assert!(body.contains("context_not_owned"), "{body}");
+    assert!(backend_posts(&h.backend).await.is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn with_a_directory_an_unverified_caller_naming_a_context_is_refused() -> anyhow::Result<()> {
+    let h = harness(Directory::OwnsOnly).await?;
+    let owned = h.owned.as_str();
+    let anonymous = initialize_on(&h.api, &h.open_server, None, Some(owned))
+        .send()
+        .await?;
+    assert_eq!(anonymous.status(), StatusCode::FORBIDDEN);
+    let body = anonymous.text().await?;
+    assert!(body.contains("context_not_owned"), "{body}");
+
+    let forged = initialize_on(
+        &h.api,
+        &h.open_server,
+        Some("not-a-credential"),
+        Some(owned),
+    )
+    .send()
+    .await?;
+    assert_eq!(
+        forged.status(),
+        StatusCode::UNAUTHORIZED,
+        "an unverifiable bearer is refused at the edge"
+    );
+    assert!(backend_posts(&h.open_backend).await.is_empty());
+
+    let verified = initialize_on(
+        &h.api,
+        &h.open_server,
+        Some(h.caller.jwt.as_str()),
+        Some(owned),
+    )
+    .send()
+    .await?;
+    assert_eq!(
+        verified.status(),
+        StatusCode::OK,
+        "the verified owner is admitted"
+    );
+    assert_eq!(backend_posts(&h.open_backend).await.len(), 1);
+    Ok(())
+}
+
+#[tokio::test]
+async fn with_a_directory_an_external_server_refuses_a_foreign_context() -> anyhow::Result<()> {
+    let h = harness(Directory::OwnsOnly).await?;
+    let jwt = Some(h.caller.jwt.as_str());
+    let foreign = ContextId::generate();
+    let response = initialize_on(&h.api, &h.external_server, jwt, Some(foreign.as_str()))
+        .send()
+        .await?;
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    let body = response.text().await?;
+    assert!(body.contains("context_not_owned"), "{body}");
+    assert!(
+        external_posts(&h.backend).await.is_empty(),
+        "the provider was not reached"
+    );
+
+    let owned = initialize_on(&h.api, &h.external_server, jwt, Some(h.owned.as_str()))
+        .send()
+        .await?;
+    assert_eq!(
+        owned.status(),
+        StatusCode::SERVICE_UNAVAILABLE,
+        "the owned context passes the ownership check and stops at the missing bearer accessor"
+    );
+    assert!(external_posts(&h.backend).await.is_empty());
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_withheld_directory_refuses_a_named_context() -> anyhow::Result<()> {
+    let h = harness(Directory::Withheld).await?;
+    let state = h.ctx.kernel().state();
+    assert!(state.find::<DynContextDirectory>().is_none());
+    assert!(state.is_withheld::<DynContextDirectory>());
+
+    for server in [&h.server, &h.external_server] {
+        let response = initialize_on(
+            &h.api,
+            server,
+            Some(h.caller.jwt.as_str()),
+            Some(h.owned.as_str()),
+        )
+        .send()
+        .await?;
+        assert_eq!(
+            response.status(),
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "{server}"
+        );
+        let body = response.text().await?;
+        assert!(body.contains("context_lookup_failed"), "{body}");
+    }
+    assert!(backend_posts(&h.backend).await.is_empty());
+    assert!(external_posts(&h.backend).await.is_empty());
+
+    let unnamed = initialize_on(&h.api, &h.server, Some(h.caller.jwt.as_str()), None)
+        .send()
+        .await?;
+    assert_eq!(
+        unnamed.status(),
+        StatusCode::OK,
+        "a request naming no context keeps its session's"
+    );
     Ok(())
 }

@@ -13,16 +13,22 @@
 //! A composition in which no member provides a context directory has no
 //! contexts to own: a named context is discarded and the request runs under
 //! the context derived from its session, the same rule the CLI session
-//! follows. Only the absence of the directory selects this; an error from an
-//! admitted directory is a refusal.
+//! follows. Only a directory no member provides selects this: one that is
+//! withheld on this host, or whose type the host reserves without holding a
+//! value, cannot be read, so a request naming a context there is refused
+//! (`context_lookup_failed`, its cause the typed `MissingDependency`), as is
+//! an error from an admitted directory.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
+
+use std::any::TypeId;
 
 use axum::http::HeaderMap;
 use systemprompt_identifiers::{ContextId, ServiceName, headers};
 use systemprompt_models::RequestContext;
 use systemprompt_models::auth::AuthenticatedUser;
+use systemprompt_provider_contracts::{Dependencies, MissingDependency};
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::DynContextDirectory;
 
@@ -57,8 +63,9 @@ pub(super) async fn ensure_owned(
     let Some(raw) = request_headers.get(headers::CONTEXT_ID) else {
         return Ok(ContextScope::AsRequested);
     };
-    let Ok(directory) = ctx.kernel().state().get::<DynContextDirectory>() else {
-        return Ok(ContextScope::SessionDerived);
+    let state = ctx.kernel().state();
+    let Some(directory) = state.find::<DynContextDirectory>() else {
+        return without_directory(state, service_name);
     };
     let not_owned = || ProxyError::ContextNotOwned {
         service: service_name.to_string(),
@@ -81,4 +88,24 @@ pub(super) async fn ensure_owned(
             source: Box::new(source),
         }),
     }
+}
+
+fn without_directory(
+    state: &Dependencies,
+    service_name: &ServiceName,
+) -> Result<ContextScope, ProxyError> {
+    let unreadable = |missing: MissingDependency| ProxyError::ContextLookupFailed {
+        service: service_name.to_string(),
+        source: Box::new(missing),
+    };
+    if state.is_withheld::<DynContextDirectory>() {
+        return Err(unreadable(
+            MissingDependency::withheld::<DynContextDirectory>(),
+        ));
+    }
+    let directory = TypeId::of::<DynContextDirectory>();
+    if state.host_types().any(|(id, _)| id == directory) {
+        return Err(unreadable(MissingDependency::of::<DynContextDirectory>()));
+    }
+    Ok(ContextScope::SessionDerived)
 }

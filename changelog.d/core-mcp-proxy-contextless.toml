@@ -1,9 +1,9 @@
 [root]
 section = "Fixed"
 area = "MCP proxy"
-text = "In a composition with no member providing a context directory (`flavour-mcp`: MCP without the agent member), the API proxy runs a managed or external MCP request under the context derived from the caller's session instead of answering 500 `context_lookup_failed`; a named context is not forwarded. With a directory admitted the ownership check is unchanged: a context the caller does not own is refused 403 and a failed lookup 500, before the backend sees the request."
+text = "In a composition with no member providing a context directory (`flavour-mcp`: MCP without the agent member), the API proxy runs a managed or external MCP request under the context derived from the caller's session instead of answering 500 `context_lookup_failed`; a named context is not forwarded. A directory that is withheld on the host, or reserved without a value, is not taken for absent: a request naming a context there is refused 500 `context_lookup_failed` before the backend sees it. With a directory admitted the ownership check is unchanged: a context the caller does not own, a malformed context id and a caller no credential verifies are refused 403, and a failed lookup 500, before the backend sees the request."
 
 [[crate]]
 name = "systemprompt-api"
 section = "Fixed"
-text = "The MCP proxy's context-ownership check treats an absent `DynContextDirectory` as a composition without contexts and forwards the session-derived context; an error from an admitted directory still refuses the request."
+text = "The MCP proxy's context-ownership check takes only a `DynContextDirectory` no member provides as a composition without contexts and forwards the session-derived context; a withheld or reserved directory, and an error from an admitted one, refuse the request with `ContextLookupFailed` carrying the typed `MissingDependency` or lookup error."
