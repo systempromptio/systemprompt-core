@@ -38,8 +38,8 @@ SwiftUI app (iOS)                Jetpack Compose app (Android)        extension
    identity · agents · agent runs · notifications · documents
 ```
 
-- **The native apps own only presentation and system integration**: navigation, lists, text entry, the share sheet, biometric prompts, push registration, deep links, accessibility.
-- **The shared core owns all behaviour**: what a session is, how a stream is consumed and resumed, when a token is renewed, what a notification means, how an approval is submitted. A rule fixed in Rust is fixed on both phones.
+- **The native apps own only drawing and system integration**: layout, lists, text entry, the share sheet, biometric prompts, push registration, deep links, accessibility.
+- **The shared core owns all behaviour, including what each screen shows.** A screen model per feature holds the state, consumes the streams and offers the actions. A rule fixed in Rust is fixed on both phones and on the desktop.
 - **The instance owns truth**: runs, events, approvals, documents and policy.
 
 ## 3. Languages per repository
@@ -66,20 +66,48 @@ No Rust user-interface code is written for phones, and no Swift or Kotlin enters
 | Brand, theme, icons | The same declarations the desktop shell uses; phone assets generated from them | MIT |
 | Build and release workflows, packaging | Template | MIT |
 
-## 5. The phone as a composition
+## 5. The phone as a composition of opt-in features
 
-The harness defines a device build as a composition of slices. The phone is the smallest one.
+The harness defines a device build as a composition of slices. A phone build is the `device` slice plus whichever feature slices it opts into. Nothing is included by default.
 
-| Slice | On a phone |
-|---|---|
-| `device` | Yes: sign-in, key trust, sync of what the phone needs (the user's profile, policy, theme) |
-| `client` (runs, agents, notifications, documents) | Yes. This slice is also what the desktop shell uses for its server-side run views |
-| `governor`, `engine` | No. The phone makes no model call |
-| `proxy`, host integrations, `machine`, `lockdown`, `runner`, `drive`, `update` | No. Updates come from the platform's installer |
+| Slice | Brings | Opt-in |
+|---|---|---|
+| `device` | Sign-in, sealed credential, key trust, sync, the session | Always present |
+| `chat` | Conversations with the instance's agents | Yes |
+| `runs` | Start, list, watch and cancel server-side runs | Yes |
+| `approvals` | Pending requests and decisions | Yes; needs `runs` |
+| `inbox` | Notification feed and push | Yes |
+| `documents` | Read documents and comments | Yes |
+| `preferences` | The user's own settings: appearance, notification preferences, sign out, diagnostics | Yes |
 
-A closure gate holds this: the phone's closure links no server crate, no window toolkit, and none of the slices marked no.
+Each feature slice is one unit across all its parts: a screen model in core, a feature module in each app, its scenarios, and its tour states. Opting in happens in three places that agree:
 
-Instance control over members (`harness.members`) applies: an instance can disable a phone feature, for example documents, and the app hides it.
+1. **At build:** the composition names the slices; the Android project includes only those feature modules and the iOS project only those feature targets. A slice left out is not in the binary.
+2. **By the instance:** member policy (`harness.members`) can disable a slice that was built in; the app hides it.
+3. **In the app:** navigation is built from the list of admitted slices, never hard-coded.
+
+Not on the phone at all, in any composition: administration of the instance, users, devices, policy or the marketplace; `governor`, `engine`, `proxy`, host integrations, `machine`, `lockdown`, `runner`, `drive`, `update`. Administration stays in the web console.
+
+A closure gate holds this: a phone build links no server crate, no window toolkit, and no slice it did not name.
+
+## 5a. What is shared with the desktop harness
+
+Everything except drawing.
+
+| Layer | Desktop | iOS | Android |
+|---|---|---|---|
+| Sign-in, sealing, key trust, sync | `systemprompt-device` | same crate | same crate |
+| Typed calls and streams | `systemprompt-client` | same crate | same crate |
+| Screen models per feature (state, stream handling, actions) | the `client` feature slices | same code, through the bindings | same code, through the bindings |
+| Brand and theme | one declaration | same declaration | same declaration |
+| Instance control over features | member policy | same | same |
+| Scenarios and the scripted instance | one suite | same suite | same suite |
+| Screen-and-state list | one list | same list | same list |
+| Drawing and system integration | Rust window toolkit | SwiftUI | Jetpack Compose |
+
+The desktop harness gains views for the same server-side features (harness stage S7), rendering the same screen models. A chat with an instance agent, a server-side run, an approval and the inbox are therefore the same on all three.
+
+One difference remains by decision: a session running in the desktop's local engine is not visible on a phone.
 
 ## 6. How phone, desktop, web and server link
 

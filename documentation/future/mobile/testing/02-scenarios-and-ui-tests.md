@@ -10,7 +10,7 @@ Each scenario is data: the scripted instance's configuration, the steps taken th
 | 2 | Sign in with a passkey | The ceremony round trip; association document consulted | Sign-in |
 | 3 | Pair by code | The link exchange; no password typed | Sign-in |
 | 4 | First manifest: key trust prompt, accept | Trust on first use; policy applied | Sign-in |
-| 5 | Manifest signed by a changed key | Sync stops until trusted; nothing applied | Settings |
+| 5 | Manifest signed by a changed key | Sync stops until trusted; nothing applied | Preferences |
 | 6 | List agents and open a chat; streamed reply | Stream consumed; message stored | Home, Chat |
 | 7 | Stream dropped mid-reply | Resume from the cursor; no duplicate, no gap | Chat |
 | 8 | Queue a run and watch it finish | Idempotent queue; events in order; outputs | Runs |
@@ -20,14 +20,14 @@ Each scenario is data: the scripted instance's configuration, the steps taken th
 | 12 | Approval denied with feedback | Feedback reaches the instance | Approvals |
 | 13 | Approval decided elsewhere first | The phone's later decision receives the recorded outcome and changes nothing | Approvals |
 | 14 | Approval times out | Shown as denied by timeout | Approvals |
-| 15 | Register a push token; token changes | One live token per device | Settings |
+| 15 | Register a push token; token changes | One live token per device | Preferences |
 | 16 | A notification while in the foreground | Delivered in-app; no push recorded | Home |
 | 17 | A notification while in the background | Push recorded with id, category and collapse key and no content | — |
 | 18 | Open from a notification id | Resolved to the right run, approval or document | Navigation |
 | 19 | Read a document with comments | Typed read; rendering inputs | Documents |
 | 20 | Instance disables a feature through member policy | The feature's entry point is gone | Home |
 | 21 | App below the minimum version | Sign-in blocked; update offered | Sign-in |
-| 22 | Sign out | Token revoked on the instance; sealed credential removed | Settings |
+| 22 | Sign out | Token revoked on the instance; sealed credential removed | Preferences |
 | 23 | Credential refused by the instance | Signed out; state says why | Any |
 | 24 | Managed configuration locks the instance | No other instance can be added | Sign-in |
 
@@ -35,7 +35,9 @@ Each scenario is data: the scripted instance's configuration, the steps taken th
 
 On the host, in core's test workspace: start the scripted instance; build the phone composition with an in-memory keystore supplied through the platform contract; run the steps through `systemprompt-mobile`'s Rust API; assert the reported facts and the instance's request log; assert no unscripted request and no unconsumed script.
 
-These run fast, on every stage gate, and catch nearly every behavioural defect before a simulator starts.
+These run fast, on every stage gate, and catch nearly every behavioural defect before a simulator starts. Because screen models are in core, a scenario also asserts the snapshot each screen would render, so the same assertion covers desktop, iOS and Android.
+
+Each scenario belongs to a feature slice and runs only in compositions that include it; one extra scenario builds a composition with a single feature and asserts the others are absent.
 
 ## 3. UI tests
 
@@ -48,7 +50,7 @@ These run fast, on every stage gate, and catch nearly every behavioural defect b
 | Waits | Accessibility identifiers set when a screen has rendered from core state | The same |
 | Push | Not delivered. The background-notification path is exercised by handing the app the notification id directly | The same |
 
-One keeper suite per screen group on each platform; a new regression is a new case in that suite.
+One keeper suite per feature on each platform; a new regression is a new case in that suite.
 
 The launch-argument sign-in exists in debug builds only and is compiled out of release builds by the platform's own build configuration. It is listed in the security review.
 

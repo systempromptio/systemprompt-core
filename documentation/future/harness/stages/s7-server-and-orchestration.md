@@ -23,6 +23,7 @@ Then **S7-A4 (review)** of A1 and A2: an instance can narrow what a device runs 
 | **S7-B1 Native headless adapter** | core | The server's agent runs gain an adapter for the native engine: spawn `run`, read its event stream, classify the outcome |
 | **S7-B2 Runner slice** | core | The device starts and observes sessions in other agents through the runner facet; one transcript model, one permission surface, one telemetry stream |
 | **S7-B3 Fleet view** | template | A view of every agent on the machine: health, sessions, verdicts |
+| **S7-B4 Server-side views on the desktop** | template | Desktop views for chats with instance agents, server-side runs, approvals and the notification inbox, rendering the same screen models the phone apps use (the `client` feature slices). One screen-and-state list covers desktop, iOS and Android |
 
 ## Wave C — deferred features, one lane per capability
 

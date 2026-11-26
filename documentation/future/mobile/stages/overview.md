@@ -8,8 +8,8 @@ Six stages, M0 to M5. Each is a set of waves; each wave is a set of lanes that r
 |---|---|---|
 | **M0 Foundations** | Distribution facts confirmed at source. `systemprompt-mobile` exists as an empty, gated crate. The shared crates check for phone targets. The template has `extensions/mobile/` with empty Xcode and Gradle projects and workflows on Linux and macOS runners | core, template |
 | **M1 Core server** | Push channel; device records and push tokens; runs list and the approval step; association files; discovery and download entries. Each reviewed where it touches authorization | core |
-| **M2 Shared core** | Typed client calls; iOS and Android platform modules; the binding layer; generated Swift and Kotlin packages building in the template; the drift gate | core, template |
-| **M3 Native apps** | The seven screen groups on both platforms over the shared core | template |
+| **M2 Shared core** | Typed client calls; iOS and Android platform modules; one screen model per opt-in feature, shared with the desktop; the binding layer; generated Swift and Kotlin packages building in the template; the drift gate | core, template |
+| **M3 Native apps** | Every feature slice drawn on both platforms over the shared screen models; navigation built from the admitted features | template |
 | **M4 Build and distribution** | A signed APK served by the instance; iOS builds on the beta channel and offered as a custom app; release workflows; managed configuration | template, core (download route), installs |
 | **M5 Parity and proof** | Scenario suite and UI tests on both platforms; the screenshot tour; the evidence run; the manual walk on real phones | template, core |
 
@@ -49,10 +49,10 @@ Before the cap of four open lanes.
 | M1 | B | 4 | Push channel; device records and tokens; runs list and approval; association files with discovery |
 | M1 | C | 3 | Independent reviews |
 | M2 | A | 3 | Client calls; platform modules; binding layer skeleton |
-| M2 | B | 3 | Binding surface by object group; template build scripts; drift gate |
+| M2 | B | 4 | Screen models; binding surface by group; template build scripts and drift gate |
 | M3 | A | 2 | App shells: navigation, design components, sign-in (one lane per platform) |
-| M3 | B | 6 | Three screen groups per platform |
-| M3 | C | 6 | Three more screen groups per platform; brand and theme generation |
+| M3 | B | 6 | Three features per platform |
+| M3 | C | 5 | Two more features per platform; brand and theme generation |
 | M4 | A | 3 | Android signing and self-host; iOS signing and upload; managed configuration |
 | M5 | A | 3 | Scenarios; iOS UI tests and tour; Android UI tests and tour |
 
@@ -65,18 +65,18 @@ Estimates, in lines of code, to show proportion. Nothing has been measured.
 | Area | Language | Estimate |
 |---|---|---|
 | Server changes (M1) | Rust | 7,000 |
-| Client calls, platform modules, binding layer (M2) | Rust | 6,500 |
+| Client calls, platform modules, screen models, binding layer (M2) | Rust | 9,500 |
 | Core tests for the above | Rust | 8,000 |
-| iOS app (M3) | Swift | 9,000 |
-| Android app (M3) | Kotlin | 9,000 |
+| iOS app (M3) | Swift | 7,500 |
+| Android app (M3) | Kotlin | 7,500 |
 | UI tests and tour (M5) | Swift, Kotlin | 4,000 |
 | Build, signing and release scripts (M0, M4) | Shell, workflow | 1,500 |
 | **Total** | | **about 45,000** |
 
-For scale: the harness repository is about 82,000 lines and the bridge about 75,000. The phone work is roughly a quarter of the two together, and four fifths of it is outside core.
+For scale: the harness repository is about 82,000 lines and the bridge about 75,000. The phone work is roughly a quarter of the two together. Moving screen logic into shared Rust models shifts about 3,000 lines from the two apps into core, where the desktop reuses them.
 
 ## 5. Rules
 
 The harness's rules apply unchanged: a lane owns paths; shared files belong to the integrator; contract before consumers; moves and edits never share a commit; no expensive validation inside a lane; a stage closes only on its exit criteria.
 
-One addition: **every screen group is two lanes, one per platform, opened together from one brief** that states the screens, their states and the core calls they use. The brief is the parity contract.
+One addition: **every feature is two lanes, one per platform, opened together from one brief** that names the screen model, its snapshot states and its actions. The model is the parity contract: both lanes draw the same snapshot.

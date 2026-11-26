@@ -14,7 +14,8 @@ per stage.
 ## The intended state
 
 1. **The phone is a client of the instance.** It chats with the instance's agents, starts and watches server-side agent runs, approves or denies their tool requests, reads documents and receives notifications. It runs no agent loop and attaches to no desktop session.
-2. **One shared Rust core, two native apps.** Sign-in, sync, typed calls, event streams and the session model are Rust, written once in core. The screens are SwiftUI on iOS and Jetpack Compose on Android, in the extension.
+2. **One shared Rust core, two native apps.** Sign-in, sync, typed calls, event streams and a screen model per feature are Rust, written once in core and shared with the desktop harness. SwiftUI on iOS and Jetpack Compose on Android only draw them.
+   Every feature (chat, runs, approvals, inbox, documents, preferences) is an opt-in slice. There is no administration on the phone.
 3. **Built in the extension.** `extensions/mobile/` in the template holds the iOS and Android projects; installs fork it beside their web, MCP and desktop extensions, and ship their own branded apps.
 4. **Distribution without public listings.** Android: the instance serves a signed APK. iOS: private distribution to named organisations and a beta channel. Apple offers no route that avoids its sign-off.
 5. **Each instance sends its own push notifications**, with its own credentials for its own app.

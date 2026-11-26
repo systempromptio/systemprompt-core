@@ -25,21 +25,25 @@ packaging/
 
 The two apps mirror each other's structure and names so a change is made in the same place twice.
 
-## 2. Screens
+## 2. Features and screens
 
-Seven groups, the same on both platforms.
+Each feature is an opt-in slice (`02-target-architecture.md` section 5): a screen model in core and one feature module in each app. A build includes only the features its composition names.
 
-| Group | Screens |
-|---|---|
-| Sign-in | Choose or enter an instance; sign in (browser sheet, passkey); scan a pairing code; key-trust prompt |
-| Home | Agents; recent chats; active runs; pending approvals |
-| Chat | A conversation with an agent: streamed text, tool activity, attachments |
-| Runs | Run list with filters; a run's live events; outputs; cancel; start a run |
-| Approvals | A request: the tool, a redacted summary, allow or deny with feedback; history |
-| Notifications and documents | The feed; a document with comments |
-| Settings and governance | Instances; devices; notification preferences; appearance; sync state; diagnostics; sign out |
+| Feature | Screens | Opt-in |
+|---|---|---|
+| Sign-in | Choose or enter an instance; sign in (browser sheet, passkey); scan a pairing code; key-trust prompt; sync state | Always present |
+| Chat | Agents; a conversation with streamed text, tool activity and attachments | Yes |
+| Runs | Run list with filters; a run's live events; outputs; start; cancel | Yes |
+| Approvals | A request with the tool and a redacted summary; allow or deny with feedback; recent decisions | Yes |
+| Inbox | The notification feed; push | Yes |
+| Documents | List; a document with comments | Yes |
+| Preferences | Appearance; notification preferences; sign out; diagnostics | Yes |
 
-Each group is a lane's worth of work per platform (`../stages/m3-native-apps.md`).
+Home is not a feature: it is assembled from whichever features are present (active runs, pending approvals, recent chats) and is empty of anything not opted into.
+
+There is no administration on the phone: no management of users, devices, policy, the marketplace or the instance. That stays in the web console.
+
+Each feature is a lane's worth of work per platform (`../stages/m3-native-apps.md`), and less than it would otherwise be, because the screen model is shared: a feature module draws a snapshot and forwards actions.
 
 ## 3. Brand and theme
 

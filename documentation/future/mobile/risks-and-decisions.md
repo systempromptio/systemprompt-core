@@ -39,7 +39,7 @@ M0-A1 closes the unconfirmed and assumed items.
 | 7 | The approval step is new authorization surface | A flaw lets the wrong person, or no one, allow a tool | Owner only; timeout denies; first decision wins; policy before people; independent review; property tests |
 | 8 | Hosts that cannot pause | A run could be executed permissively without anyone deciding | Refused at queue time; never downgraded silently |
 | 9 | Two apps drift apart | Each screen is written twice | One brief per screen group; a shared screen-and-state list; scenarios must pass on both; the tour side by side |
-| 10 | Behaviour leaks into the apps | Fixes would need making three times | A lint rule against networking, token handling and cursor logic in app code; the core's surface is the only way in |
+| 10 | Behaviour leaks into the apps | Fixes would need making three times | Screen models in Rust hold all state and stream handling; a lint rule against networking, token handling and cursor logic in app code |
 | 11 | Binding generator limits | An unsupported construct forces a redesign of the surface | M0 confirms the pinned version; the surface is small; M2 wave A proves async and listeners before the surface is filled in |
 | 12 | Secrets across the boundary | A token exposed to the native side can be logged or leaked | No secret type is exported; reviewed; a gate on the surface |
 | 13 | Runner time and reliability | Simulator and emulator tests are slow and can be unstable | UI tests only at stage gates; scenarios through the core catch most defects first; a repeating failure gets its own lane |
@@ -65,6 +65,10 @@ M0-A1 closes the unconfirmed and assumed items.
 | M11 | A timed-out approval is denied | Allow on timeout; wait forever |
 | M12 | Evidence on a real Mac by an attached agent session; hosted runs store nothing | Stored artefacts from hosted runs |
 | M13 | Generated Swift and Kotlin are build outputs, not committed | Committing bindings in core or the template |
+| M14 | Screen models live in Rust, one per feature, shared by the desktop harness and both phone apps; only drawing is per platform | The core handing raw facts to each app, with screen logic written three times |
+| M15 | Every feature (chat, runs, approvals, inbox, documents, preferences) is an opt-in slice: chosen at build, switchable by the instance, with navigation built from what is admitted | A fixed feature set |
+| M16 | No administration on the phone; settings are the user's own preferences only | Admin and governance screens on the phone |
+| M17 | The full feature set is the scope; there is no reduced first cut | Shipping a subset first |
 
 ## 4. Decisions still open
 

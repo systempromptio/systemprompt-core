@@ -58,6 +58,7 @@ Each kernel member is a facade feature of `systemprompt`, so a build links only 
 | `lockdown` | Enforced machine policy | `machine` | Core, optional |
 | `runner` | Start and observe sessions in other agents | The host slices it drives | Core, optional |
 | `drive`, `update` | Folder sync; self-update | `device` | Core, optional |
+| `client` and its feature slices (`chat`, `runs`, `approvals`, `inbox`, `documents`) | Screen models for everything that runs on the server: state, streams, actions. Shared with the phone apps ([mobile set](../../mobile/architecture/02-target-architecture.md)) | `device` | Core, optional, each opt-in |
 | `shell`, `tray` | Window and views; background presence | `device` | Extension |
 
 ## 5. Every form it must take
