@@ -2,7 +2,8 @@
 //! declared them (`systemprompt_extension::reserved::INSTALL_CONFERRALS`),
 //! built from the sealed seeds they use: the member cipher over the
 //! `encryption_master_key`, the share-token signer over the
-//! `manifest_signing_secret_seed`, and (on the API) the scoped token minter
+//! `manifest_signing_secret_seed`, the broker-call verifier over a digest of
+//! the `mcp_credential_broker_secret`, and (on the API) the scoped token minter
 //! over the token authority. Only the API seeds them; a child host confers
 //! nothing. An API whose secret store lacks a key seeds no issuer for it, so a
 //! member that declared the row is refused at its read.
@@ -34,12 +35,12 @@ use systemprompt_models::auth::{
 use systemprompt_provider_contracts::Dependencies;
 use systemprompt_security::AuthError;
 use systemprompt_security::at_rest::MasterKey;
-use systemprompt_security::conferred::{MemberCiphers, MemberShareTokens};
+use systemprompt_security::conferred::{BrokerCallVerifiers, MemberCiphers, MemberShareTokens};
 use systemprompt_security::jwt::decode_scoped_token;
 use systemprompt_security::keys::VerificationKeyring;
 use systemprompt_traits::{
-    ConferralIssuer, DynConferralIssuer, MemberCipher, MemberGrant, SecretStore, ShareTokenSigner,
-    TokenAudienceGrant,
+    BrokerCallVerifier, ConferralIssuer, DynConferralIssuer, MCP_CREDENTIAL_BROKER_SECRET,
+    MemberCipher, MemberGrant, SecretStore, ShareTokenSigner, TokenAudienceGrant,
 };
 
 const MINT_POLICY: &str = "conferred_token_mint";
@@ -61,6 +62,13 @@ pub(super) fn with_secret_issuers(
         .and_then(|seed| MemberShareTokens::from_seed(&seed).ok())
     {
         let issuer: DynConferralIssuer<dyn ShareTokenSigner> = Arc::new(tokens);
+        state.insert_sealed(issuer);
+    }
+    if let Some(verifiers) = secrets
+        .secret_exact(MCP_CREDENTIAL_BROKER_SECRET)
+        .and_then(|secret| BrokerCallVerifiers::from_secret(secret.expose()))
+    {
+        let issuer: DynConferralIssuer<dyn BrokerCallVerifier> = Arc::new(verifiers);
         state.insert_sealed(issuer);
     }
     state

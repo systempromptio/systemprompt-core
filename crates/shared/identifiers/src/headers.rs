@@ -52,6 +52,7 @@ pub const PLATFORM_PREFIX: &str = "x-systemprompt-";
 pub const SCOPE_PREFIX: &str = "x-systemprompt-scope-";
 pub const CALLER_PURPOSE: &str = "x-systemprompt-caller";
 pub const MCP_SERVER: &str = "x-systemprompt-mcp-server";
+pub const CREDENTIAL_BROKER: &str = "x-systemprompt-credential-broker";
 pub const MCP_HOP: &str = "x-systemprompt-mcp-hop";
 pub const MEMORY: &str = "x-systemprompt-memory";
 pub const MEMORY_IDS: &str = "x-systemprompt-memory-ids";

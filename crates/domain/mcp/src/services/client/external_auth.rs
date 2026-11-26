@@ -169,7 +169,10 @@ pub async fn fetch_external_bearer(
     let mut request = client
         .get(accessor)
         .header("Authorization", format!("Bearer {jwt}"))
-        .header("X-Systemprompt-Credential-Broker", broker_secret)
+        .header(
+            systemprompt_identifiers::headers::CREDENTIAL_BROKER,
+            broker_secret,
+        )
         .header(MCP_SERVER_HEADER, server);
     if let Some(purpose) = caller_purpose {
         request = request.header(CALLER_HEADER, purpose);

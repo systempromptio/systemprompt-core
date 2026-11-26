@@ -193,7 +193,8 @@ fn the_install_tables_are_exactly_the_ruled_rows() {
             "member-cipher",
             "share-tokens",
             "git-source-sync",
-            "scoped-tokens"
+            "scoped-tokens",
+            "broker-calls"
         ]
     );
 }

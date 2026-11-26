@@ -1,0 +1,14 @@
+[root]
+section = "Added"
+area = "Extensions"
+text = "A member that serves an external connector's token route declares `InstallConferral::BrokerCalls` and reads a `BrokerCallVerifier` (`Resolved::broker_calls`) that accepts only core's credential-broker header, compared in constant time against a keyed digest; the handle holds no secret and a child host withholds it."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "`SecretGrantError::BrokerSecretWithheld`: `mcp_credential_broker_secret` is refused as a service or agent secret grant."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`InstallConferral::BrokerCalls` is a new variant of the exhaustive enum."
