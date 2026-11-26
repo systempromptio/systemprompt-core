@@ -134,6 +134,7 @@ members = [
     "unit/bridge/lib-entry",
     "unit/bridge/cli-subprocess",
     # Common test utilities
+    "scripted-instance",
     "common/hack",
     "common/mocks",
     "common/migrate",

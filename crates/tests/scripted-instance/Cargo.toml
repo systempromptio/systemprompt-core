@@ -1,0 +1,32 @@
+[package]
+name = "systemprompt-scripted-instance"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Test support: a scripted stand-in for a systemprompt instance and the model behind it, as a library and a binary"
+publish = false
+
+[lints]
+workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "systemprompt-scripted-instance"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+axum = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-wire = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
