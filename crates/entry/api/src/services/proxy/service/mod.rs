@@ -152,8 +152,8 @@ impl ProxyService {
             req_ctx.as_ref(),
         )
         .await?;
-        if service.module_name == ServiceModule::Mcp {
-            context_owner::ensure_owned(
+        let req_ctx = if service.module_name == ServiceModule::Mcp {
+            let scope = context_owner::ensure_owned(
                 &ctx,
                 service_name,
                 request.headers(),
@@ -161,7 +161,10 @@ impl ProxyService {
                 req_ctx.as_ref(),
             )
             .await?;
-        }
+            req_ctx.map(|context| scope.apply(context))
+        } else {
+            req_ctx
+        };
 
         let tokens = Arc::clone(ctx.kernel().state().get::<Arc<dyn TokenAuthority>>()?);
         self.proxy_managed(

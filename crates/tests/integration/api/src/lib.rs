@@ -468,6 +468,8 @@ mod gateway_without_agents;
 mod proxy_cli_attribution;
 #[cfg(test)]
 mod proxy_external_mcp;
+#[cfg(test)]
+mod proxy_mcp_without_contexts;
 
 #[cfg(test)]
 mod proxy_more;

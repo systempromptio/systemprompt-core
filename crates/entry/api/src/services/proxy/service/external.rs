@@ -49,9 +49,15 @@ async fn authorised_context(
         ctx,
         Some(&req_ctx),
     )?;
-    super::context_owner::ensure_owned(ctx, service_name, headers, user.as_ref(), Some(&req_ctx))
-        .await?;
-    Ok(req_ctx)
+    let scope = super::context_owner::ensure_owned(
+        ctx,
+        service_name,
+        headers,
+        user.as_ref(),
+        Some(&req_ctx),
+    )
+    .await?;
+    Ok(scope.apply(req_ctx))
 }
 
 impl ProxyService {
