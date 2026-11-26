@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Config"
+text = "`services/content/config.yaml` is required only when the `content` member is admitted: the kernel path check no longer demands it, and the content member's startup validator refuses a missing or unparseable file."

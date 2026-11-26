@@ -27,6 +27,10 @@ pub(super) async fn reconcile_document_folders(ctx: &AppContext) -> Result<()> {
 }
 
 pub(super) async fn start_accounting_recovery(ctx: &AppContext) -> Result<()> {
+    if !systemprompt_gateway::audit::journal::recovery_admitted(ctx.admitted().built()) {
+        tracing::debug!("ai member not admitted; gateway accounting recovery skipped");
+        return Ok(());
+    }
     let settlement = crate::routes::gateway::gateway_repositories(ctx)?.settlement();
     let settled = systemprompt_gateway::audit::journal::recover(&settlement).await?;
     if settled > 0 {

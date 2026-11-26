@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "API"
+text = "A composition without the `mcp` member starts when no MCP server is enabled: startup reconciliation completes the MCP phase instead of refusing with \"McpServer processes are not supervised on this host\", and still refuses when an enabled server has no process set to run it."

@@ -25,7 +25,9 @@ use crate::kernel::KernelHost;
 use anyhow::Result;
 use clap::Subcommand;
 
-use systemprompt_extension::cli::{CommandDescriptor, CommandOutput, DataImpact, DescribeCommand};
+use systemprompt_extension::cli::{
+    CommandDescriptor, CommandOutput, DataImpact, DescribeCommand, KernelGrant,
+};
 
 #[derive(Debug, Subcommand)]
 pub enum AdminCommands {
@@ -102,7 +104,7 @@ impl DescribeCommand for AdminCommands {
             Self::Session(cmd) => cmd.descriptor(),
             Self::Config(cmd) => cmd.descriptor(),
             Self::AgentHost(_) | Self::Mcp(_) => CommandDescriptor::CHILD_HOST,
-            Self::Setup(_) => CommandDescriptor::NONE,
+            Self::Setup(_) => CommandDescriptor::NONE.with_grant(KernelGrant::TargetAdmission),
             Self::Licence(_) => CommandDescriptor::FULL.with_read_only(),
             _ => CommandDescriptor::FULL,
         }

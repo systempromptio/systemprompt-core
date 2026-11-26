@@ -8,7 +8,9 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::admin::setup::SetupArgs;
-use systemprompt_cli::admin::setup::secrets::{collect_interactive, collect_non_interactive};
+use systemprompt_cli::admin::setup::secrets::{
+    ProviderRequirement, collect_interactive, collect_non_interactive,
+};
 use systemprompt_cli::interactive::ScriptedPrompter;
 use systemprompt_config::decode_master_key;
 use systemprompt_extension::cli::CliConfig;
@@ -55,8 +57,14 @@ fn keys_passed_as_flags_are_taken_without_prompting_and_name_the_primary() {
     args.anthropic_key = Some("sk-ant-fixture".to_owned());
 
     // Nothing is scripted: reaching a prompt at all would surface as an error.
-    let (secrets, primary) = collect_interactive(&args, &scripted(&[]), "dev", &config())
-        .expect("supplied keys skip the whole prompt sequence");
+    let (secrets, primary) = collect_interactive(
+        &args,
+        &scripted(&[]),
+        "dev",
+        &config(),
+        ProviderRequirement::Required,
+    )
+    .expect("supplied keys skip the whole prompt sequence");
 
     assert_eq!(secrets.anthropic.as_deref(), Some("sk-ant-fixture"));
     assert_eq!(
@@ -76,9 +84,14 @@ fn keys_passed_as_flags_are_taken_without_prompting_and_name_the_primary() {
 
 #[test]
 fn a_provider_chosen_at_the_prompt_supplies_its_key_and_becomes_the_default() {
-    let (secrets, primary) =
-        collect_interactive(&args(), &scripted(&["1", "sk-ant-typed"]), "dev", &config())
-            .expect("choosing Anthropic and entering a key completes setup");
+    let (secrets, primary) = collect_interactive(
+        &args(),
+        &scripted(&["1", "sk-ant-typed"]),
+        "dev",
+        &config(),
+        ProviderRequirement::Required,
+    )
+    .expect("choosing Anthropic and entering a key completes setup");
 
     assert_eq!(secrets.anthropic.as_deref(), Some("sk-ant-typed"));
     assert!(
@@ -96,8 +109,14 @@ fn a_provider_chosen_at_the_prompt_supplies_its_key_and_becomes_the_default() {
 // cheapest way for an operator to arrive there.
 #[test]
 fn skipping_every_key_at_the_multi_key_prompt_is_refused() {
-    let err = collect_interactive(&args(), &scripted(&["3", "", "", "", ""]), "dev", &config())
-        .expect_err("a setup with no AI provider must not be accepted");
+    let err = collect_interactive(
+        &args(),
+        &scripted(&["3", "", "", "", ""]),
+        "dev",
+        &config(),
+        ProviderRequirement::Required,
+    )
+    .expect_err("a setup with no AI provider must not be accepted");
 
     assert!(
         format!("{err:#}").contains("At least one AI provider is required"),
@@ -107,7 +126,7 @@ fn skipping_every_key_at_the_multi_key_prompt_is_refused() {
 
 #[test]
 fn the_non_interactive_collector_refuses_the_same_way_and_accepts_a_flag() {
-    let err = collect_non_interactive(&args(), &config())
+    let err = collect_non_interactive(&args(), &config(), ProviderRequirement::Required)
         .expect_err("an unattended setup with no key cannot proceed");
     assert!(
         format!("{err:#}").contains("At least one AI provider is required"),
@@ -117,12 +136,67 @@ fn the_non_interactive_collector_refuses_the_same_way_and_accepts_a_flag() {
     let mut args = args();
     args.openai_key = Some("sk-openai-fixture".to_owned());
     let (secrets, primary) =
-        collect_non_interactive(&args, &config()).expect("a supplied key is enough");
+        collect_non_interactive(&args, &config(), ProviderRequirement::Required)
+            .expect("a supplied key is enough");
     assert_eq!(secrets.openai.as_deref(), Some("sk-openai-fixture"));
     decode_master_key(&secrets.encryption_master_key)
         .expect("the non-interactive collector mints a decodable encryption master key");
     assert_eq!(
         primary.map(|p| p.as_str().to_owned()).as_deref(),
         Some("openai")
+    );
+}
+
+#[test]
+fn without_the_ai_member_no_provider_is_required() {
+    let (secrets, primary) =
+        collect_non_interactive(&args(), &config(), ProviderRequirement::Optional)
+            .expect("a composition without the ai member needs no provider key");
+    assert!(secrets.gemini.is_none() && secrets.anthropic.is_none() && secrets.openai.is_none());
+    assert!(primary.is_none());
+
+    let (secrets, primary) = collect_interactive(
+        &args(),
+        &scripted(&[]),
+        "dev",
+        &config(),
+        ProviderRequirement::Optional,
+    )
+    .expect("the interactive collector asks for no provider without the ai member");
+    assert!(secrets.gemini.is_none() && secrets.anthropic.is_none() && secrets.openai.is_none());
+    assert!(primary.is_none());
+}
+
+#[test]
+fn the_provider_requirement_follows_the_ai_members_admission() {
+    use systemprompt_extension::admitted::{AdmittedMember, AdmittedParts};
+    use systemprompt_extension::contribute::ContributionSink;
+    use systemprompt_extension::{Admitted, ExtensionMetadata, StandingTag};
+    use systemprompt_identifiers::ExtensionId;
+
+    let composition = |id: &'static str| {
+        Admitted::__from_facade(AdmittedParts {
+            withheld: Vec::new(),
+            members: vec![AdmittedMember {
+                secret_grants: Vec::new(),
+                owner: ExtensionId::new(id),
+                metadata: ExtensionMetadata {
+                    id,
+                    name: id,
+                    version: "0.0.1",
+                },
+                standing: StandingTag::Install,
+                sink: ContributionSink::default(),
+            }],
+            ..AdmittedParts::default()
+        })
+    };
+    assert_eq!(
+        ProviderRequirement::for_composition(composition("site").built()),
+        ProviderRequirement::Optional
+    );
+    assert_eq!(
+        ProviderRequirement::for_composition(composition("ai").built()),
+        ProviderRequirement::Required
     );
 }

@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Database"
+text = "The `trace_facts_rollup` job runs in a composition without the `ai`, `mcp` or `agent` member: `refresh_trace_facts` reads each member's contribution through a database-owned wrapper (`trace_facts_contribution_ai`, `_mcp`, `_agent`) that is empty when the member's function is not installed."

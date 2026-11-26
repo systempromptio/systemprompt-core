@@ -124,7 +124,13 @@ async fn the_drive_routes_depend_on_the_documents_member() {
 
 #[tokio::test]
 async fn a_disabled_ai_member_withholds_only_the_personal_credential_routes() {
-    let app = router(fixture_admitted_without(&[ExtensionId::new("ai")])).await;
+    let app = router(fixture_admitted_without(&[
+        ExtensionId::new("ai"),
+        ExtensionId::new("mcp"),
+        ExtensionId::new("mcp-http"),
+        ExtensionId::new("agent"),
+    ]))
+    .await;
     assert_eq!(status(&app, "GET", CREDENTIALS, None).await, 404);
     assert_eq!(status(&app, "POST", OTEL, None).await, 401);
 }

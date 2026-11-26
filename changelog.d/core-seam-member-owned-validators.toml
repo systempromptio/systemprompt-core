@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Runtime"
+text = "The AI, agent, MCP and content startup validators are contributed by their owning members, so a composition without one of them no longer fails startup validation on that member's configuration (\"No default model configured\", \"No AI providers are enabled\")."

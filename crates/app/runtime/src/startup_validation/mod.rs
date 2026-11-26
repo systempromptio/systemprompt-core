@@ -24,8 +24,7 @@ use systemprompt_logging::{CliService, ExportCapability, OutputState};
 use systemprompt_manifest::Config;
 use systemprompt_manifest::validators::validation_report::ValidationIssue;
 use systemprompt_manifest::validators::{
-    AgentConfigValidator, AiConfigValidator, ContentConfigValidator, DomainConfigRegistry,
-    McpConfigValidator, RateLimitsConfigValidator, StartupValidationReport,
+    DomainConfigRegistry, RateLimitsConfigValidator, StartupValidationReport,
     ValidationConfigProvider, ValidationReport, WebConfigValidator,
 };
 
@@ -56,11 +55,7 @@ impl StartupValidator {
         )?;
         registry.register(Box::new(RateLimitsConfigValidator::new()));
         registry.register(Box::new(WebConfigValidator::new()));
-        registry.register(Box::new(ContentConfigValidator::new()));
         registry.register(Box::new(SkillConfigValidator::new()));
-        registry.register(Box::new(AgentConfigValidator::new()));
-        registry.register(Box::new(McpConfigValidator::new()));
-        registry.register(Box::new(AiConfigValidator::new()));
 
         Ok(Self {
             boot,

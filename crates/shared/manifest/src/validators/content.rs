@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::validation_report::{ValidationIssue, ValidationReport};
+use super::validation_report::{ValidationIssue, ValidationReport, ValidationWarning};
 use super::{DomainConfig, DomainConfigError, ValidationConfigProvider};
 use std::path::{Path, PathBuf};
 use systemprompt_models::ContentConfigRaw;
@@ -29,11 +29,17 @@ impl LoadedContentConfig {
 #[derive(Debug, Default)]
 pub struct ContentConfigValidator {
     loaded: Option<LoadedContentConfig>,
+    config_path: Option<PathBuf>,
 }
 
 impl ContentConfigValidator {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    #[must_use]
+    pub fn boxed(_services: &Path) -> Box<dyn DomainConfig> {
+        Box::new(Self::new())
     }
 }
 
@@ -54,6 +60,7 @@ impl DomainConfig for ContentConfigValidator {
                 message: "Expected ValidationConfigProvider with pre-loaded configs".into(),
             })?;
 
+        self.config_path = Some(PathBuf::from(&provider.config().content_config_path));
         self.loaded = provider
             .content_config()
             .cloned()
@@ -68,6 +75,26 @@ impl DomainConfig for ContentConfigValidator {
         let mut report = ValidationReport::new("content");
 
         let Some(loaded) = self.loaded.as_ref() else {
+            let missing = self.config_path.as_ref().is_none_or(|path| !path.exists());
+            let message = if missing {
+                "Content config is missing"
+            } else {
+                "Content config could not be parsed"
+            };
+            let suggestion = "Create services/content/config.yaml or disable the content member";
+            if missing {
+                let mut issue = ValidationIssue::new("paths.content_config", message)
+                    .with_suggestion(suggestion);
+                if let Some(path) = &self.config_path {
+                    issue = issue.with_path(path.clone());
+                }
+                report.add_error(issue);
+            } else {
+                report.add_warning(
+                    ValidationWarning::new("paths.content_config", message)
+                        .with_suggestion(suggestion),
+                );
+            }
             return Ok(report);
         };
 

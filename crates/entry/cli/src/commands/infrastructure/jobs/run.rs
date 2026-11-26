@@ -88,9 +88,11 @@ pub(super) async fn execute(args: RunArgs, host: &dyn KernelHost) -> Result<Comm
         JobSelection::Names(args.job_names)
     };
 
-    let scheduler_config = services_config(host)?
-        .scheduler
-        .unwrap_or_else(systemprompt_manifest::SchedulerConfig::with_system_admin);
+    let scheduler_config = services_config(host)?.scheduler.unwrap_or_else(|| {
+        systemprompt_manifest::SchedulerConfig::with_system_admin_admitted(|name| {
+            schedule.contains_job(name)
+        })
+    });
     let service = JobExecutionService::new(app, scheduler_config, schedule)?
         .with_lock_wait(Duration::from_secs(args.lock_wait_secs));
     let batch = service.run_jobs(&selection, &parameters).await?;

@@ -6,6 +6,10 @@
 //! exist — so they belong in the infrastructure layer, at the config-build
 //! boundary, not in the model layer.
 //!
+//! The content config is not a kernel path: the `content` member requires it
+//! through its own startup validator, which runs only when that member is
+//! admitted.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -35,7 +39,6 @@ pub fn validate_profile_paths(
     validate_required_path(&mut report, "web_path", &paths.web_path_resolved());
     validate_required_path(&mut report, "web_config", &paths.web_config());
     validate_required_path(&mut report, "web_metadata", &paths.web_metadata());
-    validate_required_path(&mut report, "content_config", &paths.content_config());
 
     validate_optional_path(
         &mut report,

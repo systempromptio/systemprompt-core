@@ -18,7 +18,9 @@
 //! `BackgroundTasks`, never on the request path. On cancellation — the
 //! server's shutdown drain — the task runs one final settlement pass before
 //! it returns, so a node that terminates in order leaves its journal empty;
-//! the drain's background grace bounds that pass.
+//! the drain's background grace bounds that pass. Settlement and the orphan
+//! sweep write `ai_requests`, which the `ai` member owns, so the host runs
+//! recovery only when [`recovery_admitted`] finds that member admitted.
 //!
 //! Every pass publishes `gateway_journal_receipts` (receipts still held) and
 //! counts `gateway_journal_settle_failures_total` (receipts retained because
@@ -238,6 +240,11 @@ async fn settle_listed(settlement: &Settlement) -> Result<usize> {
         );
     }
     Ok(settled)
+}
+
+#[must_use]
+pub fn recovery_admitted(built: &systemprompt_extension::BuiltState) -> bool {
+    built.contains(&systemprompt_identifiers::ExtensionId::new("ai"))
 }
 
 pub fn spawn_recovery(settlement: Settlement, tasks: &BackgroundTasks) {

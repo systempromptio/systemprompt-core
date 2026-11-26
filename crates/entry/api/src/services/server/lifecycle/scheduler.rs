@@ -29,14 +29,15 @@ pub(in crate::services::server) async fn initialize_scheduler(
 
     let state = ctx.kernel().state();
     let db = state.get::<DbPool>()?;
+    let schedule = Arc::new(ctx.kernel().resolved().get::<AdmittedSchedule>()?);
     let config = state
         .get::<ServicesState>()?
         .config()
         .scheduler
         .clone()
-        .unwrap_or_else(SchedulerConfig::with_system_admin);
-
-    let schedule = Arc::new(ctx.kernel().resolved().get::<AdmittedSchedule>()?);
+        .unwrap_or_else(|| {
+            SchedulerConfig::with_system_admin_admitted(|name| schedule.contains_job(name))
+        });
     let scheduler = SchedulerService::new(config, db, Arc::new(ctx.clone()), schedule)?;
 
     let available_jobs = scheduler.run_bootstrap_jobs(events).await?;

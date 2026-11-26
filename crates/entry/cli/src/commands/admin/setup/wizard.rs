@@ -42,6 +42,7 @@ pub(super) async fn execute(
     prompter: &dyn Prompter,
     config: &CliConfig,
     children: &dyn ChildSupervisor,
+    providers: secrets::ProviderRequirement,
 ) -> Result<CommandOutput> {
     if !config.is_json_output() {
         CliService::section("systemprompt.io Setup Wizard");
@@ -81,6 +82,7 @@ pub(super) async fn execute(
             env_name: &env_name,
             project_root: &project_root,
             pg_config: &pg_config,
+            providers,
         },
     )?;
 
@@ -151,6 +153,7 @@ struct SetupTarget<'a> {
     env_name: &'a str,
     project_root: &'a Path,
     pg_config: &'a PostgresConfig,
+    providers: secrets::ProviderRequirement,
 }
 
 fn write_configuration(
@@ -163,12 +166,14 @@ fn write_configuration(
         env_name,
         project_root,
         pg_config,
+        providers,
     } = *target;
     let systemprompt_dir = project_root.join(".systemprompt");
 
     let admin_email = resolve_admin_email(args, prompter, config)?;
 
-    let (mut secrets_data, primary_provider) = collect_secrets(args, prompter, config, env_name)?;
+    let (mut secrets_data, primary_provider) =
+        collect_secrets(args, prompter, config, env_name, providers)?;
     secrets_data.database_url = Some(pg_config.database_url()?);
 
     let secrets_path = profile::profile_dir(&systemprompt_dir, env_name).join("secrets.json");

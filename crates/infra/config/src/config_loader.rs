@@ -79,8 +79,7 @@ pub fn build_from_profile(
 
     let skills_path = paths_config.skills();
     let settings_path = require_yaml_path("config", Some(&paths_config.config()))?;
-    let content_config_path =
-        require_yaml_path("content_config", Some(&paths_config.content_config()))?;
+    let content_config_path = paths_config.content_config();
     let web_path = paths_config.web_path_resolved();
     let web_config_path = require_yaml_path("web_config", Some(&paths_config.web_config()))?;
     let web_metadata_path = require_yaml_path("web_metadata", Some(&paths_config.web_metadata()))?;

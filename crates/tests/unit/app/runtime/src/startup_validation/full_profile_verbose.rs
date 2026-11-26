@@ -9,8 +9,10 @@
 //! carries exactly those extension errors when everything else is healthy.
 
 use systemprompt_manifest::Config;
+use systemprompt_manifest::validators::ContentConfigValidator;
 use systemprompt_runtime::StartupValidator;
 
+use super::member_owned_validators::admitted_with;
 use crate::boot::{BootOptions, boot};
 
 fn validated_config() -> (crate::boot::BootFixture, Config) {
@@ -143,8 +145,11 @@ fn malformed_ancillary_configs_degrade_to_warnings_not_errors() {
 
     let mut validator = StartupValidator::new(fixture.boot.clone()).expect("startup validator");
     let report = validator.validate(&config, crate::ext_fixtures::fixture_admitted().built());
+    let content_member = admitted_with("content", Some(ContentConfigValidator::boxed));
+    let mut validator = StartupValidator::new(fixture.boot.clone()).expect("startup validator");
+    let content_report = validator.validate(&config, content_member.built());
 
-    for domain in ["content", "web"] {
+    for (domain, report) in [("web", &report), ("content", &content_report)] {
         let d = report
             .domains
             .iter()

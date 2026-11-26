@@ -97,14 +97,15 @@ pub(super) fn collect_secrets(
     prompter: &dyn Prompter,
     config: &CliConfig,
     env_name: &str,
+    providers: secrets::ProviderRequirement,
 ) -> Result<(secrets::SecretsData, Option<ProviderId>)> {
     if args.has_ai_provider() {
-        return secrets::collect_non_interactive(args, config);
+        return secrets::collect_non_interactive(args, config, providers);
     }
     if std::io::stdin().is_terminal() {
-        return secrets::collect_interactive(args, prompter, env_name, config);
+        return secrets::collect_interactive(args, prompter, env_name, config, providers);
     }
-    secrets::collect_non_interactive(args, config)
+    secrets::collect_non_interactive(args, config, providers)
 }
 
 #[doc(hidden)]

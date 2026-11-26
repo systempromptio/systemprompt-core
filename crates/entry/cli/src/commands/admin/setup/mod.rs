@@ -226,7 +226,16 @@ pub async fn execute(
     if args.db_password_stdin {
         args.db_password = Some(read_password_line(std::io::stdin().lock())?);
     }
-    wizard::execute(args, host.prompter(), host.output(), host.children()).await
+    let linked = host.linked()?;
+    let providers = secrets::ProviderRequirement::for_composition(linked.built());
+    wizard::execute(
+        args,
+        host.prompter(),
+        host.output(),
+        host.children(),
+        providers,
+    )
+    .await
 }
 
 pub fn read_password_line(mut reader: impl std::io::BufRead) -> Result<String> {

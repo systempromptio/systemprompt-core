@@ -89,6 +89,23 @@ async fn build_from_profile_resolves_paths_and_secrets() {
 }
 
 #[tokio::test]
+async fn a_missing_content_config_is_not_a_kernel_path_requirement() {
+    let fx = file_fixture();
+    let booted = boot(&fx).await;
+    std::fs::remove_file(fx.tmp.path().join("services/content/config.yaml")).unwrap();
+
+    let config = booted
+        .build()
+        .expect("only the content member's own validator requires its config");
+
+    assert!(
+        config.content_config_path.ends_with("content/config.yaml"),
+        "{}",
+        config.content_config_path
+    );
+}
+
+#[tokio::test]
 async fn build_from_profile_reports_missing_paths() {
     let fx = file_fixture();
     let booted = boot(&fx).await;

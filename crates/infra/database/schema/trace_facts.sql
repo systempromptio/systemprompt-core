@@ -59,13 +59,46 @@ BEGIN
     RETURN NULL;
 END $$;
 
+-- A ledger's owner may be absent from the composition: each contribution is
+-- read through a wrapper that calls the owner's function only when it exists
+-- and is empty otherwise, so the rollup never names an absent member's object.
+CREATE OR REPLACE FUNCTION trace_facts_contribution_ai(keys TEXT[])
+RETURNS TABLE(trace_id TEXT, first_at TIMESTAMPTZ, last_at TIMESTAMPTZ, row_count BIGINT,
+              running BOOLEAN, failed BOOLEAN)
+LANGUAGE plpgsql STABLE AS $$
+BEGIN
+    IF to_regprocedure('trace_facts_ai(text[])') IS NOT NULL THEN
+        RETURN QUERY EXECUTE 'SELECT * FROM trace_facts_ai($1)' USING keys;
+    END IF;
+END $$;
+
+CREATE OR REPLACE FUNCTION trace_facts_contribution_mcp(keys TEXT[])
+RETURNS TABLE(trace_id TEXT, first_at TIMESTAMPTZ, last_at TIMESTAMPTZ, row_count BIGINT,
+              running BOOLEAN, failed BOOLEAN, tool_names TEXT[])
+LANGUAGE plpgsql STABLE AS $$
+BEGIN
+    IF to_regprocedure('trace_facts_mcp(text[])') IS NOT NULL THEN
+        RETURN QUERY EXECUTE 'SELECT * FROM trace_facts_mcp($1)' USING keys;
+    END IF;
+END $$;
+
+CREATE OR REPLACE FUNCTION trace_facts_contribution_agent(keys TEXT[])
+RETURNS TABLE(trace_id TEXT, first_at TIMESTAMPTZ, last_at TIMESTAMPTZ, row_count BIGINT,
+              running BOOLEAN, failed BOOLEAN, canceled BOOLEAN, agent_name TEXT)
+LANGUAGE plpgsql STABLE AS $$
+BEGIN
+    IF to_regprocedure('trace_facts_agent(text[])') IS NOT NULL THEN
+        RETURN QUERY EXECUTE 'SELECT * FROM trace_facts_agent($1)' USING keys;
+    END IF;
+END $$;
+
 CREATE OR REPLACE FUNCTION refresh_trace_facts(keys TEXT[])
 RETURNS BIGINT LANGUAGE plpgsql AS $$
 DECLARE written BIGINT;
 BEGIN
-    WITH ai AS (SELECT * FROM trace_facts_ai(keys)),
-    mcp AS (SELECT * FROM trace_facts_mcp(keys)),
-    ag AS (SELECT * FROM trace_facts_agent(keys)),
+    WITH ai AS (SELECT * FROM trace_facts_contribution_ai(keys)),
+    mcp AS (SELECT * FROM trace_facts_contribution_mcp(keys)),
+    ag AS (SELECT * FROM trace_facts_contribution_agent(keys)),
     lg AS (SELECT * FROM trace_facts_logs(keys)),
     ids AS (
         SELECT ai.trace_id FROM ai UNION SELECT mcp.trace_id FROM mcp

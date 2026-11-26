@@ -55,6 +55,7 @@ pub trait KernelHost: CommandHost {
         profile: &'a Path,
     ) -> BoxFuture<'a, Result<Arc<Config>, CommandError>>;
     fn take_admit(&self) -> Result<systemprompt_runtime::AdmitFn, CommandError>;
+    fn linked(&self) -> Result<Admitted, CommandError>;
 }
 
 impl CommandContext {
@@ -276,5 +277,12 @@ impl KernelHost for CommandContext {
         Ok(Box::new(move |profile: &Profile| {
             admit(Some(&profile.extensions))
         }))
+    }
+
+    fn linked(&self) -> Result<Admitted, CommandError> {
+        let refused =
+            || anyhow::anyhow!("Only a command holding target admission admits the composition");
+        let admit = Self::take_admit(self).ok_or_else(|| CommandError::new(refused()))?;
+        crate::runner::admit_unprofiled(None, admit).map_err(CommandError::new)
     }
 }
