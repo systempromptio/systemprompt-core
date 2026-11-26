@@ -75,6 +75,7 @@ fn the_document_omits_hosts_the_instance_disabled() {
             platforms: Vec::new(),
             docs_url: None,
             desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
+            extensions: Vec::new(),
         },
     );
     let document = discovery_document(&services).expect("configured");

@@ -6,8 +6,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
+use super::external_agent::external_agent_host;
 use super::{ExternalAgentConfig, MarketplaceConfig, PluginConfig, ServicesConfig};
 use systemprompt_models::bridge::host::{HostKind, InstanceHosts};
 use systemprompt_models::plugin::ComponentSource;
@@ -16,7 +17,7 @@ impl ServicesConfig {
     fn external_agent(&self, host: HostKind) -> Option<&ExternalAgentConfig> {
         self.external_agents
             .iter()
-            .find(|(id, _)| id.as_str().replace('_', "-") == host.as_str())
+            .find(|(key, _)| external_agent_host(key) == Some(host))
             .map(|(_, agent)| agent)
     }
 
@@ -40,6 +41,18 @@ impl ServicesConfig {
             })
             .collect();
         InstanceHosts { enabled, opt_in }
+    }
+
+    #[must_use]
+    pub fn instance_host_extensions(&self) -> BTreeMap<HostKind, Vec<String>> {
+        self.instance_enabled_hosts()
+            .into_iter()
+            .filter_map(|host| {
+                self.external_agent(host)
+                    .filter(|agent| !agent.extensions.is_empty())
+                    .map(|agent| (host, agent.extensions.clone()))
+            })
+            .collect()
     }
 
     #[must_use]

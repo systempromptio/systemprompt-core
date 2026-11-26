@@ -18,7 +18,7 @@ fn every_host_round_trips_through_its_wire_id() {
 }
 
 #[test]
-fn the_seven_wire_ids_are_the_bridge_host_ids() {
+fn the_eight_wire_ids_are_the_bridge_host_ids() {
     let ids: Vec<&str> = HostKind::ALL.map(HostKind::as_str).to_vec();
     assert_eq!(
         ids,
@@ -30,6 +30,7 @@ fn the_seven_wire_ids_are_the_bridge_host_ids() {
             "opencode",
             "opencode-cli",
             "hermes",
+            "harness",
         ]
     );
 }
@@ -51,6 +52,7 @@ fn packaging_and_product_split_the_pairs() {
     assert_eq!(HostKind::ClaudeDesktop.kind(), HostAppKind::DesktopApp);
     assert_eq!(HostKind::ClaudeCode.kind(), HostAppKind::CliTool);
     assert_eq!(HostKind::Hermes.kind(), HostAppKind::CliTool);
+    assert_eq!(HostKind::Harness.kind(), HostAppKind::DesktopApp);
 
     assert_eq!(HostKind::Codex.product(), HostProduct::Codex);
     assert_eq!(HostKind::CodexCli.product(), HostProduct::Codex);
@@ -59,11 +61,14 @@ fn packaging_and_product_split_the_pairs() {
     assert_eq!(HostKind::ClaudeCode.product(), HostProduct::Claude);
     assert_eq!(HostKind::ClaudeDesktop.product(), HostProduct::Claude);
     assert_eq!(HostKind::Hermes.product(), HostProduct::Hermes);
+    assert_eq!(HostKind::Harness.product(), HostProduct::Harness);
 
     let codex: Vec<HostKind> = HostProduct::Codex.hosts().collect();
     assert_eq!(codex, [HostKind::Codex, HostKind::CodexCli]);
     let hermes: Vec<HostKind> = HostProduct::Hermes.hosts().collect();
     assert_eq!(hermes, [HostKind::Hermes]);
+    let harness: Vec<HostKind> = HostProduct::Harness.hosts().collect();
+    assert_eq!(harness, [HostKind::Harness]);
 }
 
 #[test]
@@ -79,7 +84,10 @@ fn shared_config_is_a_symmetric_relation_over_the_two_pairs() {
             None => assert!(
                 matches!(
                     host,
-                    HostKind::ClaudeCode | HostKind::ClaudeDesktop | HostKind::Hermes
+                    HostKind::ClaudeCode
+                        | HostKind::ClaudeDesktop
+                        | HostKind::Hermes
+                        | HostKind::Harness
                 ),
                 "{host} has no sibling"
             ),
@@ -105,6 +113,7 @@ fn both_packagings_of_a_product_wear_one_client_kind() {
         ClientKind::ClaudeDesktop
     );
     assert_eq!(ClientKind::from(HostKind::Hermes), ClientKind::Hermes);
+    assert_eq!(ClientKind::from(HostKind::Harness), ClientKind::Harness);
 
     let codex_hosts: Vec<HostKind> = ClientKind::Codex.hosts().collect();
     assert_eq!(codex_hosts, [HostKind::Codex, HostKind::CodexCli]);
@@ -126,6 +135,7 @@ fn evaluator_clients_accept_every_packaging_of_their_product_and_nothing_else() 
             EvaluatorClient::Codex,
             EvaluatorClient::OpenCode,
             EvaluatorClient::Hermes,
+            EvaluatorClient::Harness,
         ]
         .into_iter()
         .filter(|client| client.accepts(host))
@@ -165,6 +175,35 @@ fn hook_host_execution_source_follows_the_product() {
         ExecutionSource::from_hook_host(HostKind::CodexCli),
         ExecutionSource::HookClaudeCode
     );
+    assert_eq!(
+        ExecutionSource::from_hook_host(HostKind::Harness),
+        ExecutionSource::HookClaudeCode
+    );
+}
+
+#[test]
+fn harness_is_its_own_declarable_client_and_evaluator_on_the_wire() {
+    assert_eq!(HostKind::Harness.as_str(), "harness");
+    assert_eq!(ClientKind::Harness.as_str(), "harness");
+    assert!(ClientKind::DECLARABLE.contains(&ClientKind::Harness));
+    assert_eq!(
+        ClientKind::from_ua_product("harness"),
+        Some(ClientKind::Harness)
+    );
+    assert_eq!(ClientKind::Harness.product(), Some(HostProduct::Harness));
+    assert_eq!(
+        serde_json::to_string(&EvaluatorClient::Harness).unwrap(),
+        "\"harness\""
+    );
+    assert_eq!(
+        EvaluatorClient::try_from(ClientKind::Harness),
+        Ok(EvaluatorClient::Harness)
+    );
+    assert_eq!(
+        ClientKind::from(EvaluatorClient::Harness),
+        ClientKind::Harness
+    );
+    assert_eq!(HostKind::Harness.shares_config_with(), None);
 }
 
 fn manifest_json(enabled_hosts: &str, protocols: &str) -> String {
@@ -204,7 +243,7 @@ fn a_manifest_carries_typed_hosts_and_an_empty_list_enables_none() {
         r#"["opencode-cli", "codex"]"#,
         r#"{"codex": ["openai"]}"#,
     ))
-    .expect("seven-id vocabulary");
+    .expect("eight-id vocabulary");
     assert_eq!(
         manifest.enabled_hosts,
         [HostKind::OpenCodeCli, HostKind::Codex]
@@ -231,4 +270,37 @@ fn a_manifest_carries_typed_hosts_and_an_empty_list_enables_none() {
         round["host_model_protocols"]["codex"],
         serde_json::json!(["openai"])
     );
+}
+
+#[test]
+fn host_extensions_are_absent_from_the_wire_when_empty() {
+    let manifest: SignedManifest =
+        serde_json::from_str(&manifest_json(r#"["harness"]"#, "{}")).expect("parses");
+    assert!(manifest.host_extensions.is_empty());
+    let round = serde_json::to_value(&manifest).unwrap();
+    assert!(
+        round.get("host_extensions").is_none(),
+        "an empty map must not change the signed bytes: {round}"
+    );
+}
+
+#[test]
+fn host_extensions_map_a_host_id_to_its_extension_ids() {
+    let mut value: serde_json::Value =
+        serde_json::from_str(&manifest_json(r#"["harness"]"#, "{}")).unwrap();
+    value["host_extensions"] = serde_json::json!({"harness": ["drive", "brain"]});
+    let manifest: SignedManifest = serde_json::from_value(value).expect("parses");
+    assert_eq!(
+        manifest.host_extensions.get(&HostKind::Harness),
+        Some(&vec!["drive".to_owned(), "brain".to_owned()])
+    );
+    let round = serde_json::to_value(&manifest).unwrap();
+    assert_eq!(
+        round["host_extensions"],
+        serde_json::json!({"harness": ["drive", "brain"]})
+    );
+
+    let mut unknown: serde_json::Value = serde_json::from_str(&manifest_json("[]", "{}")).unwrap();
+    unknown["host_extensions"] = serde_json::json!({"cursor": ["drive"]});
+    assert!(serde_json::from_value::<SignedManifest>(unknown).is_err());
 }

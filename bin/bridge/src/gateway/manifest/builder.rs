@@ -206,6 +206,7 @@ impl SignedManifestBuilder {
             revocations: self.revocations,
             enabled_hosts: self.enabled_hosts,
             host_model_protocols: self.host_model_protocols,
+            host_extensions: std::collections::BTreeMap::new(),
             artifacts: self.artifacts,
             allow_claude_ai_connectors: self.allow_claude_ai_connectors,
             desktop_policy: self.desktop_policy,
