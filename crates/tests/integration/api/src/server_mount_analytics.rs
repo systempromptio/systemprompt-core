@@ -16,7 +16,7 @@
 //! | disables | analytics | engagement | analytics jobs and recording |
 //! |---|---|---|---|
 //! | `analytics-http` | 404 | 404 | unaffected |
-//! | `content` | boot refused | | |
+//! | `content` (and its dependants) | mounted | mounted | unaffected |
 //! | `analytics` (with or without `analytics-http`) | boot refused (required extension) | | |
 
 use std::net::SocketAddr;
@@ -362,16 +362,21 @@ fn content_and_its_dependants_except_the_routes() -> Vec<ExtensionId> {
 }
 
 #[tokio::test]
-async fn disabling_content_while_the_routes_stay_enabled_refuses_boot() -> anyhow::Result<()> {
+async fn disabling_content_keeps_the_analytics_routes_mounted() -> anyhow::Result<()> {
     let disabled = content_and_its_dependants_except_the_routes();
-    let refused = full_router(RateLimitsConfig::disabled(), &disabled).await;
-    let error = refused.expect_err("routes depending on content refuse boot");
-    let rendered = format!("{error:#}");
     assert!(
-        rendered.contains(&format!("{ANALYTICS_HTTP_EXTENSION} requires"))
-            && rendered.contains("its provider content is disabled"),
-        "{rendered}"
+        !disabled.contains(&ExtensionId::new(ANALYTICS_HTTP_EXTENSION)),
+        "{disabled:?}"
     );
+    let app = full_router(RateLimitsConfig::disabled(), &disabled).await?;
+    for (method, uri) in GROUPS {
+        let status = app
+            .clone()
+            .oneshot(anonymous(method.clone(), uri))
+            .await?
+            .status();
+        assert!(reached_handler(status), "{method} {uri}: {status}");
+    }
     Ok(())
 }
 
