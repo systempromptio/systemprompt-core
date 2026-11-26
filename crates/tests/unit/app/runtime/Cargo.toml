@@ -19,6 +19,7 @@ systemprompt-files-entry = { workspace = true, features = ["http"] }
 systemprompt-identity-entry = { workspace = true, features = ["http"] }
 systemprompt-analytics = { workspace = true, features = ["geolocation"] }
 systemprompt-runtime = { workspace = true }
+systemprompt-api = { workspace = true }
 systemprompt-mcp-host = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-manifest = { workspace = true }
