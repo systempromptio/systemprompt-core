@@ -23,15 +23,14 @@ use std::sync::Arc;
 
 use axum::http::Method;
 use systemprompt_agent_runs::notify::RunEventNotifier;
-use systemprompt_agent_runs::origin::AdmittedRunOrigins;
 use systemprompt_agent_runs::{A2aRunnerConfig, AgentRunRepository};
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
-use systemprompt_extension::RouteGroup;
 use systemprompt_extension::prelude::*;
 use systemprompt_extension::router::{
     ApiBase, BasePath, BodyLimit, RouteLimits, RouteSet, RouteSpec,
 };
+use systemprompt_extension::{AdmittedRunOrigins, RouteGroup};
 use systemprompt_manifest::Config;
 
 /// Route-set state, resolved once when the routes are mounted.

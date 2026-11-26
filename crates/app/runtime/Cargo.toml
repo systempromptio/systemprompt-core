@@ -43,7 +43,6 @@ systemprompt-loader = { workspace = true }
 systemprompt-storage = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-governance = { workspace = true }
-systemprompt-agent-runs = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 async-trait = { workspace = true }

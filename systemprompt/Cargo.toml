@@ -52,7 +52,6 @@ api = [
     "dep:systemprompt-users",
     "dep:systemprompt-oauth",
     "dep:systemprompt-scheduler",
-    "dep:systemprompt-documents",
     "dep:systemprompt-files",
     "dep:axum",
     "systemprompt-extension?/router",
@@ -113,8 +112,10 @@ content = ["dep:systemprompt-content", "dep:systemprompt-content-entry", "dep:sy
 marketplace = ["dep:systemprompt-marketplace", "dep:systemprompt-marketplace-entry"]
 
 # The files capability: the domain crate with its routes and commands from
-# `systemprompt-files-entry`. `reference` implies it.
-files = ["dep:systemprompt-files", "dep:systemprompt-files-entry", "dep:systemprompt-documents"]
+# `systemprompt-files-entry`, the document store (`systemprompt-documents`)
+# and issue reports (`systemprompt-issues`), each with its MCP toolset.
+# `reference` implies it.
+files = ["dep:systemprompt-files", "dep:systemprompt-files-entry", "dep:systemprompt-documents", "dep:systemprompt-issues"]
 
 # The hosted MCP capability: the domain crate with its routes and commands
 # from `systemprompt-mcp-entry`. It implies `ai`: the MCP member's tool-call
@@ -174,9 +175,6 @@ notifications = ["dep:systemprompt-notifications", "dep:systemprompt-notificatio
 # Without it the documents store records no brain event and the gateway injects no team memory.
 brain = ["dep:systemprompt-brain", "dep:systemprompt-brain-entry", "notifications"]
 
-# Issue reports: intake, triage and their jobs. `reference` implies it.
-issues = ["dep:systemprompt-issues"]
-
 # The AI capability: provider dispatch, model routing and tool execution.
 # `reference` implies it.
 ai = ["dep:systemprompt-ai", "systemprompt-models?/mcp"]
@@ -203,7 +201,6 @@ reference = [
     "bridge",
     "notifications",
     "brain",
-    "issues",
     "identity",
     # Infrastructure crates for extension authors
     "loader",

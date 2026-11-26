@@ -2,10 +2,9 @@ use std::sync::{Arc, OnceLock};
 
 use systemprompt_files::documents::DocumentsHandlesSlot;
 use systemprompt_identifiers::McpServerId;
+use systemprompt_issues::mcp::TOOLSET_ID as ISSUES_TOOLSET;
 use systemprompt_mcp_host::HostContext;
-use systemprompt_mcp_host::toolsets::{
-    ISSUES_TOOLSET, McpHostError, build_server, serve, serve_on,
-};
+use systemprompt_mcp_host::toolsets::{McpHostError, build_server, serve, serve_on};
 use systemprompt_test_fixtures::{TestBootstrap, host_child_env, init_services_bootstrap};
 
 const SERVICES: &str = "mcp_servers:

@@ -47,6 +47,7 @@ mod records;
 mod refusal;
 mod share;
 mod support;
+mod toolset;
 mod upload;
 mod write;
 
@@ -95,6 +96,8 @@ pub use records::DocumentAck;
 pub use refusal::{refusal, refusal_code, refusal_result, refused_error};
 pub use share::ShareHandler;
 pub use support::tool_error;
+pub(crate) use toolset::contribute as contribute_toolset;
+pub use toolset::documents_tools;
 pub use upload::{UploadHandler, UploadInput, UploadMode, UploadOutput};
 pub use write::EditHandler;
 

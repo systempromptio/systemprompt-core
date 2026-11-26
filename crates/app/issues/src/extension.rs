@@ -1,5 +1,8 @@
 //! [`IssuesExtension`](crate::extension::IssuesExtension) (`issues`): the issue
-//! report triage commands.
+//! report triage commands and the `issues` MCP toolset.
+//!
+//! It contributes the `issues` toolset to the MCP host's `ToolsetSlot`, so a
+//! hosted server lists it only in a composition that admits this member.
 //!
 //! With `cli` it contributes the `admin issues` group under the kernel's
 //! `admin` group, requesting the caller session (the triager a transition
@@ -15,6 +18,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_extension::prelude::*;
+use systemprompt_mcp_host::contract::ToolsetSlot;
 
 pub const ISSUES_EXTENSION: &str = "issues";
 
@@ -31,14 +35,8 @@ impl Extension for IssuesExtension {
         }
     }
 
-    #[cfg_attr(
-        not(feature = "cli"),
-        expect(
-            unused_variables,
-            reason = "the member contributes its commands only with the cli feature"
-        )
-    )]
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        crate::mcp::contribute_toolset(c.slot::<ToolsetSlot>());
         #[cfg(feature = "cli")]
         commands::contribute(c);
         Ok(())

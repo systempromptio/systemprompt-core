@@ -12,6 +12,9 @@
 //! for the bridge Drive routes that member builds; the API mounts them under
 //! the gateway whatever `gateway-http`'s standing.
 //!
+//! It contributes the `documents` toolset to the MCP host's `ToolsetSlot`,
+//! so a hosted server lists it only in a composition that admits this member.
+//!
 //! It also provides, sealed, the user lookup a hosted MCP server's document
 //! tools read (`Arc<DocumentsMcpUsers>`), so the child host builds no user
 //! repository of its own.
@@ -26,6 +29,7 @@ use std::sync::Arc;
 
 use systemprompt_extension::prelude::*;
 use systemprompt_extension::reserved::ConferralRow;
+use systemprompt_mcp_host::contract::ToolsetSlot;
 use systemprompt_traits::DynDriveTokens;
 
 use crate::provides::{documents_handles, drive_tokens, link_tokens};
@@ -47,6 +51,7 @@ impl Extension for DocumentsExtension {
     }
 
     fn contribute(&self, c: &mut Contributions<'_>) -> Result<(), ContributionError> {
+        crate::mcp::contribute_toolset(c.slot::<ToolsetSlot>());
         c.provide_sealed_after_governance(documents_handles)
             .provide_sealed(crate::provides::mcp_users)
             .provide_conferred(
