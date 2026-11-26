@@ -31,8 +31,9 @@ pub use show::show_tenant;
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
-use systemprompt_cloud::{CloudPath, TenantStore, get_cloud_paths};
+use systemprompt_cloud::TenantStore;
 use systemprompt_identifiers::TenantId;
+use systemprompt_loader::workspace::{CloudPath, get_cloud_paths};
 use systemprompt_logging::CliService;
 
 use create_flow::tenant_create;

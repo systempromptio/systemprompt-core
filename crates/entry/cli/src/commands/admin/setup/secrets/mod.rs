@@ -21,8 +21,8 @@ use systemprompt_logging::CliService;
 use super::SetupArgs;
 use data::resolve_primary;
 use prompts::{resolve_interactive_primary, select_provider_keys};
-use systemprompt_cloud::identity::generate_identity;
 use systemprompt_extension::cli::{CliConfig, Prompter};
+use systemprompt_loader::workspace::identity::generate_identity;
 
 pub use data::SecretsData;
 

@@ -12,15 +12,15 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::{ProfileLoadError, ProfileLoader};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::TenantId;
-use systemprompt_loader::{ProfileLoadError, ProfileLoader};
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::{ManagedProfile, ProfileError};
 
-use crate::error::CloudError;
-use crate::paths::{ProfilePath, ProjectContext, ResolvedPaths};
+use crate::workspace::error::WorkspaceError;
+use crate::workspace::paths::{ProfilePath, ProjectContext, ResolvedPaths};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ProfileResolutionError {
@@ -56,7 +56,7 @@ pub enum ProfileResolutionError {
     MultipleProfilesFound { profiles: Vec<String> },
 
     #[error(transparent)]
-    SessionStoreCorrupt(#[from] CloudError),
+    SessionStoreCorrupt(#[from] WorkspaceError),
 }
 
 /// How the profile for this invocation was chosen.
@@ -207,7 +207,7 @@ fn resolve_profile_by_name(name: &str) -> Result<Option<PathBuf>, ProfileResolut
 
     {
         let paths = ResolvedPaths::discover().sessions_dir();
-        let store = crate::SessionStore::load_or_create(&paths)?;
+        let store = crate::workspace::SessionStore::load_or_create(&paths)?;
         if let Some(session) = store.find_by_profile_name(name)
             && let Some(ref profile_path) = session.profile_path
             && profile_path.exists()
@@ -295,4 +295,24 @@ pub struct ProfileInfo {
     pub is_active: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_status: Option<String>,
+}
+
+#[must_use]
+pub fn generate_display_name(name: &str) -> String {
+    match name.to_lowercase().as_str() {
+        "dev" | "development" => "Development".to_owned(),
+        "prod" | "production" => "Production".to_owned(),
+        "staging" | "stage" => "Staging".to_owned(),
+        "test" | "testing" => "Test".to_owned(),
+        "local" => "Local Development".to_owned(),
+        "cloud" => "Cloud".to_owned(),
+        _ => capitalize_first(name),
+    }
+}
+
+fn capitalize_first(name: &str) -> String {
+    let mut chars = name.chars();
+    chars.next().map_or_else(String::new, |first| {
+        first.to_uppercase().chain(chars).collect()
+    })
 }

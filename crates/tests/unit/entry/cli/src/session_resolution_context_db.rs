@@ -9,9 +9,9 @@ use systemprompt_cli::session::SessionContextError;
 use systemprompt_cli::session::resolution::context_resolver::{
     ContextCheck, revalidate_context, try_validate_context,
 };
-use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
+use systemprompt_loader::workspace::{CliSession, SessionBinding, SessionIdentity};
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::{seed_user_row, seed_user_session, test_db_pool, unique_user_id};
 

@@ -4,8 +4,8 @@
 
 use chrono::{Duration, Utc};
 use systemprompt_cli::admin::session::show::{missing_active_session, session_info};
-use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
+use systemprompt_loader::workspace::{CliSession, SessionBinding, SessionIdentity};
 use systemprompt_models::auth::UserType;
 
 fn session(profile: &str) -> CliSession {

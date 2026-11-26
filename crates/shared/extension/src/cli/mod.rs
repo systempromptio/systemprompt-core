@@ -14,6 +14,8 @@ mod admitted_views;
 mod child;
 mod claim;
 #[cfg(feature = "cli")]
+mod cloud;
+#[cfg(feature = "cli")]
 mod command;
 #[cfg(feature = "cli")]
 mod confirm;
@@ -41,6 +43,8 @@ pub mod time_format;
 pub use admitted_views::AdmittedViews;
 pub use child::ChildSupervisor;
 pub use claim::CommandClaim;
+#[cfg(feature = "cli")]
+pub use cloud::{CloudAccess, CloudAccessError, CloudAccount, DynCloudAccess, TenantRoute};
 #[cfg(feature = "cli")]
 pub use command::{
     BoxFuture, CliCommandGroup, CliCommandLeaf, CommandError, CommandFuture, CommandHost,

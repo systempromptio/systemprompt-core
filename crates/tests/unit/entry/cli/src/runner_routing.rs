@@ -20,11 +20,13 @@ use systemprompt_cli::runner::routing::{
 use systemprompt_cli::runner::routing_decision::{
     RoutingDecision, allow_local_execution, decide_routing, remediation_for,
 };
-use systemprompt_cloud::SessionKey;
+use systemprompt_cloud_entry::cli::access::CloudCliAccess;
 use systemprompt_extension::cli::{
-    CliConfig, CommandDescriptor, DataImpact, DescribeCommand, OutputFormat, RoutingClass,
+    CliConfig, CloudAccessError, CommandDescriptor, DataImpact, DescribeCommand, DynCloudAccess,
+    OutputFormat, RoutingClass,
 };
 use systemprompt_identifiers::{ContextId, SessionToken, TenantId};
+use systemprompt_loader::workspace::SessionKey;
 use systemprompt_manifest::Profile;
 
 fn cli(args: &[&str]) -> Cli {
@@ -73,7 +75,8 @@ fn session_commands_bypass_cloud_routing_and_others_do_not() {
 fn a_local_profile_routes_locally() {
     let profile = fixture_profile();
 
-    let target = determine_execution_target(&profile).expect("a local profile resolves a target");
+    let target =
+        determine_execution_target(&profile, None).expect("a local profile resolves a target");
 
     assert!(
         matches!(target, ExecutionTarget::Local),
@@ -85,8 +88,12 @@ fn a_local_profile_routes_locally() {
 fn a_tenant_that_is_not_in_the_local_store_is_reported_with_the_sync_command() {
     let (_root, profile) = profile_in_owned_project();
 
-    let err = resolve_tenant(&profile, &TenantId::new("tenant_that_was_never_synced"))
-        .expect_err("an unsynced tenant cannot be resolved");
+    let err = resolve_tenant(
+        &profile,
+        &TenantId::new("tenant_that_was_never_synced"),
+        Some(&cloud()),
+    )
+    .expect_err("an unsynced tenant cannot be resolved");
 
     let message = message(&err);
     assert!(
@@ -227,7 +234,7 @@ async fn an_unreachable_host_is_a_connection_error_not_an_exit_code() {
     // Why: a host that refuses the connection never produced a stream, so the
     // runner must see an error rather than an exit code the shell would trust.
     let err = execute_remote(
-        "127.0.0.1:1",
+        "https://127.0.0.1:1",
         &token,
         &context,
         &[
@@ -349,7 +356,7 @@ fn a_cloud_profile_that_names_no_tenant_runs_a_mutating_job_in_place() {
     let mut profile = cloud_profile();
     profile.cloud = Some(systemprompt_manifest::profile::CloudConfig::default());
 
-    let target = determine_execution_target(&profile).expect("no tenant resolves a target");
+    let target = determine_execution_target(&profile, None).expect("no tenant resolves a target");
     assert!(matches!(target, ExecutionTarget::Local), "{target:?}");
 
     let decision = decide_routing(
@@ -410,4 +417,49 @@ fn an_unexchanged_self_managed_target_never_mutates_locally() {
 fn operator_failures_point_at_the_operator_sign_in() {
     assert!(remediation_for("No operator sign-in.").contains("--issuer"));
     assert!(remediation_for("Operator token exchange with acme failed").contains("--issuer"));
+}
+
+fn cloud() -> DynCloudAccess {
+    std::sync::Arc::new(CloudCliAccess)
+}
+
+fn tenant_profile() -> Profile {
+    let mut profile = cloud_profile();
+    profile.cloud = Some(systemprompt_manifest::profile::CloudConfig {
+        tenant_id: Some(TenantId::new("tenant_without_cloud_member")),
+        ..systemprompt_manifest::profile::CloudConfig::default()
+    });
+    profile
+}
+
+#[test]
+fn a_tenant_profile_in_a_build_without_the_cloud_member_is_refused_by_name() {
+    let err = determine_execution_target(&tenant_profile(), None)
+        .expect_err("a tenant cannot be resolved without the cloud member");
+
+    assert!(
+        matches!(
+            err.downcast_ref::<CloudAccessError>(),
+            Some(CloudAccessError::Absent { .. })
+        ),
+        "the refusal must be the typed absent-member error, got: {err:#}"
+    );
+    assert!(message(&err).contains("facade feature `cloud`"));
+}
+
+#[test]
+fn an_absent_cloud_member_never_falls_back_to_local_execution() {
+    let mut profile = tenant_profile();
+    profile.database.external_db_access = true;
+    let target = determine_execution_target(&profile, None);
+
+    let err = decide_routing(
+        target,
+        &profile,
+        RoutingClass::ReadOnly,
+        DataImpact::Preserving,
+    )
+    .expect_err("an absent cloud member is refused even where a routing failure may fall back");
+
+    assert!(message(&err).contains("facade feature `cloud`"));
 }

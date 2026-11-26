@@ -4,7 +4,7 @@
 use std::fs;
 use std::path::Path;
 
-use systemprompt_cloud::paths::{
+use systemprompt_loader::workspace::paths::{
     DiscoveredProject, ProfilePath, ProjectContext, ProjectPath, UnifiedContext,
 };
 use tempfile::TempDir;

@@ -8,9 +8,10 @@
 
 use anyhow::{Context, Result, anyhow};
 use systemprompt_cloud::{
-    CloudApiClient, CloudCredentials, CloudPath, CloudTenantInfo, OAuthTemplates, TenantStore,
-    UserMeResponse, get_cloud_paths, run_oauth_flow,
+    CloudApiClient, CloudCredentials, CloudTenantInfo, OAuthTemplates, TenantStore, UserMeResponse,
+    run_oauth_flow,
 };
+use systemprompt_loader::workspace::{CloudPath, get_cloud_paths};
 use systemprompt_logging::CliService;
 
 use crate::cli::templates::{AUTH_ERROR_HTML, AUTH_SUCCESS_HTML};

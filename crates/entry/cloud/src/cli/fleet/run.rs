@@ -8,9 +8,10 @@ use std::io;
 use anyhow::{Context, Result, bail};
 use serde::Serialize;
 use systemprompt_client::{OutputSink, RemoteCliExecutor, RemoteCliRequest};
+use systemprompt_cloud::StoredTenant;
 use systemprompt_cloud::deploy::provider::tenant_base_url;
-use systemprompt_cloud::{CloudPath, SessionKey, SessionStore, StoredTenant, get_cloud_paths};
 use systemprompt_identifiers::{ContextId, SessionToken, TenantId};
+use systemprompt_loader::workspace::{CloudPath, SessionKey, SessionStore, get_cloud_paths};
 use systemprompt_logging::CliService;
 
 use super::{FleetRunArgs, ensure_read_only, hosted_tenants};

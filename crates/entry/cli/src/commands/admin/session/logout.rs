@@ -5,13 +5,13 @@
 
 use anyhow::{Context, Result};
 use clap::Args;
-use systemprompt_cloud::{ProfilePath, SessionKey, SessionStore};
 use systemprompt_identifiers::ProfileName;
+use systemprompt_loader::workspace::{ProfilePath, SessionKey, SessionStore};
 use systemprompt_manifest::profile::{CloudConfig, ManagedProfile};
 
 use super::types::LogoutOutput;
-use systemprompt_cloud::paths::ResolvedPaths;
 use systemprompt_extension::cli::{CliConfig, CommandOutput, Prompter};
+use systemprompt_loader::workspace::paths::ResolvedPaths;
 
 #[derive(Debug, Args)]
 pub struct LogoutArgs {

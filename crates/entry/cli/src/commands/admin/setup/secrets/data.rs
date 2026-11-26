@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ProviderId;
 
 use super::super::SetupArgs;
-use systemprompt_cloud::provider_catalog::{VERTEX, VertexSeed};
+use systemprompt_loader::workspace::provider_catalog::{VERTEX, VertexSeed};
 
 pub(super) const STANDARD_PROVIDERS: [&str; 4] = ["gemini", "anthropic", "openai", VERTEX];
 

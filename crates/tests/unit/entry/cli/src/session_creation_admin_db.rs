@@ -212,15 +212,10 @@ async fn the_minted_token_names_its_user_and_is_not_empty() {
 mod tenant_fallback {
     use super::{admins, seed, test_db_pool, unique};
     use systemprompt_cli::session::creation::admin_bootstrap::resolve_tenant_admin_with_fallback;
-    use systemprompt_cloud::CloudCredentials;
-    use systemprompt_identifiers::{CloudAuthToken, Email};
+    use systemprompt_identifiers::Email;
 
-    fn creds(email: &str) -> CloudCredentials {
-        CloudCredentials::new(
-            CloudAuthToken::new("tok"),
-            "https://cloud.invalid".to_owned(),
-            Email::try_new(email).expect("valid Email"),
-        )
+    fn creds(email: &str) -> Email {
+        Email::try_new(email).expect("valid Email")
     }
 
     fn unresolvable_email() -> String {
@@ -436,7 +431,7 @@ mod cli_context {
 
 #[tokio::test]
 async fn a_session_hint_that_is_not_an_address_is_refused_before_any_lookup() {
-    let err = resolve_credentialed_user_email(Some("not an email at all"))
+    let err = resolve_credentialed_user_email(Some("not an email at all"), None)
         .await
         .expect_err("a malformed hint must not reach the database");
 
@@ -448,7 +443,7 @@ async fn a_session_hint_that_is_not_an_address_is_refused_before_any_lookup() {
 
 #[tokio::test]
 async fn a_well_formed_session_hint_is_used_verbatim() {
-    let email = resolve_credentialed_user_email(Some("hinted@sessadmin.invalid"))
+    let email = resolve_credentialed_user_email(Some("hinted@sessadmin.invalid"), None)
         .await
         .expect("a valid hint needs no cloud credentials at all");
 
@@ -456,15 +451,14 @@ async fn a_well_formed_session_hint_is_used_verbatim() {
 }
 
 #[tokio::test]
-async fn a_lookup_with_no_hint_and_no_credentials_says_to_authenticate() {
-    // skip-ok: no database, so nothing to act on
-    let Err(err) = resolve_credentialed_user_email(None).await else {
-        return;
-    };
+async fn a_lookup_with_no_hint_in_a_build_without_the_cloud_member_names_the_feature() {
+    let err = resolve_credentialed_user_email(None, None)
+        .await
+        .expect_err("without a hint the address can only come from the cloud member");
 
     assert!(
-        format!("{err:#}").contains("cloud auth login"),
-        "without credentials the operator must be told how to get them, got: {err:#}"
+        format!("{err:#}").contains("facade feature `cloud`"),
+        "the refusal must name the missing cloud feature, got: {err:#}"
     );
 }
 
@@ -473,7 +467,7 @@ async fn an_address_with_no_user_behind_it_is_provisioned_as_an_admin() {
     let pool = test_db_pool().await;
     let email = format!("{}@sessadmin.invalid", unique("fallback"));
 
-    let user = resolve_admin_with_fallback(admins(&pool).as_ref(), &email, None, "local")
+    let user = resolve_admin_with_fallback(admins(&pool).as_ref(), &email, None, "local", None)
         .await
         .expect("an address with no user is provisioned rather than refused");
 
@@ -497,6 +491,7 @@ async fn a_hinted_lookup_that_fails_falls_back_and_still_reports_the_original_fa
         "hinted@sessadmin.invalid",
         Some("hinted@sessadmin.invalid"),
         "local",
+        None,
     )
     .await
     .expect_err("a closed pool cannot resolve or provision anyone");
@@ -516,6 +511,7 @@ async fn a_hintless_lookup_that_fails_is_reported_without_a_fallback() {
         "plain@sessadmin.invalid",
         None,
         "local",
+        None,
     )
     .await
     .expect_err("a closed pool cannot resolve anyone");

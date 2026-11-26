@@ -5,7 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::constants::{dir_names, file_names};
+use crate::workspace::constants::{dir_names, file_names};
 
 #[derive(Debug, Clone)]
 pub struct DiscoveredProject {

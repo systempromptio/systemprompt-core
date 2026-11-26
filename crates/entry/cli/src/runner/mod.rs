@@ -47,6 +47,7 @@ pub(super) async fn run_with(
     build: BuildIdentity,
     registry: CommandRegistry,
     secrets: SecretsSources,
+    cloud: Option<systemprompt_extension::cli::DynCloudAccess>,
     admit: AdmitFn,
 ) -> Result<()> {
     tls::install_crypto_provider();
@@ -75,6 +76,7 @@ pub(super) async fn run_with(
         secrets,
         admit,
         registry: Arc::clone(&registry),
+        cloud,
     };
     let outcome = if invocation.descriptor().owns_signals() {
         Box::pin(run_inner(&output, invocation, confirm, guards, env)).await
@@ -112,7 +114,6 @@ async fn run_inner(
             env,
             DirectDatabase {
                 url: &database_url,
-                credentials: None,
                 profile: None,
             },
             guards,
@@ -122,7 +123,6 @@ async fn run_inner(
 
     init_logging(output, &desc, &cli_config, &env);
 
-    let mut credentials = None;
     let mut services = None;
     let mut profile = None;
     let mut boot = None;
@@ -133,9 +133,9 @@ async fn run_inner(
             &env,
             &confirm,
             &guards.secrets,
+            guards.cloud.as_ref(),
         )
         .await?;
-        let loaded = booted.credentials;
         services = booted.services;
         profile = booted.profile;
         boot = booted.boot;
@@ -148,7 +148,6 @@ async fn run_inner(
                     env,
                     DirectDatabase {
                         url: &external_db_url,
-                        credentials: loaded,
                         profile: profile
                             .as_deref()
                             .map(systemprompt_config::LoadedProfile::profile),
@@ -157,13 +156,12 @@ async fn run_inner(
                 ))
                 .await;
             },
-            profile_routing::BootstrapOutcome::ContinueLocal => credentials = loaded,
+            profile_routing::BootstrapOutcome::ContinueLocal => {},
         }
     }
 
     let local = LocalBoot {
         confirm,
-        credentials,
         services,
         profile,
         boot,

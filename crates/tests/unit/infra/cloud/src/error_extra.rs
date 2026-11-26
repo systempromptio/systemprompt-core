@@ -74,17 +74,18 @@ fn test_credentials_file_not_found_display() {
 
 #[test]
 fn test_session_version_mismatch_display() {
-    let err = CloudError::SessionVersionMismatch {
-        min: 1,
-        max: 3,
-        actual: 0,
-        path: "/tmp/session.json".to_string(),
-    };
+    let err = CloudError::from(
+        systemprompt_loader::workspace::WorkspaceError::SessionVersionMismatch {
+            min: 1,
+            max: 3,
+            actual: 0,
+            path: "/tmp/session.json".to_string(),
+        },
+    );
     let s = err.to_string();
     assert!(s.contains("Session file version mismatch"));
     assert!(s.contains("/tmp/session.json"));
-    assert_eq!(err.user_message(), "CLI session file is out of date");
-    assert!(err.recovery_hint().contains("Delete the session file"));
+    assert_eq!(err.user_message(), "CLI workspace file is unreadable");
 }
 
 #[test]

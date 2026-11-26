@@ -10,7 +10,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ContextId, ProfileName, SessionId, TenantId};
 
-use systemprompt_cloud::profile::ProfileInfo;
+use systemprompt_loader::workspace::profile::ProfileInfo;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SessionInfo {

@@ -8,7 +8,7 @@ use systemprompt_identifiers::SessionToken;
 use crate::deploy::provider::tenant_base_url;
 use crate::error::CloudError;
 use crate::operator::{OperatorCredentials, exchange_for_tenant};
-use crate::paths::{CloudPath, get_cloud_paths};
+use systemprompt_loader::workspace::paths::{CloudPath, get_cloud_paths};
 
 #[derive(Debug, thiserror::Error)]
 pub enum OperatorTokenError {

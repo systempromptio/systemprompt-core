@@ -13,7 +13,7 @@ use systemprompt_identifiers::TenantId;
 use super::StoredTenant;
 use crate::api_client::CloudTenantInfo;
 use crate::error::{CloudError, CloudResult, CloudStoreValidationError};
-use crate::private_dir::write_private_json;
+use systemprompt_loader::workspace::private_dir::write_private_json;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TenantStore {
@@ -103,7 +103,7 @@ impl TenantStore {
                 source: Box::new(e),
             })?;
 
-        write_private_json(path, self)
+        Ok(write_private_json(path, self)?)
     }
 
     #[must_use]

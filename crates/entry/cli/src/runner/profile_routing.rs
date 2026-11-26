@@ -13,7 +13,6 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
-use systemprompt_cloud::CloudCredentials;
 use systemprompt_config::LoadedProfile;
 use systemprompt_identifiers::JobName;
 use systemprompt_loader::BootContext;
@@ -26,8 +25,8 @@ use systemprompt_loader::ServicesState;
 use crate::commands::infrastructure;
 use crate::env_overrides::EnvOverrides;
 use crate::interactive;
-use systemprompt_cloud::profile::ProfileSource;
-use systemprompt_extension::cli::{CliConfig, CommandDescriptor, RoutingClass};
+use systemprompt_extension::cli::{CliConfig, CommandDescriptor, DynCloudAccess, RoutingClass};
+use systemprompt_loader::workspace::profile::ProfileSource;
 
 /// What the runner does once the profile is bootstrapped.
 ///
@@ -43,17 +42,15 @@ pub enum BootstrapOutcome {
 
 pub(super) struct Bootstrapped {
     pub outcome: BootstrapOutcome,
-    pub credentials: Option<CloudCredentials>,
     pub services: Option<ServicesState>,
     pub profile: Option<Arc<LoadedProfile>>,
     pub boot: Option<BootContext>,
 }
 
 impl Bootstrapped {
-    const fn new(outcome: BootstrapOutcome, credentials: Option<CloudCredentials>) -> Self {
+    const fn new(outcome: BootstrapOutcome) -> Self {
         Self {
             outcome,
-            credentials,
             services: None,
             profile: None,
             boot: None,
@@ -78,6 +75,7 @@ pub(super) async fn bootstrap_profile(
     env: &EnvOverrides,
     confirm: &ConfirmationRequest,
     secrets: &systemprompt_config::SecretsSources,
+    cloud: Option<&DynCloudAccess>,
 ) -> Result<Bootstrapped> {
     let cli = &invocation.cli;
     let desc = &invocation.descriptor();
@@ -86,14 +84,14 @@ pub(super) async fn bootstrap_profile(
 
     require_explicit_cloud_profile(ctx.loaded.profile(), ctx.source, desc)?;
     confirmation::gate(desc, &confirm.for_profile(&ctx.loaded.name), cli_config)?;
-    if enforce_routing_policy(&ctx, cli, desc, cli_config).await?
+    if enforce_routing_policy(&ctx, cli, desc, cli_config, cloud).await?
         == BootstrapOutcome::RemoteExecuted
     {
-        return Ok(Bootstrapped::new(BootstrapOutcome::RemoteExecuted, None));
+        return Ok(Bootstrapped::new(BootstrapOutcome::RemoteExecuted));
     }
 
     let needs_cloud = is_cloud_bypass_command(desc);
-    initialize_post_routing(&ctx, desc, needs_cloud, secrets).await
+    initialize_post_routing(&ctx, desc, needs_cloud, secrets, cloud).await
 }
 
 async fn enforce_routing_policy(
@@ -101,10 +99,11 @@ async fn enforce_routing_policy(
     cli: &args::Cli,
     desc: &CommandDescriptor,
     cli_config: &CliConfig,
+    cloud: Option<&DynCloudAccess>,
 ) -> Result<BootstrapOutcome> {
     let class = desc.routing_class();
     if !ctx.env.is_deployment_host && class != RoutingClass::LocalOnly && !ctx.has_export {
-        return try_remote_routing(cli, ctx.loaded.profile(), cli_config, desc).await;
+        return try_remote_routing(cli, ctx.loaded.profile(), cli_config, desc, cloud).await;
     }
 
     if ctx.has_export && ctx.is_cloud && !ctx.external_db_access {
@@ -164,9 +163,10 @@ async fn initialize_post_routing(
     desc: &CommandDescriptor,
     needs_cloud: bool,
     secrets: &systemprompt_config::SecretsSources,
+    cloud: Option<&DynCloudAccess>,
 ) -> Result<Bootstrapped> {
-    let credentials = if needs_cloud || (ctx.is_cloud && ctx.external_db_access) {
-        bootstrap::init_credentials_gracefully(needs_cloud).await?
+    let account = if needs_cloud || (ctx.is_cloud && ctx.external_db_access) {
+        bootstrap::init_credentials_gracefully(cloud, ctx.loaded.profile(), needs_cloud).await?
     } else {
         None
     };
@@ -182,10 +182,8 @@ async fn initialize_post_routing(
             .as_ref()
             .context("Secrets required for external DB access")?;
         let db_url = boot.secrets().get().effective_database_url(true).to_owned();
-        return Ok(
-            Bootstrapped::new(BootstrapOutcome::ExternalDbUrl(db_url), credentials)
-                .with_profile(Arc::clone(&ctx.loaded), Some(boot.clone())),
-        );
+        return Ok(Bootstrapped::new(BootstrapOutcome::ExternalDbUrl(db_url))
+            .with_profile(Arc::clone(&ctx.loaded), Some(boot.clone())));
     }
 
     let services = if desc.paths() {
@@ -198,14 +196,12 @@ async fn initialize_post_routing(
     };
 
     if !ctx.is_cloud {
-        bootstrap::validate_cloud_credentials(&ctx.env, credentials.as_ref(), ctx.loaded.profile());
+        bootstrap::validate_cloud_credentials(&ctx.env, account.as_ref(), ctx.loaded.profile());
     }
 
-    Ok(
-        Bootstrapped::new(BootstrapOutcome::ContinueLocal, credentials)
-            .with_services(services)
-            .with_profile(Arc::clone(&ctx.loaded), boot),
-    )
+    Ok(Bootstrapped::new(BootstrapOutcome::ContinueLocal)
+        .with_services(services)
+        .with_profile(Arc::clone(&ctx.loaded), boot))
 }
 
 async fn try_remote_routing(
@@ -213,11 +209,12 @@ async fn try_remote_routing(
     profile: &systemprompt_manifest::Profile,
     cli_config: &CliConfig,
     desc: &CommandDescriptor,
+    cloud: Option<&DynCloudAccess>,
 ) -> Result<BootstrapOutcome> {
     use super::routing;
 
-    let target = match routing::determine_execution_target(profile) {
-        Ok(target) => routing::authorize_target(target).await,
+    let target = match routing::determine_execution_target(profile, cloud) {
+        Ok(target) => routing::authorize_target(target, cloud).await,
         Err(e) => Err(e),
     };
     let decision = decide_routing(target, profile, desc.routing_class(), desc.data_impact())?;
@@ -231,8 +228,14 @@ async fn try_remote_routing(
     };
 
     confirm_remote_job_run(cli, cli_config, profile, &hostname)?;
+    let base_url = crate::cloud_access::require_cloud(
+        cloud,
+        Some(profile),
+        "routing a command to a cloud tenant",
+    )?
+    .tenant_base_url(&hostname);
     let args = args::reconstruct_args();
-    let exit_code = routing::execute_remote(&hostname, &token, &context, &args, 300).await?;
+    let exit_code = routing::execute_remote(&base_url, &token, &context, &args, 300).await?;
     if exit_code != 0 {
         bail!("Remote command exited with code {}", exit_code);
     }

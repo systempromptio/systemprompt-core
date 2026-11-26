@@ -11,6 +11,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod access;
 pub mod auth;
 pub mod backup;
 pub mod deploy;
@@ -234,7 +235,7 @@ pub async fn execute(cmd: CloudCommands, host: &dyn CommandHost) -> Result<Comma
 
 fn execute_dockerfile(host: &dyn CommandHost) -> Result<CommandOutput> {
     use systemprompt_cloud::deploy::DockerfileBuilder;
-    use systemprompt_cloud::paths::ProjectRoot;
+    use systemprompt_loader::workspace::paths::ProjectRoot;
 
     let project = ProjectRoot::discover()?;
     let profile = match host.profile() {

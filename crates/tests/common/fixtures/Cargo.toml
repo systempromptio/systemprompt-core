@@ -15,7 +15,6 @@ systemprompt-documents = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-catalog-fixtures = { workspace = true }
 systemprompt-cli = { workspace = true }
-systemprompt-cloud = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-database = { workspace = true }

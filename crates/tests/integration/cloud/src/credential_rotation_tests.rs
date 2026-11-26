@@ -3,7 +3,7 @@
 
 use chrono::Duration;
 use systemprompt_cloud::CloudCredentials;
-use systemprompt_cloud::cli_session::{CliSession, SessionStore};
+use systemprompt_loader::workspace::cli_session::{CliSession, SessionStore};
 
 use crate::support::{TenantFixture, build_session_for, jwt_token, save_credentials};
 

@@ -39,7 +39,8 @@ pub fn update_ai_config_default_provider(provider: &str) -> Result<()> {
 
     let mut document = systemprompt_config::read_catalog(&ai_dir)
         .with_context(|| format!("Failed to read {}", ai_dir.display()))?;
-    let Some(model) = systemprompt_cloud::provider_catalog::first_model_on(&document, provider)
+    let Some(model) =
+        systemprompt_loader::workspace::provider_catalog::first_model_on(&document, provider)
     else {
         CliService::warning(&format!(
             "The catalog deploys no model on '{provider}'; gateway.default_model is unchanged"
@@ -50,7 +51,7 @@ pub fn update_ai_config_default_provider(provider: &str) -> Result<()> {
         .gateway
         .get_or_insert_with(systemprompt_manifest::services::GatewayConfigSpec::default);
     gateway.default_model = Some(model.clone());
-    systemprompt_cloud::provider_catalog::write_gateway(&ai_dir, Some(gateway))?;
+    systemprompt_loader::workspace::provider_catalog::write_gateway(&ai_dir, Some(gateway))?;
     CliService::success(&format!(
         "Set gateway.default_model to '{model}' (served by '{provider}')"
     ));

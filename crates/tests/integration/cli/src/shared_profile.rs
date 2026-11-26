@@ -1,5 +1,5 @@
-use systemprompt_cloud::identity::generate_oauth_at_rest_pepper;
-use systemprompt_cloud::profile::{
+use systemprompt_loader::workspace::identity::generate_oauth_at_rest_pepper;
+use systemprompt_loader::workspace::profile::{
     DiscoveredProfile, ProfileResolutionError, ProfileSource, discover_profiles, is_path_input,
     resolve_profile_from_path, resolve_profile_path,
 };

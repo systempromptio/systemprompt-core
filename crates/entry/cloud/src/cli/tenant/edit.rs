@@ -4,8 +4,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, anyhow, bail};
-use systemprompt_cloud::{CloudPath, StoredTenant, TenantStore, get_cloud_paths};
+use systemprompt_cloud::{StoredTenant, TenantStore};
 use systemprompt_identifiers::{CloudAppId, TenantId};
+use systemprompt_loader::workspace::{CloudPath, get_cloud_paths};
 use systemprompt_logging::CliService;
 
 use super::select::select_tenant;

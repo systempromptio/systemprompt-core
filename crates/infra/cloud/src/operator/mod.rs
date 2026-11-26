@@ -25,8 +25,8 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ClientId, CloudAuthToken, Email};
 
 use crate::error::{CloudError, CloudResult};
-use crate::private_dir::write_private_json;
 use crate::{CloudApiClient, auth};
+use systemprompt_loader::workspace::private_dir::write_private_json;
 
 pub use login::{LoginIo, OperatorLoginRequest, run_operator_login, run_operator_login_with};
 
@@ -77,7 +77,7 @@ impl OperatorCredentials {
     }
 
     pub fn save_to_path(&self, path: &Path) -> CloudResult<()> {
-        write_private_json(path, self)
+        Ok(write_private_json(path, self)?)
     }
 
     pub fn delete_from_path(path: &Path) -> CloudResult<()> {

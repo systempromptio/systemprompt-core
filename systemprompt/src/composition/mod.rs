@@ -304,6 +304,7 @@ impl Composition {
             systemprompt_models::BuildIdentity::core(),
             &commands,
             secrets,
+            cloud_access(),
             move |extensions: Option<&systemprompt_manifest::ExtensionsConfig>| {
                 match extensions {
                     Some(extensions) => declared.admit(extensions),
@@ -314,4 +315,16 @@ impl Composition {
         )
         .map_err(RunError::Cli)
     }
+}
+
+#[cfg(all(feature = "cli", feature = "cloud"))]
+fn cloud_access() -> Option<systemprompt_extension::cli::DynCloudAccess> {
+    Some(std::sync::Arc::new(
+        systemprompt_cloud_entry::cli::access::CloudCliAccess,
+    ))
+}
+
+#[cfg(all(feature = "cli", not(feature = "cloud")))]
+const fn cloud_access() -> Option<systemprompt_extension::cli::DynCloudAccess> {
+    None
 }

@@ -10,7 +10,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::constants::{dir_names, paths};
+use crate::workspace::constants::{dir_names, paths};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ProjectPath {

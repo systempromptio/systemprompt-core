@@ -2,8 +2,8 @@
 //! neither in the `SessionStore` index nor in the persisted JSON.
 
 use systemprompt_cloud::StoredTenant;
-use systemprompt_cloud::cli_session::SessionStore;
 use systemprompt_cloud::tenants::TenantStore;
+use systemprompt_loader::workspace::cli_session::SessionStore;
 
 use crate::support::{TenantFixture, seeded_session_store};
 use systemprompt_identifiers::TenantId;

@@ -37,6 +37,7 @@ async fn fetch_admin_user_returns_bootstrapped_user_by_name() {
         &username,
         false,
         None,
+        None,
     )
     .await
     .expect("local admin resolves by name without cloud credentials");
@@ -61,6 +62,7 @@ async fn fetch_admin_user_missing_local_user_points_to_bootstrap_not_cloud_login
             .as_ref(),
         &missing_username,
         false,
+        None,
         None,
     )
     .await

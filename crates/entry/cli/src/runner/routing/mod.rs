@@ -1,7 +1,9 @@
 //! Decides whether a command runs locally or is forwarded to a remote tenant.
 //!
-//! [`determine_execution_target`] resolves the active profile and tenant store
-//! into an [`ExecutionTarget`]; [`execute_remote`] adapts the terminal to the
+//! [`determine_execution_target`] resolves the active profile and the cloud
+//! member's tenant store into an [`ExecutionTarget`]; a profile that names a
+//! tenant in a build without the cloud member is refused
+//! ([`CloudAccessError::Absent`](systemprompt_extension::cli::CloudAccessError)); [`execute_remote`] adapts the terminal to the
 //! SSE transport in `systemprompt_client::RemoteCliExecutor`.
 //!
 //! A managed tenant routes with the stored `admin session login` session. A
@@ -18,13 +20,13 @@ use std::io::{self, Write};
 
 use anyhow::{Context, Result};
 use systemprompt_client::{OutputSink, RemoteCliExecutor, RemoteCliRequest};
-use systemprompt_cloud::deploy::provider::tenant_base_url;
-use systemprompt_cloud::{SessionKey, SessionStore, StoredTenant, TenantStore};
+use systemprompt_extension::cli::{DynCloudAccess, TenantRoute};
 use systemprompt_identifiers::{ContextId, SessionToken};
+use systemprompt_loader::workspace::{SessionKey, SessionStore};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
-use systemprompt_cloud::paths::ResolvedPaths;
+use systemprompt_loader::workspace::paths::ResolvedPaths;
 
 #[doc(hidden)]
 #[derive(Debug)]
@@ -40,7 +42,10 @@ pub enum ExecutionTarget {
     },
 }
 
-pub fn determine_execution_target(profile: &Profile) -> Result<ExecutionTarget> {
+pub fn determine_execution_target(
+    profile: &Profile,
+    cloud: Option<&DynCloudAccess>,
+) -> Result<ExecutionTarget> {
     if profile.target.is_local() {
         tracing::debug!(
             profile_name = %profile.name,
@@ -63,14 +68,14 @@ pub fn determine_execution_target(profile: &Profile) -> Result<ExecutionTarget> 
         "Profile has tenant_id, resolving remote execution target"
     );
 
-    let tenant = resolve_tenant(profile, tenant_id)?;
+    let tenant = resolve_tenant(profile, tenant_id, cloud)?;
     let hostname = tenant
         .hostname
         .as_ref()
         .context("Tenant has no hostname configured")?
         .clone();
 
-    if tenant.provider.is_self_managed() {
+    if tenant.self_managed {
         tracing::debug!(
             hostname = %hostname,
             tenant_id = %tenant_id,
@@ -96,11 +101,17 @@ pub fn determine_execution_target(profile: &Profile) -> Result<ExecutionTarget> 
     })
 }
 
-pub(crate) async fn authorize_target(target: ExecutionTarget) -> Result<ExecutionTarget> {
+pub(crate) async fn authorize_target(
+    target: ExecutionTarget,
+    cloud: Option<&DynCloudAccess>,
+) -> Result<ExecutionTarget> {
     let ExecutionTarget::SelfManaged { hostname } = target else {
         return Ok(target);
     };
-    let token = systemprompt_cloud::routing::operator_tenant_token(&hostname).await?;
+    let token =
+        crate::cloud_access::require_cloud(cloud, None, "signing in to a self-managed tenant")?
+            .operator_tenant_token(&hostname)
+            .await?;
     Ok(ExecutionTarget::Remote {
         hostname,
         token,
@@ -111,29 +122,22 @@ pub(crate) async fn authorize_target(target: ExecutionTarget) -> Result<Executio
 pub fn resolve_tenant(
     profile: &Profile,
     tenant: &systemprompt_identifiers::TenantId,
-) -> Result<StoredTenant> {
+    cloud: Option<&DynCloudAccess>,
+) -> Result<TenantRoute> {
+    let cloud = crate::cloud_access::require_cloud(
+        cloud,
+        Some(profile),
+        "routing a command to a cloud tenant",
+    )?;
     let tenants_path = ResolvedPaths::from_profile(profile).tenants_path();
-
-    let store = TenantStore::load_from_path(&tenants_path).with_context(|| {
-        format!(
-            "Failed to load tenants from {}. Run 'systemprompt cloud tenant list' to sync.",
-            tenants_path.display()
-        )
-    })?;
-
-    store.find_tenant(tenant).cloned().with_context(|| {
-        format!(
-            "Tenant '{tenant}' not found in local tenant store. Run 'systemprompt cloud tenant \
-                 list' to sync."
-        )
-    })
+    Ok(cloud.tenant_route(&tenants_path, tenant)?)
 }
 
 pub fn load_session_for_key(
     profile: &Profile,
     session_key: &SessionKey,
     issuer: &str,
-) -> Result<systemprompt_cloud::CliSession> {
+) -> Result<systemprompt_loader::workspace::CliSession> {
     let sessions_dir = ResolvedPaths::from_profile(profile).sessions_dir();
 
     let store = SessionStore::load_or_create(&sessions_dir)?;
@@ -166,14 +170,14 @@ impl OutputSink for StdioSink {
 }
 
 pub async fn execute_remote(
-    hostname: &str,
+    base_url: &str,
     token: &SessionToken,
     context: &ContextId,
     args: &[String],
     timeout_secs: u64,
 ) -> Result<i32> {
-    let executor = RemoteCliExecutor::new(&tenant_base_url(hostname), timeout_secs)
-        .context("Failed to create HTTP client")?;
+    let executor =
+        RemoteCliExecutor::new(base_url, timeout_secs).context("Failed to create HTTP client")?;
     let mut sink = StdioSink {
         stdout: io::stdout(),
         stderr: io::stderr(),

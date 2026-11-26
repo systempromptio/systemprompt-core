@@ -16,11 +16,10 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
-use systemprompt_cloud::CloudCredentials;
 use systemprompt_config::{LoadedProfile, SecretsService, SecretsSources};
 use systemprompt_database::DbPool;
 use systemprompt_extension::Admitted;
-use systemprompt_extension::cli::{CliConfig, Prompter};
+use systemprompt_extension::cli::{CliConfig, DynCloudAccess, Prompter};
 use systemprompt_loader::{BootContext, ServicesState};
 use systemprompt_manifest::{Config, Profile};
 use systemprompt_models::BuildIdentity;
@@ -43,7 +42,7 @@ pub struct CommandContext {
     db: Option<DatabaseContext>,
     database_url: Option<String>,
     database_url_override: Option<String>,
-    cloud_credentials: Option<CloudCredentials>,
+    cloud: Option<DynCloudAccess>,
     services: Option<ServicesState>,
     profile: Option<Arc<LoadedProfile>>,
     boot: Option<BootContext>,
@@ -68,7 +67,7 @@ impl CommandContext {
             db: None,
             database_url: None,
             database_url_override: None,
-            cloud_credentials: None,
+            cloud: None,
             services: None,
             profile: None,
             boot: None,
@@ -123,8 +122,8 @@ impl CommandContext {
     }
 
     #[must_use]
-    pub fn with_cloud_credentials(mut self, credentials: Option<CloudCredentials>) -> Self {
-        self.cloud_credentials = credentials;
+    pub fn with_cloud_access(mut self, cloud: Option<DynCloudAccess>) -> Self {
+        self.cloud = cloud;
         self
     }
 
@@ -205,8 +204,8 @@ impl CommandContext {
     }
 
     #[must_use]
-    pub const fn cloud_credentials(&self) -> Option<&CloudCredentials> {
-        self.cloud_credentials.as_ref()
+    pub const fn cloud_access(&self) -> Option<&DynCloudAccess> {
+        self.cloud.as_ref()
     }
 
     #[must_use]

@@ -3,18 +3,18 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_cloud::{CliSession, LOCAL_SESSION_KEY, SessionKey, TenantStore};
 use systemprompt_identifiers::{ProfileName, TenantId};
+use systemprompt_loader::workspace::{CliSession, LOCAL_SESSION_KEY, SessionKey};
 
 use super::types::{RoutingInfo, SessionInfo, SessionShowOutput};
-use systemprompt_cloud::paths::ResolvedPaths;
-use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_extension::cli::{CliConfig, CommandOutput, DynCloudAccess};
+use systemprompt_loader::workspace::paths::ResolvedPaths;
 
-pub(super) fn execute(_config: &CliConfig) -> CommandOutput {
+pub(super) fn execute(_config: &CliConfig, cloud: Option<&DynCloudAccess>) -> CommandOutput {
     let paths = ResolvedPaths::discover();
 
     let sessions = collect_sessions(&paths);
-    let routing = collect_routing_info(&paths);
+    let routing = collect_routing_info(&paths, cloud);
 
     let output = SessionShowOutput { sessions, routing };
 
@@ -125,7 +125,10 @@ pub fn missing_active_session(
     }
 }
 
-fn collect_routing_info(paths: &ResolvedPaths) -> Option<RoutingInfo> {
+fn collect_routing_info(
+    paths: &ResolvedPaths,
+    cloud: Option<&DynCloudAccess>,
+) -> Option<RoutingInfo> {
     let sessions_dir = paths.sessions_dir();
     let store = super::load_for_display(&sessions_dir);
     let active_key = store.active_session_key()?;
@@ -144,7 +147,7 @@ fn collect_routing_info(paths: &ResolvedPaths) -> Option<RoutingInfo> {
             hostname: None,
         }),
         SessionKey::Tenant(tenant_id) => {
-            let hostname = resolve_remote_hostname(paths, tenant_id);
+            let hostname = cloud.and_then(|cloud| resolve_remote_hostname(cloud, paths, tenant_id));
             Some(RoutingInfo {
                 profile_name,
                 target: if hostname.is_some() {
@@ -159,9 +162,13 @@ fn collect_routing_info(paths: &ResolvedPaths) -> Option<RoutingInfo> {
     }
 }
 
-fn resolve_remote_hostname(paths: &ResolvedPaths, tenant_id: &TenantId) -> Option<String> {
-    let tenants_path = paths.tenants_path();
-    let store = TenantStore::load_from_path(&tenants_path).ok()?;
-    let tenant = store.find_tenant(tenant_id)?;
-    tenant.hostname.clone()
+fn resolve_remote_hostname(
+    cloud: &DynCloudAccess,
+    paths: &ResolvedPaths,
+    tenant_id: &TenantId,
+) -> Option<String> {
+    cloud
+        .tenant_route(&paths.tenants_path(), tenant_id)
+        .ok()?
+        .hostname
 }

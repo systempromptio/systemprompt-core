@@ -10,12 +10,11 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use chrono::Duration as ChronoDuration;
-use systemprompt_cloud::{
-    CliSession, CloudCredentials, CredentialsBootstrap, SessionBinding, SessionIdentity, SessionKey,
-};
 use systemprompt_database::{Database, DbPool, PoolConfig};
+use systemprompt_extension::cli::{CloudAccount, DynCloudAccess};
 use systemprompt_identifiers::{ContextId, Email, SessionId, SessionToken};
 use systemprompt_loader::BootContext;
+use systemprompt_loader::workspace::{CliSession, SessionBinding, SessionIdentity, SessionKey};
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_security::keys::SigningKeys;
 use systemprompt_security::{SessionGenerator, SessionParams};
@@ -182,21 +181,33 @@ pub async fn resolve_local_admin(
 }
 
 #[doc(hidden)]
-pub async fn resolve_credentialed_user_email(session_email_hint: Option<&str>) -> Result<Email> {
+pub async fn resolve_credentialed_user_email(
+    session_email_hint: Option<&str>,
+    cloud: Option<&DynCloudAccess>,
+) -> Result<Email> {
     if let Some(email) = session_email_hint {
         return Email::try_new(email).context("session email hint is not a valid email address");
     }
 
-    let creds = CredentialsBootstrap::load()
+    require_cloud_email(cloud, "resolving the session user from the cloud account").await
+}
+
+pub async fn require_cloud_email(
+    cloud: Option<&DynCloudAccess>,
+    action: &'static str,
+) -> Result<Email> {
+    let cloud = crate::cloud_access::require_cloud(cloud, None, action)?;
+    match cloud
+        .account()
         .await
         .context("Failed to initialize credentials. Run 'systemprompt cloud auth login'.")?
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "Cloud authentication required for new sessions.\n\nRun 'systemprompt cloud \
-                 auth login' to authenticate."
-            )
-        })?;
-    Ok(creds.user_email)
+    {
+        CloudAccount::SignedIn { user_email, .. } => Ok(user_email),
+        CloudAccount::LocalOnly { reason } => Err(anyhow::anyhow!(
+            "Cloud authentication required for new sessions ({reason}).\n\nRun 'systemprompt \
+             cloud auth login' to authenticate."
+        )),
+    }
 }
 
 #[doc(hidden)]
@@ -205,6 +216,7 @@ pub async fn resolve_admin_with_fallback(
     user_email: &str,
     session_email_hint: Option<&str>,
     context_type: &str,
+    cloud: Option<&DynCloudAccess>,
 ) -> Result<AdminAccount> {
     match get_or_create_admin(admins, user_email, context_type).await {
         Ok(user) => Ok(user),
@@ -214,17 +226,19 @@ pub async fn resolve_admin_with_fallback(
                 error = %e,
                 "Session user lookup failed, falling back to cloud credentials"
             );
-            let creds = match CredentialsBootstrap::load().await {
-                Ok(creds) => creds,
+            let cloud_email = match require_cloud_email(cloud, "falling back to the cloud account")
+                .await
+            {
+                Ok(email) => Some(email),
                 Err(init_err) => {
                     tracing::debug!(error = %init_err, "Credentials init failed during fallback");
                     None
                 },
             };
-            if let Some(creds) = creds
-                && creds.user_email.as_str() != user_email
+            if let Some(cloud_email) = cloud_email
+                && cloud_email.as_str() != user_email
             {
-                return get_or_create_admin(admins, creds.user_email.as_str(), context_type).await;
+                return get_or_create_admin(admins, cloud_email.as_str(), context_type).await;
             }
             Err(e)
         },
@@ -234,19 +248,19 @@ pub async fn resolve_admin_with_fallback(
 
 pub async fn resolve_tenant_admin_with_fallback(
     admins: &dyn AdminBootstrap,
-    creds: &CloudCredentials,
+    cloud_email: &Email,
     user_email: &str,
     session_email_hint: Option<&str>,
 ) -> Result<AdminAccount> {
     match get_or_create_admin(admins, user_email, "tenant").await {
         Ok(user) => Ok(user),
-        Err(e) if session_email_hint.is_some() && creds.user_email.as_str() != user_email => {
+        Err(e) if session_email_hint.is_some() && cloud_email.as_str() != user_email => {
             tracing::warn!(
                 email = %user_email,
                 error = %e,
                 "Session user lookup failed, falling back to cloud credentials"
             );
-            get_or_create_admin(admins, creds.user_email.as_str(), "tenant").await
+            get_or_create_admin(admins, cloud_email.as_str(), "tenant").await
         },
         Err(e) => Err(e),
     }

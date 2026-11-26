@@ -1,4 +1,5 @@
-use systemprompt_cloud::{CloudPath, CloudPaths, clear_cloud_state};
+use systemprompt_cloud::clear_cloud_state;
+use systemprompt_loader::workspace::{CloudPath, CloudPaths};
 
 #[test]
 fn cloud_logout_removes_credentials_even_when_session_cleanup_cannot_be_read() {

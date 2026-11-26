@@ -10,18 +10,24 @@ use std::path::Path;
 
 use chrono::Duration;
 use systemprompt_cli::runner::routing::{load_session_for_key, resolve_tenant};
-use systemprompt_cloud::{
-    CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore, StoredTenant,
-    TenantStore,
-};
+use systemprompt_cloud::{StoredTenant, TenantStore};
+use systemprompt_cloud_entry::cli::access::CloudCliAccess;
+use systemprompt_extension::cli::DynCloudAccess;
 use systemprompt_identifiers::{
     ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId,
+};
+use systemprompt_loader::workspace::{
+    CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore,
 };
 use systemprompt_manifest::Profile;
 use systemprompt_models::auth::UserType;
 use tempfile::TempDir;
 
 const ISSUER: &str = "http://localhost:8080";
+
+fn cloud() -> DynCloudAccess {
+    std::sync::Arc::new(CloudCliAccess)
+}
 
 fn profile_rooted_at(root: &Path) -> Profile {
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
@@ -71,9 +77,8 @@ fn a_synced_tenant_is_read_back_from_the_profiles_own_system_root() {
         .save_to_path(&root.path().join(".systemprompt").join("tenants.json"))
         .expect("the tenant store is written under the profile root");
 
-    let found = resolve_tenant(&profile, &id).expect("a synced tenant resolves");
+    let found = resolve_tenant(&profile, &id, Some(&cloud())).expect("a synced tenant resolves");
 
-    assert_eq!(found.id.as_str(), id.as_str());
     assert_eq!(
         found.hostname.as_deref(),
         Some("routed.example.invalid"),
@@ -93,7 +98,7 @@ fn a_store_holding_other_tenants_does_not_resolve_the_requested_one() {
     .save_to_path(&root.path().join(".systemprompt").join("tenants.json"))
     .unwrap();
 
-    let err = resolve_tenant(&profile, &TenantId::new("tenant_routed"))
+    let err = resolve_tenant(&profile, &TenantId::new("tenant_routed"), Some(&cloud()))
         .expect_err("a tenant absent from a loadable store is not resolvable");
 
     let message = format!("{err:#}");

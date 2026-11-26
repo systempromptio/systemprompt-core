@@ -7,15 +7,15 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
-use systemprompt_cloud::{
-    CliSession, CredentialsBootstrap, SessionBinding, SessionIdentity, SessionKey, SessionStore,
-};
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
+use systemprompt_loader::workspace::{
+    CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore,
+};
 use systemprompt_logging::CliService;
 use systemprompt_traits::{AdminAccount, AdminBootstrap, AdminGrant};
 
 use super::login::{LoginArgs, LoginOutput};
-use systemprompt_extension::cli::CommandOutput;
+use systemprompt_extension::cli::{CommandOutput, DynCloudAccess};
 
 pub(super) async fn try_use_existing_session(
     sessions_dir: &Path,
@@ -72,6 +72,7 @@ pub async fn fetch_admin_user(
     admin_name: &str,
     is_cloud_profile: bool,
     email_override: Option<&str>,
+    cloud: Option<&DynCloudAccess>,
 ) -> Result<AdminAccount> {
     if let Some(user) = admins
         .find_by_name(admin_name)
@@ -97,7 +98,13 @@ pub async fn fetch_admin_user(
 
     let email = match email_override {
         Some(e) => e.to_owned(),
-        None => cloud_credentials_email().await?,
+        None => crate::session::creation::admin_bootstrap::require_cloud_email(
+            cloud,
+            "creating the admin user of a cloud profile",
+        )
+        .await?
+        .as_str()
+        .to_owned(),
     };
 
     CliService::info(&format!(
@@ -117,18 +124,6 @@ pub async fn fetch_admin_user(
 
     CliService::success(&format!("Created admin user: {admin_name} <{email}>"));
     Ok(user)
-}
-
-async fn cloud_credentials_email() -> Result<String> {
-    let creds = CredentialsBootstrap::load()
-        .await
-        .context("Failed to initialize credentials")?
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "No credentials found. Run 'systemprompt cloud auth login' first to authenticate."
-            )
-        })?;
-    Ok(creds.user_email.as_str().to_owned())
 }
 
 pub(super) struct SessionStoreParams<'a> {

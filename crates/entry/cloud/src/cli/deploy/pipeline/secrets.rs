@@ -7,11 +7,12 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use anyhow::{Result, bail};
-use systemprompt_cloud::constants::{container, paths};
+use systemprompt_cloud::constants::container;
 use systemprompt_cloud::deploy::provider::{
     DeployProvider, SecretBatch, SecretPurpose, SecretsOutcome, SecretsTransport,
 };
 use systemprompt_cloud::{CloudCredentials, secrets_env};
+use systemprompt_loader::workspace::constants::paths;
 
 use super::progress::{DeployEvent, DeployProgress};
 use super::request::{DeployRequest, DeploySecretsSource};

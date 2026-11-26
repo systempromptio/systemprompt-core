@@ -6,14 +6,15 @@
 use std::path::PathBuf;
 
 use anyhow::{Context, Result, bail};
-use systemprompt_cloud::{CloudPath, ProfilePath, ProjectContext, TenantStore, get_cloud_paths};
+use systemprompt_cloud::TenantStore;
 use systemprompt_identifiers::ProfileName;
+use systemprompt_loader::workspace::{CloudPath, ProfilePath, ProjectContext, get_cloud_paths};
 use systemprompt_logging::CliService;
 
 use super::target_profile::DeployProfile;
 
-use systemprompt_cloud::profile::{DiscoveredProfile, discover_profiles};
 use systemprompt_extension::cli::{CliConfig, Prompter};
+use systemprompt_loader::workspace::profile::{DiscoveredProfile, discover_profiles};
 
 #[derive(Debug)]
 struct DeployableProfile {

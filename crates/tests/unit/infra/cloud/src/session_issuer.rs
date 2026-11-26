@@ -1,9 +1,9 @@
 use chrono::Duration;
-use systemprompt_cloud::SessionBinding;
-use systemprompt_cloud::cli_session::{
+use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken};
+use systemprompt_loader::workspace::SessionBinding;
+use systemprompt_loader::workspace::cli_session::{
     CliSession, CliSessionBuilder, SessionIdentity, SessionKey, SessionStore,
 };
-use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken};
 use systemprompt_models::auth::UserType;
 use systemprompt_test_fixtures::unique_user_id;
 use tempfile::TempDir;

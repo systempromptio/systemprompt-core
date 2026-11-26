@@ -15,11 +15,11 @@ use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use systemprompt_cloud::{CloudCredentials, CredentialsBootstrap, SessionStore};
 use systemprompt_config::LoadedProfile;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_identifiers::ProfileName;
 use systemprompt_loader::BootContext;
+use systemprompt_loader::workspace::SessionStore;
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 use systemprompt_manifest::profile::LogLevel;
@@ -28,9 +28,13 @@ use systemprompt_runtime::{
 };
 
 use crate::env_overrides::EnvOverrides;
-use systemprompt_cloud::paths::ResolvedPaths;
-use systemprompt_cloud::profile::{ProfileSource, ResolvedProfile, resolve_profile_path};
-use systemprompt_extension::cli::{CliConfig, OutputFormat, VerbosityLevel};
+use systemprompt_extension::cli::{
+    CliConfig, CloudAccessError, CloudAccount, DynCloudAccess, OutputFormat, VerbosityLevel,
+};
+use systemprompt_loader::workspace::paths::ResolvedPaths;
+use systemprompt_loader::workspace::profile::{
+    ProfileSource, ResolvedProfile, resolve_profile_path,
+};
 
 pub(super) struct ProfileContext {
     pub loaded: Arc<LoadedProfile>,
@@ -88,9 +92,9 @@ pub(super) fn resolve_profile(
     env: &EnvOverrides,
 ) -> Result<ResolvedProfile> {
     if let Some(profile_input) = cli_profile_override
-        && systemprompt_cloud::profile::is_path_input(profile_input)
+        && systemprompt_loader::workspace::profile::is_path_input(profile_input)
     {
-        return systemprompt_cloud::profile::resolve_profile_from_path(profile_input)
+        return systemprompt_loader::workspace::profile::resolve_profile_from_path(profile_input)
             .map(|path| ResolvedProfile {
                 path,
                 source: ProfileSource::Cli,
@@ -137,7 +141,7 @@ fn get_active_session_profile_path() -> Result<Option<PathBuf>> {
 
 fn resolve_profile_path_by_name(paths: &ResolvedPaths, name: &ProfileName) -> Option<PathBuf> {
     let profile_dir = paths.profiles_dir().join(name.as_str());
-    let config_path = systemprompt_cloud::ProfilePath::Config.resolve(&profile_dir);
+    let config_path = systemprompt_loader::workspace::ProfilePath::Config.resolve(&profile_dir);
     config_path.exists().then_some(config_path)
 }
 
@@ -151,26 +155,39 @@ pub(super) fn try_load_log_level(profile_path: &Path) -> Option<LogLevel> {
 }
 
 pub(super) async fn init_credentials_gracefully(
+    cloud: Option<&DynCloudAccess>,
+    profile: &Profile,
     announce: bool,
-) -> Result<Option<CloudCredentials>> {
-    match CredentialsBootstrap::load().await {
-        Ok(credentials) => Ok(credentials),
-        Err(e) if e.is_local_mode_recoverable() => {
+) -> Result<Option<CloudAccount>> {
+    let cloud = match crate::cloud_access::require_cloud(
+        cloud,
+        Some(profile),
+        "loading the cloud credentials",
+    ) {
+        Ok(cloud) => cloud,
+        Err(error @ (CloudAccessError::Absent { .. } | CloudAccessError::Disabled { .. })) => {
+            tracing::debug!(%error, "Cloud member unavailable; continuing in local-only mode");
+            return Ok(None);
+        },
+        Err(error) => return Err(error.into()),
+    };
+    match cloud.account().await? {
+        CloudAccount::LocalOnly { reason } => {
             if announce {
                 tracing::warn!(
-                    error = %e,
+                    error = %reason,
                     "Cloud credentials unavailable; continuing in local-only mode. \
                      Cloud commands will require 'systemprompt cloud auth login'."
                 );
             } else {
                 tracing::debug!(
-                    error = %e,
+                    error = %reason,
                     "Cloud credentials unavailable; continuing in local-only mode"
                 );
             }
             Ok(None)
         },
-        Err(e) => Err(anyhow::Error::new(e).context("Credential initialization failed")),
+        signed_in @ CloudAccount::SignedIn { .. } => Ok(Some(signed_in)),
     }
 }
 
@@ -234,7 +251,7 @@ pub(super) fn run_validation(
 
 pub(super) fn validate_cloud_credentials(
     env: &crate::environment::ExecutionEnvironment,
-    credentials: Option<&CloudCredentials>,
+    credentials: Option<&CloudAccount>,
     profile: &Profile,
 ) {
     if env.is_remote_cli {
@@ -244,8 +261,14 @@ pub(super) fn validate_cloud_credentials(
     let is_local_profile = profile.is_local_trial();
 
     match credentials {
-        Some(creds) => {
-            if creds.is_token_expired() {
+        Some(account) => {
+            if matches!(
+                account,
+                CloudAccount::SignedIn {
+                    token_expired: true,
+                    ..
+                }
+            ) {
                 CliService::warning(
                     "Cloud token has expired. Run 'systemprompt cloud auth login' to refresh.",
                 );

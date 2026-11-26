@@ -31,20 +31,18 @@ use anyhow::{Context, Result, anyhow, bail};
 use systemprompt_cloud::deploy::provider::{
     DeployProviderKind, GitOpsDeploy, GitOpsDeployParams, ReadinessWait, SystempromptCloud,
 };
-use systemprompt_cloud::{
-    CloudApiClient, CloudError, CloudPath, DockerCli, SystemCommandRunner, TenantStore,
-    get_cloud_paths,
-};
+use systemprompt_cloud::{CloudApiClient, CloudError, DockerCli, SystemCommandRunner, TenantStore};
 use systemprompt_extension::cli::ChildSupervisor;
 use systemprompt_identifiers::{ProfileName, TenantId};
+use systemprompt_loader::workspace::{CloudPath, get_cloud_paths};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::profile::CloudConfig;
 
 use pipeline::{DeployOptions, DeployOrchestrator, DeployRequest};
 
 use super::tenant::get_credentials;
-use systemprompt_cloud::paths::ProjectRoot;
 use systemprompt_extension::cli::{AdmittedViews, CommandHost};
+use systemprompt_loader::workspace::paths::ProjectRoot;
 
 const GITOPS_READINESS_WAIT: ReadinessWait = ReadinessWait {
     timeout: Duration::from_mins(15),

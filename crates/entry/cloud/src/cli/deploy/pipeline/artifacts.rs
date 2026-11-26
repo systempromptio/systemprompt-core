@@ -11,9 +11,9 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Result, bail};
-use systemprompt_cloud::ProjectContext;
 use systemprompt_extension::{AdmittedAssets, AssetPaths};
 use systemprompt_identifiers::ProfileName;
+use systemprompt_loader::workspace::ProjectContext;
 use systemprompt_manifest::paths::constants::build;
 
 struct ProjectAssetPaths {

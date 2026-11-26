@@ -8,9 +8,9 @@
 
 use std::path::PathBuf;
 
-use crate::cli_session::SessionStore;
 use crate::error::CloudResult;
-use crate::paths::{CloudPath, CloudPaths};
+use systemprompt_loader::workspace::SessionStore;
+use systemprompt_loader::workspace::paths::{CloudPath, CloudPaths};
 
 #[derive(Debug, Clone, Default)]
 pub struct ClearedCloudState {

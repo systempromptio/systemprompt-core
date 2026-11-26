@@ -5,8 +5,8 @@
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
 use systemprompt_cli::admin::config::services_io::{CatalogLocation, commit_catalog};
-use systemprompt_cloud::provider_catalog::write_gateway;
 use systemprompt_identifiers::{EndpointId, ModelId, ProviderId};
+use systemprompt_loader::workspace::provider_catalog::write_gateway;
 use systemprompt_manifest::services::GatewayConfigSpec;
 use systemprompt_manifest::services::catalog::{DefaultCatalog, DeploymentTarget, EndpointRef};
 

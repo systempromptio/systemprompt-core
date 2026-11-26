@@ -15,8 +15,8 @@ use systemprompt_identifiers::ProviderId;
 use systemprompt_logging::CliService;
 
 use super::{SecretsData, vertex};
-use systemprompt_cloud::provider_catalog::VERTEX;
 use systemprompt_extension::cli::Prompter;
+use systemprompt_loader::workspace::provider_catalog::VERTEX;
 
 pub fn select_provider_keys(
     prompter: &dyn Prompter,

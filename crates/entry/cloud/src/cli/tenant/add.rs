@@ -10,10 +10,9 @@
 
 use anyhow::{Result, bail};
 use clap::Args;
-use systemprompt_cloud::{
-    CloudError, CloudPath, NewSelfManagedTenantParams, StoredTenant, TenantStore, get_cloud_paths,
-};
+use systemprompt_cloud::{CloudError, NewSelfManagedTenantParams, StoredTenant, TenantStore};
 use systemprompt_identifiers::TenantId;
+use systemprompt_loader::workspace::{CloudPath, get_cloud_paths};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::HostingProvider;
 

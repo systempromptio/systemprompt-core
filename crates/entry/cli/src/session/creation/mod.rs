@@ -11,8 +11,8 @@
 pub mod admin_bootstrap;
 
 use anyhow::{Context, Result};
-use systemprompt_cloud::{CliSession, CloudCredentials, SessionKey};
 use systemprompt_loader::BootContext;
+use systemprompt_loader::workspace::{CliSession, SessionKey};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
@@ -25,7 +25,8 @@ use admin_bootstrap::{
     resolve_tenant_admin_with_fallback,
 };
 use systemprompt_extension::Admitted;
-use systemprompt_extension::cli::CliConfig;
+use systemprompt_extension::cli::{CliConfig, DynCloudAccess};
+use systemprompt_identifiers::Email;
 
 use systemprompt_runtime::admin_bootstrap as open_admin_bootstrap;
 
@@ -40,6 +41,7 @@ pub(super) async fn create_local_session(
         boot,
         contexts,
         admitted,
+        cloud,
     } = source;
     let profile = boot.profile();
     profile
@@ -62,12 +64,13 @@ pub(super) async fn create_local_session(
     let admin_user = if profile.is_local_trial() && session_email_hint.is_none() {
         resolve_local_admin(admins.as_ref(), &profile.system_admin.username).await?
     } else {
-        let user_email = resolve_credentialed_user_email(session_email_hint).await?;
+        let user_email = resolve_credentialed_user_email(session_email_hint, cloud).await?;
         resolve_admin_with_fallback(
             admins.as_ref(),
             user_email.as_str(),
             session_email_hint,
             "local",
+            cloud,
         )
         .await?
     };
@@ -115,10 +118,11 @@ pub(super) struct SessionSource<'a> {
     pub boot: &'a BootContext,
     pub contexts: &'a SessionContexts,
     pub admitted: &'a Admitted,
+    pub cloud: Option<&'a DynCloudAccess>,
 }
 
 pub(super) struct TenantSessionParams<'a> {
-    pub creds: &'a CloudCredentials,
+    pub cloud_email: &'a Email,
     pub profile: &'a Profile,
     pub profile_ctx: &'a ProfileContext<'a>,
     pub session_key: &'a SessionKey,
@@ -133,7 +137,7 @@ pub(super) async fn create_session_for_tenant(
     params: TenantSessionParams<'_>,
 ) -> Result<CliSession> {
     let TenantSessionParams {
-        creds,
+        cloud_email,
         profile,
         profile_ctx,
         session_key,
@@ -147,7 +151,7 @@ pub(super) async fn create_session_for_tenant(
         .validate()
         .with_context(|| format!("Failed to validate profile: {}", profile_ctx.name))?;
 
-    let user_email = session_email_hint.unwrap_or(creds.user_email.as_str());
+    let user_email = session_email_hint.unwrap_or(cloud_email.as_str());
     let secrets = load_secrets(boot);
 
     if config.is_interactive() {
@@ -161,9 +165,13 @@ pub(super) async fn create_session_for_tenant(
         admitted,
         std::sync::Arc::<systemprompt_database::Database>::clone(&db_pool),
     )?;
-    let admin_user =
-        resolve_tenant_admin_with_fallback(admins.as_ref(), creds, user_email, session_email_hint)
-            .await?;
+    let admin_user = resolve_tenant_admin_with_fallback(
+        admins.as_ref(),
+        cloud_email,
+        user_email,
+        session_email_hint,
+    )
+    .await?;
 
     let keys = load_signing_keys(boot)?;
     let session_id = admins

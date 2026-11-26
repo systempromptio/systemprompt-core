@@ -2,7 +2,7 @@
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
-use systemprompt_cloud::docker_compose::{
+use systemprompt_loader::workspace::docker_compose::{
     create_compose_files_if_missing, is_compose_available, is_container_running,
     is_docker_available,
 };

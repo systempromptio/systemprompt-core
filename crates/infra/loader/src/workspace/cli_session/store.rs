@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ProfileName, TenantId};
 
 use super::{CliSession, LOCAL_SESSION_KEY, SessionKey};
-use crate::error::{CloudError, CloudResult};
-use crate::private_dir::write_private_json;
+use crate::workspace::error::{WorkspaceError, WorkspaceResult};
+use crate::workspace::private_dir::write_private_json;
 
 const STORE_VERSION: u32 = 1;
 
@@ -207,7 +207,7 @@ impl SessionStore {
         self.sessions.is_empty()
     }
 
-    pub fn load(sessions_dir: &Path) -> CloudResult<Option<Self>> {
+    pub fn load(sessions_dir: &Path) -> WorkspaceResult<Option<Self>> {
         let index_path = sessions_dir.join("index.json");
         let content = match fs::read_to_string(&index_path) {
             Ok(c) => c,
@@ -215,12 +215,12 @@ impl SessionStore {
             Err(e) => return Err(e.into()),
         };
         let store: Self =
-            serde_json::from_str(&content).map_err(|e| CloudError::SessionStoreCorrupted {
+            serde_json::from_str(&content).map_err(|e| WorkspaceError::SessionStoreCorrupted {
                 path: index_path.display().to_string(),
                 source: e,
             })?;
         if store.version > STORE_VERSION {
-            return Err(CloudError::SessionVersionMismatch {
+            return Err(WorkspaceError::SessionVersionMismatch {
                 min: STORE_VERSION,
                 max: STORE_VERSION,
                 actual: store.version,
@@ -230,11 +230,11 @@ impl SessionStore {
         Ok(Some(store))
     }
 
-    pub fn load_or_create(sessions_dir: &Path) -> CloudResult<Self> {
+    pub fn load_or_create(sessions_dir: &Path) -> WorkspaceResult<Self> {
         Ok(Self::load(sessions_dir)?.unwrap_or_else(Self::new))
     }
 
-    pub fn save(&self, sessions_dir: &Path) -> CloudResult<()> {
+    pub fn save(&self, sessions_dir: &Path) -> WorkspaceResult<()> {
         write_private_json(&sessions_dir.join("index.json"), self)
     }
 }

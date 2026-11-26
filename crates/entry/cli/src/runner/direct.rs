@@ -12,7 +12,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, bail};
-use systemprompt_cloud::CloudCredentials;
 use systemprompt_extension::cli::{CliConfig, DbUrlRouting};
 use systemprompt_manifest::Profile;
 use systemprompt_runtime::DatabaseContext;
@@ -38,7 +37,6 @@ pub(super) fn direct_database_url(invocation: &Invocation) -> Result<Option<Stri
 
 pub(super) struct DirectDatabase<'a> {
     pub(super) url: &'a str,
-    pub(super) credentials: Option<CloudCredentials>,
     pub(super) profile: Option<&'a Profile>,
 }
 
@@ -51,7 +49,6 @@ pub(super) async fn run_with_database_url(
 ) -> Result<()> {
     let DirectDatabase {
         url: database_url,
-        credentials,
         profile,
     } = database;
     let db_ctx = DatabaseContext::from_url(database_url)
@@ -60,12 +57,10 @@ pub(super) async fn run_with_database_url(
 
     systemprompt_logging::init_logging(&db_ctx.db_pool_arc(), None);
 
-    let ctx = guards
-        .apply(
-            CommandContext::with_database(cli_config, env, db_ctx, database_url.to_owned()),
-            &selected,
-            profile,
-        )?
-        .with_cloud_credentials(credentials);
+    let ctx = guards.apply(
+        CommandContext::with_database(cli_config, env, db_ctx, database_url.to_owned()),
+        &selected,
+        profile,
+    )?;
     Box::pin(dispatch_command(selected, &ctx)).await
 }

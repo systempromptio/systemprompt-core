@@ -1,7 +1,7 @@
 //! Unit tests for SessionKey
 
-use systemprompt_cloud::cli_session::{LOCAL_SESSION_KEY, SessionKey};
 use systemprompt_identifiers::TenantId;
+use systemprompt_loader::workspace::cli_session::{LOCAL_SESSION_KEY, SessionKey};
 
 #[test]
 fn test_local_session_key_constant() {

@@ -6,10 +6,10 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use systemprompt_cloud::{
-    CliSession, CredentialsBootstrap, SessionBinding, SessionIdentity, SessionKey, SessionStore,
-};
 use systemprompt_identifiers::{Email, ProfileName};
+use systemprompt_loader::workspace::{
+    CliSession, SessionBinding, SessionIdentity, SessionKey, SessionStore,
+};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 use systemprompt_models::auth::UserType;
@@ -19,7 +19,7 @@ use crate::env_overrides::EnvOverrides;
 use crate::session::context::CliSessionContext;
 use crate::session::contexts::{SessionContextError, SessionContexts};
 use crate::session::creation::SessionSource;
-use systemprompt_cloud::paths::ResolvedPaths;
+use systemprompt_loader::workspace::paths::ResolvedPaths;
 
 pub fn try_session_from_env(profile: &Profile, env: &EnvOverrides) -> Option<CliSessionContext> {
     if !env.is_remote_cli {
@@ -71,6 +71,7 @@ pub(super) async fn create_new_session(
         boot,
         contexts,
         admitted,
+        cloud,
     } = source;
     let profile = boot.profile();
     if session_key.is_local() || profile.is_local_trial() {
@@ -84,19 +85,15 @@ pub(super) async fn create_new_session(
         .await;
     }
 
-    let creds = CredentialsBootstrap::load()
-        .await
-        .context("Failed to initialize credentials. Run 'systemprompt cloud auth login'.")?
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "Cloud authentication required.\n\nRun 'systemprompt cloud auth login' to \
-                 authenticate."
-            )
-        })?;
+    let cloud_email = crate::session::creation::admin_bootstrap::require_cloud_email(
+        cloud,
+        "opening a CLI session on a cloud tenant",
+    )
+    .await?;
 
     crate::session::creation::create_session_for_tenant(
         crate::session::creation::TenantSessionParams {
-            creds: &creds,
+            cloud_email: &cloud_email,
             profile,
             profile_ctx,
             session_key,
@@ -137,7 +134,7 @@ pub fn resolve_profile_path_without_session(
 ) -> Result<PathBuf> {
     if let Some(profile_name) = active_profile {
         let profile_dir = paths.profiles_dir().join(profile_name.as_str());
-        let config_path = systemprompt_cloud::ProfilePath::Config.resolve(&profile_dir);
+        let config_path = systemprompt_loader::workspace::ProfilePath::Config.resolve(&profile_dir);
         if config_path.exists() {
             anyhow::bail!(
                 "No session for active profile '{}'.\n\nRun 'systemprompt admin session login' to \

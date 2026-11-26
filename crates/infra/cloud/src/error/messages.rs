@@ -24,8 +24,7 @@ impl CloudError {
             Self::ApiValidationFailed { .. } => "Cloud API rejected credentials",
             Self::InvalidCredentials { .. } => "Stored credentials are invalid",
             Self::CredentialsFileNotFound { .. } => "Credentials file is missing",
-            Self::SessionVersionMismatch { .. } => "CLI session file is out of date",
-            Self::SessionStoreCorrupted { .. } => "CLI session store is stale or corrupt",
+            Self::Workspace(_) => "CLI workspace file is unreadable",
             Self::OAuthFlow { .. } => "OAuth login flow failed",
             Self::Deploy { .. } => "Cloud deploy failed",
             Self::Dockerfile { .. } => "Dockerfile validation failed",
@@ -72,10 +71,7 @@ impl CloudError {
             Self::InvalidCredentials { .. } | Self::CredentialsFileNotFound { .. } => {
                 "Run 'systemprompt cloud auth login' to refresh credentials"
             },
-            Self::SessionVersionMismatch { .. } => "Delete the session file and re-authenticate",
-            Self::SessionStoreCorrupted { .. } => {
-                "Run 'systemprompt admin session switch <profile>' to reset the session store"
-            },
+            Self::Workspace(_) => "Inspect the workspace file referenced in the error message",
             Self::OAuthFlow { .. } => "Re-run the OAuth login flow",
             Self::Dockerfile { .. } => {
                 "Regenerate the Dockerfile with 'systemprompt cloud profile create'"

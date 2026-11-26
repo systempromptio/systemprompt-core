@@ -20,8 +20,8 @@ use systemprompt_models::ContentConfigRaw;
 use super::ShowFilter;
 use super::show_display::print_formatted_config;
 use super::show_types::{FullConfig, SettingsOutput, build_env_config};
-use systemprompt_cloud::profile::resolve_profile_path;
 use systemprompt_extension::cli::{CommandHost, CommandOutput};
+use systemprompt_loader::workspace::profile::resolve_profile_path;
 
 pub(super) async fn execute(
     name: Option<&str>,

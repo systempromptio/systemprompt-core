@@ -4,9 +4,10 @@ use systemprompt_cli::session::{
     clear_all_sessions, clear_session, get_or_create_session, load_session_store,
 };
 use systemprompt_cli::{CommandContext, EnvOverrides};
-use systemprompt_cloud::{CloudCredentials, SessionKey};
+use systemprompt_cloud::CloudCredentials;
 use systemprompt_extension::cli::CliConfig;
 use systemprompt_identifiers::{CloudAuthToken, Email, UserId};
+use systemprompt_loader::workspace::SessionKey;
 use systemprompt_test_fixtures::{ensure_test_bootstrap, seed_user_row_with_roles, test_db_pool};
 
 use crate::session_project_fixture::Project;
@@ -161,8 +162,8 @@ async fn coverage_tenant_session_uses_cloud_identity_and_tenant_binding() {
     );
     credentials
         .save_to_path(
-            &systemprompt_cloud::paths::get_cloud_paths()
-                .resolve(systemprompt_cloud::paths::CloudPath::Credentials),
+            &systemprompt_loader::workspace::paths::get_cloud_paths()
+                .resolve(systemprompt_loader::workspace::paths::CloudPath::Credentials),
         )
         .unwrap();
     let resolved = get_or_create_session(&project.context(true))
@@ -335,9 +336,11 @@ fn logout_confirmation_preserves_sessions_and_reports_cancellation() {
 #[tokio::test]
 async fn malformed_active_profile_fails_without_replacing_the_bound_session() {
     use chrono::Duration;
-    use systemprompt_cloud::paths::ResolvedPaths;
-    use systemprompt_cloud::{CliSession, SessionBinding, SessionIdentity, SessionStore};
     use systemprompt_identifiers::{ContextId, ProfileName, SessionId, SessionToken};
+    use systemprompt_loader::workspace::paths::ResolvedPaths;
+    use systemprompt_loader::workspace::{
+        CliSession, SessionBinding, SessionIdentity, SessionStore,
+    };
     use systemprompt_models::auth::UserType;
 
     let project = Project::new("unused", false);

@@ -16,8 +16,8 @@ use std::path::Path;
 
 use anyhow::Result;
 use clap::Subcommand;
-use systemprompt_cloud::{CloudError, SessionStore};
 use systemprompt_identifiers::ProfileName;
+use systemprompt_loader::workspace::{SessionStore, WorkspaceError};
 use systemprompt_logging::CliService;
 
 use systemprompt_extension::cli::{CommandDescriptor, CommandOutput, DescribeCommand};
@@ -58,7 +58,7 @@ impl DescribeCommand for SessionCommands {
 pub async fn execute(cmd: SessionCommands, host: &dyn KernelHost) -> Result<CommandOutput> {
     match cmd {
         SessionCommands::Show => {
-            let result = show::execute(host.output());
+            let result = show::execute(host.output(), host.cloud_access());
             Ok(result)
         },
         SessionCommands::Switch { profile_name } => {
@@ -86,7 +86,7 @@ pub async fn execute(cmd: SessionCommands, host: &dyn KernelHost) -> Result<Comm
 pub(super) fn load_or_reset_corrupt(sessions_dir: &Path) -> Result<SessionStore> {
     match SessionStore::load(sessions_dir) {
         Ok(store) => Ok(store.unwrap_or_else(SessionStore::new)),
-        Err(CloudError::SessionStoreCorrupted { path, .. }) => {
+        Err(WorkspaceError::SessionStoreCorrupted { path, .. }) => {
             CliService::warning(&format!(
                 "Session store at {path} is corrupt; starting fresh"
             ));

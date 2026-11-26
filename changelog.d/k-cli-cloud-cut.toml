@@ -1,0 +1,29 @@
+[root]
+section = "Breaking"
+area = "CLI and cloud"
+text = "The CLI no longer links `systemprompt-cloud`. The workspace paths, the CLI session store and profile resolution move to `systemprompt_loader::workspace`; the cloud account, tenant store and operator token exchange are reached through `systemprompt_extension::cli::CloudAccess`, which the cloud member provides under the facade feature `cloud`. Without it, routing to a cloud tenant, opening a tenant session and resolving the session user from the cloud account are refused with `CloudAccessError::Absent`. Migrate by importing the moved items from `systemprompt_loader::workspace`."
+
+[[crate]]
+name = "systemprompt-cloud"
+section = "Breaking"
+text = "`paths`, `cli_session`, `profile`, `provider_catalog`, `identity` and `docker_compose` and the workspace file-name constants move to `systemprompt_loader::workspace`, and the crate-root re-exports of `CliSession`, `SessionKey`, `SessionStore`, `ProfilePath`, `ProjectContext`, `CloudPaths` and their siblings are removed. `CloudError::{SessionVersionMismatch, SessionStoreCorrupted}` are replaced by `CloudError::Workspace(WorkspaceError)`; `profile_authoring::generate_display_name` is `systemprompt_loader::workspace::profile::generate_display_name`."
+
+[[crate]]
+name = "systemprompt-loader"
+section = "Added"
+text = "`workspace`: the project and `.systemprompt` paths, the CLI session store with `WorkspaceError`, profile resolution with `ProfileSource`, the seeded provider catalog, replica identity generation and the local PostgreSQL compose helpers."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`cli::CloudAccess`, `DynCloudAccess`, `CloudAccount`, `TenantRoute` and `CloudAccessError`: the cloud capability the kernel CLI reaches through the cloud member."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`run_composed` takes the composition's `Option<DynCloudAccess>`; `CommandContext::{with_cloud_credentials, cloud_credentials}` are replaced by `with_cloud_access` and `cloud_access`; `determine_execution_target`, `resolve_tenant`, `resolve_credentialed_user_email`, `resolve_admin_with_fallback` and `fetch_admin_user` take the cloud access, `resolve_tenant` returns a `TenantRoute`, `resolve_tenant_admin_with_fallback` takes the cloud account's `Email`, and `execute_remote` takes the tenant base URL."
+
+[[crate]]
+name = "systemprompt-cloud-entry"
+section = "Added"
+text = "`cli::access::CloudCliAccess`, the cloud member's `CloudAccess` implementation the facade hands the CLI."

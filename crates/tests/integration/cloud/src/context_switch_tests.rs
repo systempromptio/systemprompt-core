@@ -79,7 +79,7 @@ async fn active_session_round_trips_through_disk() {
     store.set_active_with_profile(&fx.key_b(), &pname("profile-b"));
     store.save(&fx.sessions_dir).expect("save");
 
-    let reloaded = systemprompt_cloud::SessionStore::load(&fx.sessions_dir)
+    let reloaded = systemprompt_loader::workspace::SessionStore::load(&fx.sessions_dir)
         .unwrap()
         .expect("reload");
     let active = reloaded

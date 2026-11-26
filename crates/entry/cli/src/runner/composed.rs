@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use systemprompt_config::SecretsSources;
-use systemprompt_extension::cli::{DbUrlRouting, KernelGrant};
+use systemprompt_extension::cli::{DbUrlRouting, DynCloudAccess, KernelGrant};
 use systemprompt_extension::{Admitted, DeclaredCommands};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::{ExtensionsConfig, Profile};
@@ -55,6 +55,7 @@ pub fn run_composed<A>(
     build: BuildIdentity,
     declared: &DeclaredCommands,
     secrets: SecretsSources,
+    cloud: Option<DynCloudAccess>,
     admit: A,
 ) -> Result<ExitCode, CliRunError>
 where
@@ -69,6 +70,7 @@ where
         build,
         registry,
         secrets,
+        cloud,
         Box::new(admit),
     )));
     match interrupt::exit_code(outcome) {

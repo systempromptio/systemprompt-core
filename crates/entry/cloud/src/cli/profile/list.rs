@@ -9,7 +9,7 @@
 
 use anyhow::Result;
 use std::path::{Path, PathBuf};
-use systemprompt_cloud::{ProfilePath, ProjectContext};
+use systemprompt_loader::workspace::{ProfilePath, ProjectContext};
 use systemprompt_logging::CliService;
 
 use super::{ShowFilter, show};

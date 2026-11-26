@@ -7,9 +7,9 @@
 use std::fs;
 use std::path::Path;
 
-use crate::error::CloudResult;
+use crate::workspace::error::WorkspaceResult;
 
-fn ensure_private_dir(dir: &Path) -> CloudResult<()> {
+fn ensure_private_dir(dir: &Path) -> WorkspaceResult<()> {
     fs::create_dir_all(dir)?;
     let gitignore_path = dir.join(".gitignore");
     if !gitignore_path.exists() {
@@ -18,7 +18,7 @@ fn ensure_private_dir(dir: &Path) -> CloudResult<()> {
     Ok(())
 }
 
-pub(crate) fn write_private_json<T: serde::Serialize>(path: &Path, value: &T) -> CloudResult<()> {
+pub fn write_private_json<T: serde::Serialize>(path: &Path, value: &T) -> WorkspaceResult<()> {
     if let Some(dir) = path.parent() {
         ensure_private_dir(dir)?;
     }

@@ -5,7 +5,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::constants::{cli_session, credentials, dir_names, operator, tenants};
+use crate::workspace::constants::{cli_session, credentials, dir_names, operator, tenants};
 
 use super::{ProjectContext, resolve_path};
 

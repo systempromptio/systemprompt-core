@@ -19,13 +19,14 @@ use serde_json::json;
 use std::sync::Arc;
 use systemprompt_cli::{CommandContext, EnvOverrides};
 use systemprompt_cloud::tenants::{NewCloudTenantParams, StoredTenant, TenantStore};
-use systemprompt_cloud::{CloudCredentials, CloudPath, CredentialsBootstrap, get_cloud_paths};
+use systemprompt_cloud::{CloudCredentials, CredentialsBootstrap};
 use systemprompt_cloud_entry::cli::auth::AuthCommands;
 use systemprompt_cloud_entry::cli::tenant::{TenantCommands, TenantDeleteArgs, TenantRotateArgs};
 use systemprompt_cloud_entry::cli::{self as cloud, CloudCommands};
 use systemprompt_config::LoadedProfile;
 use systemprompt_extension::cli::{CliConfig, OutputFormat};
 use systemprompt_identifiers::TenantId;
+use systemprompt_loader::workspace::{CloudPath, get_cloud_paths};
 use tempfile::TempDir;
 use tokio::sync::{Mutex, MutexGuard, OnceCell};
 use wiremock::matchers::{method, path};
@@ -353,7 +354,9 @@ fn ctx_over(format: OutputFormat, profile: Option<Arc<LoadedProfile>>) -> Comman
         .with_output_format(format)
         .with_interactive(false);
     CommandContext::new(cli, EnvOverrides::default())
-        .with_cloud_credentials(harness_credentials())
+        .with_cloud_access(Some(Arc::new(
+            systemprompt_cloud_entry::cli::access::CloudCliAccess,
+        )))
         .with_profile(profile)
         .with_admitted(Some(systemprompt_test_fixtures::fixture_admitted()))
         .with_admit(Some(fixture_admit()))
@@ -410,7 +413,9 @@ pub(super) fn interactive_ctx(
         .with_interactive(true)
         .with_assume_terminal(true);
     CommandContext::new(cli, EnvOverrides::default())
-        .with_cloud_credentials(harness_credentials())
+        .with_cloud_access(Some(Arc::new(
+            systemprompt_cloud_entry::cli::access::CloudCliAccess,
+        )))
         .with_profile(harness_profile())
         .with_admitted(Some(systemprompt_test_fixtures::fixture_admitted()))
         .with_admit(Some(fixture_admit()))

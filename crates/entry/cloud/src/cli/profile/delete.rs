@@ -4,7 +4,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Context, Result, bail};
-use systemprompt_cloud::{ProfilePath, ProjectContext};
+use systemprompt_loader::workspace::{ProfilePath, ProjectContext};
 use systemprompt_logging::CliService;
 
 use super::DeleteArgs;

@@ -7,8 +7,8 @@
 
 use std::path::Path;
 
-use systemprompt_cloud::identity::generate_oauth_at_rest_pepper;
-use systemprompt_cloud::profile::{
+use systemprompt_loader::workspace::identity::generate_oauth_at_rest_pepper;
+use systemprompt_loader::workspace::profile::{
     ProfileResolutionError, discover_profiles, is_path_input, resolve_profile_from_path,
     resolve_profile_path, resolve_profile_with_data, save_profile_yaml,
 };

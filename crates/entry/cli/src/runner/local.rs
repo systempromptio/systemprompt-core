@@ -21,7 +21,6 @@ use crate::kernel::CommandRegistry;
 
 pub(super) struct LocalBoot {
     pub(super) confirm: confirmation::ConfirmationRequest,
-    pub(super) credentials: Option<systemprompt_cloud::CloudCredentials>,
     pub(super) services: Option<systemprompt_loader::ServicesState>,
     pub(super) profile: Option<Arc<systemprompt_config::LoadedProfile>>,
     pub(super) boot: Option<systemprompt_loader::BootContext>,
@@ -38,7 +37,6 @@ pub(super) async fn run_local(
     let desc = invocation.descriptor();
     let LocalBoot {
         confirm,
-        credentials,
         services,
         profile,
         boot,
@@ -55,6 +53,7 @@ pub(super) async fn run_local(
         secrets,
         admit,
         registry,
+        cloud,
     } = guards;
     let (admitted, deferred_admit) = match admit_for(&invocation, profile.as_deref(), admit)? {
         Admission::Admitted(admitted) => (Some(admitted), None),
@@ -74,7 +73,7 @@ pub(super) async fn run_local(
         .with_admitted(admitted)
         .with_admit(deferred_admit)
         .with_registry(registry)
-        .with_cloud_credentials(credentials)
+        .with_cloud_access(cloud)
         .with_database_url_override(database_url_override)
         .with_services(services)
         .with_profile(profile)
@@ -94,6 +93,7 @@ pub(super) struct RunGuards {
     pub(super) secrets: SecretsSources,
     pub(super) admit: AdmitFn,
     pub(super) registry: Arc<CommandRegistry>,
+    pub(super) cloud: Option<systemprompt_extension::cli::DynCloudAccess>,
 }
 
 impl RunGuards {
@@ -110,6 +110,7 @@ impl RunGuards {
             .with_foreground_children(self.children)
             .with_build_identity(self.build)
             .with_secrets_sources(self.secrets)
-            .with_registry(self.registry))
+            .with_registry(self.registry)
+            .with_cloud_access(self.cloud))
     }
 }

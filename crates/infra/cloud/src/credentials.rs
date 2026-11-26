@@ -14,7 +14,7 @@ use systemprompt_models::net::{HTTP_AUTH_VERIFY_TIMEOUT, HTTP_CONNECT_TIMEOUT};
 
 use crate::auth;
 use crate::error::{CloudError, CloudResult, CloudStoreValidationError};
-use crate::private_dir::write_private_json;
+use systemprompt_loader::workspace::private_dir::write_private_json;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudCredentials {
@@ -132,7 +132,7 @@ impl CloudCredentials {
                 source: Box::new(e),
             })?;
 
-        write_private_json(path, self)
+        Ok(write_private_json(path, self)?)
     }
 
     pub fn delete_from_path(path: &Path) -> CloudResult<()> {

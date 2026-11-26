@@ -8,14 +8,15 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::Result;
-use systemprompt_cloud::{CloudApiClient, CloudCredentials, CloudPath, get_cloud_paths};
+use systemprompt_cloud::{CloudApiClient, CloudCredentials};
 use systemprompt_identifiers::TenantId;
+use systemprompt_loader::workspace::{CloudPath, get_cloud_paths};
 use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
 use crate::cli::types::{CloudStatusOutput, CredentialsInfo, TenantStatusInfo};
-use systemprompt_cloud::profile::ProfileInfo;
 use systemprompt_extension::cli::{CliConfig, CommandOutput};
+use systemprompt_loader::workspace::profile::ProfileInfo;
 
 pub(super) async fn execute(
     config: &CliConfig,

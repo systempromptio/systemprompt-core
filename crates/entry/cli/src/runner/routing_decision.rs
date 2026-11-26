@@ -3,16 +3,18 @@
 //! [`decide_routing`] turns the resolved target into one [`RoutingDecision`]:
 //! a remote run, or a local continuation the profile and the command's
 //! [`RoutingClass`] / [`DataImpact`] allow. A cloud profile that cannot route
-//! never silently falls back for a destructive command. A cloud profile that
-//! names no `cloud.tenant_id` has no tenant to route to — an in-cluster job
-//! whose profile carries the database it runs against — so it runs locally.
+//! never silently falls back for a destructive command, and a profile that
+//! names a tenant in a build without the cloud member never falls back at all.
+//! A cloud profile that names no `cloud.tenant_id` has no tenant to route to —
+//! an in-cluster job whose profile carries the database it runs against — so it
+//! runs locally.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use anyhow::{Result, bail};
 
-use systemprompt_extension::cli::{DataImpact, RoutingClass};
+use systemprompt_extension::cli::{CloudAccessError, DataImpact, RoutingClass};
 
 /// Where a command runs once the routing target is known.
 #[derive(Debug, PartialEq, Eq)]
@@ -34,6 +36,19 @@ pub fn decide_routing(
     use super::routing::ExecutionTarget;
 
     let is_cloud = profile.target.is_cloud();
+    if let Err(error) = &target
+        && error.downcast_ref::<CloudAccessError>().is_some_and(|e| {
+            matches!(
+                e,
+                CloudAccessError::Absent { .. } | CloudAccessError::Disabled { .. }
+            )
+        })
+    {
+        bail!(
+            "Profile '{}' routes to a cloud tenant: {error}",
+            profile.name
+        );
+    }
     let target = match target {
         Ok(ExecutionTarget::SelfManaged { hostname }) => Err(anyhow::anyhow!(
             "self-managed tenant {hostname} has no tenant session; sign in as an operator with \

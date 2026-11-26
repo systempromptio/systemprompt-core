@@ -13,8 +13,8 @@ use systemprompt_logging::CliService;
 use systemprompt_models::BuildType;
 
 use super::types::{BuildExtensionRow, BuildOutput};
-use systemprompt_cloud::paths::ProjectRoot;
 use systemprompt_extension::cli::{ChildSupervisor, CliConfig, CommandOutput};
+use systemprompt_loader::workspace::paths::ProjectRoot;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct McpArgs {

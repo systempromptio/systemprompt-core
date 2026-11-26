@@ -11,8 +11,8 @@ use anyhow::Context;
 use systemprompt_config::SecretsSources;
 use systemprompt_extension::cli::{
     AdmittedViews, BoxFuture, CallerSession, ChildSupervisor, CliConfig, CommandError, CommandHost,
-    CommandOutput, DeploymentSigningKeys, DescribedCommand, GrantedPlane, IdentityCliSettings,
-    KernelGrant, Prompter, ServicesTree,
+    CommandOutput, DeploymentSigningKeys, DescribedCommand, DynCloudAccess, GrantedPlane,
+    IdentityCliSettings, KernelGrant, Prompter, ServicesTree,
 };
 use systemprompt_extension::{Admitted, Resolved};
 use systemprompt_loader::BootContext;
@@ -35,7 +35,8 @@ use crate::member_host::{IdentitySettingsRefused, boot_profile_config, grant_ref
 /// `infra services serve` the server's context builder over the same boot and
 /// admitted composition, the application context, the boot context, the
 /// runner's environment overrides and secrets sources, and a profile booted
-/// at a path. None of these is placed in the state a member's command
+/// at a path, and the cloud member's access when the composition has one.
+/// None of these is placed in the state a member's command
 /// resolves. Each value is read from the boot context the command kernel's
 /// state is seeded from, so there is one source. Only the kernel host
 /// implements it; it is not part of the extension contract.
@@ -55,6 +56,7 @@ pub trait KernelHost: CommandHost {
         profile: &'a Path,
     ) -> BoxFuture<'a, Result<Arc<Config>, CommandError>>;
     fn take_admit(&self) -> Result<systemprompt_runtime::AdmitFn, CommandError>;
+    fn cloud_access(&self) -> Option<&DynCloudAccess>;
 }
 
 impl CommandContext {
@@ -276,5 +278,9 @@ impl KernelHost for CommandContext {
         Ok(Box::new(move |profile: &Profile| {
             admit(Some(&profile.extensions))
         }))
+    }
+
+    fn cloud_access(&self) -> Option<&DynCloudAccess> {
+        Self::cloud_access(self)
     }
 }
