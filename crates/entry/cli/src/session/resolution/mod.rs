@@ -147,7 +147,7 @@ async fn get_session_for_loaded_profile(
         session_email_hint.as_deref(),
         crate::session::creation::SessionSource {
             boot,
-            contexts: &contexts,
+            contexts: contexts.as_ref(),
             admitted: ctx.host.admitted()?,
         },
     )

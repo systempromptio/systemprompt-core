@@ -20,7 +20,7 @@ fn session_minted_under(issuer: &str) -> CliSession {
         ),
         SessionToken::new("token-abc"),
         SessionId::new("sid-001"),
-        ContextId::try_new(CONTEXT_ID).expect("valid ContextId"),
+        Some(ContextId::try_new(CONTEXT_ID).expect("valid ContextId")),
         SessionIdentity::new(
             unique_user_id("session-issuer"),
             Email::try_new("test@example.com").expect("valid Email"),
@@ -176,7 +176,7 @@ fn a_builder_ttl_pins_the_entry_to_the_tokens_own_lifetime() {
         ),
         SessionToken::new("token-abc"),
         SessionId::new("sid-001"),
-        ContextId::try_new(CONTEXT_ID).expect("valid ContextId"),
+        Some(ContextId::try_new(CONTEXT_ID).expect("valid ContextId")),
         SessionIdentity::new(
             unique_user_id("session-issuer"),
             Email::try_new("test@example.com").expect("valid Email"),

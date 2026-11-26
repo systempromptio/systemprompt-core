@@ -85,7 +85,7 @@ pub fn session_info(key: &str, session: &CliSession, is_active: bool) -> Session
         profile_name: Some(session.profile_name.clone()),
         user_email: session.user_email.as_str().to_owned(),
         session_id: Some(session.session_id.clone()),
-        context_id: Some(session.context_id.clone()),
+        context_id: session.context_id.clone(),
         is_active,
         is_expired: session.is_expired(),
         expires_in,

@@ -139,7 +139,7 @@ pub(super) struct SessionStoreParams<'a> {
     pub issuer: &'a str,
     pub ttl: chrono::Duration,
     pub session_id: SessionId,
-    pub context_id: ContextId,
+    pub context_id: Option<ContextId>,
     pub user_id: UserId,
     pub user_email: &'a str,
     pub user_type: systemprompt_models::auth::UserType,

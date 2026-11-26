@@ -71,7 +71,8 @@ pub struct CliSession {
     pub session_token: SessionToken,
     pub issuer: String,
     pub session_id: SessionId,
-    pub context_id: ContextId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_id: Option<ContextId>,
     pub user_id: UserId,
     pub user_email: Email,
     pub user_type: UserType,
@@ -90,7 +91,7 @@ pub struct CliSessionBuilder {
     session_token: SessionToken,
     issuer: String,
     session_id: SessionId,
-    context_id: ContextId,
+    context_id: Option<ContextId>,
     user_id: UserId,
     user_email: Email,
     user_type: UserType,
@@ -102,7 +103,7 @@ impl CliSessionBuilder {
         binding: SessionBinding,
         session_token: SessionToken,
         session_id: SessionId,
-        context_id: ContextId,
+        context_id: Option<ContextId>,
         identity: SessionIdentity,
     ) -> Self {
         Self {
@@ -175,7 +176,7 @@ impl CliSession {
         binding: SessionBinding,
         session_token: SessionToken,
         session_id: SessionId,
-        context_id: ContextId,
+        context_id: Option<ContextId>,
         identity: SessionIdentity,
     ) -> CliSessionBuilder {
         CliSessionBuilder::new(binding, session_token, session_id, context_id, identity)
@@ -186,8 +187,8 @@ impl CliSession {
         self.issuer == issuer
     }
 
-    pub const fn context_id(&self) -> &ContextId {
-        &self.context_id
+    pub const fn context_id(&self) -> Option<&ContextId> {
+        self.context_id.as_ref()
     }
 
     pub fn touch(&mut self) {
@@ -195,7 +196,7 @@ impl CliSession {
     }
 
     pub fn set_context_id(&mut self, context_id: ContextId) {
-        self.context_id = context_id;
+        self.context_id = Some(context_id);
         self.last_used = Utc::now();
     }
 

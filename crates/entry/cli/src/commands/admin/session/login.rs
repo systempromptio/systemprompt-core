@@ -28,9 +28,9 @@ use systemprompt_traits::{AdminAccount, DynAdminBootstrap};
 use super::login_helpers::{
     SessionStoreParams, fetch_admin_user, save_session_to_store, try_use_existing_session,
 };
-use crate::session::SessionContexts;
 use crate::session::api::load_signing_keys;
 use crate::session::resolution::extract_profile_name;
+use crate::session::{SessionContexts, issue_session_context};
 
 #[derive(Debug, Args)]
 pub struct LoginArgs {
@@ -190,13 +190,11 @@ async fn issue_login_context(
     profile_path: &str,
     user_id: &UserId,
     session_id: &SessionId,
-) -> Result<systemprompt_identifiers::ContextId> {
+) -> Result<Option<systemprompt_identifiers::ContextId>> {
     let path = Path::new(profile_path);
     let profile_name = extract_profile_name(path)?;
-    Ok(SessionContexts::for_profile(host, path)
-        .await?
-        .issue(user_id, session_id, &profile_name)
-        .await?)
+    let contexts = SessionContexts::for_profile(host, path).await?;
+    Ok(issue_session_context(contexts.as_ref(), user_id, session_id, &profile_name).await?)
 }
 
 fn generate_session_token(

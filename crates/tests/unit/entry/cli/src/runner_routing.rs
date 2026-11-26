@@ -229,7 +229,7 @@ async fn an_unreachable_host_is_a_connection_error_not_an_exit_code() {
     let err = execute_remote(
         "127.0.0.1:1",
         &token,
-        &context,
+        Some(&context),
         &[
             "infra".to_owned(),
             "services".to_owned(),
@@ -259,7 +259,7 @@ fn a_remote_target_is_executed_remotely_and_nowhere_else() {
         Ok(ExecutionTarget::Remote {
             hostname: "tenant.example".to_owned(),
             token: SessionToken::new("tok"),
-            context: ContextId::generate(),
+            context: Some(ContextId::generate()),
         }),
         &cloud_profile(),
         RoutingClass::Mutating,

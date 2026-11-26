@@ -19,8 +19,8 @@ impl CliSessionContext {
         &self.session.session_token
     }
 
-    pub const fn context_id(&self) -> &ContextId {
-        &self.session.context_id
+    pub const fn context_id(&self) -> Option<&ContextId> {
+        self.session.context_id.as_ref()
     }
 
     pub fn api_url(&self) -> &str {

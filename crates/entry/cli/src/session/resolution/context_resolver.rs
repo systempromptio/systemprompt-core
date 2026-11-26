@@ -27,7 +27,7 @@ pub fn try_session_from_env(profile: &Profile, env: &EnvOverrides) -> Option<Cli
     }
 
     let session_id = env.session.session_id.clone()?;
-    let context_id = env.session.context_id.clone()?;
+    let context_id = env.session.context_id.clone();
     let user_id = env.session.user_id.clone()?;
     let auth_token = env.session.auth_token.clone()?;
 
@@ -168,6 +168,7 @@ pub fn resolve_profile_path_without_session(
 #[derive(Debug)]
 pub enum ContextCheck {
     Owned,
+    Contextless,
     Recovered(Box<CliSession>),
     Unverified(SessionContextError),
 }
@@ -182,12 +183,20 @@ impl ContextCheck {
 pub async fn try_validate_context(
     session: &mut CliSession,
     profile_name: &ProfileName,
-    contexts: Result<SessionContexts, SessionContextError>,
+    contexts: Result<Option<SessionContexts>, SessionContextError>,
 ) -> ContextCheck {
     match contexts {
-        Ok(contexts) => revalidate_context(&contexts, session, profile_name).await,
+        Ok(Some(contexts)) => revalidate_context(&contexts, session, profile_name).await,
+        Ok(None) => contextless(session),
         Err(error) => unverified(error),
     }
+}
+
+fn contextless(session: &mut CliSession) -> ContextCheck {
+    if session.context_id.take().is_some() {
+        return ContextCheck::Recovered(Box::new(session.clone()));
+    }
+    ContextCheck::Contextless
 }
 
 pub async fn revalidate_context(
@@ -195,15 +204,19 @@ pub async fn revalidate_context(
     session: &mut CliSession,
     profile_name: &ProfileName,
 ) -> ContextCheck {
-    match contexts.owns(&session.user_id, &session.context_id).await {
-        Ok(true) => return ContextCheck::Owned,
-        Ok(false) => CliService::warning("Session context is stale, recovering session context..."),
-        Err(error) => {
-            tracing::warn!(%error, "Session context ownership could not be read; treating it as invalid");
-            CliService::warning(
-                "Session context ownership could not be read, recovering session context...",
-            );
-        },
+    if let Some(context_id) = session.context_id.clone() {
+        match contexts.owns(&session.user_id, &context_id).await {
+            Ok(true) => return ContextCheck::Owned,
+            Ok(false) => {
+                CliService::warning("Session context is stale, recovering session context...");
+            },
+            Err(error) => {
+                tracing::warn!(%error, "Session context ownership could not be read; treating it as invalid");
+                CliService::warning(
+                    "Session context ownership could not be read, recovering session context...",
+                );
+            },
+        }
     }
 
     match contexts

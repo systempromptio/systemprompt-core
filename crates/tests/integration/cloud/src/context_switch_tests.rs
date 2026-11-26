@@ -50,8 +50,14 @@ async fn switching_active_does_not_mutate_other_sessions() {
         snapshot_b_after.session_token.as_str()
     );
     assert_eq!(
-        snapshot_b_before.context_id().as_str(),
-        snapshot_b_after.context_id().as_str()
+        snapshot_b_before
+            .context_id()
+            .expect("session context")
+            .as_str(),
+        snapshot_b_after
+            .context_id()
+            .expect("session context")
+            .as_str()
     );
 }
 

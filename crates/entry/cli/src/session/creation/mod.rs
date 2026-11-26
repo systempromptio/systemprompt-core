@@ -17,7 +17,7 @@ use systemprompt_logging::CliService;
 use systemprompt_manifest::Profile;
 
 use super::api::load_signing_keys;
-use super::contexts::SessionContexts;
+use super::contexts::{SessionContexts, issue_session_context};
 use super::resolution::ProfileContext;
 use admin_bootstrap::{
     SessionComponents, build_cli_session, connect_database, generate_admin_token, load_secrets,
@@ -85,16 +85,21 @@ pub(super) async fn create_local_session(
         .await
         .context("Failed to create local CLI session row in the database")?;
 
-    let context_id = contexts
-        .issue(&admin_user.id, &session_id, profile_ctx.name)
-        .await?;
+    let context_id =
+        issue_session_context(contexts, &admin_user.id, &session_id, profile_ctx.name).await?;
     let session_token =
         generate_admin_token(&profile.security.issuer, keys, &admin_user, &session_id)?;
 
     if config.is_interactive() {
         CliService::success("Local session created");
         CliService::key_value("Session ID", session_id.as_str());
-        CliService::key_value("Context ID", context_id.as_str());
+        CliService::key_value(
+            "Context ID",
+            context_id.as_ref().map_or(
+                "none (no member provides conversation contexts)",
+                systemprompt_identifiers::ContextId::as_str,
+            ),
+        );
     }
 
     build_cli_session(
@@ -113,7 +118,7 @@ pub(super) async fn create_local_session(
 #[derive(Clone, Copy)]
 pub(super) struct SessionSource<'a> {
     pub boot: &'a BootContext,
-    pub contexts: &'a SessionContexts,
+    pub contexts: Option<&'a SessionContexts>,
     pub admitted: &'a Admitted,
 }
 
@@ -125,7 +130,7 @@ pub(super) struct TenantSessionParams<'a> {
     pub config: &'a CliConfig,
     pub session_email_hint: Option<&'a str>,
     pub boot: &'a BootContext,
-    pub contexts: &'a SessionContexts,
+    pub contexts: Option<&'a SessionContexts>,
     pub admitted: &'a Admitted,
 }
 
@@ -174,16 +179,21 @@ pub(super) async fn create_session_for_tenant(
         .await
         .context("Failed to create local tenant CLI session row in the database")?;
 
-    let context_id = contexts
-        .issue(&admin_user.id, &session_id, profile_ctx.name)
-        .await?;
+    let context_id =
+        issue_session_context(contexts, &admin_user.id, &session_id, profile_ctx.name).await?;
     let session_token =
         generate_admin_token(&profile.security.issuer, keys, &admin_user, &session_id)?;
 
     if config.is_interactive() {
         CliService::success("Session created");
         CliService::key_value("Session ID", session_id.as_str());
-        CliService::key_value("Context ID", context_id.as_str());
+        CliService::key_value(
+            "Context ID",
+            context_id.as_ref().map_or(
+                "none (no member provides conversation contexts)",
+                systemprompt_identifiers::ContextId::as_str,
+            ),
+        );
     }
 
     build_cli_session(

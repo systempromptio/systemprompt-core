@@ -125,7 +125,7 @@ pub fn generate_admin_token(
 pub(super) struct SessionComponents {
     pub session_token: SessionToken,
     pub session_id: SessionId,
-    pub context_id: ContextId,
+    pub context_id: Option<ContextId>,
 }
 
 pub(super) fn build_cli_session(

@@ -96,7 +96,7 @@ pub fn build_session_for(
         ),
         SessionToken::new(token),
         SessionId::new(format!("sid-{profile}")),
-        ContextId::try_new(context).expect("valid ContextId"),
+        Some(ContextId::try_new(context).expect("valid ContextId")),
         SessionIdentity::new(
             unique_user_id("support"),
             Email::try_new(format!("{profile}@example.com")).expect("valid Email"),

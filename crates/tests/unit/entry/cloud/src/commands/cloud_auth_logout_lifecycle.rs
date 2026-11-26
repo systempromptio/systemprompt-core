@@ -30,7 +30,7 @@ fn session(key: &SessionKey, label: &str) -> CliSession {
         ),
         SessionToken::new(format!("token-{label}")),
         SessionId::new(format!("session-{label}")),
-        ContextId::generate(),
+        Some(ContextId::generate()),
         SessionIdentity::new(
             UserId::new(format!("user-{label}")),
             Email::try_new(format!("{label}@example.invalid")).expect("email"),

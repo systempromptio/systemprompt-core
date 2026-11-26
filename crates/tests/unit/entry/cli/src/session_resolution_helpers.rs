@@ -128,7 +128,7 @@ fn session(profile_name: &str) -> CliSession {
         ),
         SessionToken::new("tok"),
         SessionId::generate(),
-        ContextId::generate(),
+        Some(ContextId::generate()),
         SessionIdentity::new(
             UserId::new("user-remote-cli"),
             Email::try_new("a@b.test").expect("valid Email"),
@@ -148,18 +148,32 @@ fn try_session_from_env_requires_remote_flag() {
 }
 
 #[test]
-fn try_session_from_env_requires_every_session_field() {
+fn try_session_from_env_requires_session_user_and_token() {
     let profile = make_profile();
-    for missing in 0..4 {
+    for missing in 0..3 {
         let mut env = remote_env();
         match missing {
             0 => env.session.session_id = None,
-            1 => env.session.context_id = None,
-            2 => env.session.user_id = None,
+            1 => env.session.user_id = None,
             _ => env.session.auth_token = None,
         }
         assert!(try_session_from_env(&profile, &env).is_none());
     }
+}
+
+#[test]
+fn try_session_from_env_without_a_context_builds_a_contextless_session() {
+    let profile = make_profile();
+    let mut env = remote_env();
+    env.session.context_id = None;
+
+    let ctx = try_session_from_env(&profile, &env).expect("context is optional");
+
+    assert!(ctx.session.context_id.is_none());
+    assert_eq!(
+        ctx.session.session_id,
+        env.session.session_id.clone().unwrap()
+    );
 }
 
 #[test]

@@ -28,7 +28,7 @@ fn session_for(user_id: &UserId, session_id: SessionId, context_id: ContextId) -
         SessionToken::new("token"),
         session_id,
         user_id.clone(),
-        context_id,
+        Some(context_id),
         UserType::Admin,
     )
 }

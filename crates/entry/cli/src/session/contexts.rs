@@ -3,8 +3,10 @@
 //!
 //! The kernel never names the agent domain: it resolves
 //! `DynContextDirectory` and `DynSessionContextIssuer` from the command
-//! kernel of the run's own profile, after that kernel resolves. With no
-//! admitted provider the session cannot be given a context and creation fails
+//! kernel of the run's own profile, after that kernel resolves. A composition
+//! whose members provide neither has no conversation contexts: the session is
+//! opened without one (`None`), and only the commands that need a context
+//! refuse. A composition that provides one seam without the other is refused
 //! with [`SessionContextError::Unprovided`].
 //!
 //! `use_session_context` is the one path that rewrites a stored session's
@@ -29,6 +31,8 @@ use crate::host::KernelHost;
 pub enum SessionContextError {
     #[error("no admitted member provides {0}; the CLI session cannot hold a conversation context")]
     Unprovided(&'static str),
+    #[error("no admitted member provides conversation contexts")]
+    Contextless,
     #[error("the command kernel could not be resolved for the session context")]
     Kernel(#[source] CommandError),
     #[error("context {0} is not owned by the session's user")]
@@ -58,20 +62,22 @@ impl SessionContexts {
         Self { directory, issuer }
     }
 
-    pub fn from_resolved(resolved: &Resolved<'_>) -> Result<Self, SessionContextError> {
-        let directory = resolved
-            .optional::<DynContextDirectory>()
-            .ok_or(SessionContextError::Unprovided("DynContextDirectory"))?;
-        let issuer = resolved
-            .optional::<DynSessionContextIssuer>()
-            .ok_or(SessionContextError::Unprovided("DynSessionContextIssuer"))?;
-        Ok(Self::new(directory, issuer))
+    pub fn from_resolved(resolved: &Resolved<'_>) -> Result<Option<Self>, SessionContextError> {
+        match (
+            resolved.optional::<DynContextDirectory>(),
+            resolved.optional::<DynSessionContextIssuer>(),
+        ) {
+            (Some(directory), Some(issuer)) => Ok(Some(Self::new(directory, issuer))),
+            (None, None) => Ok(None),
+            (Some(_), None) => Err(SessionContextError::Unprovided("DynSessionContextIssuer")),
+            (None, Some(_)) => Err(SessionContextError::Unprovided("DynContextDirectory")),
+        }
     }
 
     pub async fn for_profile(
         host: &dyn KernelHost,
         profile_path: &Path,
-    ) -> Result<Self, SessionContextError> {
+    ) -> Result<Option<Self>, SessionContextError> {
         tracing::debug!(profile = %profile_path.display(), "resolving the session context seams");
         let resolved = host.resolved().await.map_err(SessionContextError::Kernel)?;
         Self::from_resolved(&resolved)
@@ -104,6 +110,21 @@ impl SessionContexts {
     }
 }
 
+pub async fn issue_session_context(
+    contexts: Option<&SessionContexts>,
+    user_id: &UserId,
+    session_id: &SessionId,
+    profile_name: &ProfileName,
+) -> Result<Option<ContextId>, SessionContextError> {
+    match contexts {
+        Some(contexts) => contexts
+            .issue(user_id, session_id, profile_name)
+            .await
+            .map(Some),
+        None => Ok(None),
+    }
+}
+
 pub async fn use_session_context(
     host: &dyn KernelHost,
     context: ContextId,
@@ -115,7 +136,9 @@ pub async fn use_session_context(
         .profile_path()
         .map_err(SessionContextError::Kernel)?
         .to_path_buf();
-    let contexts = SessionContexts::for_profile(host, &profile_path).await?;
+    let contexts = SessionContexts::for_profile(host, &profile_path)
+        .await?
+        .ok_or(SessionContextError::Contextless)?;
     if !contexts
         .owns(&session_ctx.session.user_id, &context)
         .await?

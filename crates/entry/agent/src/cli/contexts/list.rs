@@ -28,7 +28,7 @@ pub async fn execute_with_pool(caller: &CallerSession, pool: &DbPool) -> Result<
         .await
         .context("Failed to list contexts")?;
 
-    let active_context_id = caller.context_id().clone();
+    let active_context_id = caller.context_id().cloned();
 
     let summaries: Vec<ContextSummary> = contexts
         .into_iter()
@@ -40,7 +40,7 @@ pub async fn execute_with_pool(caller: &CallerSession, pool: &DbPool) -> Result<
             created_at: c.created_at,
             updated_at: c.updated_at,
             last_message_at: c.last_message_at,
-            is_active: c.context_id == active_context_id,
+            is_active: active_context_id.as_ref() == Some(&c.context_id),
         })
         .collect();
 
@@ -49,7 +49,7 @@ pub async fn execute_with_pool(caller: &CallerSession, pool: &DbPool) -> Result<
     let output = ContextListOutput {
         contexts: summaries,
         total,
-        active_context_id: Some(active_context_id),
+        active_context_id,
     };
 
     Ok(CommandOutput::table_of(

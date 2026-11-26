@@ -33,7 +33,7 @@ pub enum ExecutionTarget {
     Remote {
         hostname: String,
         token: SessionToken,
-        context: ContextId,
+        context: Option<ContextId>,
     },
     SelfManaged {
         hostname: String,
@@ -104,7 +104,7 @@ pub(crate) async fn authorize_target(target: ExecutionTarget) -> Result<Executio
     Ok(ExecutionTarget::Remote {
         hostname,
         token,
-        context: ContextId::generate(),
+        context: Some(ContextId::generate()),
     })
 }
 
@@ -168,7 +168,7 @@ impl OutputSink for StdioSink {
 pub async fn execute_remote(
     hostname: &str,
     token: &SessionToken,
-    context: &ContextId,
+    context: Option<&ContextId>,
     args: &[String],
     timeout_secs: u64,
 ) -> Result<i32> {
@@ -180,7 +180,7 @@ pub async fn execute_remote(
     };
     let request = RemoteCliRequest {
         token,
-        context: Some(context),
+        context,
         args,
     };
     Ok(executor.execute(request, &mut sink).await?)

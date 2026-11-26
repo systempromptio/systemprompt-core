@@ -80,6 +80,10 @@ impl ServicesTree {
 /// The session of the person running the CLI: its token and the caller's own
 /// session, user and context ids.
 ///
+/// The context id is `None` in a composition whose members provide no
+/// conversation contexts; a request built from such a session carries the
+/// context id derived from its session id.
+///
 /// The host resolves it through the same path the kernel's own commands use;
 /// it is always the caller's own session and is never minted for another
 /// subject. A request a command makes with it is attributed to that caller,
@@ -90,7 +94,7 @@ pub struct CallerSession {
     token: SessionToken,
     session_id: SessionId,
     user_id: UserId,
-    context_id: ContextId,
+    context_id: Option<ContextId>,
     user_type: UserType,
 }
 
@@ -100,7 +104,7 @@ impl CallerSession {
         token: SessionToken,
         session_id: SessionId,
         user_id: UserId,
-        context_id: ContextId,
+        context_id: Option<ContextId>,
         user_type: UserType,
     ) -> Self {
         Self {
@@ -128,8 +132,8 @@ impl CallerSession {
     }
 
     #[must_use]
-    pub const fn context_id(&self) -> &ContextId {
-        &self.context_id
+    pub const fn context_id(&self) -> Option<&ContextId> {
+        self.context_id.as_ref()
     }
 
     #[must_use]
@@ -142,7 +146,9 @@ impl CallerSession {
         RequestContext::new(
             self.session_id.clone(),
             TraceId::generate(),
-            self.context_id.clone(),
+            self.context_id
+                .clone()
+                .unwrap_or_else(|| ContextId::derived_from_session(&self.session_id)),
             agent_name,
             Actor::user(self.user_id.clone()),
         )

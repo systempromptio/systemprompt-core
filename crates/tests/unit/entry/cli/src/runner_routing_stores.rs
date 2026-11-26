@@ -47,7 +47,7 @@ fn session_for(key: &SessionKey, ttl: Duration) -> CliSession {
         ),
         SessionToken::new("token-for-routing"),
         SessionId::new("session-for-routing"),
-        ContextId::generate(),
+        Some(ContextId::generate()),
         SessionIdentity::new(
             UserId::new(format!("user_{}", uuid::Uuid::new_v4().simple())),
             Email::try_new("router@routing.invalid").expect("valid Email"),
@@ -122,7 +122,18 @@ fn a_valid_stored_session_supplies_the_token_and_context_for_the_remote_call() {
         loaded.session_token.as_str(),
         session.session_token.as_str()
     );
-    assert_eq!(loaded.context_id.as_str(), session.context_id.as_str());
+    assert_eq!(
+        loaded
+            .context_id
+            .as_ref()
+            .expect("session context")
+            .as_str(),
+        session
+            .context_id
+            .as_ref()
+            .expect("session context")
+            .as_str()
+    );
 }
 
 #[test]

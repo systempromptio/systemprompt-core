@@ -85,7 +85,7 @@ async fn public_context_lifecycle_helper() {
         ),
         SessionToken::new("owned-context-session-token"),
         session_id,
-        initial_context,
+        Some(initial_context),
         SessionIdentity::new(
             user.clone(),
             Email::try_new("contexts-public@example.invalid").expect("fixture email"),
@@ -161,6 +161,8 @@ async fn public_context_lifecycle_helper() {
         .get_session(&SessionKey::Local)
         .expect("stored local session")
         .context_id
+        .as_ref()
+        .expect("session context")
         .as_str()
         .to_owned();
     println!(

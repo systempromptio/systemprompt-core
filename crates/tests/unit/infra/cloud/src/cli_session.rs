@@ -28,7 +28,7 @@ fn create_test_builder_for(user_id: UserId) -> CliSessionBuilder {
         ),
         SessionToken::new("test-token"),
         SessionId::new("session-123"),
-        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+        Some(ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId")),
         SessionIdentity::new(
             user_id,
             Email::try_new("test@example.com").expect("valid Email"),
@@ -46,7 +46,14 @@ fn test_cli_session_builder_new() {
     assert_eq!(session.profile_name.as_str(), "test-profile");
     assert_eq!(session.session_token.as_str(), "test-token");
     assert_eq!(session.session_id.as_str(), "session-123");
-    assert_eq!(session.context_id.as_str(), TEST_CONTEXT_ID_A);
+    assert_eq!(
+        session
+            .context_id
+            .as_ref()
+            .expect("session context")
+            .as_str(),
+        TEST_CONTEXT_ID_A
+    );
     assert_eq!(session.user_id, user_id);
     assert_eq!(session.user_email.as_str(), "test@example.com");
     assert_eq!(session.user_type, UserType::User);
@@ -122,7 +129,10 @@ fn test_cli_session_expires_at() {
 #[test]
 fn test_cli_session_context_id() {
     let session = create_test_builder().build();
-    assert_eq!(session.context_id().as_str(), TEST_CONTEXT_ID_A);
+    assert_eq!(
+        session.context_id().expect("session context").as_str(),
+        TEST_CONTEXT_ID_A
+    );
 }
 
 #[test]
@@ -144,7 +154,14 @@ fn test_cli_session_set_context_id() {
     std::thread::sleep(std::time::Duration::from_millis(10));
     session.set_context_id(ContextId::try_new(TEST_CONTEXT_ID_B).expect("valid ContextId"));
 
-    assert_eq!(session.context_id.as_str(), TEST_CONTEXT_ID_B);
+    assert_eq!(
+        session
+            .context_id
+            .as_ref()
+            .expect("session context")
+            .as_str(),
+        TEST_CONTEXT_ID_B
+    );
     assert!(session.last_used > original_last_used);
 }
 
@@ -195,7 +212,7 @@ fn test_cli_session_has_valid_credentials_false_empty_token() {
         ),
         SessionToken::new(""),
         SessionId::new("session"),
-        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+        Some(ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId")),
         SessionIdentity::new(
             unique_user_id("cli-session"),
             Email::try_new("test@example.com").expect("valid Email"),
@@ -388,7 +405,7 @@ fn test_cli_session_builder_method() {
         ),
         SessionToken::new("t"),
         SessionId::new("s"),
-        ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId"),
+        Some(ContextId::try_new(TEST_CONTEXT_ID_A).expect("valid ContextId")),
         SessionIdentity::new(
             unique_user_id("cli-session"),
             Email::try_new("test@example.com").expect("valid Email"),
