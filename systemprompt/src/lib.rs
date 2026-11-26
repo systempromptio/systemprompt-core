@@ -90,8 +90,6 @@ pub mod extension {
     pub use systemprompt_extension::*;
 }
 
-/// Template provider trait surface for custom rendering backends (Tera,
-/// Handlebars, MJML, …).
 #[cfg(feature = "core")]
 #[cfg_attr(docsrs, doc(cfg(feature = "core")))]
 pub mod template_provider {
@@ -110,8 +108,6 @@ pub mod logging {
     pub use systemprompt_logging::*;
 }
 
-/// Profile / secrets / credentials configuration loaders. Drives the
-/// `LoadedProfile → SecretsService → BootContext → Config` sequence.
 #[cfg(feature = "config")]
 #[cfg_attr(docsrs, doc(cfg(feature = "config")))]
 pub mod config {
@@ -150,8 +146,6 @@ pub use systemprompt_security as security;
 #[cfg_attr(docsrs, doc(cfg(feature = "security")))]
 pub use systemprompt_governance as governance;
 
-/// Application runtime and its child hosts; build an `AppContext` with
-/// `AppContextBuilder`.
 #[cfg(feature = "api")]
 #[cfg_attr(docsrs, doc(cfg(feature = "api")))]
 pub mod system {
