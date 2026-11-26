@@ -161,7 +161,7 @@ async fn external_auth_with_unreachable_accessor_fails() {
         std::sync::Arc::default(),
         systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
-        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        crate::harness::no_secrets(),
         systemprompt_mcp::services::client::McpClientLimits::default(),
     )
     .call_tool(&config, "echo".to_owned(), None, &context)

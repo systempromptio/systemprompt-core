@@ -90,7 +90,7 @@ async fn resolve_external_proxy_target_refuses_without_a_broker_secret() {
         std::sync::Arc::default(),
         systemprompt_mcp::services::DeploymentService::new(crate::harness::services_state().view()),
         crate::harness::config(),
-        systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),
+        crate::harness::no_secrets(),
         systemprompt_mcp::services::client::McpClientLimits::default(),
     )
     .resolve_external_proxy_target(&config, &ctx)

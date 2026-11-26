@@ -397,3 +397,16 @@ pub fn install_stub_binary(bootstrap: &TestBootstrap, name: &str) -> PathBuf {
     std::mem::forget(dir);
     binary
 }
+
+#[derive(Debug)]
+pub struct NoSecrets;
+
+impl systemprompt_traits::SecretLookup for NoSecrets {
+    fn lookup(&self, _name: &str) -> Option<systemprompt_traits::ExtensionSecret> {
+        None
+    }
+}
+
+pub fn no_secrets() -> std::sync::Arc<dyn systemprompt_traits::SecretLookup> {
+    std::sync::Arc::new(NoSecrets)
+}

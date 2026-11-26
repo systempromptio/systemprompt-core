@@ -34,7 +34,11 @@ async fn app(
 ) -> Router {
     let url = test_database_url();
     let ctx = (*test_app_context(&url).await).clone();
-    let handle = install_recorder(&InstanceId::new("load-shed-fixture"), &[]).expect("recorder");
+    let handle = install_recorder(
+        &InstanceId::new("load-shed-fixture"),
+        &super::common::admitted_metrics(),
+    )
+    .expect("recorder");
     let slow = axum::routing::get(move || {
         let release = Arc::clone(&release);
         let entered = Arc::clone(&entered);

@@ -273,15 +273,12 @@ const DELETE_ALL_HELPER: &str = "admin_agents_profile_fs::delete_all_agents_publ
 #[tokio::test]
 #[ignore = "re-executed by delete_all_reports_exact_targets_and_preserves_unrelated_configuration"]
 async fn delete_all_agents_public_helper() {
-    use systemprompt_test_fixtures::DisposableDb;
-
     let root = seed_agents();
     let control = root.join("config/control.yaml");
     std::fs::write(&control, "control: preserved\n").expect("write unrelated control");
     let boot = systemprompt_test_fixtures::ensure_test_bootstrap();
-    let database = DisposableDb::with_schema("cli_admin_delete_all").await;
-    let pool = database.test_pool().await;
-    let app = app_reloaded_on_database(boot, database.url()).await;
+    let app =
+        app_reloaded_on_database(boot, &systemprompt_test_fixtures::test_database_url()).await;
     let context = with_app(json_cli(), EnvOverrides::default(), app);
     let host = agents_host(&context);
 
@@ -305,9 +302,6 @@ async fn delete_all_agents_public_helper() {
     );
     drop(host);
     drop(context);
-    pool.write_pool().close().await;
-    drop(pool);
-    database.drop_now().await;
 }
 
 #[test]

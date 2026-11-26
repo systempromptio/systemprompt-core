@@ -298,3 +298,11 @@ pub fn issues_state(
         &state,
     )?)
 }
+
+pub fn admitted_metrics() -> Vec<systemprompt_extension::health::MetricDescriptor> {
+    systemprompt_test_fixtures::fixture_admitted()
+        .built()
+        .members()
+        .flat_map(|member| member.sink.metrics().iter().copied())
+        .collect()
+}

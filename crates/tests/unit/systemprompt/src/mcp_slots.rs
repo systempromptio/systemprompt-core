@@ -225,7 +225,10 @@ fn a_renderer_is_built_only_on_the_hosts_it_renders_on() {
 #[test]
 fn mcp_host_opens_the_toolset_slot() {
     let admitted = build(reference()).expect("the reference composition admits");
-    assert_eq!(slot_owners::<ToolsetSlot>(&admitted), ["mcp_host"]);
+    assert_eq!(
+        slot_owners::<ToolsetSlot>(&admitted),
+        ["mcp_host", "documents", "issues"]
+    );
 }
 
 #[test]

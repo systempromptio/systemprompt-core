@@ -122,8 +122,12 @@ async fn a_toolset_disabled_in_this_installation_fails_the_build() {
     let ctx = ctx().await;
     let err = build_server(&ctx, &McpServerId::new("host_issues")).expect_err("disabled");
     assert!(
-        matches!(err, McpHostError::Build { ref toolset, .. } if toolset == ISSUES_TOOLSET),
-        "{err:?}"
+        matches!(
+            err,
+            McpHostError::UnknownToolset { ref toolset, ref registered, .. }
+                if toolset == ISSUES_TOOLSET && !registered.contains(ISSUES_TOOLSET)
+        ),
+        "a disabled issues member registers no toolset: {err:?}"
     );
 }
 
@@ -147,7 +151,7 @@ async fn a_toolset_no_crate_registers_is_refused() {
             ..
         } => {
             assert_eq!(toolset, "no_such_toolset");
-            assert!(registered.contains(ISSUES_TOOLSET), "{registered}");
+            assert!(registered.contains("documents"), "{registered}");
         },
         other => panic!("expected UnknownToolset, got {other:?}"),
     }

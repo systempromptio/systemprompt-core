@@ -93,6 +93,7 @@ pub const ALL: &[&str] = &[
     CALLER_PURPOSE,
     MCP_SERVER,
     MCP_HOP,
+    CREDENTIAL_BROKER,
     MEMORY,
     MEMORY_IDS,
     RECOVERY_COUNT,
