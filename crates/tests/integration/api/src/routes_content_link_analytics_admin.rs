@@ -9,11 +9,12 @@ use std::net::SocketAddr;
 use axum::body::Body;
 use axum::extract::ConnectInfo;
 use axum::http::{Request, header};
+use systemprompt_api::services::server::routes::Composed;
 use systemprompt_api::services::server::{ReadinessState, setup_api_server};
 use systemprompt_database::DbPool;
 use systemprompt_test_fixtures::{
-    ensure_test_bootstrap, fixture_app_context_with_config, fixture_config, seed_admin_credential,
-    seed_bridge_credential, test_db_pool,
+    ensure_test_bootstrap, fixture_app_context_with_extensions, fixture_config,
+    seed_admin_credential, seed_bridge_credential, test_db_pool,
 };
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -31,9 +32,18 @@ async fn boot() -> anyhow::Result<(axum::Router, DbPool)> {
     let pool = test_db_pool().await;
     let mut config = fixture_config(&bootstrap.database_url);
     config.cors_allowed_origins = vec!["http://127.0.0.1".to_owned()];
-    let ctx = fixture_app_context_with_config(&pool, config)?;
-    let router = setup_api_server(&ctx, None, &std::sync::Arc::new(ReadinessState::new()))
-        .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
+    let ctx = fixture_app_context_with_extensions(config, super::common::reference_admitted(&[])?)
+        .await?;
+    let router = setup_api_server(
+        &ctx,
+        Composed {
+            admitted: ctx.admitted(),
+            kernel: ctx.kernel(),
+        },
+        None,
+        &std::sync::Arc::new(ReadinessState::new()),
+    )
+    .map_err(|e| anyhow::anyhow!("setup_api_server failed: {e}"))?;
     Ok((router, pool))
 }
 
