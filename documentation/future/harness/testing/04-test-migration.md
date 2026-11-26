@@ -1,10 +1,10 @@
 # Migrating the reference agent's tests
 
-The reference agent ships a large test suite, including tests for its desktop application. Every behaviour those tests assert that applies to the harness is re-expressed as a Rust test in the harness test workspace, so parity is something the suite checks on every run.
+The reference agent ships a large test suite, including tests for its desktop application. Every behaviour those tests assert that applies to the harness is re-expressed as a Rust test, in core's test workspace for engine and device behaviour and in the template for shell behaviour, so parity is something the suite checks on every run.
 
 ## 1. What the reference suite contains
 
-A first survey, taken from a downstream fork of the reference agent and therefore an **upper bound**: some files belong to the fork, not to the reference. Lane S0-A4 repeats it against the public repository at the pinned tag and replaces this table.
+A first survey, taken from a downstream fork of the reference agent and therefore an **upper bound**: some files belong to the fork, not to the reference. Lane S0-A5 repeats it against the public repository at the pinned tag and replaces this table.
 
 | Area | Test files (upper bound) | Kind | Applies to the harness |
 |---|---|---|---|
@@ -23,7 +23,7 @@ The reference suite also contains two things worth learning from rather than por
 
 ## 2. The catalogue
 
-One row per reference test case, produced by S0-A4 and maintained as a data file beside the migrated tests.
+One row per reference test case, produced by S0-A5 and maintained as a data file beside the migrated tests.
 
 | Column | Content |
 |---|---|
@@ -70,7 +70,7 @@ The reference desktop application is a browser runtime with a native main proces
 | Deep-link parsing and routing | Deep-link handling | Shell tests |
 | Window state persistence and restore | Window placement | Shell tests |
 | Installer and build configuration | Packaging inputs from the brand declaration | Brand and packaging tests |
-| Auto-update flow | Deferred to S6, where the update slice arrives | — |
+| Auto-update flow | Deferred to S5, where the update slice arrives | — |
 | Main-to-renderer messaging, context isolation, embedded-browser security settings | None: there is no embedded browser. `not-applicable` | — |
 | Renderer components | The corresponding native view's state logic | Shell tests |
 
@@ -86,14 +86,14 @@ Migration is split so several lanes work at once on disjoint paths (`../stages/s
 
 | Batch | Areas | Path |
 |---|---|---|
-| 1 | File tools, search, patch, shell | `tests/migrated/tools/` |
-| 2 | Agent loop, sessions, permissions, configuration | `tests/migrated/session/`, `tests/migrated/config/` |
-| 3 | Model clients, MCP, LSP | `tests/migrated/llm/`, `tests/migrated/mcp/`, `tests/migrated/lsp/` |
-| 4 | Desktop process and views | `tests/migrated/desktop/` |
+| 1 | File tools, search, patch, shell | core test workspace, `migrated/tools/` |
+| 2 | Agent loop, sessions, permissions, configuration | core, `migrated/session/`, `migrated/config/` |
+| 3 | Model clients, MCP, LSP | core, `migrated/llm/`, `migrated/mcp/`, `migrated/lsp/` |
+| 4 | Desktop process and views | template, `extensions/harness/tests/migrated/desktop/` |
 | Later | Anything classified `defer` | With the stage that delivers the feature |
 
 ## 7. Keeping parity over time
 
-- The pinned reference version is raised deliberately, by a person. Raising it reruns S0-A4's survey as a diff: new cases are added as `open` rows.
+- The pinned reference version is raised deliberately, by a person. Raising it reruns S0-A5's survey as a diff: new cases are added as `open` rows.
 - The stage gate fails if a `port` row is `open`.
 - The catalogue's case count is asserted by the migrated suites, so a test that is deleted or stops running is noticed.

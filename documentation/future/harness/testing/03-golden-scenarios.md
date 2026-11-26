@@ -5,7 +5,7 @@ A golden scenario is a whole session with a known script and a known outcome. Th
 ## 1. Anatomy of a scenario
 
 ```
-tests/golden/scenarios/<id>/
+golden/scenarios/<id>/          (core's test workspace)
   scenario.toml      id, title, what it proves, permission mode, which products run it
   workspace/         the fixture project the session works in
   prompt.txt         the user's message (and any follow-up or steering messages)
@@ -47,7 +47,7 @@ Twenty-four scenarios. Each runs on both wire protocols.
 | 23 | Compaction | Crossing the headroom triggers a summary with the fixed sections and a verbatim tail |
 | 24 | Revert to a message | Files return to the snapshot; later messages removed |
 
-Later sets, added by the stages that need them: an MCP tool over stdio and over HTTP against a local test server; a fetch against a local server; LSP diagnostics after an edit against a stub language server; managed skills, rules and a managed MCP server arriving by manifest; each managed host's profile (S5).
+Later sets, added by the stages that need them: an MCP tool over stdio and over HTTP against a local test server; a fetch against a local server; LSP diagnostics after an edit against a stub language server; managed skills, rules and a managed MCP server arriving by manifest; each managed host's profile (S4).
 
 ## 3. The normalised trace
 
@@ -83,7 +83,7 @@ Normalisation rules:
 
 ## 4. Running a scenario through the harness
 
-Through the headless `run` command added in S2-A2, which uses the same engine, governor and tools as the window:
+Through the headless `run` command added in S2-A2, which uses the same engine, governor and tools as the window. The suite lives in core's test workspace and runs on Windows, macOS and Linux:
 
 1. Start the scripted instance with the scenario's manifest, turns and verdicts.
 2. Create a fresh data root; sign in with `login --stdin` and the instance's test PAT.
@@ -95,7 +95,7 @@ Through the headless `run` command added in S2-A2, which uses the same engine, g
 
 ## 5. Running a scenario through the reference agent
 
-In the parity job only, on one system:
+In the parity job only, on Linux:
 
 1. Install the reference agent from its public release at the pinned version.
 2. Start the scripted instance's binary. The reference agent needs only the model routes; it is configured with a custom provider whose base URL is the scripted instance.
@@ -119,7 +119,7 @@ The comparator writes one row per scenario and protocol, and one row per differe
 | `reference-defect` | The reference agent is wrong and the harness is right. Carries the evidence | — |
 | `unclassified` | Not yet judged | None may remain at a stage gate |
 
-The ledger is generated on every L2 run and attached in the evidence pack. Classifications and their reasons are kept in a reviewed file beside the comparator; a difference that is not in that file is `unclassified` and fails the gate. The counts by classification are published here when S2 closes.
+The ledger is generated on every L2 run, printed to the run's summary, and written into the evidence folder. Classifications and their reasons are kept in a reviewed file beside the comparator; a difference that is not in that file is `unclassified` and fails the gate. The counts by classification are published here when S2 closes.
 
 ## 7. Changing an expected trace
 

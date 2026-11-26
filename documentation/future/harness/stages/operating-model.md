@@ -52,14 +52,14 @@ The costly checks are few and late. A lane never waits on a build of the whole w
 |---|---|---|---|---|
 | **L0 Lane self-check** | Before hand-off | Lane | `cargo check -p <own crate>` for crates it edited, on its own target directory. Nothing else. A lane that only moves files, or only writes data, scripts or documents, runs nothing | Seconds to a few minutes |
 | **L1 Wave gate** | Once, after every lane of the wave is merged | Integrator | Offline `cargo check --workspace --keep-going` of the affected workspace; the source gates; formatting check; the cheap repository gates. No tests, no lints with all targets, no documentation build | Minutes |
-| **L2 Stage gate** | Once, when the last wave of a stage has passed L1 | Integrator, on hosted runners | Lints on all targets; the full test workspace; documentation build; supply-chain checks; the three-system build, test and package jobs; the deterministic suites of `../testing/`; the evidence pack | Tens of minutes of runner time; no local cost |
+| **L2 Stage gate** | Once, when the last wave of a stage has passed L1 | Integrator, on hosted runners; then the evidence run | Lints on all targets; the full test workspace; documentation build; supply-chain checks; the three-system build, test and package jobs; the deterministic suites of `../testing/`. Then, on a real Windows machine and a real macOS machine, the evidence command, run by an agent session attached to them | Tens of minutes of runner time; one evidence run per machine |
 
 Rules:
 
 - **Nothing above L0 runs inside a lane.** No test run, no all-targets lint, no documentation build, no packaging.
 - **L1 runs once per wave**, not once per lane. If it fails, the integrator sorts failures by owning lane and sends **one** message per lane.
 - **L2 runs once per stage.** A stage with a known-risky wave may add one early L2 run, named in its stage file; no other early runs.
-- **Hosted runners are the proof** for Windows and macOS. No local machine stands in for them.
+- **Hosted runners prove build and tests** on Windows, macOS and Linux. **Real machines prove the product**: the evidence run is the only place screenshots come from.
 - **A red L2 is the next thing to fix.** No new wave opens on top of it.
 - **A failure that repeats is not a flake.** It gets its own lane with a deliberate reproduction.
 - **No real inference, ever.** Any suite that would call a model provider uses the scripted instance (`../testing/02-scripted-instance.md`).
@@ -87,6 +87,7 @@ No agent performs these; a stage file lists which apply.
 - Any release, publish, signing identity or certificate.
 - Any deploy; any rollout to an installed fleet; any change to an instance's minimum client version.
 - Any spend.
+- Linking a machine to an agent session for an evidence run.
 
 ## 9. Where things are recorded
 
@@ -96,4 +97,4 @@ No agent performs these; a stage file lists which apply.
 | Decisions | `../risks-and-decisions.md` |
 | Specification changes found during work | The relevant `architecture/` file, in the same change |
 | Lane briefs and hand-off notes | With the integrator, outside the repository; they are working files, not documentation |
-| Evidence from L2 runs | The run's own attachments and summary (`../testing/05-evidence.md`); never committed |
+| Evidence | A local, untracked folder on each machine, reported by the agent that ran it (`../testing/05-evidence.md`); never committed, never stored by a workflow |

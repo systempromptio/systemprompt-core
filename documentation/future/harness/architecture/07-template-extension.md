@@ -33,12 +33,12 @@ packaging/      windows, macos, linux; reads `package --describe`
 - `main.rs` is one line: `composition().run()`.
 - The composition names core's slices by feature and adds the extension's members.
 
-The template ships two named compositions, both built on every push:
+The template ships two named compositions, both built on every push. A product name is a brand declaration, not a codebase:
 
 | Composition | Slices | Purpose |
 |---|---|---|
 | `harness` | Reference harness, plus `proxy` and the `host-*` slices | The full product |
-| `agents-only` | `device`, `proxy`, every `host-*`, `machine`, `tray`, `update` | The bridge's successor |
+| `bridge` | `device`, `proxy`, every `host-*`, `machine`, `tray`, `update` | The bridge's successor, under the existing `systemprompt-bridge` product and binary name |
 
 ## 3. Flavour
 
@@ -70,4 +70,4 @@ The template is MIT. `extensions/harness/*` is MIT. It links core's BUSL-1.1 cra
 
 ## 7. Toolkit
 
-`gpui-kit` is pinned at `=0.9.1`. Five unmaintained-crate advisories arrive only through it; they are recorded in the template's `deny.toml` with reasons, not core's. Type-erased contributed views and Linux (Wayland and X11) support are **unverified** for this pin; S3 prototypes one contributed view and S6 gates Linux desktop on the result.
+`gpui-kit` is pinned at `=0.9.1`. Five unmaintained-crate advisories arrive only through it; they are recorded in the template's `deny.toml` with reasons, not core's. Type-erased contributed views and Linux (Wayland and X11) support are **unverified** for this pin. S3 prototypes one contributed view. Linux desktop is a requirement: if the pin does not support it, S5 raises or patches the pin and re-checks every view.

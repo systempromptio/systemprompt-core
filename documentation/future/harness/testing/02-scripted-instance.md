@@ -2,7 +2,7 @@
 
 A test-support crate that stands in for a systemprompt instance and for the model behind it. It serves exactly what a test scripts and records exactly what it receives.
 
-Location: `extensions/harness/tests/support/scripted-instance/`. It is a library, started in-process by a test on an ephemeral loopback port, and also a small binary so the reference agent and the packaged app can be pointed at it from a workflow step.
+Location: core's test workspace. It is a library, started in-process by a test on an ephemeral loopback port, and also a small binary so the reference agent and the packaged app can be pointed at it. The template's tour uses that binary, built from the core checkout the template is patched to.
 
 Starting point for the model half: core's `mock-inference` test crate, which already serves fixed responses in both wire protocols with latency and failure modes. That crate is built for load testing and returns one fixed reply; this one is scripted per request. They may later share the stream encoders.
 

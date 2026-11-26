@@ -13,7 +13,7 @@ There is no harness release line. Governed device code releases inside core; the
 ### 1.2 After
 
 1. Core releases `0.N.0` and publishes its crates, device crates included. **No binary is built.**
-2. Template lane: bump the core pin; build every flavour including `harness`; sign and publish the reference artefacts (`harness` and `agents-only`) for three systems; generate the Homebrew, Scoop, APT and RPM manifests.
+2. Template lane: bump the core pin; build every flavour including `harness`; sign and publish the reference artefacts (`harness` and `bridge`) for three systems; generate the Homebrew, Scoop, APT and RPM manifests.
 3. Install lanes: bump the pin; build the server image and the branded desktop artefacts in one release, signed with the install's identity.
 
 What disappears: the bridge workspace and lockfile, the lint mirror, the native matrix on every push, `coverage-bridge.yml`, the signing workflow in core, the second branded build, the manual manifest updates.
@@ -50,11 +50,11 @@ The one step users see. Installed fleets exist, some of more than a hundred devi
 | Last-sync sentinel with `AutoUpdatePolicy` | Brand data dir | Keep; update policy is fail-closed without it |
 | MCP registry snapshot | Brand data dir | Keep |
 
-**Decision to take before S7:** keep the bridge's on-disk layout as the device layout (no import step at all; the harness repository's `%LOCALAPPDATA%\<vendor>\<product>[ channel]` layout is dropped), or move to a new layout with a one-time import. Recommendation: keep the bridge's layout. It removes the riskiest part of the handover, and no harness install exists to migrate.
+**Decided: one layout.** The device build uses a single, channel-aware data root per brand (`<local data>/<vendor>/<product>[ channel]/{data,config,cache,state,tmp}` on Windows, the platform's equivalent elsewhere). An installed bridge's data is imported into it once, at the handover, and the old tree is removed. Administrator-owned locations (the machine policy location, the trust record, the policy writer's directory) do not move. The "handover action" column above reads accordingly: *import* for user data, *unchanged* for administrator locations, and the loopback secret is carried byte for byte so existing scoped tokens stay valid.
 
 ### 2.2 Self-managed machines
 
-1. A final bridge release `0.N.x` whose updater's next version is the template-built `agents-only` binary under the same brand.
+1. A final bridge release `0.N.x` whose updater's next version is the template-built `bridge` composition under the same product and binary name.
 2. The updater stages it under the existing organisation `AutoUpdatePolicy`; a policy that withholds updates withholds this one.
 3. The successor waits for the predecessor to exit (the bridge's `takeover` logic), then on first start: verifies it can read the sealed PAT and loopback secret; re-registers scheduler entries; rewrites binary paths in host profiles; runs `validate`; only then removes the old binary.
 4. Any failed step leaves the old binary in place and reports through the heartbeat. A handover never leaves a machine with no working credential helper.
@@ -65,11 +65,11 @@ The one step users see. Installed fleets exist, some of more than a hundred devi
 2. An elevated `install --apply` from the new binary re-registers the policy-writer task and refreshes the administrator-owned copy. Without elevation the writer is absent and connector changes fall back to the approval prompt, as today; `doctor` reports it.
 3. Rollout is staged by the administrator; the admin Devices page shows each device's reported wire version and composition digest.
 
-### 2.4 Deprecation window
+### 2.4 No fixed deprecation window
 
-- The last bridge keeps working against instances for a stated number of core minors (recommendation: two) after the handover release.
-- The gateway's `min_bridge_version` floor ends it. Raising the floor is an operator act per instance.
-- Only after every known fleet has moved is `bin/bridge` deleted from core (S7).
+- The last bridge keeps working against instances until each known fleet's owner confirms it has moved.
+- The bridge build stays in core until then.
+- The gateway's minimum-client-version floor is raised per instance by its operator once its fleet has confirmed.
 
 ### 2.5 Tests before any real handover
 

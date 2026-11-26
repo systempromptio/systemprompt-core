@@ -6,7 +6,7 @@
 
 | Claim | Shown by |
 |---|---|
-| The harness builds, installs and starts on Windows and macOS | The three-system workflow; the screenshot tour (`05-evidence.md`) |
+| The harness builds, installs and starts on Windows and macOS | The three-system workflows; the screenshot tour run on real machines (`05-evidence.md`) |
 | Its engine does the right thing for a given model output | Golden scenarios (`03-golden-scenarios.md`) |
 | It is at least as capable as the reference agent where they overlap | The parity ledger (`03-golden-scenarios.md` section 6) and the migrated test catalogue (`04-test-migration.md`) |
 | Every model call and tool call is governed | Scenarios whose expected trace includes the signing headers, the verdict call and the telemetry events, asserted from the scripted instance's request log |
@@ -27,10 +27,10 @@ Nothing of it is linked, vendored or copied into the harness. Names of other pro
 | Scripted-instance tests | Sign-in, key trust, sync, acceptance, heartbeat, telemetry against a mock instance | About 40 planned | L2 |
 | Golden scenarios | A whole session: prompt in, scripted turns, tools run, end state | 24 in the first set | L2, Windows and macOS |
 | Parity comparison | The same scenarios through the reference agent; differences classified | Same 24 | L2, one system is enough |
-| Screenshot tour | The packaged app in each state on a list | About 20 states | L2, Windows and macOS |
+| Screenshot tour | The packaged app in each state on a list | About 20 states | Stage closure, by an agent on real Windows and macOS machines |
 | Manual walk | What no runner can show: elevation prompts, real keyrings across restarts, real displays | A written list | Before a fleet handover |
 
-All of it lives in the harness test workspace and reaches production crates only through their public API. No test-only feature, module or environment switch exists in a production crate.
+Engine and device suites live in core's test workspace; shell suites and the tour live in the template. All reach production crates only through their public interface. No test-only feature, module or environment switch exists in a production crate.
 
 ## 4. Why no inference is needed
 
@@ -59,6 +59,6 @@ What this does **not** test is prompt quality: whether a real model, given the h
 |---|---|
 | S1 | Unit and crate tests on three systems |
 | S2 | All of the above, golden scenarios, parity ledger classified, migrated tests, screenshot tour |
-| S3 to S8 | Everything S2 established, unchanged, plus what the stage adds |
+| S3 to S7 | Everything S2 established, unchanged, plus what the stage adds |
 
 A stage that needs to change an existing scenario's expected trace says so in its stage file and has the change reviewed. Expected traces are not regenerated in bulk.

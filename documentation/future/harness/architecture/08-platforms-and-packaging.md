@@ -1,6 +1,6 @@
 # 08. Platforms and packaging
 
-Target: Windows, macOS and Linux. Linux comes first, headless, because the engine and the proxy need no window and a Linux `run` and `serve` are what servers and the `agent-runs` adapter need.
+Target: Windows, macOS and Linux, each with a desktop window. Linux comes first, headless, because the engine and the proxy need no window and a Linux `run` and `serve` are what servers and the `agent-runs` adapter need.
 
 ## 1. Starting points
 
@@ -31,7 +31,7 @@ Stubs are replaced by a `platform` module per concern with one trait and three r
 | Shell for the tool | PowerShell 7, Git Bash, Windows PowerShell, cmd | `zsh`, `bash`, `sh` | `bash`, `sh` | `engine` |
 | Output decoding | Console code pages | UTF-8 | Locale charset | `engine` |
 | Child-tree kill | Job objects | Process groups | Process groups, `PR_SET_PDEATHSIG` | `engine` |
-| Window, tray, notifications | Toolkit; tray | Toolkit; menu-bar item | Toolkit on Wayland and X11 (**to verify**); tray where the desktop has one | extension `shell` |
+| Window, tray, notifications | Toolkit; tray | Toolkit; menu-bar item | Toolkit on Wayland and X11, required (**to verify**; if the pinned version does not support it, the pin is raised or patched); tray where the desktop has one | extension `shell` |
 
 Each product must carry its own identity across all of these: app id, URL scheme, data root, task names. They come from `BrandDecl`, so two brands and several channels install side by side.
 
@@ -45,7 +45,7 @@ Owned by the extension. Core produces no artefact.
 | macOS universal | `.app` in a `.dmg`; `.pkg` for MDM | Developer ID, notarization | Homebrew tap, direct download, MDM |
 | Linux x64, arm64 | Static headless binary; AppImage, `.deb`, `.rpm` for desktop | Detached signature | Existing APT and RPM repositories |
 
-- `release-sign.yml` (CycloneDX SBOMs, provenance attestation, cosign keyless, GitHub release) moves from core to the template with its certificates and secrets. Installs copy it and sign with their own identity. Core never signs a fork.
+- `release-sign.yml` (CycloneDX SBOMs, provenance attestation, cosign keyless, GitHub release) moves from core to the template. The reference builds are signed with the identities the bridge release uses today; installs copy the workflow and sign their own brand with their own identity. Core never signs a fork.
 - Packaging scripts read identity from `<binary> package --describe` (JSON from `BrandDecl`). The brand table exists once; today the harness writes it twice.
 - Homebrew and Scoop manifests are generated in the release job, ending the manual drift.
 - Nothing ships unsigned once an external user exists.

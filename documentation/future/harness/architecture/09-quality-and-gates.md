@@ -8,7 +8,7 @@ The device code meets core's standards because it *is* core. The extension meets
 |---|---|
 | Core device crates | Core's `scripts/check-gates.txt` (54 gates today), on the same push run as the rest of core |
 | `extensions/harness/*` in the template and installs | The install-side lint the `future` design plans, consumed by core version |
-| The harness repository's 29 forked scripts | Deleted with the repository |
+| The harness repository's 29 forked scripts | Deleted with the repository; the few with no core equivalent are merged into core's or the template's in S1 |
 | The bridge's 13 `lint-bridge-*` scripts | Folded in or retired (section 3) |
 
 Gates that cannot apply to device crates (`check-sqlx`, `lint-migrations`, `lint-extensions`, `lint-repo-construction`) are scoped by path in one list with the reason. An absent gate is a decision, not an omission.

@@ -4,18 +4,19 @@ Status: specification draft. The Rust below is shape, not final signatures; S3 f
 
 ## 1. Shared machinery with the server
 
-`systemprompt-extension` is split by feature, not by a new crate:
+Decided: the machinery moves down a crate; no cargo feature separates server from device.
 
-| Feature | Contents | Extra dependencies |
-|---|---|---|
-| default (neutral) | `ExtensionMetadata`, `StandingTag`, `Slot`, `SlotOrder`, `Resolved`, `FromState`, `Factory`, `ProvideFn`, `LateBound` cells, `ContributionError`, `AbsentDependency`, dependency ordering, withhold-dependants | None beyond `traits`, `identifiers`, `provider-contracts` |
-| `server` | Today's `Contributions` sink: schemas, migrations, purge, reseal, retention, config planes | `pg_query`, `manifest`, `schemars`, `models` |
-| `router`, `cli`, `mcp`, `sqlx` | As today; imply `server` where they need it | As today |
-| `device` | `HarnessContributions`, device reserved shapes, device admission | None heavy |
+| Crate | Holds after the change |
+|---|---|
+| `systemprompt-provider-contracts` | The composition machinery both sides use: `ExtensionMetadata`, `StandingTag`, `Slot`, `SlotOrder`, `Resolved`, `FromState`, `Factory`, `ProvideFn`, late-bound cells, `ContributionError`, `AbsentDependency`, dependency ordering, withhold-dependants |
+| `systemprompt-extension` | The server sink (schemas, migrations, purge, reseal, retention, routes, commands) and a re-export of the machinery, so no server crate changes an import |
+| `systemprompt-harness` | The device sink (`HarnessContributions`), device reserved shapes, device admission |
 
-Fallback if the split is too invasive (30 crates depend on `extension`): move the neutral types down into `systemprompt-provider-contracts`, which already owns `Dependencies` and `StateRequirement`.
+Why not a feature split of `systemprompt-extension`: cargo merges features across a workspace build, so inside core a `server` feature would always be on and a device crate that wrongly used a server type would still compile. With the machinery in a lower crate the compiler enforces the boundary through the crate graph.
 
-Acceptance: a crate depending on `systemprompt-extension` with `default-features = false, features = ["device"]` links no `pg_query`, `sqlx`, `axum` or `clap`. Measured in the build report.
+One untangling is required: the state type currently names a database handle. That reference moves to the server side.
+
+Acceptance: `systemprompt-harness` and everything it depends on link no SQL parser, database driver or HTTP-server crate. The closure gate proves it.
 
 ## 2. The member trait
 

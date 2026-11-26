@@ -20,21 +20,28 @@ Where a capability has a device presence (Drive, Brain, issues, agent runs, noti
 
 ## 3. Where device crates sit in core
 
-Proposal for review before S4 (design item, not decided). Core's five layers hold, with device crates as peers that the server kernel never names.
+Decided: eight new crates. Core's five layers hold, with device crates as peers that the server kernel never names.
 
-| Layer | Device crates | Notes |
+| Layer | Crate | Holds |
 |---|---|---|
-| shared | `models::bridge` (wire types, host identity, extension-host descriptors), `identifiers`, `wire`, the neutral part of `extension`, `client` (typed instance calls) | Already the layer the bridge links |
-| infra | `device` (sign-in, keyrings, config and policy stores, manifest fetch, verification, acceptance, apply, ledgers), `machine` (install, MDM, policy writer, elevation, scheduler, ACLs), `platform` modules | Operating-system code lives here and only here |
-| domain (device peers) | `engine`, `proxy`, host integrations (`host-claude`, `host-codex`, `host-opencode`, `host-hermes`), `drive`, `update`, `runner` | Peers: no device-domain to device-domain dependency; they meet through slots and shared traits |
-| app | `harness` (the device composition: `HarnessComposition`, declare, admit, run, roles) | The device counterpart of `runtime` |
-| entry | None in core. The binary is the extension's | Core builds no device binary |
+| shared | existing `models::bridge`, `identifiers`, `wire`, `client`, `traits` | Wire types, host identity, extension-host descriptors, typed ids, typed instance calls, owned tasks |
+| shared | existing `provider-contracts` | The composition machinery shared with the server: slots, standing, typed state, admission |
+| infra | `systemprompt-device` | Sign-in, keyrings, config and policy stores, manifest fetch, verification, acceptance, apply, ledgers, platform modules |
+| infra | `systemprompt-machine` | Install, device-management snippets, policy writer, elevation, scheduler, ACLs; `lockdown` as a feature |
+| domain | `systemprompt-engine` | Agent loop, tools, MCP, LSP, workspace, store, configuration, prompts, model transport |
+| domain | `systemprompt-proxy` | Loopback proxy, loopback secret, scoped tokens, heartbeat, usage |
+| domain | `systemprompt-hosts` | The host contract; one feature per product: `claude`, `codex`, `opencode`, `hermes` |
+| domain | `systemprompt-drive` | Folder sync |
+| domain | `systemprompt-runner` | Headless adapters, shared with the server's agent runs |
+| app | `systemprompt-harness` | The device composition, the member contract and sink, the governor, projection, update, commands |
+| entry | none in core | The binary is the extension's |
 
 Constraints:
 
-- `lint-layers` extends to these crates with an empty allowlist.
-- A new closure gate: server kernel crates name no device crate and device crates name no server crate above `shared`. The two closures meet only in `shared`.
-- Crate count is a known cost. Expand existing crates where one already owns the concern (`client`, `models`, `identifiers`, `traits`); add a crate only where a layer rule or a platform dependency forces it. The list above is an upper bound; `../stages/overview.md` S5 fixes the real list.
+- The layer gate extends to these crates with an empty allowlist. Device-domain crates are peers: they meet through slots and shared traits, never by depending on each other.
+- A closure gate: server kernel crates name no device crate, and device crates name no server crate above `shared`. The two closures meet only in `shared`.
+- Inside `systemprompt-engine`, a module-layer gate keeps the order `config`, `store`, `llm`, `tools`, `mcp`, `workspace`, `lsp`, `prompt`, `run`.
+- All eight are published with core.
 
 ## 4. Slices
 
@@ -46,7 +53,7 @@ Each kernel member is a facade feature of `systemprompt`, so a build links only 
 | `governor` | Model-call signing, verdicts, telemetry, model list | `device` | Core, reserved |
 | `engine` | Native agent loop, tools, MCP, LSP, store | `governor` | Core, optional |
 | `proxy` | Loopback proxy, loopback secret, scoped tokens | `device` | Core, reserved |
-| `host-claude`, `host-codex`, `host-opencode`, `host-hermes` | One host integration each | `proxy` | Core, optional |
+| `host-claude`, `host-codex`, `host-opencode`, `host-hermes` | One host integration each (features of `systemprompt-hosts`) | `proxy` | Core, optional |
 | `machine` | Install, MDM, policy writer, drift repair | `device` | Core, optional |
 | `lockdown` | Enforced machine policy | `machine` | Core, optional |
 | `runner` | Start and observe sessions in other agents | The host slices it drives | Core, optional |
@@ -62,7 +69,7 @@ Each row is a deployment and nothing but a list of slices. Each is a named compo
 | Govern Claude Code and Claude Desktop | `device`, `proxy`, `host-claude`, `machine`, `tray` | Tray |
 | Govern Codex | `device`, `proxy`, `host-codex`, `tray` | Tray |
 | Govern OpenCode | `device`, `proxy`, `host-opencode`, `tray` | Tray |
-| No harness, manage coding agents only | `device`, `proxy`, every `host-*`, `machine`, `tray`, `update` | Tray or none. This is today's bridge |
+| The bridge: no harness, manage coding agents only | `device`, `proxy`, every `host-*`, `machine`, `tray`, `update` | Tray or none. This is today's bridge |
 | Headless on a server or in CI | `device`, `proxy`, chosen `host-*` | None (`serve`) |
 | Reference harness | `device`, `governor`, `engine`, `shell`, `drive`, `update` | Full |
 | Harness and bridge together | The two rows above combined | Full, with a hosts page |
