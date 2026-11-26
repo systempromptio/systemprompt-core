@@ -104,8 +104,8 @@ async fn an_admin_reaches_the_link_analytics_handlers() -> anyhow::Result<()> {
             .await?
             .status();
         assert!(
-            status.as_u16() != 401 && status.as_u16() != 403,
-            "{template} refuses an admin: {status}"
+            ![401, 403, 404].contains(&status.as_u16()),
+            "{template} does not reach its handler for an admin: {status}"
         );
     }
     Ok(())
