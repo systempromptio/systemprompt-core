@@ -82,7 +82,7 @@ impl ContentFileRepository {
             ON CONFLICT (content_id, file_id, role) DO UPDATE
             SET display_order = $4
             "#,
-            content_id.as_str(),
+            content_id as _,
             file,
             role.as_str(),
             display_order,
@@ -96,7 +96,7 @@ impl ContentFileRepository {
         let file = file_uuid(file_id)?;
         sqlx::query!(
             "DELETE FROM content_files WHERE content_id = $1 AND file_id = $2",
-            content_id.as_str(),
+            content_id as _,
             file,
         )
         .execute(self.write_pool.as_ref())
@@ -112,7 +112,7 @@ impl ContentFileRepository {
             WHERE content_id = $1
             ORDER BY display_order ASC, created_at ASC
             "#,
-            content_id.as_str(),
+            content_id as _,
         )
         .fetch_all(self.pool.as_ref())
         .await?;
@@ -135,7 +135,7 @@ impl ContentFileRepository {
             WHERE content_id = $1 AND role = $2
             ORDER BY display_order ASC, created_at ASC
             "#,
-            content_id.as_str(),
+            content_id as _,
             ContentFileRole::Featured.as_str(),
         )
         .fetch_all(self.pool.as_ref())
@@ -192,7 +192,7 @@ impl ContentFileRepository {
         sqlx::query!(
             "UPDATE content_files SET role = $1 WHERE content_id = $2 AND role = $3",
             ContentFileRole::Attachment.as_str(),
-            content_id.as_str(),
+            content_id as _,
             ContentFileRole::Featured.as_str(),
         )
         .execute(&mut *tx)
@@ -201,7 +201,7 @@ impl ContentFileRepository {
             "UPDATE content_files SET role = $1 WHERE file_id = $2 AND content_id = $3",
             ContentFileRole::Featured.as_str(),
             file,
-            content_id.as_str(),
+            content_id as _,
         )
         .execute(&mut *tx)
         .await?;

@@ -79,17 +79,11 @@ pub struct Resolved<'a> {
     withhold_sealed: bool,
     viewer: Option<RouteViewer<'a>>,
     commander: Option<RouteViewer<'a>>,
-    scope: Option<Scope<'a>>,
+    scope: Option<RouteViewer<'a>>,
 }
 
 #[derive(Debug, Clone, Copy)]
 struct RouteViewer<'a> {
-    owner: &'a ExtensionId,
-    standing: StandingTag,
-}
-
-#[derive(Debug, Clone, Copy)]
-struct Scope<'a> {
     owner: &'a ExtensionId,
     standing: StandingTag,
 }
@@ -122,7 +116,7 @@ impl<'a> Resolved<'a> {
             withhold_sealed: false,
             viewer: None,
             commander: None,
-            scope: Some(Scope {
+            scope: Some(RouteViewer {
                 owner: scope.owner(),
                 standing: scope.standing(),
             }),
@@ -189,7 +183,7 @@ impl<'a> Resolved<'a> {
     {
         let scope = match self.scope {
             Some(current) if current.standing == StandingTag::Install => current,
-            _ => Scope { owner, standing },
+            _ => RouteViewer { owner, standing },
         };
         Resolved {
             access: self.access,

@@ -2,7 +2,7 @@
 
 use systemprompt_cloud::profile_authoring::{CloudProfileBuilder, LocalProfileBuilder};
 use systemprompt_identifiers::TenantId;
-use systemprompt_loader::workspace::profile::generate_display_name;
+use systemprompt_loader::workspace::display_name::generate_display_name;
 use systemprompt_manifest::profile::{
     AuthzMode, SecretsSource, SecretsValidationMode, TrustedIssuer,
 };

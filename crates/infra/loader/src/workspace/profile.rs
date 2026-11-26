@@ -296,23 +296,3 @@ pub struct ProfileInfo {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_status: Option<String>,
 }
-
-#[must_use]
-pub fn generate_display_name(name: &str) -> String {
-    match name.to_lowercase().as_str() {
-        "dev" | "development" => "Development".to_owned(),
-        "prod" | "production" => "Production".to_owned(),
-        "staging" | "stage" => "Staging".to_owned(),
-        "test" | "testing" => "Test".to_owned(),
-        "local" => "Local Development".to_owned(),
-        "cloud" => "Cloud".to_owned(),
-        _ => capitalize_first(name),
-    }
-}
-
-fn capitalize_first(name: &str) -> String {
-    let mut chars = name.chars();
-    chars.next().map_or_else(String::new, |first| {
-        first.to_uppercase().chain(chars).collect()
-    })
-}

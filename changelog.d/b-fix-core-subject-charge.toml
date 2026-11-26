@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Extension"
+text = "`SubjectCharge::charge` returns the typed `ChargeRefused` (which answers 429 with `Retry-After`) instead of a `Response`. `SealedFilesReport` gains `kept_unopened`. `GatewaySurfaceError::HostUnseeded` is removed. `require_cloud_email`, `resolve_credentialed_user_email`, `resolve_admin_with_fallback` and `fetch_admin_user` take the profile."

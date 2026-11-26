@@ -28,6 +28,20 @@ use super::health_detail::{diagnostics_layer, handle_health_detail};
 use super::probes::{handle_livez, handle_readyz, seed_error};
 use systemprompt_manifest::profile::UiSessionDiscovery;
 
+// JSON: the documents member's discovery block, merged verbatim.
+fn documents_block(ctx: &AppContext, base: &str) -> Result<serde_json::Value, ApiHttpError> {
+    super::boot_steps::documents_kernel(ctx).map_or_else(
+        || Ok(json!({ "enabled": false })),
+        |documents| {
+            documents
+                .discovery(&ctx.kernel().resolved(), base)
+                .map_err(|source| {
+                    ApiHttpError::from(ApiError::internal("documents discovery", source))
+                })
+        },
+    )
+}
+
 // JSON: an outgoing probe/discovery body is an open JSON document.
 pub async fn handle_root_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
@@ -38,14 +52,7 @@ pub async fn handle_root_discovery(
         .get::<Arc<Config>>()
         .map_err(seed_error)?;
     let base = &config.api_external_url;
-    let documents = match super::boot_steps::documents_kernel(&ctx) {
-        Some(documents) => documents
-            .discovery(&ctx.kernel().resolved(), base)
-            .map_err(|source| {
-                ApiHttpError::from(ApiError::internal("documents discovery", source))
-            })?,
-        None => json!({ "enabled": false }),
-    };
+    let documents = documents_block(&ctx, base)?;
     let data = json!({
         "name": format!("{} API", config.sitename),
         "version": env!("CARGO_PKG_VERSION"),

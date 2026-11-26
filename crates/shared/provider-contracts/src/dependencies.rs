@@ -278,26 +278,22 @@ impl Dependencies {
 
 impl fmt::Debug for Dependencies {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut names: Vec<&str> = self.entries.values().map(|e| e.type_name).collect();
-        names.sort_unstable();
-        let mut reserved: Vec<&str> = self.reserved.values().copied().collect();
-        reserved.sort_unstable();
-        let mut withheld: Vec<&str> = self
+        let withheld = self
             .withheld
             .iter()
-            .filter_map(|id| self.reserved.get(id).copied())
-            .collect();
-        withheld.sort_unstable();
-        let mut sealed: Vec<&str> = self.sealed_types().map(|(_, name)| name).collect();
-        sealed.sort_unstable();
-        let mut conferred: Vec<&str> = self.conferred.values().map(|c| c.row).collect();
-        conferred.sort_unstable();
+            .filter_map(|id| self.reserved.get(id).copied());
         f.debug_struct("Dependencies")
-            .field("types", &names)
-            .field("reserved", &reserved)
-            .field("withheld", &withheld)
-            .field("sealed", &sealed)
-            .field("conferred", &conferred)
+            .field("types", &sorted(self.entries.values().map(|e| e.type_name)))
+            .field("reserved", &sorted(self.reserved.values().copied()))
+            .field("withheld", &sorted(withheld))
+            .field("sealed", &sorted(self.sealed_types().map(|(_, name)| name)))
+            .field("conferred", &sorted(self.conferred.values().map(|c| c.row)))
             .finish()
     }
+}
+
+fn sorted<'a>(names: impl Iterator<Item = &'a str>) -> Vec<&'a str> {
+    let mut names: Vec<&str> = names.collect();
+    names.sort_unstable();
+    names
 }

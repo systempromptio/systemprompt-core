@@ -54,16 +54,19 @@ impl DocumentsKernel for DocumentsKernelService {
         &self,
         kernel: &Resolved<'_>,
     ) -> Result<u64, FilesSurfaceError> {
-        let access = crate::resolved_handles(kernel)
-            .map_err(|_unbound| FilesSurfaceError::Unbound)?
-            .access
-            .clone();
+        let access = Arc::clone(
+            &crate::resolved_handles(kernel)
+                .map_err(|_unbound| FilesSurfaceError::Unbound)?
+                .access,
+        );
         access
             .reconcile_folder_entities()
             .await
             .map_err(|source| FilesSurfaceError::Reconcile(Box::new(source)))
     }
 
+    // JSON: the block is merged verbatim into the discovery document, whose
+    // wire shape this member owns.
     fn discovery(
         &self,
         kernel: &Resolved<'_>,

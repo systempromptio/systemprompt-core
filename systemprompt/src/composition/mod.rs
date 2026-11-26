@@ -32,8 +32,8 @@ use std::any::TypeId;
 use std::collections::HashSet;
 
 use systemprompt_extension::contribute::{ContributionSink, Contributions};
-use systemprompt_extension::reserved::{CoreId, PRIVILEGED_SHAPES, PrivilegedShape};
-use systemprompt_extension::{AbsentDependency, Admitted, Extension, StandingTag};
+use systemprompt_extension::reserved::PrivilegedShape;
+use systemprompt_extension::{AbsentDependency, Admitted, Extension};
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_manifest::Profile;
 
@@ -51,119 +51,15 @@ mod http_admission;
 mod providers;
 mod reference;
 mod routes;
+mod standing;
 
 pub use declared::Declared;
 use declared::DeclaredMember;
+pub(super) use standing::{CoreTerms, Member, Standing};
 
 pub use reference::{CORE_MEMBER_IDS, reference};
 
 pub(super) type Conferral = PrivilegedShape;
-
-#[derive(Debug, Clone, Copy)]
-pub(super) struct CoreTerms {
-    pub(super) required: bool,
-    pub(super) core: Option<CoreId>,
-    pub(super) substitutable: &'static [fn() -> TypeId],
-}
-
-impl CoreTerms {
-    pub(super) const OPTIONAL: Self = Self {
-        required: false,
-        core: None,
-        substitutable: &[],
-    };
-    pub(super) const REQUIRED: Self = Self {
-        required: true,
-        core: None,
-        substitutable: &[],
-    };
-
-    #[cfg(any(
-        feature = "files",
-        feature = "content",
-        feature = "analytics",
-        feature = "notifications",
-        feature = "marketplace",
-        feature = "mcp-servers",
-        feature = "agents",
-        feature = "identity",
-        feature = "brain",
-        feature = "cloud",
-        feature = "slack",
-        feature = "teams",
-        all(feature = "api", feature = "files"),
-        all(feature = "api", feature = "ai"),
-        all(feature = "api", feature = "agent-runs"),
-    ))]
-    pub(super) const fn conferred(core: CoreId) -> Self {
-        Self {
-            required: false,
-            core: Some(core),
-            substitutable: &[],
-        }
-    }
-
-    pub(super) fn conferrals(self) -> impl Iterator<Item = &'static Conferral> {
-        PRIVILEGED_SHAPES
-            .iter()
-            .filter(move |shape| Some(shape.owner) == self.core)
-    }
-
-    #[cfg(feature = "cli")]
-    pub(super) fn cli(
-        self,
-    ) -> impl Iterator<Item = &'static systemprompt_extension::reserved::ReservedCliPath> {
-        systemprompt_extension::reserved::RESERVED_CLI_PATHS
-            .iter()
-            .filter(move |reserved| Some(reserved.owner) == self.core)
-    }
-
-    pub(super) fn substitutes(self, ty: TypeId) -> bool {
-        self.substitutable.iter().any(|of| of() == ty)
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub(super) enum Standing {
-    Core(CoreTerms),
-    Install,
-}
-
-impl Standing {
-    pub(super) const fn tag(self) -> StandingTag {
-        match self {
-            Self::Core(_) => StandingTag::Core,
-            Self::Install => StandingTag::Install,
-        }
-    }
-
-    pub(super) const fn terms(self) -> Option<CoreTerms> {
-        match self {
-            Self::Core(terms) => Some(terms),
-            Self::Install => None,
-        }
-    }
-
-    pub(super) const fn required(self) -> bool {
-        matches!(self, Self::Core(CoreTerms { required: true, .. }))
-    }
-}
-
-pub(super) struct Member {
-    pub(super) ext: Box<dyn Extension>,
-    pub(super) standing: Standing,
-    pub(super) type_id: TypeId,
-}
-
-impl Member {
-    pub(super) fn core<E: Extension + Default>(terms: CoreTerms) -> Self {
-        Self {
-            ext: Box::new(E::default()),
-            standing: Standing::Core(terms),
-            type_id: TypeId::of::<E>(),
-        }
-    }
-}
 
 /// The secrets source kinds a composition can name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -300,11 +196,17 @@ impl Composition {
         let declared = self.declare()?;
         let commands = declared.commands();
         let secrets = declared.secrets_sources();
+        #[cfg(feature = "cloud")]
+        let cloud: Option<systemprompt_extension::cli::DynCloudAccess> = Some(std::sync::Arc::new(
+            systemprompt_cloud_entry::cli::access::CloudCliAccess,
+        ));
+        #[cfg(not(feature = "cloud"))]
+        let cloud: Option<systemprompt_extension::cli::DynCloudAccess> = None;
         systemprompt_cli::run_composed(
             systemprompt_models::BuildIdentity::core(),
             &commands,
             secrets,
-            cloud_access(),
+            cloud,
             move |extensions: Option<&systemprompt_manifest::ExtensionsConfig>| {
                 match extensions {
                     Some(extensions) => declared.admit(extensions),
@@ -315,16 +217,4 @@ impl Composition {
         )
         .map_err(RunError::Cli)
     }
-}
-
-#[cfg(all(feature = "cli", feature = "cloud"))]
-fn cloud_access() -> Option<systemprompt_extension::cli::DynCloudAccess> {
-    Some(std::sync::Arc::new(
-        systemprompt_cloud_entry::cli::access::CloudCliAccess,
-    ))
-}
-
-#[cfg(all(feature = "cli", not(feature = "cloud")))]
-const fn cloud_access() -> Option<systemprompt_extension::cli::DynCloudAccess> {
-    None
 }

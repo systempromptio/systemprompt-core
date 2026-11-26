@@ -60,7 +60,10 @@ impl UserProviderCredentialRepository {
             .strip_prefix(systemprompt_traits::MEMBER_CIPHER_ENVELOPE)
             .unwrap_or(sealed)
             .get(..NONCE_HEX_CHARS)
-            .unwrap_or_default();
+            .ok_or_else(|| RepositoryError::InvalidArgument {
+                field: "sealed",
+                reason: "the sealed value is shorter than its nonce".to_owned(),
+            })?;
         let row = sqlx::query_as!(
             UserProviderCredentialMeta,
             r#"

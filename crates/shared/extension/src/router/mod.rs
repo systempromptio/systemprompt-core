@@ -62,9 +62,10 @@ pub use capability::{IntoApiError, capability_response};
 pub use fallback::SiteFallback;
 #[cfg(feature = "router")]
 pub use files_surface::{
-    ClientIpResolver, DocumentRoutes, DocumentsKernel, DriveSurface, DynDocumentsKernel,
-    DynDriveSurface, DynFilesSurface, DynSubjectCharge, FilesHostHandles, FilesRouteState,
-    FilesRoutes, FilesSurface, FilesSurfaceError, SubjectCharge, TokenGate, TokenGatedRoutes,
+    ChargeRefused, ClientIpResolver, DocumentRoutes, DocumentsKernel, DriveSurface,
+    DynDocumentsKernel, DynDriveSurface, DynFilesSurface, DynSubjectCharge, FilesHostHandles,
+    FilesRouteState, FilesRoutes, FilesSurface, FilesSurfaceError, SubjectCharge, TokenGate,
+    TokenGatedRoutes,
 };
 pub use gateway_def::{GatewayDefRefusal, refused_gateway_def};
 #[cfg(feature = "router")]

@@ -22,10 +22,9 @@ use systemprompt_manifest::profile::{
 use systemprompt_manifest::{Environment, LogLevel, OutputFormat, RuntimeConfig, SecurityConfig};
 use systemprompt_models::auth::JwtAudience;
 
-use systemprompt_loader::workspace::profile::generate_display_name;
+use systemprompt_loader::workspace::display_name::generate_display_name;
 
 use crate::constants::profile as consts;
-
 
 fn webhook_governance() -> GovernanceConfig {
     GovernanceConfig {

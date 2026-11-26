@@ -37,8 +37,8 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::extract::ConnectInfo;
-use axum::http::HeaderMap;
-use axum::response::Response;
+use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
+use axum::response::{IntoResponse, Response};
 use systemprompt_traits::{BoxedSource, UserProvider};
 
 use crate::{MissingDependency, Resolved};
@@ -143,9 +143,29 @@ pub enum FilesSurfaceError {
 }
 
 /// A per-subject limiter a handler charges with a key it derives from a
-/// credential it verified; a refusal is the response the handler returns.
+/// credential it verified; a refusal is a [`ChargeRefused`], which answers
+/// 429 with `Retry-After`.
 pub trait SubjectCharge: Send + Sync + std::fmt::Debug {
-    fn charge(&self, key: &str) -> Result<(), Response>;
+    fn charge(&self, key: &str) -> Result<(), ChargeRefused>;
+}
+
+/// A refused [`SubjectCharge::charge`]: the wait before the subject may be
+/// charged again.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ChargeRefused {
+    pub retry_after: std::time::Duration,
+}
+
+impl IntoResponse for ChargeRefused {
+    fn into_response(self) -> Response {
+        let wait = self.retry_after;
+        let secs = (wait.as_secs() + u64::from(wait.subsec_nanos() > 0)).max(1);
+        let mut response = StatusCode::TOO_MANY_REQUESTS.into_response();
+        response
+            .headers_mut()
+            .insert(header::RETRY_AFTER, HeaderValue::from(secs));
+        response
+    }
 }
 
 pub type DynSubjectCharge = Arc<dyn SubjectCharge>;
@@ -168,6 +188,8 @@ pub trait DocumentsKernel: Send + Sync + std::fmt::Debug {
         kernel: &Resolved<'_>,
     ) -> Result<u64, FilesSurfaceError>;
 
+    // JSON: the block is merged verbatim into the discovery document, whose
+    // wire shape the documents member owns.
     fn discovery(
         &self,
         kernel: &Resolved<'_>,

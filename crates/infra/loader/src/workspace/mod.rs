@@ -10,6 +10,7 @@
 //!   [`ProfileSource`](profile::ProfileSource) it came from.
 //! - [`provider_catalog`] — the gateway catalog a new install is seeded with.
 //! - [`identity`] — the replica identity secrets a new profile is given.
+//! - [`display_name`] — the display name a new profile is given.
 //! - [`docker_compose`] — the local PostgreSQL compose file and container.
 //! - [`private_dir`] — owner-only files for documents that hold tokens.
 //!
@@ -18,6 +19,7 @@
 
 pub mod cli_session;
 pub mod constants;
+pub mod display_name;
 pub mod docker_compose;
 pub mod error;
 pub mod identity;

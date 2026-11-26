@@ -9,9 +9,10 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use axum::extract::{Request, State};
-use axum::http::{HeaderValue, StatusCode, header};
+use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
+use systemprompt_extension::router::ChargeRefused;
 use systemprompt_traits::OwnedTask;
 
 use super::key::{IdentityOrTrustedIpKey, TrustedIpKey};
@@ -79,24 +80,18 @@ impl SubjectThrottle {
 pub struct Throttled(Duration);
 
 impl systemprompt_extension::router::SubjectCharge for SubjectThrottle {
-    fn charge(&self, key: &str) -> Result<(), Response> {
-        Self::charge(self, key).map_err(IntoResponse::into_response)
+    fn charge(&self, key: &str) -> Result<(), ChargeRefused> {
+        Self::charge(self, key).map_err(|Throttled(wait)| ChargeRefused { retry_after: wait })
     }
 }
 
 impl IntoResponse for Throttled {
     fn into_response(self) -> Response {
-        too_many_requests(self.0)
+        ChargeRefused {
+            retry_after: self.0,
+        }
+        .into_response()
     }
-}
-
-fn too_many_requests(wait: Duration) -> Response {
-    let secs = wait.as_secs() + u64::from(wait.subsec_nanos() > 0);
-    let mut resp = StatusCode::TOO_MANY_REQUESTS.into_response();
-    if let Ok(value) = HeaderValue::from_str(&secs.max(1).to_string()) {
-        resp.headers_mut().insert(header::RETRY_AFTER, value);
-    }
-    resp
 }
 
 pub(super) async fn throttle(
@@ -110,6 +105,6 @@ pub(super) async fn throttle(
     };
     match throttle.limiter.check(&key, Instant::now()) {
         Ok(()) => next.run(req).await,
-        Err(wait) => too_many_requests(wait),
+        Err(wait) => ChargeRefused { retry_after: wait }.into_response(),
     }
 }

@@ -1,6 +1,8 @@
 //! Operational signals for running many replicas: pool acquire wait,
-//! scheduler jobs, projection backlog and dropped log rows. The gateway's
-//! phase histogram and stream gauge are the `gateway` member's descriptors.
+//! scheduler jobs, projection backlog and dropped log rows.
+//!
+//! The gateway's phase histogram and stream gauge are the `gateway` member's
+//! descriptors.
 //!
 //! sqlx hands the pool straight to every query, so there is no central
 //! `acquire` to time. `db_pool_acquire_seconds{pool}` is instead a probe: every

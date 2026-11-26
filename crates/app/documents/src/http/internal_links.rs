@@ -75,7 +75,7 @@ async fn issue_link(
         && let Err(throttled) =
             throttle.charge(&format!("{}:{}", request.server, claims.identity.user_id))
     {
-        return throttled;
+        return throttled.into_response();
     }
     match mint_verified(&state.minter, &claims, &request).await {
         Ok(link) => Json(link).into_response(),
