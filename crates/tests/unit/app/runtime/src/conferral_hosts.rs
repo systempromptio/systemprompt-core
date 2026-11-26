@@ -26,6 +26,7 @@ fn read(r: &Resolved<'_>, row: InstallConferral) -> Option<ConferralError> {
         InstallConferral::GitSourceSync => r.git_source_sync().err(),
         InstallConferral::ScopedTokens => r.token_minter().err(),
         InstallConferral::BrokerCalls => r.broker_calls().err(),
+        InstallConferral::AdmittedModels => r.admitted_models().err(),
     }
 }
 

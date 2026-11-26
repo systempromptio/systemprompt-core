@@ -113,6 +113,8 @@ mod subject_source_cell;
 mod wave_h_seams;
 
 #[cfg(test)]
+mod admitted_models;
+#[cfg(test)]
 mod brain_live;
 #[cfg(test)]
 mod broker_calls;

@@ -9,9 +9,11 @@
 //! [`GatewayHttpRepositories`](crate::http::state::GatewayHttpRepositories) it
 //! builds here — the API-key check over the user repository, with the key
 //! lifetime the runtime config sets, and the context materializer over the
-//! context repository. The API mount resolves the surface's state scoped to
-//! this member, so the engines, at-rest material and session mint reach it only
-//! through their conferral rows.
+//! context repository — and, sealed, the issuer of the `admitted-models`
+//! install conferral (per-caller model admission, answered inside core). The
+//! API mount resolves the surface's state scoped to this member, so the
+//! engines, at-rest material and session mint reach it only through their
+//! conferral rows.
 //!
 //! | profile disables | inference, token count, `/otel` | `/me/provider-credentials` | bridge Drive (`/bridge/drive/*`) |
 //! |---|---|---|---|
@@ -67,6 +69,7 @@ mod surface {
 
     use crate::http::GatewayHttpSurface;
     use crate::http::bridge::BridgeRepositories;
+    use crate::http::bridge::admitted_models::AdmittedModelsIssuer;
     use crate::http::state::{GatewayApiKeys, GatewayHttpRepositories};
     use systemprompt_oauth::repository::{BridgeHostPrefsRepository, BridgeSessionRepository};
 
@@ -77,7 +80,8 @@ mod surface {
             },
         )
         .provide_sealed_after_governance(repositories)
-        .provide_sealed_after_governance(host_handles);
+        .provide_sealed_after_governance(host_handles)
+        .provide_sealed_after_governance(AdmittedModelsIssuer::provide);
     }
 
     fn host_handles(r: &Resolved<'_>) -> Result<Option<Arc<GatewayHostHandles>>, ProvideError> {

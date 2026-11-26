@@ -21,7 +21,7 @@
 //! A member reads only its own handle, through its provide fns, factories and
 //! slot builds (`Resolved::member_cipher`, `Resolved::share_tokens`,
 //! `Resolved::git_source_sync`, `Resolved::token_minter`,
-//! `Resolved::broker_calls`); a command's or a
+//! `Resolved::broker_calls`, `Resolved::admitted_models`); a command's or a
 //! route set's resolution reads none, and an undeclared row, an absent issuer
 //! or an issuer from another provider is the `MissingDependency` of the
 //! handle type, so the provide fails typed and boot names the grant.
@@ -33,7 +33,8 @@ use std::any::{TypeId, type_name};
 
 use systemprompt_models::auth::ScopedTokenMinter;
 use systemprompt_traits::{
-    BrokerCallVerifier, DynConferralIssuer, GitSourceSync, MemberCipher, ShareTokenSigner,
+    AdmittedModels, BrokerCallVerifier, DynConferralIssuer, GitSourceSync, MemberCipher,
+    ShareTokenSigner,
 };
 
 use super::CoreId;
@@ -162,6 +163,7 @@ pub enum InstallConferral {
     GitSourceSync,
     ScopedTokens,
     BrokerCalls,
+    AdmittedModels,
 }
 
 pub const INSTALL_CONFERRALS: &[InstallConferral] = &[
@@ -170,6 +172,7 @@ pub const INSTALL_CONFERRALS: &[InstallConferral] = &[
     InstallConferral::GitSourceSync,
     InstallConferral::ScopedTokens,
     InstallConferral::BrokerCalls,
+    InstallConferral::AdmittedModels,
 ];
 
 impl InstallConferral {
@@ -181,6 +184,7 @@ impl InstallConferral {
             Self::GitSourceSync => "git-source-sync",
             Self::ScopedTokens => "scoped-tokens",
             Self::BrokerCalls => "broker-calls",
+            Self::AdmittedModels => "admitted-models",
         }
     }
 
@@ -191,6 +195,7 @@ impl InstallConferral {
                 CoreId::Kernel.id()
             },
             Self::GitSourceSync => "managed_resources",
+            Self::AdmittedModels => CoreId::GatewayHttp.id(),
         }
     }
 
@@ -202,6 +207,7 @@ impl InstallConferral {
             Self::GitSourceSync => TypeId::of::<DynConferralIssuer<dyn GitSourceSync>>(),
             Self::ScopedTokens => TypeId::of::<DynConferralIssuer<dyn ScopedTokenMinter>>(),
             Self::BrokerCalls => TypeId::of::<DynConferralIssuer<dyn BrokerCallVerifier>>(),
+            Self::AdmittedModels => TypeId::of::<DynConferralIssuer<dyn AdmittedModels>>(),
         }
     }
 
@@ -213,6 +219,7 @@ impl InstallConferral {
             Self::GitSourceSync => type_name::<DynConferralIssuer<dyn GitSourceSync>>(),
             Self::ScopedTokens => type_name::<DynConferralIssuer<dyn ScopedTokenMinter>>(),
             Self::BrokerCalls => type_name::<DynConferralIssuer<dyn BrokerCallVerifier>>(),
+            Self::AdmittedModels => type_name::<DynConferralIssuer<dyn AdmittedModels>>(),
         }
     }
 }

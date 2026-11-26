@@ -16,6 +16,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod admission;
+pub mod admitted_models;
 pub mod data;
 pub mod device;
 pub mod error;

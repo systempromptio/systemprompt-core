@@ -263,8 +263,8 @@ pub use user_retention::{ArchivedUserPurge, DynUserRetention, UserRetention};
 
 pub mod conferred;
 pub use conferred::{
-    BrokerCallRefused, BrokerCallVerifier, ConferralIssuer, DynConferralIssuer, GitSourceSync,
-    GitSourceSyncError, GitSourceSyncRequest, GitSourceSynced, MEMBER_CIPHER_ENVELOPE,
-    MemberCipher, MemberCipherError, MemberGrant, SHARE_TOKEN_MAX_TTL, ShareTokenError,
-    ShareTokenSigner, TokenAudienceGrant,
+    AdmittedModels, AdmittedModelsError, BrokerCallRefused, BrokerCallVerifier, ConferralIssuer,
+    DynConferralIssuer, GitSourceSync, GitSourceSyncError, GitSourceSyncRequest, GitSourceSynced,
+    MEMBER_CIPHER_ENVELOPE, MemberCipher, MemberCipherError, MemberGrant, SHARE_TOKEN_MAX_TTL,
+    ShareTokenError, ShareTokenSigner, TokenAudienceGrant,
 };

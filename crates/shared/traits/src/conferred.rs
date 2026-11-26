@@ -3,8 +3,9 @@
 //! They are an encrypt/decrypt handle over the deployment's master key
 //! ([`MemberCipher`]), a share-token signer ([`ShareTokenSigner`]), a
 //! Git source sync handle ([`GitSourceSync`]) and a verify-only check of
-//! core's credential-broker calls ([`BrokerCallVerifier`]); the scoped token
-//! minter is beside the token authority in `systemprompt_models::auth`.
+//! core's credential-broker calls ([`BrokerCallVerifier`]), the per-caller
+//! model admission the gateway member answers ([`AdmittedModels`]); the scoped
+//! token minter is beside the token authority in `systemprompt_models::auth`.
 //!
 //! Core holds one [`ConferralIssuer`] per capability, sealed. A member never
 //! reads an issuer: it reads its own handle through `Resolved`, which the
@@ -22,8 +23,8 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use systemprompt_identifiers::{
-    ExtensionId, ManagedReconciliationId, ManagedResourceId, ManagedSourceId, ResourceRevisionId,
-    SourceSnapshotId, WithdrawalProposalId,
+    ExtensionId, JwtToken, ManagedReconciliationId, ManagedResourceId, ManagedSourceId, ModelId,
+    ResourceRevisionId, SourceSnapshotId, WithdrawalProposalId,
 };
 
 use crate::BoxedSource;
@@ -77,6 +78,31 @@ pub enum BrokerCallRefused {
 /// verify core's broker calls without being able to make one.
 pub trait BrokerCallVerifier: Send + Sync + std::fmt::Debug {
     fn verify(&self, headers: &http::HeaderMap) -> Result<(), BrokerCallRefused>;
+}
+
+/// Which models the instance's rules admit for the caller a bearer proves.
+///
+/// The gateway member answers it: it verifies the bearer itself, runs the
+/// instance's authz hook and provider-key presence check inside core, and
+/// returns only the admitted model ids, a subset of `candidates` (or of the
+/// catalog's advertised models when `candidates` is `None`). The handle holds
+/// no hook, secret name or principal a member could reuse. Held as
+/// `Arc<dyn AdmittedModels>`, hence `#[async_trait]`.
+#[async_trait]
+pub trait AdmittedModels: Send + Sync + std::fmt::Debug {
+    async fn admitted(
+        &self,
+        bearer: &JwtToken,
+        candidates: Option<&[ModelId]>,
+    ) -> Result<Vec<ModelId>, AdmittedModelsError>;
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum AdmittedModelsError {
+    #[error("the bearer does not prove a caller")]
+    Unauthenticated(#[source] BoxedSource),
+    #[error("the gateway is disabled on this instance")]
+    GatewayDisabled,
 }
 
 /// Authenticated encryption under a key derived for one member.

@@ -8,7 +8,7 @@
 //! factory or slot build scoped to a member reads its handle through
 //! [`Resolved::member_cipher`], [`Resolved::share_tokens`],
 //! [`Resolved::git_source_sync`], [`Resolved::token_minter`] or
-//! [`Resolved::broker_calls`]; the read is
+//! [`Resolved::broker_calls`] or [`Resolved::admitted_models`]; the read is
 //! refused when the member did not declare the row, when the issuer is absent
 //! on this host, or when the issuer was provided by anyone but the row's core
 //! provider. A command's or a route set's resolution reads none.
@@ -31,8 +31,8 @@ use systemprompt_identifiers::ExtensionId;
 use systemprompt_models::auth::ScopedTokenMinter;
 use systemprompt_provider_contracts::{DependencyProvider, MissingDependency};
 use systemprompt_traits::{
-    BrokerCallVerifier, DynConferralIssuer, GitSourceSync, MemberCipher, MemberGrant,
-    ShareTokenSigner, TokenAudienceGrant,
+    AdmittedModels, BrokerCallVerifier, DynConferralIssuer, GitSourceSync, MemberCipher,
+    MemberGrant, ShareTokenSigner, TokenAudienceGrant,
 };
 
 use super::Contributions;
@@ -138,6 +138,10 @@ impl Resolved<'_> {
 
     pub fn broker_calls(&self) -> Result<Arc<dyn BrokerCallVerifier>, ConferralError> {
         self.conferred::<dyn BrokerCallVerifier>(InstallConferral::BrokerCalls)
+    }
+
+    pub fn admitted_models(&self) -> Result<Arc<dyn AdmittedModels>, ConferralError> {
+        self.conferred::<dyn AdmittedModels>(InstallConferral::AdmittedModels)
     }
 
     fn conferred<C: ?Sized + 'static>(

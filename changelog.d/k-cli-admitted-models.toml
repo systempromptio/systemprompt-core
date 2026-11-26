@@ -1,0 +1,19 @@
+[root]
+section = "Added"
+area = "Conferred model admission"
+text = "An install member can list the models the instance's rules admit for a signed-in caller: it declares `InstallConferral::AdmittedModels` and calls `Resolved::admitted_models()?.admitted(&bearer, candidates)`. `gateway-http` verifies the bearer, checks provider-key presence and runs the authz hook inside core, and returns only a subset of the candidates; without `gateway-http` the read is `ConferralError::Missing`."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Added"
+text = "`AdmittedModels` and `AdmittedModelsError`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`InstallConferral::AdmittedModels` (`admitted-models`, provided by `gateway-http`) and `Resolved::admitted_models`."
+
+[[crate]]
+name = "systemprompt-gateway-entry"
+section = "Added"
+text = "`http::bridge::admitted_models::AdmittedModelsIssuer`, provided sealed by `gateway-http`."
