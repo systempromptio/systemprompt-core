@@ -64,7 +64,7 @@ D1 to D9 are in `README.md`. Settled on 2026-11-26, and applied throughout this 
 
 Consequences worth restating:
 
-- Core grows by about 100,000 lines over S1 and S4 and gains a scoped check on Windows and macOS.
+- About 100,000 lines join core's root workspace over S1 and S4, and core gains a scoped check on Windows and macOS. The code is migrated, not new: about 60,000 lines are the bridge's, already in the repository as a separate workspace, and about 41,000 come from the harness repository, of which about 14,000 are deleted in S4. With the bridge's window and web tree retired, the repository ends smaller than it is today.
 - D21 makes the window toolkit's Linux support a programme risk, not an option (risk 9).
 - D22 means core may carry the bridge build for as long as the slowest fleet takes.
 - D25 means a stage cannot close unless both machines are online and linked.

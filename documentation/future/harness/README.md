@@ -44,6 +44,8 @@ agents can work on it at the same time without colliding.
 | `09-quality-and-gates.md` | Standards, gates, security review |
 | `10-release-and-fleet-handover.md` | Release after the change; moving installed bridges |
 
+Phone apps built from the same extension are specified in the sibling set, [`../mobile/`](../mobile/README.md).
+
 ## Founding decisions
 
 | # | Decision |

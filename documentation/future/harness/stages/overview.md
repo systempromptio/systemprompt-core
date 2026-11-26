@@ -29,6 +29,7 @@ Decided. Eight new crates in core; everything else merges into crates that alrea
 | `systemprompt-machine` | Install, device-management snippets, policy writer, elevation; lockdown as a feature | S4 |
 | `systemprompt-hosts` | The host contract; one feature per product | S4 |
 | `systemprompt-runner` | Headless adapters, shared with the server | S7 |
+| `systemprompt-mobile` | The binding layer for the iOS and Android apps; a ninth crate, owned by the [mobile set](../../mobile/README.md) | Mobile M2 |
 
 Merged into existing crates: typed ids into `systemprompt-identifiers`; owned tasks deleted for `systemprompt-traits`; wire types into `systemprompt-models::bridge`; typed instance calls into `systemprompt-client`; the composition machinery into `systemprompt-provider-contracts`.
 
