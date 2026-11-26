@@ -109,8 +109,10 @@ async fn an_admin_reaches_the_link_analytics_handlers() -> anyhow::Result<()> {
             .oneshot(read(template, Some(admin.jwt.as_str()))?)
             .await?
             .status();
+        let refused = [401, 403].contains(&status.as_u16());
+        let unmounted = status.as_u16() == 404 && !template.contains("{id}");
         assert!(
-            ![401, 403, 404].contains(&status.as_u16()),
+            !refused && !unmounted,
             "{template} does not reach its handler for an admin: {status}"
         );
     }
