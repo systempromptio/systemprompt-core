@@ -19,6 +19,9 @@ mod server_mount_analytics;
 mod server_static_site_auth;
 
 #[cfg(test)]
+mod site_fallback_ip_ban;
+
+#[cfg(test)]
 mod server_mount_notifications;
 
 #[cfg(test)]

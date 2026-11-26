@@ -15,7 +15,8 @@
 //! reads the gateway operations from the kernel state.
 //!
 //! The static router is merged after the IP-ban layer is applied, so public
-//! pages and assets are served without a ban-list lookup; only the API routes
+//! pages and assets are served without a ban-list lookup; the API routes and
+//! the site fallback (an install's dynamic service, which takes every method)
 //! are gated. Metrics stay outermost and still measure static responses.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -239,11 +240,20 @@ fn finish_router(
             .clone(),
     );
 
-    router = router.layer(axum::middleware::from_fn(move |req, next| {
-        let repo = Arc::clone(&bans);
-        let proxies = Arc::clone(&trusted_proxies);
-        async move { ip_ban_middleware(req, next, repo, proxies).await }
-    }));
+    let ban_layer = {
+        let bans = Arc::clone(&bans);
+        let trusted_proxies = Arc::clone(&trusted_proxies);
+        move || {
+            let bans = Arc::clone(&bans);
+            let trusted_proxies = Arc::clone(&trusted_proxies);
+            axum::middleware::from_fn(move |req, next| {
+                let repo = Arc::clone(&bans);
+                let proxies = Arc::clone(&trusted_proxies);
+                async move { ip_ban_middleware(req, next, repo, proxies).await }
+            })
+        }
+    };
+    router = router.layer(ban_layer());
 
     if (mount.serves)(RouteGroup::Static) {
         let site_fallback = mount
@@ -258,7 +268,8 @@ fn finish_router(
                         &[],
                     ))
             })
-            .transpose()?;
+            .transpose()?
+            .map(|site| site.layer(ban_layer()));
         router = RootFallbackOwner::default().place(
             router,
             static_setup::build_static_router(ctx, mount.layers, events, site_fallback)?,

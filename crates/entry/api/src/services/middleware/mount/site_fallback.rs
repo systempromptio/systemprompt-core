@@ -36,7 +36,7 @@ pub fn protect_site_fallback(
     let protection = site_fallback_protection(layers.guards.site_auth.is_some());
     let owned = protect_root_fallback(fallback, &protection, layers, RouteGroup::Extensions)?;
     Ok(RootFallback {
-        router: reserved_guard::guarded(owned.router, LayerReach::Router),
+        router: reserved_guard::guarded_site(owned.router, LayerReach::Router),
         group: owned.group,
     })
 }

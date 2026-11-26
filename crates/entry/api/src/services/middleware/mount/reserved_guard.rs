@@ -11,7 +11,11 @@
 //! (`systemprompt_extension::router::reserved_answering`); a segment that does
 //! not decode to UTF-8 is refused the same way, and so is a segment that a
 //! normalising proxy could read differently: one that decodes to `.` or
-//! `..`, or contains `/`, `\\` or `;`.
+//! `..`, or contains `/`, `\\` or `;`. The site fallback is refused more
+//! ([`guarded_site`]): every core route family as well (the API base and
+//! every path the static fallback treats as an API path, `/mcp` and
+//! `/otel`), whatever the method, so a core path's request and its bearer
+//! never reach an install's site.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,11 +27,31 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use systemprompt_extension::router::reserved_answering;
 use systemprompt_models::api::ApiError;
+use systemprompt_models::modules::ApiPaths;
 
 use crate::services::middleware::rate_limit::{LayerReach, layer_with};
 
 pub(super) fn guarded(router: Router, reach: LayerReach) -> Router {
     layer_with(router, reach, axum::middleware::from_fn(refuse_reserved))
+}
+
+pub(super) fn guarded_site(router: Router, reach: LayerReach) -> Router {
+    layer_with(router, reach, axum::middleware::from_fn(refuse_core_family))
+}
+
+fn decoded_path(path: &str) -> Option<String> {
+    urlencoding::decode(path)
+        .ok()
+        .map(std::borrow::Cow::into_owned)
+}
+
+fn falls_under_core_family(path: &str) -> bool {
+    decoded_path(path).is_none_or(|decoded| {
+        crate::services::static_content::is_api_path(&decoded)
+            || ApiPaths::is_mcp(&decoded)
+            || ApiPaths::is_otel(&decoded)
+            || decoded == ApiPaths::API_BASE.trim_end_matches('/')
+    })
 }
 
 fn ambiguous(segment: &str) -> bool {
@@ -47,18 +71,34 @@ fn falls_under_reserved(path: &str) -> bool {
     reserved_answering(&segments, None).is_some()
 }
 
-async fn refuse_reserved(request: Request, next: Next) -> Response {
-    let path = request
+fn original_path(request: &Request) -> String {
+    request
         .extensions()
         .get::<OriginalUri>()
         .map_or_else(|| request.uri().path(), |original| original.path())
-        .to_owned();
+        .to_owned()
+}
+
+fn not_found(path: String) -> Response {
+    (
+        StatusCode::NOT_FOUND,
+        axum::Json(ApiError::not_found("not found").with_path(path)),
+    )
+        .into_response()
+}
+
+async fn refuse_reserved(request: Request, next: Next) -> Response {
+    let path = original_path(&request);
     if falls_under_reserved(&path) {
-        return (
-            StatusCode::NOT_FOUND,
-            axum::Json(ApiError::not_found("not found").with_path(path)),
-        )
-            .into_response();
+        return not_found(path);
+    }
+    next.run(request).await
+}
+
+async fn refuse_core_family(request: Request, next: Next) -> Response {
+    let path = original_path(&request);
+    if falls_under_reserved(&path) || falls_under_core_family(&path) {
+        return not_found(path);
     }
     next.run(request).await
 }

@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "API"
+text = "The site fallback never answers a core route family (`/api`, `/mcp`, `/otel` and the static fallback's API paths), whatever the method, and it sits behind the IP-ban layer."

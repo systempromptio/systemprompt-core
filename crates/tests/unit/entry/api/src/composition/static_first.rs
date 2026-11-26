@@ -231,6 +231,37 @@ async fn a_reserved_path_static_misses_is_never_the_fallbacks() {
 }
 
 #[tokio::test]
+async fn a_write_to_a_core_route_family_is_never_the_fallbacks() {
+    let router = with_site_fallback(&layers(ProtectionGuards::default()).await);
+    for uri in [
+        "/mcp",
+        "/mcp/x",
+        "/otel",
+        "/otel/v1/traces",
+        "/api",
+        "/api/v1/auth/login",
+        "/api/v2/x",
+        "/api/v1/consumer-devices",
+        "/%6Dcp/x",
+    ] {
+        for method in [Method::POST, Method::PUT, Method::DELETE, Method::GET] {
+            let (status, _, body) = send(&router, method.clone(), uri).await;
+            assert_eq!(status, StatusCode::NOT_FOUND, "{method} {uri}: {body}");
+            assert!(
+                !body.starts_with("site:"),
+                "{method} {uri} and its bearer never reach the site: {body}"
+            );
+        }
+    }
+    let (status, _, body) = send(&router, Method::POST, "/mcpx").await;
+    assert_eq!(
+        (status, body.as_str()),
+        (StatusCode::OK, "site:POST"),
+        "negative control: a path that only shares the prefix is the site's"
+    );
+}
+
+#[tokio::test]
 async fn site_auth_still_covers_the_fallback() {
     let router = with_site_fallback(&layers(site_auth()).await);
     let (status, headers, body) = send(&router, Method::GET, "/app/board").await;
