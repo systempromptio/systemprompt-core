@@ -12,7 +12,9 @@
 //! owned by the core `database` member. A member whose schema or migration
 //! creates a table (including `CREATE TABLE ... AS` and `SELECT ... INTO`)
 //! another member owns is refused ([`MigrationOwnershipError::SharedTable`]),
-//! so a `CREATE TABLE IF NOT EXISTS` never makes a peer's table its own.
+//! so a `CREATE TABLE IF NOT EXISTS` never makes a peer's table its own; a
+//! core member's migration that created a table it has since retired to
+//! another core member is its history, not a claim.
 //!
 //! Every relation a statement changes is judged, not only its main one: the
 //! table of `ALTER TABLE` (including `SET SCHEMA` and `ENABLE ROW LEVEL

@@ -37,6 +37,7 @@ mod retirements;
 mod schema_currency_db;
 mod settled_drift;
 mod settled_install;
+mod table_handover;
 mod table_ownership;
 mod trigger_reuse_install;
 mod validation_db;

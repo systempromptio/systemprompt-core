@@ -127,8 +127,8 @@ impl Ownership {
 
     pub(super) fn foreign_creates(
         &self,
-        id: &ExtensionId,
-        standing: StandingTag,
+        (id, standing): (&ExtensionId, StandingTag),
+        retired: &BTreeSet<String>,
         source: &str,
         sql: &str,
     ) -> Vec<MigrationOwnershipError> {
@@ -142,6 +142,12 @@ impl Ownership {
                 let owner = self
                     .owner(&table)
                     .filter(|owner| !owner.held_by(id, standing))?;
+                let handed_over = standing == StandingTag::Core
+                    && owner.standing == StandingTag::Core
+                    && retired.contains(&table);
+                if handed_over {
+                    return None;
+                }
                 Some(MigrationOwnershipError::SharedTable {
                     member: id.clone(),
                     source_sql: source.to_owned(),
@@ -209,7 +215,7 @@ pub(super) fn ownership(
         if judged {
             findings.extend(read_findings);
         }
-        declarations.push((position + 1, declared_objects, declared));
+        declarations.push((position + 1, declared));
         if judged {
             ownership.judged.insert(id.clone());
         }
@@ -220,15 +226,16 @@ pub(super) fn ownership(
             tombstoned: member.migrations().iter().any(|m| m.tombstone),
             retired: retired_tables(member.as_ref()),
             created,
+            declared: declared_objects,
         });
     }
     ownership.claim_records(members, recorded, &reads);
-    for (read, (position, declared_objects, declared)) in reads.iter().zip(&declarations) {
+    for (read, (position, declared)) in reads.iter().zip(&declarations) {
         ownership.claim_created(
             &read.id,
             (read.standing, *position),
             &read.created,
-            declared_objects,
+            &read.declared,
         );
         for table in &read.created.tables {
             let rank = if declared.contains(table) {
@@ -247,9 +254,9 @@ pub(super) fn ownership(
             );
         }
     }
-    for (read, (_, declared_objects, declared)) in reads.iter().zip(&declarations) {
+    for (read, (_, declared)) in reads.iter().zip(&declarations) {
         if read.judged {
-            findings.extend(ownership.declared_findings(read, declared_objects, declared));
+            findings.extend(ownership.declared_findings(read, &read.declared, declared));
         }
     }
     for read in reads {
