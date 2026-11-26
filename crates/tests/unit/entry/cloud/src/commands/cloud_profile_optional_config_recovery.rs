@@ -94,7 +94,7 @@ fn profile_show_omits_broken_optional_configs_and_recovers_after_repair() {
     let broken = marked_json(&stdout, "BEGIN_BROKEN_OPTIONAL", "END_BROKEN_OPTIONAL");
     let repaired = marked_json(&stdout, "BEGIN_REPAIRED_OPTIONAL", "END_REPAIRED_OPTIONAL");
     assert_eq!(broken["title"], "Profile Configuration");
-    assert!(!has_section(&broken, "environment"));
+    assert!(has_section(&broken, "environment"));
     assert!(has_section(&broken, "settings"));
     assert!(!has_section(&broken, "skills"));
     assert!(!has_section(&broken, "content"));

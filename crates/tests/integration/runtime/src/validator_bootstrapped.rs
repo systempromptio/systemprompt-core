@@ -1,6 +1,7 @@
 //! Drives `StartupValidator::validate` past the services-config early-bail
 //! using the process-wide bootstrap fixture, so the domain-validator,
-//! MCP-manifest, and extension passes actually execute. The sibling
+//! MCP-manifest, and extension passes actually execute. The member domain
+//! validators reach the pass the way a composed member registers them. The sibling
 //! `validator.rs` covers only the uninitialised-profile bail; this module
 //! covers the initialised happy path.
 
@@ -9,6 +10,7 @@ use std::sync::Mutex;
 use serde::Deserialize;
 use systemprompt_extension::{Admitted, ExtensionConfig, ExtensionConfigError};
 use systemprompt_logging::OutputState;
+use systemprompt_manifest::validators;
 use systemprompt_runtime::StartupValidator;
 use systemprompt_test_fixtures::{ComposedParts, Probe, ensure_test_bootstrap, probe_admitted};
 use tracing_subscriber::layer::SubscriberExt;
@@ -25,13 +27,17 @@ impl ExtensionConfig for ProbeConfig {
 }
 
 fn admitted(with_probe: bool) -> Admitted {
-    let probes = if with_probe {
-        vec![Probe::new("validatorprobe", |c| {
+    let mut probes = vec![Probe::new("membervalidators", |c| {
+        c.domain_config(validators::ContentConfigValidator::boxed)
+            .domain_config(validators::AgentConfigValidator::boxed)
+            .domain_config(validators::McpConfigValidator::boxed)
+            .domain_config(validators::AiConfigValidator::boxed);
+    })];
+    if with_probe {
+        probes.push(Probe::new("validatorprobe", |c| {
             c.config::<ProbeConfig>();
-        })]
-    } else {
-        Vec::new()
-    };
+        }));
+    }
     probe_admitted(ComposedParts {
         probes,
         ..ComposedParts::default()

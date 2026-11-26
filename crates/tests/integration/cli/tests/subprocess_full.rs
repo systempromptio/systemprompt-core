@@ -320,10 +320,14 @@ fn core_files() {
 fn analytics_overview_and_conversations() {
     stderr_has_fmt(&["analytics", "overview"], "Analytics Overview");
     run(&["analytics", "overview", "--since", "24h"]);
+    run_with_formats(&["analytics", "overview", "--since", "7d"]);
+    run(&["analytics", "overview", "--since", "garbage"]);
     stderr_has_fmt(
         &["analytics", "conversations", "stats"],
         "Conversation Statistics",
     );
+    run_with_formats(&["analytics", "conversations", "trends", "--since", "24h"]);
+    run_with_formats(&["analytics", "conversations", "list", "--limit", "5"]);
     stderr_has_any(
         &["analytics", "conversations", "list"],
         &["Conversations", "No conversations found"],
@@ -334,14 +338,20 @@ fn analytics_overview_and_conversations() {
 fn analytics_agents_and_tools() {
     stderr_has_fmt(&["analytics", "agents", "stats"], "Agent Statistics");
     run_with_formats(&["analytics", "agents", "list"]);
+    run_with_formats(&["analytics", "agents", "trends"]);
+    run(&["analytics", "agents", "show", "nonexistent-agent"]);
     stderr_has_fmt(&["analytics", "tools", "stats"], "Tool Statistics");
     run_with_formats(&["analytics", "tools", "list"]);
+    run_with_formats(&["analytics", "tools", "trends"]);
+    run(&["analytics", "tools", "show", "nonexistent-tool"]);
 }
 
 #[test]
 fn analytics_requests_and_sessions() {
     stderr_has_fmt(&["analytics", "requests", "stats"], "AI Request Statistics");
     run_with_formats(&["analytics", "requests", "list"]);
+    run_with_formats(&["analytics", "requests", "list", "--limit", "5"]);
+    run_with_formats(&["analytics", "requests", "trends"]);
     run_with_formats(&["analytics", "requests", "models"]);
     stderr_has_fmt(&["analytics", "sessions", "stats"], "Session Statistics");
     run(&["analytics", "sessions", "live"]);
@@ -353,6 +363,7 @@ fn analytics_content_and_costs() {
     run_with_formats(&["analytics", "content", "top"]);
     stderr_has_fmt(&["analytics", "costs", "summary"], "Cost Summary");
     run_with_formats(&["analytics", "costs", "breakdown"]);
+    run_with_formats(&["analytics", "costs", "trends"]);
 }
 
 #[test]
