@@ -84,6 +84,8 @@ mod services_watch;
 mod subprocess;
 #[cfg(all(test, unix))]
 mod subprocess_control;
+#[cfg(all(test, unix))]
+mod subprocess_foreground;
 #[cfg(test)]
 mod vertex_discovery_classify;
 #[cfg(test)]

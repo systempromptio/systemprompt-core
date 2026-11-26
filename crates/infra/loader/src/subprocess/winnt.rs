@@ -37,6 +37,10 @@ pub(super) fn has_exited(pid: u32) -> bool {
     !exists(pid)
 }
 
+pub(super) fn has_ended(pid: u32) -> bool {
+    has_exited(pid)
+}
+
 pub(super) const fn is_group_leader(_pid: u32) -> bool {
     true
 }
