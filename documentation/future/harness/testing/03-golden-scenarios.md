@@ -47,7 +47,7 @@ Twenty-four scenarios. Each runs on both wire protocols.
 | 23 | Compaction | Crossing the headroom triggers a summary with the fixed sections and a verbatim tail |
 | 24 | Revert to a message | Files return to the snapshot; later messages removed |
 
-Later sets, added by the stages that need them: an MCP tool over stdio and over HTTP against a local test server; a fetch against a local server; LSP diagnostics after an edit against a stub language server; managed skills, rules and a managed MCP server arriving by manifest; each managed host's profile (S5).
+Later sets, added by the stages that need them: an MCP tool over stdio and over HTTP against a local test server; a fetch against a local server; LSP diagnostics after an edit against a stub language server; managed skills, rules and a managed MCP server arriving by manifest; each managed host's profile (S6).
 
 ## 3. The normalised trace
 
@@ -83,7 +83,7 @@ Normalisation rules:
 
 ## 4. Running a scenario through the harness
 
-Through the headless `run` command added in S2-A2, which uses the same engine and tools as the window. At S2 that is the only mode. From S3 every scenario runs in all three execution modes (`Unrestricted`, `Sandboxed`, `Remote`) with the same scenario files and the same expected traces, which is what proves one loop serves all three. Parity with the reference agent is measured in `Unrestricted`.
+Through the headless `run` command added in S2-A2, which uses the same engine and tools as the window. At S2 that is the only mode. From S3 every scenario runs in both local modes, and from S4 in all three execution modes (`Unrestricted`, `Sandboxed`, `Remote`) with the same scenario files and the same expected traces, which is what proves one loop serves all three. Parity with the reference agent is measured in `Unrestricted`.
 
 1. Start the scripted instance with the scenario's manifest, turns and verdicts.
 2. Create a fresh data root; sign in with `login --stdin` and the instance's test PAT.

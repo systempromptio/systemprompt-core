@@ -43,7 +43,7 @@ M0-A1 closes the unconfirmed and assumed items.
 | 11 | Binding generator limits | An unsupported construct forces a redesign of the surface | M0 confirms the pinned version; the surface is small; M2 wave A proves async and listeners before the surface is filled in |
 | 12 | Secrets across the boundary | A token exposed to the native side can be logged or leaked | No secret type is exported; reviewed; a gate on the surface |
 | 13 | Runner time and reliability | Simulator and emulator tests are slow and can be unstable | UI tests only at stage gates; scenarios through the core catch most defects first; a repeating failure gets its own lane |
-| 14 | Dependence on harness stages | M2 needs the device crate in core; M3's assets need the brand and theme data | M1 needs nothing and starts first; M3-C7 can begin from the schema before harness S4 |
+| 14 | Dependence on harness stages | M2 needs the device crate in core; M3's assets need the brand and theme data | M1 needs nothing and starts first; M3-C7 can begin from the schema before harness S5 |
 | 15 | Three languages to maintain | More skills and tooling in the template and every install | Core stays Rust; the apps hold presentation only; structure and lint rules are the same shape on both |
 | 16 | Phones cannot take contributed screens | The desktop's mount-point model does not carry over | Stated plainly; forks edit their native code; three generic server-driven layouts are proposed (open decision O1) |
 | 17 | Signing secrets in release workflows | A leaked key lets someone ship as the publisher | Secrets only in release environments; push runs unsigned; each publisher holds its own |

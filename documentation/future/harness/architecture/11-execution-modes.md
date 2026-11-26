@@ -30,7 +30,7 @@ The mode is a property of a session, chosen when it starts and recorded with it.
 |---|---|---|---|
 | Desktop, macOS | Yes | Yes | Yes |
 | Desktop, Linux | Yes | Yes | Yes |
-| Desktop, Windows | Yes | Only where an enforcing backend is present (section 4); otherwise the mode is reported unavailable | Yes |
+| Desktop, Windows | Yes | No on native Windows: there is no native Windows sandbox and none is planned. Available only when the runtime itself runs under the Linux subsystem, where the Linux backend applies | Yes |
 | Phone (iOS, Android) | No | No | Yes |
 | Web console | No | No | Yes |
 | Scheduled and server-originated sessions | No | No | Yes |
@@ -96,12 +96,16 @@ One policy type. Each platform enforces it with what that platform provides.
 |---|---|---|
 | macOS | The system's built-in sandbox profile mechanism | Nothing to install |
 | Linux (desktop and the instance's runner nodes) | Kernel namespaces with filesystem and system-call restriction | The same backend serves `Sandboxed` on a Linux desktop and `Remote` on the instance, so those two are literally the same sandbox |
-| Windows | None in the platform that matches the policy. `Sandboxed` is available when the session runs through the Linux subsystem or a local container, which use the Linux backend | Stated plainly to users; never presented as sandboxed when it is not |
+| Windows | None. By decision no native Windows sandbox is built. A Windows desktop offers `Unrestricted` and `Remote`; `Sandboxed` is reported unavailable with its reason | A user who needs confinement on Windows uses `Remote`, or runs under the Linux subsystem |
 | Any desktop, opt-in | The instance's own container image run locally | An identical environment to `Remote`, for teams that want it. It cannot build software that needs the host's own toolchain |
 
 What the other shipped agents do, read at their documentation on 2026-11-26, is the same pattern: the built-in system sandbox on macOS; namespace or kernel-level restriction on Linux; and on native Windows either no sandbox or one the vendor had to build because the platform lacks it.
 
 Strength differs by backend. What does not differ is the policy, and a conformance suite proves each backend honours it (section 9).
+
+**The whole runtime is confined, not only its tools.** In `Sandboxed` the runtime process itself starts inside the sandbox. File tools, language servers, MCP child processes, git and anything a dependency spawns are therefore bounded by the operating system even if some code path bypasses the execution environment. The instance is on the network allowlist so model calls and the session record still work.
+
+**Widening.** A sandbox denial is not a dead end. It raises a request to extend the policy for this session only (one more path, one more destination), answered like any approval and bounded by what the instance allows. Presets cover common needs, such as the usual package registries.
 
 ## 5. The instance is the record
 
@@ -110,7 +114,7 @@ Whatever the mode, a session exists on the instance: listed for its owner, reada
 | Mode | How the record is kept |
 |---|---|
 | `Remote` | The runtime is on the instance and writes the session log directly |
-| `Unrestricted`, `Sandboxed` | The local runtime publishes its events to the instance as they happen, and receives control from it |
+| `Unrestricted`, `Sandboxed` | The local runtime publishes its events to the instance as they happen, and receives control from it. Such a record is marked as reported by a device, everywhere it is stored and shown, because the instance did not witness it |
 
 **Publishing.** The runtime appends each event to a local journal and uploads in order with sequence numbers. The upload is resumable and idempotent: after a disconnect it continues from the last acknowledged number. The local journal is a buffer, not a second source of truth.
 
@@ -143,6 +147,18 @@ A `Remote` session needs something to work on.
 
 The sandbox policy for a remote workspace is the instance's, not the user's. Network egress is the instance's allowlist.
 
+**Isolation level.** How strongly one remote session is separated from another is a typed deployment setting:
+
+```rust
+pub enum RemoteIsolation {
+    Sandbox,     // the Linux sandbox backend, the same one a Linux desktop uses
+    Container,   // one container per session, with the sandbox inside it
+    MicroVm,     // one small virtual machine per session, where the hosting offers it
+}
+```
+
+`Sandbox` is the floor and is always applied. The default for an instance serving more than one organisation's users is `Container`. Which levels a given hosting can start is established by a prototype before the stage that builds this.
+
 A session can be continued in another mode by starting a new session from its history and, for code, from the branch it produced. Mode itself never changes inside a session.
 
 ## 8. What core has and lacks
@@ -173,6 +189,7 @@ Read on core `future`.
 | A fork's tools and members compile into the same runtime | A fork reimplementing execution |
 | The remote runtime is the same binary's headless role | The instance and the device running different code |
 | `Sandboxed` refuses to start without a backend | A sandbox that silently is not one |
+| In `Sandboxed` the whole runtime runs inside the sandbox | A tool, a dependency or a child process escaping because it did not use the execution environment |
 
 ## 10. Security
 
@@ -196,5 +213,7 @@ Read at the vendors' own documentation on 2026-11-26.
 | Claude Code | Loop and tools on the user's machine, with an optional operating-system sandbox; other devices attach as viewers and controllers | Loop and tools together in a hosted machine |
 | Codex | Loop and tools on the user's machine, with sandbox modes and an approval policy | Loop and tools together in a cloud workspace |
 | OpenCode | A local server process runs both; clients attach over HTTP | Not documented |
+
+Parity with the reference agent is measured on the loop and the built-in tools, in `Unrestricted`. Its plugin and integration ecosystem is not part of that measurement.
 
 None sends individual tool calls across the network between a remote loop and a local machine. This design follows them, and adds two things they do not document together: one typed mode enum over all three placements, and the instance as the record of every session regardless of mode.

@@ -57,7 +57,7 @@ The packaged application is launched, pointed at the scripted instance, moved th
 | 19 | Signed out by a refused credential | Light |
 | 20 | About, with version and build provenance | Light |
 
-Later stages extend the list: contributed views and themes (S4); the hosts, marketplace, first-run and inbox views and the tray (S5); Linux, and a sealed sign-in surviving a relaunch (S6).
+Later stages extend the list: contributed views and themes (S5); the hosts, marketplace, first-run and inbox views and the tray (S6); Linux, and a sealed sign-in surviving a relaunch (S7).
 
 ### 2.3 What the screenshots are for
 

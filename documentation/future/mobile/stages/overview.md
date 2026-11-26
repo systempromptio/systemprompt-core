@@ -23,20 +23,20 @@ harness S0 ─► M0 ─► M2 ─► M3 ─► M4
 
 harness S1 (device crate in core) ─► M2
 harness S2 (scripted instance)    ─► M5
-harness S4 (brand and theme data) ─► M3 wave C
-harness S3 (runtime, modes, session record) ─► M1 lane B3, M2
+harness S5 (brand and theme data) ─► M3 wave C
+harness S4 (remote runtime and the session record) ─► M1 lane B3, M2
 ```
 
 | Stage | Needs | May run alongside |
 |---|---|---|
 | M0 | Harness S0 (crate skeletons, template scaffold conventions) | M1 |
-| M1 | Nothing for push, devices and association files; harness S3 for the sessions lane | M0, any harness stage |
-| M2 | M0; M1's contract wave; harness S3 | M1's later waves |
+| M1 | Nothing for push, devices and association files; harness S4 for the sessions lane | M0, any harness stage |
+| M2 | M0; M1's contract wave; harness S4 | M1's later waves |
 | M3 | M2 | M4 wave A, M5 wave A |
 | M4 | M3 for signed apps; people for accounts | M5 |
 | M5 | M3; harness S2 | M4 |
 
-**Earliest useful point:** M1's push channel, device records and association files need nothing from the harness and can start at once. Its sessions lane and everything after depend on the harness's S3, which is where the runtime's `Remote` mode, the session record, the stream and approvals are built for all clients.
+**Earliest useful point:** M1's push channel, device records and association files need nothing from the harness and can start at once. Its sessions lane and everything after depend on the harness's S4, which is where the runtime's `Remote` mode, the session record, the stream and approvals are built for all clients.
 
 ## 3. Parallelism at a glance
 
@@ -64,7 +64,7 @@ Estimates, in lines of code, to show proportion. Nothing has been measured.
 
 | Area | Language | Estimate |
 |---|---|---|
-| Server changes (M1): push, devices, association files, notifications on approvals, `Remote` sessions from a phone. The runtime and session record are the harness's S3 | Rust | 5,000 |
+| Server changes (M1): push, devices, association files, notifications on approvals, `Remote` sessions from a phone. The runtime and session record are the harness's S4 | Rust | 5,000 |
 | Client calls, platform modules, client state machines, binding layer (M2) | Rust | 8,000 |
 | Core tests for the above | Rust | 8,000 |
 | iOS app (M3) | Swift | 8,000 |
@@ -73,7 +73,7 @@ Estimates, in lines of code, to show proportion. Nothing has been measured.
 | Build, signing and release scripts (M0, M4) | Shell, workflow | 1,500 |
 | **Total** | | **about 42,000** |
 
-For scale: the harness repository is about 82,000 lines and the bridge about 75,000. The phone work is roughly a quarter of the two together. The runtime, its `Remote` mode, the session record and approvals are built once in the harness's S3 for every client, which is why the mobile server share is small.
+For scale: the harness repository is about 82,000 lines and the bridge about 75,000. The phone work is roughly a quarter of the two together. The runtime, its `Remote` mode, the session record and approvals are built once in the harness's S4 for every client, which is why the mobile server share is small.
 
 ## 5. Rules
 

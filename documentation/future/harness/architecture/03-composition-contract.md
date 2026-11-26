@@ -1,6 +1,6 @@
 # 03. The device composition contract
 
-Status: specification draft. The Rust below is shape, not final signatures; S4 fixes them against the `future` contract as it stands then.
+Status: specification draft. The Rust below is shape, not final signatures; S5 fixes them against the `future` contract as it stands then.
 
 ## 1. Shared machinery with the server
 

@@ -2,7 +2,7 @@
 
 **Goal.** One Rust library does everything a phone app needs, including the state machines every screen is drawn from, and the template builds it into a Swift package and a Kotlin package.
 
-**Entry.** M0 closed; M1 wave A closed (the contract); harness S3 closed (`systemprompt-device` is in core, and the instance records every session).
+**Entry.** M0 closed; M1 wave A closed (the contract); harness S4 closed (`systemprompt-device` is in core, and the instance records every session).
 
 **Specification.** `../architecture/04-shared-core-and-bindings.md`, `../architecture/03-core-changes.md` (C6 to C8).
 

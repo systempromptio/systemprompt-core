@@ -91,7 +91,7 @@ The scripted instance is tested against the linked core wire types: a manifest i
 
 ## 6. Doubles for the three execution modes
 
-From S3 a scenario runs in each mode against the same expected trace.
+From S3 (local modes) and S4 (`Remote`) a scenario runs in each mode against the same expected trace.
 
 | Mode | What runs | What is scripted |
 |---|---|---|

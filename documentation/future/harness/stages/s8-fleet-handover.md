@@ -1,8 +1,8 @@
-# S7. Fleet handover and bridge removal
+# S8. Fleet handover and bridge removal
 
 **Goal.** Installed bridges become the template-built binary without their users doing more than restarting; then the bridge build leaves core.
 
-**Entry.** S5 and S6 closed.
+**Entry.** S6 and S7 closed.
 
 **Specification.** `../architecture/10-release-and-fleet-handover.md`, `../architecture/05-bridge-split.md` sections 3 and 4.
 
@@ -12,11 +12,11 @@ This stage has little parallel implementation and many decisions that belong to 
 
 | Lane | Repository | Work |
 |---|---|---|
-| **S7-A1 Successor start-up** | core | First start as a successor: wait for the predecessor; import the bridge's data root into the single device layout once (config, policy store, loopback secret byte for byte, ledgers, sentinel), verify the sealed credential and loopback secret are readable; re-register scheduler entries and the policy-writer task; rewrite binary paths in host profiles; run the self-check; only then remove the old binary. Any failure leaves the old binary in place and reports through the heartbeat |
-| **S7-A2 Upgrade test** | template | A workflow job: install the last bridge release, configure hosts against the scripted instance, upgrade, assert every item in the handover table and that each host still reaches the proxy with its existing token |
-| **S7-A3 Command parity** | template | Every bridge command, flag and exit code answered by the bridge composition, proven by the conformance fixtures |
+| **S8-A1 Successor start-up** | core | First start as a successor: wait for the predecessor; import the bridge's data root into the single device layout once (config, policy store, loopback secret byte for byte, ledgers, sentinel), verify the sealed credential and loopback secret are readable; re-register scheduler entries and the policy-writer task; rewrite binary paths in host profiles; run the self-check; only then remove the old binary. Any failure leaves the old binary in place and reports through the heartbeat |
+| **S8-A2 Upgrade test** | template | A workflow job: install the last bridge release, configure hosts against the scripted instance, upgrade, assert every item in the handover table and that each host still reaches the proxy with its existing token |
+| **S8-A3 Command parity** | template | Every bridge command, flag and exit code answered by the bridge composition, proven by the conformance fixtures |
 
-Then **S7-A4 (review)** of A1: the import of secrets and the profile rewrite.
+Then **S8-A4 (review)** of A1: the import of secrets and the profile rewrite.
 
 **Stage-internal L2.** The upgrade test green on Windows and macOS.
 
@@ -37,9 +37,9 @@ Opens only when wave B is complete.
 
 | Lane | Repository | Work |
 |---|---|---|
-| **S7-C1 Delete the bridge** | core | The bridge directory and lockfile; the bridge-only gates, recipes and workflow jobs; the link-time registration exception |
-| **S7-C2 Scope the native check** | core | Replace the unconditional native matrix with the scoped device job from S1 |
-| **S7-C3 Documents and channels** | core, template | Core's guides and current-functionality documentation; the template's bridge directory; package-channel manifests repointed |
+| **S8-C1 Delete the bridge** | core | The bridge directory and lockfile; the bridge-only gates, recipes and workflow jobs; the link-time registration exception |
+| **S8-C2 Scope the native check** | core | Replace the unconditional native matrix with the scoped device job from S1 |
+| **S8-C3 Documents and channels** | core, template | Core's guides and current-functionality documentation; the template's bridge directory; package-channel manifests repointed |
 
 ## Stage gate (L2)
 

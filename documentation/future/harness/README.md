@@ -25,7 +25,7 @@ agents can work on it at the same time without colliding.
 |---|---|
 | [`stages/overview.md`](stages/overview.md) | **Start here to do work.** Stages, waves, the crate list, the dependency graph, what runs in parallel |
 | [`stages/operating-model.md`](stages/operating-model.md) | How a lane works, what it owns, and the three validation levels |
-| `stages/s0-…` to `stages/s8-…` | One file per stage: waves, lanes, owned paths, gates, exit criteria |
+| `stages/s0-…` to `stages/s9-…` | One file per stage: waves, lanes, owned paths, gates, exit criteria |
 | [`testing/`](testing/) | The deterministic test strategy: scripted instance, golden scenarios, comparison against a reference agent, migrated test catalogue, evidence |
 | [`architecture/`](architecture/) | The specification the stages implement |
 | [`risks-and-decisions.md`](risks-and-decisions.md) | Risks with mitigations; every decision taken; the few still open |
@@ -71,11 +71,12 @@ D10 to D26 (crate list, publishing, contract placement, layout, naming, Linux, d
 | S0 Foundations | Not started |
 | S1 Lift | Not started |
 | S2 Parity and proof | Not started |
-| S3 One runtime, three execution modes | Not started |
-| S4 Device composition | Not started |
-| S5 Bridge split and integration | Not started |
-| S6 Platforms, packaging, signing | Not started |
-| S7 Fleet handover and bridge removal | Not started |
-| S8 Server half and orchestration | Not started |
+| S3 Execution environment and sandbox | Not started |
+| S4 Remote runtime and the session record | Not started |
+| S5 Device composition | Not started |
+| S6 Bridge split and integration | Not started |
+| S7 Platforms, packaging, signing | Not started |
+| S8 Fleet handover and bridge removal | Not started |
+| S9 Server half and orchestration | Not started |
 
 Update this table in the commit that closes a stage.

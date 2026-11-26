@@ -70,7 +70,7 @@ The reference desktop application is a browser runtime with a native main proces
 | Deep-link parsing and routing | Deep-link handling | Shell tests |
 | Window state persistence and restore | Window placement | Shell tests |
 | Installer and build configuration | Packaging inputs from the brand declaration | Brand and packaging tests |
-| Auto-update flow | Deferred to S6, where the update slice arrives | — |
+| Auto-update flow | Deferred to S7, where the update slice arrives | — |
 | Main-to-renderer messaging, context isolation, embedded-browser security settings | None: there is no embedded browser. `not-applicable` | — |
 | Renderer components | The corresponding native view's state logic | Shell tests |
 

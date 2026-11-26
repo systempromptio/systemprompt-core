@@ -8,7 +8,7 @@ Five server changes, two extensions of device crates, one new crate. All land on
 |---|---|---|---|---|---|
 | C1 | Push channel | `domain/notifications` | No | No (delivery only) | M1 |
 | C2 | Device records and push tokens | `domain/users`, `entry/notifications` | No | Yes (who may register a token for whom) | M1 |
-| C3 | Starting `Remote` sessions from a phone; notifications on approvals; lists. The runtime and session record come from the harness's S3 | `app/agent-runs`, `entry/agent-runs`, `domain/notifications` | No | Yes (who may decide) | M1 |
+| C3 | Starting `Remote` sessions from a phone; notifications on approvals; lists. The runtime and session record come from the harness's S4 | `app/agent-runs`, `entry/agent-runs`, `domain/notifications` | No | Yes (who may decide) | M1 |
 | C4 | Association files | `entry/api` well-known routes; profile configuration | No | Yes (which apps the domain vouches for) | M1 |
 | C5 | Discovery and downloads for phones | `shared/models` bridge instance types; `entry/gateway` release routes | No | No | M1 |
 | C6 | Typed client calls | `systemprompt-client` | No | No | M2 |
@@ -37,7 +37,7 @@ No new host. A phone makes no model call and receives no host profile; it is ide
 
 ## 4. C3 — Sessions on a phone
 
-The runtime, its `Remote` mode, the session record, the per-turn stream and approvals are delivered by the harness's S3 ([harness set](../../harness/architecture/11-execution-modes.md)), not by the mobile stages.
+The runtime, its `Remote` mode, the session record, the per-turn stream and approvals are delivered by the harness's S4 ([harness set](../../harness/architecture/11-execution-modes.md)), not by the mobile stages.
 
 What remains for the mobile stages:
 
