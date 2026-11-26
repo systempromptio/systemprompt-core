@@ -317,5 +317,9 @@ required-features = ["api"]
 name = "cli"
 required-features = ["runtime"]
 
+[[example]]
+name = "members"
+required-features = ["runtime"]
+
 [package.metadata.cargo-machete]
 ignored = ["systemprompt-documents", "systemprompt-issues", "systemprompt-gateway-entry"]

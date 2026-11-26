@@ -1,0 +1,4 @@
+[root]
+section = "Added"
+area = "Facade"
+text = "The facade's `members` example (`required-features = [\"runtime\"]`) prints the member ids of the build's `reference()` composition in composition order. CI compares them, for every booted composition in `scripts/build-compositions.txt`, with `scripts/composition-members.txt`, so the kernel floor of a `core,runtime` build and each flavour's member set are exact."
