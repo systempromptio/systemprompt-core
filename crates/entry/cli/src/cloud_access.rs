@@ -14,6 +14,29 @@ use systemprompt_manifest::Profile;
 
 pub const CLOUD_MEMBER: &str = "cloud";
 
+/// The cloud access a build holds and the profile whose `cloud` member
+/// switch it answers to.
+#[derive(Clone, Copy, Default)]
+pub struct CloudScope<'a> {
+    pub cloud: Option<&'a DynCloudAccess>,
+    pub profile: Option<&'a Profile>,
+}
+
+impl std::fmt::Debug for CloudScope<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CloudScope")
+            .field("cloud", &self.cloud.is_some())
+            .field("profile", &self.profile.map(|profile| &profile.name))
+            .finish()
+    }
+}
+
+impl CloudScope<'_> {
+    pub fn require(&self, action: &'static str) -> Result<&dyn CloudAccess, CloudAccessError> {
+        require_cloud(self.cloud, self.profile, action)
+    }
+}
+
 pub fn require_cloud<'a>(
     cloud: Option<&'a DynCloudAccess>,
     profile: Option<&Profile>,

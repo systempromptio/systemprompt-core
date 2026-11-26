@@ -129,7 +129,10 @@ pub(crate) async fn login_for_profile(
         admin_name,
         profile.target.is_cloud(),
         args.email.as_deref(),
-        host.cloud_access(),
+        crate::cloud_access::CloudScope {
+            cloud: host.cloud_access(),
+            profile: Some(profile),
+        },
     )
     .await?;
     ensure_interactive_admin(&admin_user)?;

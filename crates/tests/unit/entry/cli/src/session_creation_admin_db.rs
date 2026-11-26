@@ -431,9 +431,12 @@ mod cli_context {
 
 #[tokio::test]
 async fn a_session_hint_that_is_not_an_address_is_refused_before_any_lookup() {
-    let err = resolve_credentialed_user_email(Some("not an email at all"), None)
-        .await
-        .expect_err("a malformed hint must not reach the database");
+    let err = resolve_credentialed_user_email(
+        Some("not an email at all"),
+        systemprompt_cli::cloud_access::CloudScope::default(),
+    )
+    .await
+    .expect_err("a malformed hint must not reach the database");
 
     assert!(
         format!("{err:#}").contains("not a valid email address"),
@@ -443,22 +446,76 @@ async fn a_session_hint_that_is_not_an_address_is_refused_before_any_lookup() {
 
 #[tokio::test]
 async fn a_well_formed_session_hint_is_used_verbatim() {
-    let email = resolve_credentialed_user_email(Some("hinted@sessadmin.invalid"), None)
-        .await
-        .expect("a valid hint needs no cloud credentials at all");
+    let email = resolve_credentialed_user_email(
+        Some("hinted@sessadmin.invalid"),
+        systemprompt_cli::cloud_access::CloudScope::default(),
+    )
+    .await
+    .expect("a valid hint needs no cloud credentials at all");
 
     assert_eq!(email.as_str(), "hinted@sessadmin.invalid");
 }
 
 #[tokio::test]
 async fn a_lookup_with_no_hint_in_a_build_without_the_cloud_member_names_the_feature() {
-    let err = resolve_credentialed_user_email(None, None)
-        .await
-        .expect_err("without a hint the address can only come from the cloud member");
+    let err = resolve_credentialed_user_email(
+        None,
+        systemprompt_cli::cloud_access::CloudScope::default(),
+    )
+    .await
+    .expect_err("without a hint the address can only come from the cloud member");
 
     assert!(
         format!("{err:#}").contains("facade feature `cloud`"),
         "the refusal must name the missing cloud feature, got: {err:#}"
+    );
+}
+
+fn cloud_disabled_profile() -> systemprompt_manifest::Profile {
+    let mut profile = (*systemprompt_test_fixtures::test_boot_profile()).clone();
+    profile.extensions.disabled = vec![systemprompt_manifest::DisabledExtension::literal(
+        systemprompt_identifiers::ExtensionId::new("cloud"),
+    )];
+    profile
+}
+
+#[tokio::test]
+async fn a_profile_that_disables_cloud_refuses_the_cloud_identity() {
+    let profile = cloud_disabled_profile();
+    let err = resolve_credentialed_user_email(
+        None,
+        systemprompt_cli::cloud_access::CloudScope {
+            cloud: None,
+            profile: Some(&profile),
+        },
+    )
+    .await
+    .expect_err("a cloud-disabled profile never reads the cloud account");
+    assert!(
+        format!("{err:#}").contains("disables"),
+        "the refusal names the disabled member, got: {err:#}"
+    );
+}
+
+#[tokio::test]
+async fn a_profile_that_disables_cloud_gets_no_cloud_fallback_admin() {
+    let pool = closed_db_pool().await;
+    let profile = cloud_disabled_profile();
+    let err = resolve_admin_with_fallback(
+        admins(&pool).as_ref(),
+        "hinted@sessadmin.invalid",
+        Some("hinted@sessadmin.invalid"),
+        "local",
+        systemprompt_cli::cloud_access::CloudScope {
+            cloud: None,
+            profile: Some(&profile),
+        },
+    )
+    .await
+    .expect_err("no admin is provisioned from the cloud account");
+    assert!(
+        format!("{err:#}").contains("Failed to query user by email"),
+        "the original failure stands; got: {err:#}"
     );
 }
 
@@ -467,9 +524,15 @@ async fn an_address_with_no_user_behind_it_is_provisioned_as_an_admin() {
     let pool = test_db_pool().await;
     let email = format!("{}@sessadmin.invalid", unique("fallback"));
 
-    let user = resolve_admin_with_fallback(admins(&pool).as_ref(), &email, None, "local", None)
-        .await
-        .expect("an address with no user is provisioned rather than refused");
+    let user = resolve_admin_with_fallback(
+        admins(&pool).as_ref(),
+        &email,
+        None,
+        "local",
+        systemprompt_cli::cloud_access::CloudScope::default(),
+    )
+    .await
+    .expect("an address with no user is provisioned rather than refused");
 
     assert_eq!(user.email, email);
     assert!(
@@ -491,7 +554,7 @@ async fn a_hinted_lookup_that_fails_falls_back_and_still_reports_the_original_fa
         "hinted@sessadmin.invalid",
         Some("hinted@sessadmin.invalid"),
         "local",
-        None,
+        systemprompt_cli::cloud_access::CloudScope::default(),
     )
     .await
     .expect_err("a closed pool cannot resolve or provision anyone");
@@ -511,7 +574,7 @@ async fn a_hintless_lookup_that_fails_is_reported_without_a_fallback() {
         "plain@sessadmin.invalid",
         None,
         "local",
-        None,
+        systemprompt_cli::cloud_access::CloudScope::default(),
     )
     .await
     .expect_err("a closed pool cannot resolve anyone");

@@ -166,7 +166,10 @@ async fn coverage_tenant_session_uses_cloud_identity_and_tenant_binding() {
                 .resolve(systemprompt_loader::workspace::paths::CloudPath::Credentials),
         )
         .unwrap();
-    let resolved = get_or_create_session(&project.context(true))
+    let cloud: Option<systemprompt_extension::cli::DynCloudAccess> = Some(std::sync::Arc::new(
+        systemprompt_cloud_entry::cli::access::CloudCliAccess,
+    ));
+    let resolved = get_or_create_session(&project.context(true).with_cloud_access(cloud.clone()))
         .await
         .unwrap()
         .session;
@@ -178,7 +181,7 @@ async fn coverage_tenant_session_uses_cloud_identity_and_tenant_binding() {
     assert_eq!(resolved.profile_name.as_str(), "coverage");
     assert!(!resolved.session_token.as_str().is_empty());
     assert_eq!(
-        get_or_create_session(&project.context(false))
+        get_or_create_session(&project.context(false).with_cloud_access(cloud))
             .await
             .unwrap()
             .session

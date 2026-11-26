@@ -44,6 +44,10 @@ pub(super) async fn create_local_session(
         cloud,
     } = source;
     let profile = boot.profile();
+    let scope = crate::cloud_access::CloudScope {
+        cloud,
+        profile: Some(profile),
+    };
     profile
         .validate()
         .with_context(|| format!("Failed to validate profile: {}", profile_ctx.name))?;
@@ -64,13 +68,13 @@ pub(super) async fn create_local_session(
     let admin_user = if profile.is_local_trial() && session_email_hint.is_none() {
         resolve_local_admin(admins.as_ref(), &profile.system_admin.username).await?
     } else {
-        let user_email = resolve_credentialed_user_email(session_email_hint, cloud).await?;
+        let user_email = resolve_credentialed_user_email(session_email_hint, scope).await?;
         resolve_admin_with_fallback(
             admins.as_ref(),
             user_email.as_str(),
             session_email_hint,
             "local",
-            cloud,
+            scope,
         )
         .await?
     };

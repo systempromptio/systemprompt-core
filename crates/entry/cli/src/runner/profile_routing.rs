@@ -69,14 +69,20 @@ impl Bootstrapped {
     }
 }
 
+#[derive(Clone, Copy)]
+pub(super) struct ProfileSources<'a> {
+    pub secrets: &'a systemprompt_config::SecretsSources,
+    pub cloud: Option<&'a DynCloudAccess>,
+}
+
 pub(super) async fn bootstrap_profile(
     invocation: &super::dispatch::Invocation,
     cli_config: &CliConfig,
     env: &EnvOverrides,
     confirm: &ConfirmationRequest,
-    secrets: &systemprompt_config::SecretsSources,
-    cloud: Option<&DynCloudAccess>,
+    sources: ProfileSources<'_>,
 ) -> Result<Bootstrapped> {
+    let ProfileSources { secrets, cloud } = sources;
     let cli = &invocation.cli;
     let desc = &invocation.descriptor();
     let has_export = args::has_local_export_flag(desc);
@@ -214,7 +220,7 @@ async fn try_remote_routing(
     use super::routing;
 
     let target = match routing::determine_execution_target(profile, cloud) {
-        Ok(target) => routing::authorize_target(target, cloud).await,
+        Ok(target) => routing::authorize_target(target, profile, cloud).await,
         Err(e) => Err(e),
     };
     let decision = decide_routing(target, profile, desc.routing_class(), desc.data_impact())?;

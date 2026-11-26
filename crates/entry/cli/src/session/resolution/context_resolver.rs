@@ -86,7 +86,10 @@ pub(super) async fn create_new_session(
     }
 
     let cloud_email = crate::session::creation::admin_bootstrap::require_cloud_email(
-        cloud,
+        crate::cloud_access::CloudScope {
+            cloud,
+            profile: Some(profile),
+        },
         "opening a CLI session on a cloud tenant",
     )
     .await?;

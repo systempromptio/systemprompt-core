@@ -15,7 +15,7 @@ use systemprompt_logging::CliService;
 use systemprompt_traits::{AdminAccount, AdminBootstrap, AdminGrant};
 
 use super::login::{LoginArgs, LoginOutput};
-use systemprompt_extension::cli::{CommandOutput, DynCloudAccess};
+use systemprompt_extension::cli::CommandOutput;
 
 pub(super) async fn try_use_existing_session(
     sessions_dir: &Path,
@@ -72,7 +72,7 @@ pub async fn fetch_admin_user(
     admin_name: &str,
     is_cloud_profile: bool,
     email_override: Option<&str>,
-    cloud: Option<&DynCloudAccess>,
+    scope: crate::cloud_access::CloudScope<'_>,
 ) -> Result<AdminAccount> {
     if let Some(user) = admins
         .find_by_name(admin_name)
@@ -99,7 +99,7 @@ pub async fn fetch_admin_user(
     let email = match email_override {
         Some(e) => e.to_owned(),
         None => crate::session::creation::admin_bootstrap::require_cloud_email(
-            cloud,
+            scope,
             "creating the admin user of a cloud profile",
         )
         .await?

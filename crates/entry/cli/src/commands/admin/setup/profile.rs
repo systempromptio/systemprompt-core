@@ -24,7 +24,7 @@ use systemprompt_manifest::{
 use systemprompt_models::CliPaths;
 
 use super::profile_sections as sections;
-use systemprompt_loader::workspace::profile::generate_display_name;
+use systemprompt_loader::workspace::display_name::generate_display_name;
 
 fn determine_environment(env_name: &str) -> Environment {
     match env_name.to_lowercase().as_str() {

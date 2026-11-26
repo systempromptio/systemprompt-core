@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "CLI"
+text = "A profile that disables the `cloud` member never resolves its session user or admin from the cloud account; identity and self-managed tenant sign-in now honour the disable as routing does."

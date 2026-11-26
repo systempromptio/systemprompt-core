@@ -270,19 +270,20 @@ pub(super) async fn execute(args: ResealArgs, host: &dyn KernelHost) -> Result<C
             message,
         });
     }
+    let detail = || serde_json::to_string(&outputs).context("serialising the re-seal report");
     if undecided > 0 {
         bail!(
             "{undecided} value(s) were left as they are: they opened under neither the raw scheme \
              nor the member cipher (undecodable), or they changed while being re-sealed \
              (unwritten; re-run): {}",
-            serde_json::to_string(&outputs).unwrap_or_default()
+            detail()?
         );
     }
     if pending > 0 {
         bail!(
             "{pending} value(s) are still sealed under the pre-0.88 scheme; re-run with --member \
              <id> --apply: {}",
-            serde_json::to_string(&outputs).unwrap_or_default()
+            detail()?
         );
     }
     Ok(CommandOutput::card_value("Member Re-seal", &outputs))

@@ -29,7 +29,7 @@ pub fn files_report(files: &dyn SealedFiles, apply: bool) -> Result<ColumnReport
         member_sealed: report.current,
         resealed: report.resealed,
         undecodable: report.undecodable,
-        unwritten: 0,
+        unwritten: report.kept_unopened,
     })
 }
 

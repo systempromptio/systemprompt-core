@@ -8,10 +8,11 @@
 
 use std::sync::Arc;
 
+use crate::cloud_access::CloudScope;
 use anyhow::{Context, Result};
 use chrono::Duration as ChronoDuration;
 use systemprompt_database::{Database, DbPool, PoolConfig};
-use systemprompt_extension::cli::{CloudAccount, DynCloudAccess};
+use systemprompt_extension::cli::CloudAccount;
 use systemprompt_identifiers::{ContextId, Email, SessionId, SessionToken};
 use systemprompt_loader::BootContext;
 use systemprompt_loader::workspace::{CliSession, SessionBinding, SessionIdentity, SessionKey};
@@ -183,20 +184,17 @@ pub async fn resolve_local_admin(
 #[doc(hidden)]
 pub async fn resolve_credentialed_user_email(
     session_email_hint: Option<&str>,
-    cloud: Option<&DynCloudAccess>,
+    scope: CloudScope<'_>,
 ) -> Result<Email> {
     if let Some(email) = session_email_hint {
         return Email::try_new(email).context("session email hint is not a valid email address");
     }
 
-    require_cloud_email(cloud, "resolving the session user from the cloud account").await
+    require_cloud_email(scope, "resolving the session user from the cloud account").await
 }
 
-pub async fn require_cloud_email(
-    cloud: Option<&DynCloudAccess>,
-    action: &'static str,
-) -> Result<Email> {
-    let cloud = crate::cloud_access::require_cloud(cloud, None, action)?;
+pub async fn require_cloud_email(scope: CloudScope<'_>, action: &'static str) -> Result<Email> {
+    let cloud = scope.require(action)?;
     match cloud
         .account()
         .await
@@ -216,7 +214,7 @@ pub async fn resolve_admin_with_fallback(
     user_email: &str,
     session_email_hint: Option<&str>,
     context_type: &str,
-    cloud: Option<&DynCloudAccess>,
+    scope: CloudScope<'_>,
 ) -> Result<AdminAccount> {
     match get_or_create_admin(admins, user_email, context_type).await {
         Ok(user) => Ok(user),
@@ -226,7 +224,7 @@ pub async fn resolve_admin_with_fallback(
                 error = %e,
                 "Session user lookup failed, falling back to cloud credentials"
             );
-            let cloud_email = match require_cloud_email(cloud, "falling back to the cloud account")
+            let cloud_email = match require_cloud_email(scope, "falling back to the cloud account")
                 .await
             {
                 Ok(email) => Some(email),

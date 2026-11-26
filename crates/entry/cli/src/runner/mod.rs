@@ -127,15 +127,13 @@ async fn run_inner(
     let mut profile = None;
     let mut boot = None;
     if desc.profile() {
-        let booted = profile_routing::bootstrap_profile(
-            &invocation,
-            &cli_config,
-            &env,
-            &confirm,
-            &guards.secrets,
-            guards.cloud.as_ref(),
-        )
-        .await?;
+        let sources = profile_routing::ProfileSources {
+            secrets: &guards.secrets,
+            cloud: guards.cloud.as_ref(),
+        };
+        let booted =
+            profile_routing::bootstrap_profile(&invocation, &cli_config, &env, &confirm, sources)
+                .await?;
         services = booted.services;
         profile = booted.profile;
         boot = booted.boot;

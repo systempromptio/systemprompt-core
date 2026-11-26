@@ -103,15 +103,19 @@ pub fn determine_execution_target(
 
 pub(crate) async fn authorize_target(
     target: ExecutionTarget,
+    profile: &Profile,
     cloud: Option<&DynCloudAccess>,
 ) -> Result<ExecutionTarget> {
     let ExecutionTarget::SelfManaged { hostname } = target else {
         return Ok(target);
     };
-    let token =
-        crate::cloud_access::require_cloud(cloud, None, "signing in to a self-managed tenant")?
-            .operator_tenant_token(&hostname)
-            .await?;
+    let token = crate::cloud_access::require_cloud(
+        cloud,
+        Some(profile),
+        "signing in to a self-managed tenant",
+    )?
+    .operator_tenant_token(&hostname)
+    .await?;
     Ok(ExecutionTarget::Remote {
         hostname,
         token,
