@@ -9,8 +9,11 @@
 //! boot; a consumer that may run without a value reads it with `r.optional`.
 //! A provide fn whose value cannot exist on this host (it is built from a
 //! seed only the API host holds) returns `ProvideError::Withheld`: the kernel
-//! reserves the type instead, so every `get` of it is a typed missing
-//! dependency and no member can provide a substitute.
+//! reserves the type instead, so no member can provide a substitute, and every
+//! `get` of it is a missing dependency marked withheld, which a dependent
+//! provide fn's `?` turns into `ProvideError::Withheld`: the dependent is
+//! withheld too, transitively. A type nothing provides stays a plain missing
+//! dependency and fails the boot.
 //!
 //! [`Contributions::provide_sealed`] and
 //! [`Contributions::provide_sealed_after_governance`] provide a value that

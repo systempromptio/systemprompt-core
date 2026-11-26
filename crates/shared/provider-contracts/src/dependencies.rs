@@ -75,6 +75,7 @@ struct Entry {
 pub struct Dependencies {
     entries: Arc<HashMap<TypeId, Entry>>,
     reserved: Arc<HashMap<TypeId, &'static str>>,
+    withheld: Arc<HashSet<TypeId>>,
     sealed: Arc<HashSet<TypeId>>,
     pub(crate) conferred: Arc<HashMap<TypeId, Conferred>>,
 }
@@ -105,6 +106,16 @@ impl Dependencies {
 
     pub fn reserve<T: Any + Send + Sync>(&mut self) {
         Arc::make_mut(&mut self.reserved).insert(TypeId::of::<T>(), type_name::<T>());
+    }
+
+    pub fn withhold<T: Any + Send + Sync>(&mut self) {
+        self.reserve::<T>();
+        Arc::make_mut(&mut self.withheld).insert(TypeId::of::<T>());
+    }
+
+    #[must_use]
+    pub fn is_withheld<T: Any + Send + Sync>(&self) -> bool {
+        self.withheld.contains(&TypeId::of::<T>())
     }
 
     pub fn insert<T: Any + Send + Sync>(&mut self, value: T) {

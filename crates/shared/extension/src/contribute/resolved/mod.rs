@@ -205,7 +205,13 @@ impl<'a> Resolved<'a> {
 
 impl Resolved<'_> {
     pub fn get<T: Clone + Send + Sync + 'static>(&self) -> Result<T, MissingDependency> {
-        self.optional::<T>().ok_or_else(MissingDependency::of::<T>)
+        self.optional::<T>().ok_or_else(|| {
+            if self.state.is_withheld::<T>() {
+                MissingDependency::withheld::<T>()
+            } else {
+                MissingDependency::of::<T>()
+            }
+        })
     }
 
     pub fn optional<T: Clone + Send + Sync + 'static>(&self) -> Option<T> {

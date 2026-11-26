@@ -38,11 +38,21 @@ pub enum ContributionError {
 #[derive(Debug, thiserror::Error)]
 pub enum ProvideError {
     #[error(transparent)]
-    Missing(#[from] MissingDependency),
+    Missing(MissingDependency),
     #[error("provider failed")]
     Failed(#[source] BoxedSource),
     #[error("the value is withheld on this host")]
     Withheld,
+}
+
+impl From<MissingDependency> for ProvideError {
+    fn from(missing: MissingDependency) -> Self {
+        if missing.is_withheld() {
+            Self::Withheld
+        } else {
+            Self::Missing(missing)
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]

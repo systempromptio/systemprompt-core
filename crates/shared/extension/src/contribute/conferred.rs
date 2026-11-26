@@ -56,7 +56,7 @@ pub enum ConferralError {
 impl From<ConferralError> for ProvideError {
     fn from(error: ConferralError) -> Self {
         match error {
-            ConferralError::Missing(missing) => Self::Missing(missing),
+            ConferralError::Missing(missing) => Self::from(missing),
             ConferralError::Withheld(_) => Self::Withheld,
         }
     }
