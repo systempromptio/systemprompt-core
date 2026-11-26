@@ -23,7 +23,7 @@
 //! [`AtRestCipherError::Unresealed`], which names the command that moves it;
 //! the one opener of that scheme is [`pre_088::open`], read only by
 //! `systemprompt admin secrets reseal`. The gateway journal keys its segments
-//! with [`member_key`] under its own label.
+//! with the same derivation under its own label.
 //!
 //! Rotation is out of scope here: rolling the pepper invalidates every
 //! row hashed under the old key, and rolling the master key invalidates every
