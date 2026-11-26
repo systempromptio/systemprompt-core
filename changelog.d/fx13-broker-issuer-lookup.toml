@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Extensions"
+text = "The broker-call verifier's issuer reads `mcp_credential_broker_secret` the way every other custom secret is read (either case of the name), so a command host whose secrets spell it in upper case issues the verifier."

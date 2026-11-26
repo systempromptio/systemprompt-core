@@ -119,6 +119,8 @@ mod broker_calls;
 #[cfg(test)]
 mod child_conferrals;
 #[cfg(test)]
+mod conferral_hosts;
+#[cfg(test)]
 mod core_secret_names;
 #[cfg(test)]
 mod document_token_views;
