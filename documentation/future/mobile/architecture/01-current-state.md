@@ -41,5 +41,5 @@ Not missing, though it might look so: a device authorization grant. Authorizatio
 | `systemprompt-harness` composition and slices (harness S4) | The phone is one more composition: the `device` slice and a client slice, nothing else |
 | `BrandDecl` and `ThemeDecl` as data (harness S4) | One brand and theme source for desktop and phone |
 | The scripted instance (harness S0 and S2) | Every phone test |
-| Server-owned sessions (harness S3) | The session list, the per-turn stream, the waiting states and approvals that every client, the phone included, renders |
+| The runtime and its modes, and the session record (harness S3) | A phone runs sessions in `Remote` mode; the session list, per-turn stream and approvals are the same record every client renders |
 | The template's `extensions/` layout, flavours and patch mechanism | `extensions/mobile/` and a `mobile` flavour |

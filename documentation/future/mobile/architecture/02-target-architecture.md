@@ -2,20 +2,20 @@
 
 ## 1. What the phone is
 
-A client of the company's instance. Everything it shows and does happens on the server. Since sessions of the native engine also live on the instance ([harness set](../../harness/architecture/11-server-owned-sessions.md)), a phone sees every such session, can start one, and can start one whose tools execute on the user's own desktop when that desktop is online. A phone executes nothing itself.
+A client of the company's instance. Everything it shows and does happens on the server. The native engine has three typed execution modes ([harness set](../../harness/architecture/11-execution-modes.md)). A phone uses one: `Remote`. A session started from a phone runs in the instance's sandbox, which covers chatting, planning and work on a connected repository. Because the instance is the record of every session in every mode, the phone also sees and can steer or approve sessions that are running on the user's desktop. A phone executes nothing itself.
 
 | The phone does | The phone does not |
 |---|---|
 | Sign in to an instance; hold a sealed credential | Run an agent loop |
 | Chat with the instance's agents | Run tools, a shell or a language server |
-| Start, watch, steer and cancel server-side agent runs | Execute any tool; act as a workspace device |
+| Start, watch, steer and cancel server-side agent runs | Run a session locally: `Unrestricted` and `Sandboxed` are desktop modes |
 | Approve or deny a run's tool requests | Call the model gateway directly |
 | Receive push notifications; open the run or document they refer to | Manage other coding agents |
 | Read documents and their comments | Hold provider keys or a loopback proxy |
 
 Why this boundary: inference and governance already live on the instance, and server-side runs already exist. A phone that only observes and decides needs no engine, no file access and no background execution, which are the things phone operating systems restrict.
 
-Named as out of scope, not forgotten: an on-device agent loop or tool host; a public store listing; a shared push relay.
+Named as out of scope, not forgotten: running the runtime on a phone; a public store listing; a shared push relay.
 
 ## 2. Layers
 

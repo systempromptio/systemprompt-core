@@ -18,7 +18,7 @@ One untangling is required: the state type currently names a database handle. Th
 
 Acceptance: `systemprompt-harness` and everything it depends on link no SQL parser, database driver or HTTP-server crate. The closure gate proves it.
 
-Since the native engine's loop runs on the instance (`11-server-owned-sessions.md`), the device composition holds the tool host and the client features, not the governor or the loop. Where this file's tables list engine contributions (tools, agents, commands, prompt sections), they are declared by members linked into the server-side engine; a device member contributes tool *executors*, views, themes and settings.
+The engine runs in one of three typed execution modes (`11-execution-modes.md`). A member's tools are written once against the execution environment and run unchanged in all three; a member never asks which mode it is in.
 
 ## 2. The member trait
 
@@ -113,7 +113,7 @@ An extension adds members and can remove optional ones. It cannot replace a core
 
 | Reserved to core standing | Why |
 |---|---|
-| The instance `Governor` (now in process on the server) | The governed-by-construction property |
+| The instance `Governor` | The governed-by-construction property |
 | Account storage, sealing, JWT renewal, `auth_provider` | Credentials never pass through extension code |
 | Manifest trust and acceptance | Signature, version order, skew |
 | The loopback secret and scoped-token derivation | Root credential for every managed agent |

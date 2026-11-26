@@ -17,7 +17,7 @@ agents can work on it at the same time without colliding.
 3. **The extension** is the single build site for any device product: a one-line `main`, a composition, the window and views, brand, theme, packaging and the product's own members. It lives in the template (MIT) and is forked by installs, with the layout installs already use.
 4. **The bridge is retired.** Its non-GUI code becomes core device crates; its window is rewritten as native views in the extension; the no-window composition keeps its product name. Core's release stops building, testing and signing a desktop binary.
 5. **The standalone harness repository is dissolved**: engine and governance into core, shell into the template.
-6. **Sessions of the native engine live on the instance.** The loop runs on the server; a device executes only the tools that must touch the user's machine, behind its own permission rules; every client renders the same session from one stream.
+6. **One runtime, three typed execution modes.** The loop and its tools are implemented once in core and run `Unrestricted` or `Sandboxed` on a desktop, or `Remote` in the instance's sandbox. The instance is the record of every session in every mode, so every client sees them all.
 
 ## Layout
 
@@ -44,7 +44,7 @@ agents can work on it at the same time without colliding.
 | `08-platforms-and-packaging.md` | Windows, macOS, Linux; packaging and signing |
 | `09-quality-and-gates.md` | Standards, gates, security review |
 | `10-release-and-fleet-handover.md` | Release after the change; moving installed bridges |
-| `11-server-owned-sessions.md` | The native engine's loop on the server; tool requests to a device; the session stream every client renders |
+| `11-execution-modes.md` | One loop in core; the `Unrestricted`, `Sandboxed` and `Remote` modes; the sandbox policy; the instance as the record of every session |
 
 Phone apps built from the same extension are specified in the sibling set, [`../mobile/`](../mobile/README.md).
 
@@ -71,7 +71,7 @@ D10 to D26 (crate list, publishing, contract placement, layout, naming, Linux, d
 | S0 Foundations | Not started |
 | S1 Lift | Not started |
 | S2 Parity and proof | Not started |
-| S3 Server-owned sessions | Not started |
+| S3 One runtime, three execution modes | Not started |
 | S4 Device composition | Not started |
 | S5 Bridge split and integration | Not started |
 | S6 Platforms, packaging, signing | Not started |

@@ -97,7 +97,7 @@ Each feature slice provides its state machine in core, in the `client` part of `
 
 | State machine | Owns |
 |---|---|
-| Session stream | Opening a session from snapshot; applying ordered events and state deltas; resuming from a sequence number; the two waiting states |
+| Session stream | Opening a session from snapshot; applying ordered events and state deltas; resuming from a sequence number; the approval-wait and offline states |
 | Approval queue | Pending requests in order; one idempotent decision; the outcome when another client decided first |
 | Inbox | The feed, unread count, and resolving a notification id to a destination |
 | Documents | Paging and the comment thread |

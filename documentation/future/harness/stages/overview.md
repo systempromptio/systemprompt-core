@@ -9,7 +9,7 @@ Nine stages. Each is a set of **waves**; each wave is a set of **lanes** that ru
 | **S0 Foundations** | Core knows host `harness` (on `next` and `future`). The eight device crates exist in core as empty, gated skeletons. The template has an empty shell workspace and a three-system workflow. Two inventories exist: the lift manifest and the reference-test catalogue | core, template |
 | **S1 Lift** | The harness repository is dissolved. Its engine and governance are core crates; its shell is in the template. Both build and pass their tests on Windows, macOS and Linux against core `future`. The repository is archived | core, template |
 | **S2 Parity and proof** | A scripted instance, golden scenarios, a comparison against an unmodified reference agent, the migrated test batches, and an evidence run with screenshots from Windows and macOS | core, template |
-| **S3 Server-owned sessions** | The native engine's loop runs on the instance. A device with a workspace executes tool requests behind its own rules. Every client renders a session from one resumable stream | core, template |
+| **S3 One runtime, three execution modes** | The loop and tools are one runtime in core that runs `Unrestricted`, `Sandboxed` or `Remote`. The instance is the record of every session. Every client renders a session from one resumable stream | core, template |
 | **S4 Device composition** | The shared composition machinery; the engine, governance and shell as members; slices as features; a one-line binary; instance control over members in the contract | core, template |
 | **S5 Bridge split and integration** | The bridge is split in place into the device crates, its registries become members, the duplicate device code is deleted, its window is rebuilt natively, and the template builds the bridge composition | core, template |
 | **S6 Platforms, packaging, signing** | Platform modules with three implementations; desktop on Windows, macOS and Linux; signed artefacts and generated distribution manifests | core, template |
@@ -22,9 +22,9 @@ Decided. Eight new crates in core; everything else merges into crates that alrea
 
 | Crate | Holds | Arrives in |
 |---|---|---|
-| `systemprompt-engine` | Agent loop, tools and the tool host, MCP, LSP, workspace, configuration, prompts. The harness's eleven engine crates become its top-level modules. From S3 the loop runs on the server and a device links it for the tool host only | S1, S3 |
+| `systemprompt-engine` | The one runtime: agent loop, tools, MCP, LSP, workspace, configuration, prompts, the execution environment and the sandbox. The harness's eleven engine crates become its top-level modules. The same code runs in all three modes | S1, S3 |
 | `systemprompt-device` | Sign-in, keyrings, config and policy stores, sync, acceptance, platform modules | S1 (harness code), S5 (bridge code replaces it) |
-| `systemprompt-harness` | The device composition, projection, update, shared client state machines | S1, S4 |
+| `systemprompt-harness` | The device composition, the governor, projection, update, shared client state machines, the headless role the instance starts for `Remote` | S1, S3, S4 |
 | `systemprompt-drive` | Folder sync | S1, merged with the bridge's in S5 |
 | `systemprompt-proxy` | Loopback proxy, scoped tokens, heartbeat | S5 |
 | `systemprompt-machine` | Install, device-management snippets, policy writer, elevation; lockdown as a feature | S5 |
@@ -62,9 +62,9 @@ S0 ──► S1 ──► S3 ──► S4 ──► S5 ──► S7
 
 **The critical path to the first goal** (harness repository retired; core and the template building and tested on Windows and macOS against `future`; parity measured) is S0, S1, S2. None of it touches the bridge.
 
-**Why S2 comes before S3 and S4.** The deterministic suite is built around the lifted code while it still behaves as it did in its own repository. S3 moves the loop to the server and S4 restructures how the device is assembled; the suite is how each proves it changed nothing a user can see.
+**Why S2 comes before S3 and S4.** The deterministic suite is built around the lifted code while it still behaves as it did in its own repository. S3 puts every tool behind one execution environment and adds two more modes; S4 restructures how the device is assembled. The suite is how each proves it changed nothing a user can see.
 
-**Why S3 comes before S4.** Moving the loop removes device-side pieces (per-call model credentials, the local session store, local approval handling) that the composition stage would otherwise convert into members and then delete.
+**Why S3 comes before S4.** The execution environment is the contract every tool is written against, and the session record is what every client renders. Both must exist before the device is restructured into members.
 
 ## 4. Parallelism at a glance
 
@@ -82,8 +82,8 @@ Counts are lanes that can be open at once, before the cap of four in `operating-
 | S2 | B | 4 | Comparator and three migration batches |
 | S2 | C | 3 | Tour and evidence scripts; fourth migration batch |
 | S3 | A | 1 then a review | Contract first |
-| S3 | B | 4 | Request channel; engine on the server; session stream; tool host |
-| S3 | C | 3 | Clients onto the stream; test doubles and scenarios; removal |
+| S3 | B | 4 | Tools onto the environment; sandbox; session record; remote runtime |
+| S3 | C | 3 | Local publish and control; clients onto the stream; scenarios in every mode |
 | S3 | D | 3 | Independent reviews |
 | S4 | A | 1 then a review | Contract first |
 | S4 | B, C | 3 each | Members by crate |

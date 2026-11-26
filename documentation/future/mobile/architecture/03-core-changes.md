@@ -8,7 +8,7 @@ Five server changes, two extensions of device crates, one new crate. All land on
 |---|---|---|---|---|---|
 | C1 | Push channel | `domain/notifications` | No | No (delivery only) | M1 |
 | C2 | Device records and push tokens | `domain/users`, `entry/notifications` | No | Yes (who may register a token for whom) | M1 |
-| C3 | Notifications on waiting states; lists; starting a session from a phone. The session model itself comes from the harness's server-owned sessions stage | `app/agent-runs`, `entry/agent-runs`, `domain/notifications` | No | Yes (who may decide; which desktop may be bound) | M1 |
+| C3 | Starting `Remote` sessions from a phone; notifications on approvals; lists. The runtime and session record come from the harness's S3 | `app/agent-runs`, `entry/agent-runs`, `domain/notifications` | No | Yes (who may decide) | M1 |
 | C4 | Association files | `entry/api` well-known routes; profile configuration | No | Yes (which apps the domain vouches for) | M1 |
 | C5 | Discovery and downloads for phones | `shared/models` bridge instance types; `entry/gateway` release routes | No | No | M1 |
 | C6 | Typed client calls | `systemprompt-client` | No | No | M2 |
@@ -35,19 +35,19 @@ No new host. A phone makes no model call and receives no host profile; it is ide
 - Signing out, revoking a device, or deleting a user removes its tokens. The user-purge inventory lists the new table.
 - The admin device list shows platform and app version.
 
-## 4. C3 — Sessions, runs and waiting states
+## 4. C3 — Sessions on a phone
 
-Most of what a phone needs here is delivered by the harness's server-owned sessions stage, not by the mobile stages: the session list, the per-turn event stream with snapshot and deltas, the `awaiting_approval` and `awaiting_device` states, and approvals through the governance approval table that already exists ([harness set](../../harness/architecture/11-server-owned-sessions.md)).
+The runtime, its `Remote` mode, the session record, the per-turn stream and approvals are delivered by the harness's S3 ([harness set](../../harness/architecture/11-execution-modes.md)), not by the mobile stages.
 
 What remains for the mobile stages:
 
 | Element | Design |
 |---|---|
-| Notify on a wait | Entering `awaiting_approval`, or `awaiting_device` beyond a short interval, writes a high-attention notification in the same transaction, so push and the in-app stream both carry it |
+| Start from a phone | A `Remote` session: no workspace, or a checkout of a repository the user has connected. The other two modes are reported unavailable on a phone, with the reason |
+| Notify on a wait | A turn that needs an approval writes a high-attention notification in the same transaction, so push and the in-app stream both carry it. This applies to sessions in any mode, so a desktop session waiting for approval reaches the phone |
 | Decide from any client | Only the session's owner. The first decision is recorded; a later one receives that outcome. A timeout denies |
-| List | The caller's sessions and other server-side runs, newest first, paged, filterable by state |
-| Start from a phone | A session with no workspace device, or one bound to a named desktop of the same user that is online |
-| Hosts that cannot pause | Other agents run as server-side runs are refused at queue time when an asking mode is requested; never run permissively |
+| List | The caller's sessions in every mode and other server-side runs, newest first, paged, filterable by state and mode |
+| A desktop that is offline | Its local sessions show as offline on the phone; control sent to them waits or expires |
 
 ## 5. C4 — Association files
 

@@ -20,7 +20,7 @@ Then **S8-A4 (review)** of A1 and A2: an instance can narrow what a device runs 
 
 | Lane | Repository | Work |
 |---|---|---|
-| **S8-B1 Scheduled native runs** | core | Schedules and other server-side origins start native sessions with a sandbox workspace on a runner node, reusing S3's run handler |
+| **S8-B1 Scheduled native sessions** | core | Schedules and other server-side origins start `Remote` sessions, reusing S3's remote runtime |
 | **S8-B2 Runner slice** | core | The device starts and observes sessions in other agents through the runner facet; one transcript model, one permission surface, one telemetry stream |
 | **S8-B3 Fleet view** | template | A view of every agent on the machine: health, sessions, verdicts |
 | **S8-B4 Server-side features on the desktop and web** | template | Desktop views for chats with instance agents, approvals and the notification inbox over the shared client state machines. A session view in the web console: a small script consuming the same session stream, rendered server-side on first load |
@@ -38,7 +38,7 @@ Each is an ordinary capability unit: a domain crate, an entry crate with HTTP, c
 ## Stage gate (L2)
 
 - A golden scenario in which the scripted instance requires a member, disables another, and the composition admits accordingly.
-- A scenario in which a scheduled native session runs in a sandbox workspace and appears in the owner's session list on every client.
+- A scenario in which a scheduled `Remote` session runs and appears in the owner's session list on every client.
 - A scenario in which the device drives a second agent through the runner against the scripted instance.
 - Everything earlier, unchanged.
 

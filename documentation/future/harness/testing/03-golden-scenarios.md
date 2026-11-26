@@ -83,7 +83,7 @@ Normalisation rules:
 
 ## 4. Running a scenario through the harness
 
-Through the headless `run` command added in S2-A2, which uses the same engine and tools as the window. At S2 the loop runs in that process. From S3 the loop runs on the instance and `run` is a client of it with the test machine as workspace device; the scenario files and expected traces do not change, which is what proves the move. The suite lives in core's test workspace and runs on Windows, macOS and Linux:
+Through the headless `run` command added in S2-A2, which uses the same engine and tools as the window. At S2 that is the only mode. From S3 every scenario runs in all three execution modes (`Unrestricted`, `Sandboxed`, `Remote`) with the same scenario files and the same expected traces, which is what proves one loop serves all three. Parity with the reference agent is measured in `Unrestricted`.
 
 1. Start the scripted instance with the scenario's manifest, turns and verdicts.
 2. Create a fresh data root; sign in with `login --stdin` and the instance's test PAT.

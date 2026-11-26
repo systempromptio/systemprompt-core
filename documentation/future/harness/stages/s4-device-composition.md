@@ -24,8 +24,8 @@ Serial: every other lane in this stage compiles against S4-A1.
 | Lane | Repository | Owned paths | Work |
 |---|---|---|---|
 | **S4-B1 Composition runtime** | core | `systemprompt-harness/src/composition/**` | `HarnessComposition`: `with`, `without`, `declare`, `admit`, `run`; roles `desktop`, `run`, `serve`; state built in dependency order; slots built; admission re-run on a new manifest |
-| **S4-B2 Engine members** | core | `systemprompt-engine/**` | `src/extension.rs`. Every built-in tool, agent, command, prompt section, instruction source and skill source becomes a contribution to the server-side engine's composition; each device-executed tool also contributes its executor to the tool host. The built-in tool list function is deleted |
-| **S4-B3 Device members** | core | `systemprompt-device/**`, `systemprompt-drive/**`, `systemprompt-harness/src/{governor,projection}/**` | Accounts, sync, projection, the tool host and Drive as members with core standing. The governor is not a device member: it runs in process on the server since S3. Settings blocks typed. Background work declared as tasks |
+| **S4-B2 Engine members** | core | `systemprompt-engine/**` | `src/extension.rs`. Every built-in tool, agent, command, prompt section, instruction source and skill source becomes a contribution, written against the execution environment so it runs unchanged in every mode. The built-in tool list function is deleted. The model transport moves onto core's wire codecs |
+| **S4-B3 Device members** | core | `systemprompt-device/**`, `systemprompt-drive/**`, `systemprompt-harness/src/{governor,projection}/**` | Governor, accounts, sync, projection and Drive as members with core standing. Settings blocks typed. Background work declared as tasks |
 
 **Wave gate (L1).** Offline check of core.
 

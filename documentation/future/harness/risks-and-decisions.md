@@ -28,7 +28,7 @@
 | 12 | Fleet handover and the one-time import | Host profiles and tasks point at the bridge binary by path; MDM-pinned trust | Import once into the single layout, loopback secret byte for byte; upgrade test; pilot; failure leaves the old binary in place; MDM swap for managed fleets |
 | 13 | A background process users did not expect | Other agents lose their proxy if it stops | `tray` slice; clear statement in the window; `serve` for machines with no desktop |
 | 14 | Opening host identity | A closed enum on an authorization path gains declared members | Built-ins stay closed; fail closed on both sides; typed `HostId`; security review |
-| 15 | A careless or hostile fork | Trusted Rust in a process holding a session | With the loop on the server, a modified client can no longer skip the verdict for the native engine: the server decides before it issues a tool call. A fork still controls what its own tool host executes; standing remains a correctness boundary, not a sandbox |
+| 15 | A careless or hostile fork, or a modified client | In the local modes the runtime is on the user's machine and could skip the verdict | The instance always controls model calls; `Sandboxed` bounds the agent by the operating system; an instance can allow `Remote` only; the composition digest lets an instance recognise a build. Standing is a correctness boundary, not a sandbox |
 | 16 | The fail-open verdict | The one deliberate exception lives in the reserved governor | Layers have no path to `Allow` on error or timeout; property test |
 | 17 | Slice combinations | Eleven slices; a slice that compiles only in the full build is easy to write | Every form is a named composition built and booted in CI |
 | 18 | Lockdown claims | Easy to promise more than a user-space process can enforce | State the limit in the product and the external guide |
@@ -36,10 +36,10 @@
 | 20 | Relicensing the shell | BUSL-1.1 code becomes MIT | Only the UI, desktop and brand crates are relicensed, as they enter the template; governed code never sits there |
 | 21 | Doing this while the app is unproven | 81k lines never launched | S1 and S2 prove it on Windows and macOS before it is restructured |
 | 22 | Parity pressure | Users of the overlay and the bridge need parity before extensibility | S1, S2 and S7 deliver for them; the composition work is invisible to them and can be paced |
-| 24 | A server-to-device execution channel | A compromised instance could direct commands at every connected desktop | The device's own rules are a gate the server cannot move; roots checked at time of use; sensitive targets always ask; per-device binding and authentication; three independent reviews in S3 |
-| 25 | Server load and state | Every active session holds a loop, a transcript and a lease on the instance | Runner nodes; per-user and per-node limits; one persisted step at a time; retention rules; the added latency per tool call is measured at the S3 gate |
-| 26 | A device that goes offline mid-turn | The turn waits on a machine that may not return | A visible waiting state on every client; a notification; expiry returns a failure to the model; cancel from any client |
-| 27 | No precedent | No shipped product was found that runs the loop on a server and tools on the user's own machine | S3 comes after the deterministic suite exists; the same scenarios must produce the same traces; an early spike of the request channel before S3 opens |
+| 24 | Sandbox strength differs by platform | The policy is one, the enforcers are not equal; native Windows has none that fits | A conformance suite per backend; `Sandboxed` is unavailable, with its reason, where no backend exists; the local container is an opt-in for an identical environment |
+| 25 | Remote sessions are a hosted execution service | The instance runs arbitrary commands for its users: isolation, egress, resource abuse and cost | Per-session isolation; the instance's own egress allowlist; per-user and per-node limits; credentials scoped to one session; an independent review in S3 |
+| 26 | A local machine that is offline | Its session cannot publish or receive control | A local journal resumes the upload; other clients show the session as offline; control waits or expires |
+| 27 | `Unrestricted` is exactly that | Full access to the user's machine | The mode is typed, recorded and shown on every client; an instance or an administrator can forbid it; permission rules and sensitive-target asks still apply |
 | 23 | Two programmes on one branch | The `future` programme owns `future` | This programme's lanes use their own branches and merge into `future` only at agreed points |
 
 ## 3. Decisions taken
@@ -64,10 +64,11 @@ D1 to D9 are in `README.md`. Settled on 2026-11-26, and applied throughout this 
 | D23 | Reference agent naming | Named in this directory and in workflow configuration only; never in source, test names or strings |
 | D24 | History | Plain import recording the source commit; history stays in the archived repository |
 | D25 | Evidence | A development process, not continuous integration. An agent session attached to real Windows and macOS machines runs one command per machine at stage closure. Hosted runners build and test on three systems and store nothing |
-| D27 | Where native sessions run | On the instance. The loop is server-side; a device executes tool requests behind its own permission rules; every client renders one stream. Third-party agents are unaffected (`architecture/11-server-owned-sessions.md`) |
-| D28 | Tool request granularity | A whole tool call per request, not low-level file and terminal operations |
-| D29 | Session stream | The AG-UI event vocabulary core already defines, on a durable per-turn log with resume |
-| D30 | Waiting on a person | Reuses the governance approval table keyed by call id; waiting on a device and on a person are one state machine |
+| D27 | Execution modes | One runtime in core, three typed modes: `Unrestricted` and `Sandboxed` on a desktop, `Remote` in the instance's sandbox. The loop is one implementation; a mode is an argument, not a fork (`architecture/11-execution-modes.md`). Withdrawn: a server-side loop sending each tool call to a device |
+| D28 | Sandbox | One policy type, enforced by each platform's own mechanism; the Linux backend serves both a Linux desktop and the instance. `Sandboxed` refuses to start where no backend exists; it never degrades silently |
+| D29 | Session record | The instance records every session in every mode. A local runtime publishes its events and receives control. The stream uses the AG-UI vocabulary core already defines |
+| D30 | Approvals | One mechanism in every mode: the governance approval table keyed by call id |
+| D32 | Surfaces and modes | Phones, the web and scheduled work use `Remote` only. Desktops offer all three, subject to the instance's allowed modes |
 | D31 | Shared client layer | State machines (stream handling, approval queue, notification routing), not screen-shaped models. Not shared with the web console as code; the web consumes the same stream |
 | D26 | Signing | The reference builds reuse the identities the bridge release uses today; each install signs its own brand |
 
@@ -77,7 +78,7 @@ Consequences worth restating:
 - D21 makes the window toolkit's Linux support a programme risk, not an option (risk 9).
 - D22 means core may carry the bridge build for as long as the slowest fleet takes.
 - D25 means a stage cannot close unless both machines are online and linked.
-- D27 makes the instance stateful for every active session and adds a server-to-device execution channel. It is new ground: no shipped product was found that documents this split.
+- D27 keeps local execution as efficient as any local agent and gives parity with one in `Unrestricted`. In the two local modes the runtime runs on a machine its user controls, so tool governance there is as strong as the client is unmodified; an organisation that needs certainty allows `Remote` only.
 
 ## 4. Decisions still open
 

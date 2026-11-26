@@ -33,7 +33,7 @@ Decided: eight new crates. Core's five layers hold, with device crates as peers 
 | domain | `systemprompt-hosts` | The host contract; one feature per product: `claude`, `codex`, `opencode`, `hermes` |
 | domain | `systemprompt-drive` | Folder sync |
 | domain | `systemprompt-runner` | Headless adapters, shared with the server's agent runs |
-| app | `systemprompt-harness` | The device composition, the member contract and sink, projection, update, commands, shared client state machines |
+| app | `systemprompt-harness` | The device composition, the member contract and sink, the governor, projection, update, commands, shared client state machines |
 | entry | none in core | The binary is the extension's |
 
 Constraints:
@@ -50,7 +50,8 @@ Each kernel member is a facade feature of `systemprompt`, so a build links only 
 | Slice | Brings | Depends on | Standing |
 |---|---|---|---|
 | `device` | Sign-in, key trust, sync, heartbeat | Always present | Core, required |
-| `tool-host` | Executes the native engine's tool requests in a workspace on this device, behind the device's own permission rules. The loop itself runs on the instance (`11-server-owned-sessions.md`) | `device` | Core, optional |
+| `governor` | Model-call signing, verdicts, telemetry, model list | `device` | Core, reserved |
+| `engine` | The one runtime: loop and tools, run in a typed mode (`11-execution-modes.md`): `Unrestricted` or `Sandboxed` on this device, or `Remote` on the instance | `governor` | Core, optional |
 | `proxy` | Loopback proxy, loopback secret, scoped tokens | `device` | Core, reserved |
 | `host-claude`, `host-codex`, `host-opencode`, `host-hermes` | One host integration each (features of `systemprompt-hosts`) | `proxy` | Core, optional |
 | `machine` | Install, MDM, policy writer, drift repair | `device` | Core, optional |
@@ -71,12 +72,12 @@ Each row is a deployment and nothing but a list of slices. Each is a named compo
 | Govern OpenCode | `device`, `proxy`, `host-opencode`, `tray` | Tray |
 | The bridge: no harness, manage coding agents only | `device`, `proxy`, every `host-*`, `machine`, `tray`, `update` | Tray or none. This is today's bridge |
 | Headless on a server or in CI | `device`, `proxy`, chosen `host-*` | None (`serve`) |
-| Reference harness | `device`, `tool-host`, the client feature slices, `shell`, `drive`, `update` | Full |
+| Reference harness | `device`, `governor`, `engine`, the client feature slices, `shell`, `drive`, `update` | Full |
 | Harness and bridge together | The two rows above combined | Full, with a hosts page |
 | Your own harness | Reference slices plus a fork's members | Full, the fork's brand and theme |
 | Orchestrator above the agents | Harness and bridge plus `runner` | Full |
 | Locked-down machine | Any row plus `machine` and `lockdown` | As the row |
-| Server-side agent runs | The engine on a runner node with a sandbox as its workspace; no device build involved | — |
+| `Remote` sessions | The same runtime's headless role, started by the instance on a runner node in its sandbox | None |
 
 ### Lockdown, and its limit
 
@@ -90,7 +91,7 @@ It governs the agents it manages and reports those it finds unmanaged. It does n
 |---|---|---|
 | `desktop` (default when launched without a console) | The user | `shell` |
 | `serve` | Login item, service, or command line | No window; proxy and sync |
-| `run` | Command line | Starts a session on the instance with this machine as its workspace device, and prints the stream |
+| `run` | Command line, or the instance for a `Remote` session | The runtime, headless, one session, in the mode named |
 | Declared commands | Command line, other agents, schedulers | `credential-helper`, `sync`, `install`, `doctor`, `login`, … |
 
 A bare invocation with no subcommand and a console is the credential helper, as the bridge behaves today; other agents' configurations depend on it.

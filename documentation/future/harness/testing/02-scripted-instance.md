@@ -89,14 +89,19 @@ A script is an ordered list of turns. Each turn matches the next model request a
 
 The scripted instance is tested against the linked core wire types: a manifest it signs verifies with the production verifier; a stream it encodes decodes with the production decoder to the scripted turn. If core changes a wire type, these tests fail before any scenario does.
 
-## 6. After the loop moves to the server
+## 6. Doubles for the three execution modes
 
-From S3 the native engine's loop runs on the instance, so a scenario needs a real server loop, a scripted model behind it, and something standing in for the device.
+From S3 a scenario runs in each mode against the same expected trace.
+
+| Mode | What runs | What is scripted |
+|---|---|---|
+| `Unrestricted`, `Sandboxed` | The real runtime on the test machine, publishing its session to the scripted instance | The model, the verdicts, and the instance's side of publish and control |
+| `Remote` | The real runtime started by a real runner in the Linux sandbox | The model behind the real gateway pipeline; the workspace source (none, a fixture repository, a bundle) |
+
+Additional doubles:
 
 | Double | Role |
 |---|---|
-| Scripted model | The same turn scripts, served behind the real gateway pipeline in process, so quotas, audit and policy run as in production |
-| Scripted device | Answers tool requests from a fixture workspace through the real tool host. It can be told to drop its connection, answer late, answer twice, or never answer, to exercise resume, expiry and idempotency |
 | Second client | Opens the same session mid-turn and asserts it reconstructs the same state from snapshot and deltas |
-
-The scripted instance keeps its role for everything that is still a device talking to an instance: sign-in, key trust, sync, heartbeat, and the proxy path used by third-party agents.
+| Flaky link | Drops the local runtime's connection mid-upload and asserts the session log resumes with no gap and no duplicate |
+| Sandbox probes | The conformance cases: write outside a root, read outside scope, reach a disallowed destination, escape the process limits, read a filtered environment variable |

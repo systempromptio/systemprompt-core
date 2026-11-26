@@ -52,7 +52,7 @@ M0-A1 closes the unconfirmed and assumed items.
 
 | # | Decision | Alternative declined |
 |---|---|---|
-| M1 | The phone is a client of the instance and executes nothing. It sees every session of the native engine, since those live on the server, and may start one bound to the user's own desktop | An on-device agent loop or tool host |
+| M1 | A phone uses the `Remote` execution mode only: sessions it starts run in the instance's sandbox. It sees, steers and approves sessions in every mode, because the instance records them all | Running the runtime on a phone |
 | M2 | A shared Rust core with SwiftUI and Jetpack Compose | One cross-platform UI codebase; a Rust-only UI on an early phone port of the desktop toolkit |
 | M3 | iOS through custom apps and the beta channel; Android as a self-hosted APK | Enterprise in-house per install; a web app on iOS; supporting every route |
 | M4 | Each instance sends its own push | A relay operated centrally; no push |
@@ -76,7 +76,7 @@ M0-A1 closes the unconfirmed and assumed items.
 | # | Decision | Recommendation | Needed by |
 |---|---|---|---|
 | O1 | Whether to include three generic server-driven layouts (list, detail, form) so a new instance capability can appear on phones without an app release | Yes, but after M5: it is new scope | After M5 |
-| O2 | The default approval timeout | Fifteen minutes, configurable per instance | M1 |
+| O2 | The default approval timeout | Fifteen minutes, configurable per instance | M1 | A phone uses the `Remote` execution mode only: sessions it starts run in the instance's sandbox. It sees, steers and approves sessions in every mode, because the instance records them all | Running the runtime on a phone |
 | O3 | The reference app's name, icon, bundle identifier and package name | From the owner | M0 |
 | O4 | Who holds the developer accounts and signing secrets for the reference app | The maintainers; each install its own | M0 |
 | O5 | Whether tablets get an adapted layout | Not in these stages; the phone layout runs on them | After M5 |
