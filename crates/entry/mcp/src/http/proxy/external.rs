@@ -143,6 +143,7 @@ pub fn map_resolve_error(error: McpDomainError) -> ProxyBackendError {
         McpDomainError::ExternalAccountNotConnected { .. } => {
             ProxyBackendError::ProviderNotConnected
         },
+        McpDomainError::ExternalReauthRequired { .. } => ProxyBackendError::ProviderReauthRequired,
         McpDomainError::ExternalAuthUnavailable { message, .. } => {
             ProxyBackendError::Unavailable { status: message }
         },

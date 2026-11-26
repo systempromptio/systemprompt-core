@@ -102,6 +102,11 @@ pub enum ProxyError {
     #[error("Connect your account for '{service}' before using this server")]
     ProviderNotConnected { service: String },
 
+    #[error(
+        "Reconnect your account for '{service}'; its authorisation has expired or been revoked"
+    )]
+    ProviderReauthRequired { service: String },
+
     #[error("External MCP server '{service}' could not be resolved")]
     ExternalResolveFailed {
         service: String,
@@ -215,7 +220,9 @@ impl ProxyError {
             },
             Self::AuthChallenge(challenge) => challenge.status,
             Self::Forbidden { .. } | Self::ContextNotOwned { .. } => StatusCode::FORBIDDEN,
-            Self::ProviderNotConnected { .. } => StatusCode::CONFLICT,
+            Self::ProviderNotConnected { .. } | Self::ProviderReauthRequired { .. } => {
+                StatusCode::CONFLICT
+            },
         }
     }
 
@@ -247,6 +254,7 @@ impl ProxyError {
             Self::OwnerHopUnavailable { .. } => "owner_hop_unavailable",
             Self::RegistryLookupFailed { .. } => "registry_lookup_failed",
             Self::ProviderNotConnected { .. } => "provider_not_connected",
+            Self::ProviderReauthRequired { .. } => "needs_reauth",
             Self::ExternalResolveFailed { .. } => "external_resolve_failed",
             Self::ContextNotOwned { .. } => "context_not_owned",
             Self::McpBackendsUnavailable { .. } => "mcp_backends_unavailable",

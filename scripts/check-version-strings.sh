@@ -29,6 +29,7 @@ MINOR="${VERSION%.*}"
 mapfile -t FILES < <(git ls-files \
     'README.md' \
     'AGENTS.md' \
+    'SECURITY.md' \
     'documentation/**' \
     'bin/bridge/Cargo.toml' \
     'systemprompt/src/lib.rs' \

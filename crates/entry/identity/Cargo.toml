@@ -51,7 +51,6 @@ http = [
     "dep:thiserror",
     "dep:tracing",
     "dep:url",
-    "dep:validator",
     "dep:urlencoding",
     "dep:uuid",
     "dep:webauthn-rs",
@@ -112,7 +111,6 @@ sha2 = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
 url = { workspace = true, optional = true }
-validator = { workspace = true, optional = true }
 urlencoding = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 webauthn-rs = { workspace = true, optional = true }

@@ -379,6 +379,34 @@ async fn external_non_tool_call_passes_through_without_audit() -> anyhow::Result
 }
 
 #[tokio::test]
+async fn an_expired_provider_grant_asks_the_user_to_reconnect() -> anyhow::Result<()> {
+    let h = harness().await?;
+    Mock::given(method("GET"))
+        .and(path("/ext-token"))
+        .respond_with(ResponseTemplate::new(401))
+        .mount(&h.server)
+        .await;
+
+    let resp = h
+        .app
+        .oneshot(proxied_post(
+            &h.ext_name,
+            tool_call_body("nope"),
+            Some(caller_context("ext-user-4")),
+        ))
+        .await?;
+    assert_eq!(resp.status(), StatusCode::CONFLICT);
+    let bytes = to_bytes(resp.into_body(), 64 * 1024).await?;
+    let body = String::from_utf8_lossy(&bytes).into_owned();
+    assert!(body.contains("needs_reauth"), "{body}");
+    assert!(
+        body.contains(&format!("Reconnect your account for '{}'", h.ext_name)),
+        "{body}"
+    );
+    Ok(())
+}
+
+#[tokio::test]
 async fn external_accessor_without_banked_token_asks_the_user_to_connect() -> anyhow::Result<()> {
     let h = harness().await?;
     Mock::given(method("GET"))

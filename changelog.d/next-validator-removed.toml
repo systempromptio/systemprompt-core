@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Cloud"
+text = "`CloudCredentials`, `StoredTenant` and `TenantStore` no longer implement `validator::Validate`. Each has an inherent `validate()` returning `CloudStoreValidationError`, with the same rules: the API URL parses, and a tenant name is not empty. Migrate a caller that imported the trait by dropping the import, and one that matched `validator::ValidationErrors` by matching the new enum."
+
+[[crate]]
+name = "systemprompt-cloud"
+section = "Breaking"
+text = "`CloudCredentials`, `StoredTenant` and `TenantStore` no longer implement `validator::Validate`; each has an inherent `validate()` returning `CloudStoreValidationError`. Migrate by dropping the trait import and matching the new enum."

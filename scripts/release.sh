@@ -129,7 +129,7 @@ fi
 cat <<EOF
 
 Still manual (internal/release.md §1c):
-root README.md, AGENTS.md, documentation/**, per-crate README snippets,
+root README.md, AGENTS.md, SECURITY.md, documentation/**, per-crate README snippets,
 per-crate .sqlx if SQL changed (\`just regen\`). Amend them into the release commit.
 
 Then — every check below runs in the cloud:

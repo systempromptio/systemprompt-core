@@ -45,9 +45,6 @@ thiserror = { workspace = true }
 # Utilities
 uuid = { workspace = true }
 
-# Validation
-validator = { workspace = true }
-
 # OAuth and crypto specific
 rand = { workspace = true }
 base64 = { workspace = true }

@@ -14,9 +14,9 @@ mod tenant_store;
 use serde::{Deserialize, Deserializer, Serialize};
 use systemprompt_identifiers::{CloudAppId, TenantId};
 use systemprompt_manifest::HostingProvider;
-use validator::Validate;
 
 use crate::api_client::CloudTenantInfo;
+use crate::error::CloudStoreValidationError;
 
 pub use tenant_store::TenantStore;
 
@@ -42,11 +42,10 @@ pub struct NewSelfManagedTenantParams {
     pub database_url: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StoredTenant {
     pub id: TenantId,
 
-    #[validate(length(min = 1, message = "Tenant name cannot be empty"))]
     pub name: String,
 
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -79,6 +78,13 @@ pub struct StoredTenant {
 }
 
 impl StoredTenant {
+    pub const fn validate(&self) -> Result<(), CloudStoreValidationError> {
+        if self.name.is_empty() {
+            return Err(CloudStoreValidationError::EmptyTenantName);
+        }
+        Ok(())
+    }
+
     #[must_use]
     pub const fn new(id: TenantId, name: String) -> Self {
         Self {

@@ -149,10 +149,38 @@ async fn fetch_bearer_carries_the_accessor_error_reason() {
     )
     .await
     .expect_err("401 surfaces");
+    assert!(
+        matches!(err, McpDomainError::ExternalReauthRequired { ref server, .. } if server == "srv"),
+        "got {err:?}"
+    );
     let text = err.to_string();
     assert!(text.contains("401"), "{text}");
     assert!(text.contains("unauthorized_client"), "{text}");
     assert!(text.contains("reconnect required"), "{text}");
+}
+
+#[tokio::test]
+async fn fetch_bearer_does_not_ask_for_a_reconnect_when_the_caller_is_refused() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/token"))
+        .respond_with(ResponseTemplate::new(403))
+        .mount(&server)
+        .await;
+
+    let err = fetch_external_bearer(
+        &format!("{}/token", server.uri()),
+        "jwt",
+        "broker-secret",
+        "srv",
+        None,
+    )
+    .await
+    .expect_err("403 surfaces");
+    assert!(
+        matches!(err, McpDomainError::ExternalAuthUnavailable { .. }),
+        "got {err:?}"
+    );
 }
 
 #[tokio::test]

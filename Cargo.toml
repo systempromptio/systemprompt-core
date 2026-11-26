@@ -196,7 +196,7 @@ anyhow = "1.0"
 semver = "1"
 thiserror = "2.0"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "registry"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["std", "fmt", "smallvec", "tracing-log", "env-filter", "registry"] }
 async-trait = "0.1"
 arc-swap = "1.9"
 
@@ -210,7 +210,6 @@ serde_yaml = { package = "serde_yaml_ng", version = "0.10" }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.29", features = ["v4", "v5", "serde"] }
-validator = { version = "0.21", features = ["derive"] }
 regex = "1.13"
 globset = { version = "0.4", default-features = false }
 indexmap = { version = "2.14", features = ["serde"] }
@@ -237,7 +236,7 @@ opentelemetry-proto = { version = "0.33", default-features = false, features = [
 clap = { version = "4.6", features = ["derive", "env"] }
 console = "0.16"
 dialoguer = "0.12"
-tabled = "0.22"
+tabled = { version = "0.22", default-features = false, features = ["derive", "std"] }
 indicatif = "0.18"
 dirs = "7"
 open = "5"
