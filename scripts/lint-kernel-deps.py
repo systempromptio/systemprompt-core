@@ -12,7 +12,11 @@ capability dependencies are how a composition's features select members. It
 is judged over its non-optional dependencies plus the optional ones the
 kernel composition enables -- the features of the scripts/build-compositions.txt
 line flagged `floor`, expanded through the facade's `[features]` table
-(`dep:x` and `x/feature` enable `x`; `x?/feature` enables nothing).
+(`dep:x` and `x/feature` enable `x`; `x?/feature` enables nothing; a
+renamed dependency is enabled by its rename).
+
+Every package of the graph has a row in the unit table: a package with none
+is never judged, so it fails the gate.
 
 A capability entry crate (`systemprompt-*-entry`) contributes through the
 extension contracts, so it may not depend on `systemprompt-cli` or
@@ -87,7 +91,7 @@ def facade_edges(pkg, local, features):
     return {
         d["name"] for d in pkg["dependencies"]
         if d["name"] in local and d["name"] != pkg["name"] and d["kind"] in (None, "build")
-        and (not d.get("optional") or d["name"] in enabled)
+        and (not d.get("optional") or (d.get("rename") or d["name"]) in enabled)
     }
 
 
@@ -114,7 +118,8 @@ def violations(metadata, units, features):
     deps = production_edges(pkgs)
     if FACADE in pkgs:
         deps[FACADE] = facade_edges(pkgs[FACADE], set(pkgs), features)
-    found = []
+    found = [f"  {name}: has no row in the unit table, so no gate judges it"
+             for name in sorted(pkgs) if name not in units]
     for name in sorted(n for n in pkgs if units.get(n) == "kernel"):
         parent = shortest_paths(name, deps)
         for dep in sorted(parent):

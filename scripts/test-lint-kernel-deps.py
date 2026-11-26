@@ -134,6 +134,18 @@ class KernelFloor(unittest.TestCase):
         code, out = run(graph(package("systemprompt-gateway", [dep("systemprompt-ai"), dep("systemprompt-models")])))
         self.assertEqual(code, 0, out)
 
+    def test_a_package_with_no_unit_row_fails(self):
+        code, out = run(graph(package("systemprompt-unlisted")))
+        self.assertEqual(code, 1, out)
+        self.assertIn("systemprompt-unlisted: has no row in the unit table", out)
+
+    def test_a_renamed_optional_capability_enabled_by_the_floor_fails(self):
+        facade = package("systemprompt", [dict(dep("systemprompt-gateway", optional=True), rename="gw")],
+                         {"runtime": ["dep:gw"]})
+        code, out = run(graph(facade))
+        self.assertEqual(code, 1, out)
+        self.assertIn("systemprompt -> systemprompt-gateway", out)
+
     def test_entry_crate_may_not_name_the_api(self):
         code, out = run(graph(package("systemprompt-files-entry", [dep("systemprompt-api")])))
         self.assertEqual(code, 1, out)

@@ -1,0 +1,4 @@
+[root]
+section = "Changed"
+area = "Build"
+text = "The composition floor check reads the feature-resolved `cargo tree` closure of each line, and one failing line no longer skips the rest; `lint-kernel-deps` fails on a package with no row in `scripts/units.txt` and follows a renamed facade dependency."
