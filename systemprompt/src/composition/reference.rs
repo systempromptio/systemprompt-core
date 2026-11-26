@@ -107,13 +107,13 @@ fn domain_members() -> Vec<Member> {
         Member::core::<systemprompt_agent::AgentExtension>(CoreTerms::OPTIONAL),
         #[cfg(feature = "analytics")]
         Member::core::<systemprompt_analytics::AnalyticsExtension>(CoreTerms::REQUIRED),
-        #[cfg(feature = "api")]
+        #[cfg(feature = "files")]
         Member::core::<systemprompt_documents::extension::DocumentsExtension>(CoreTerms::REQUIRED),
         #[cfg(feature = "api")]
         Member::core::<systemprompt_files::FilesExtension>(CoreTerms::REQUIRED),
         #[cfg(feature = "content")]
         Member::core::<systemprompt_content::ContentExtension>(CoreTerms::OPTIONAL),
-        #[cfg(feature = "issues")]
+        #[cfg(feature = "files")]
         Member::core::<systemprompt_issues::extension::IssuesExtension>(CoreTerms::conferred(
             CoreId::Issues,
         )),

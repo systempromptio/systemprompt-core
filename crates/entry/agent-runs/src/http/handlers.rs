@@ -11,11 +11,11 @@ use axum::{Extension, Json};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_agent_runs::execute::outputs;
-use systemprompt_agent_runs::origin::AdmittedRunOrigins;
 use systemprompt_agent_runs::repository::{AgentRunRow, Enqueued, NewAgentRun};
 use systemprompt_agent_runs::{
     ErrorClass, McpServerSpec, RunEvent, RunLayout, RunRequest, RunStatus,
 };
+use systemprompt_extension::AdmittedRunOrigins;
 use systemprompt_extension::router::ApiHttpError;
 use systemprompt_identifiers::{AgentRunId, HostSessionId, SessionId};
 use systemprompt_models::RequestContext;

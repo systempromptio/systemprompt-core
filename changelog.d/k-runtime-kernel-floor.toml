@@ -1,0 +1,29 @@
+[root]
+section = "Breaking"
+area = "Facade"
+text = "The runtime and the MCP host no longer link agent runs, issue reports or the document store. The `issues` and `documents` MCP toolsets are contributed by the `issues` and `documents` members, so a composition without them lists neither and refuses at boot an enabled hosted server that names one. The facade's `issues` feature is removed: `files` carries `systemprompt-documents` and `systemprompt-issues` and their members, and `api` no longer carries `systemprompt-documents`. Migrate by enabling `files` where `issues` was enabled or the document store was reached through `api`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`AdmittedRunOrigins` moves here from `systemprompt_agent_runs::origin`; import it as `systemprompt_extension::AdmittedRunOrigins`."
+
+[[crate]]
+name = "systemprompt-agent-runs"
+section = "Breaking"
+text = "The `origin` module is removed; `AdmittedRunOrigins` is `systemprompt_extension::AdmittedRunOrigins`."
+
+[[crate]]
+name = "systemprompt-mcp-host"
+section = "Breaking"
+text = "`toolsets::{ISSUES_TOOLSET, DOCUMENTS_TOOLSET, issues_tools, documents_tools}` and `HostContext::link_issuer` are removed; the host contributes only the `brain` toolset. Use `systemprompt_issues::mcp::{TOOLSET_ID, issues_tools}`, `systemprompt_documents::mcp::{TOOLSET_ID, documents_tools}` and `systemprompt_documents::links::hosted_link_issuer`."
+
+[[crate]]
+name = "systemprompt-documents"
+section = "Added"
+text = "The `documents` member contributes the `documents` toolset to the MCP host's `ToolsetSlot`; `mcp::documents_tools` and `links::hosted_link_issuer` build the toolset and its link issuer from a `HostContext`."
+
+[[crate]]
+name = "systemprompt-issues"
+section = "Added"
+text = "The `issues` member contributes the `issues` toolset to the MCP host's `ToolsetSlot`; `mcp::issues_tools` builds it from a `HostContext`."

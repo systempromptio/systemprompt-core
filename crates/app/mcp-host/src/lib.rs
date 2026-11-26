@@ -21,10 +21,10 @@
 //! A factory receives the [`HostContext`] and its server id. It can reach the
 //! database pool, the services view, the granted secrets (only those the
 //! manifest grants), the verify-only key ring, the authz hook and subject
-//! providers, the user repository, the document store, the extension state
-//! (the notification service among it, when the runtime assembles one) and a
-//! [`LinkIssuer`](systemprompt_documents::links::LinkIssuer) for what
-//! only the API may sign. The per-user subject of a call is not a factory
+//! providers, the extension state (the document store and the notification
+//! service among it, when the composition admits their members) and the
+//! API's internal URL, through which a toolset asks the API for what only the
+//! API may sign. The per-user subject of a call is not a factory
 //! input: it arrives with each call as the hop-verified `RequestContext` in
 //! [`ToolsetCall`](systemprompt_extension::mcp::ToolsetCall), so a toolset
 //! acting for a user (an agent-runs toolset, for one) reads it there. A factory

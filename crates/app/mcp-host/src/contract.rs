@@ -6,9 +6,9 @@
 //! toolset from the server's [`HostContext`]. The builder stores and runs
 //! nothing. Admission drops a disabled member's builder, and the kernel then
 //! builds the slot once and inserts the result as `Arc<Toolsets>`. The
-//! [`McpHostExtension`](crate::McpHostExtension) opens the slot with core's
-//! `issues` and `documents` toolsets, so the built value is present whenever
-//! that member is admitted.
+//! [`McpHostExtension`](crate::McpHostExtension) opens the slot with the
+//! `brain` toolset, so the built value is present whenever that member is
+//! admitted; the `issues` and `documents` members contribute their own.
 //!
 //! The build refuses two toolsets with one id ([`SlotError::DuplicateId`]),
 //! and refuses a composition in which an enabled internal MCP server that

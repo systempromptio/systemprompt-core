@@ -9,8 +9,9 @@
 //! gates each call on the tool's resolved access and audits every outcome
 //! through the contributed access recorders. A separate extension binary that
 //! hosts toolsets calls [`serve`] the same way.
-//! Core contributes the `issues` and `documents` toolsets; an extension adds
-//! its own through the [`ToolsetSlot`](crate::contract::ToolsetSlot).
+//! The host contributes the `brain` toolset; every other toolset (core's
+//! `issues` and `documents` among them) is contributed by the member that
+//! owns it through the [`ToolsetSlot`](crate::contract::ToolsetSlot).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,6 +20,5 @@ pub(crate) mod core_toolsets;
 mod factory;
 mod serve;
 
-pub use core_toolsets::{DOCUMENTS_TOOLSET, ISSUES_TOOLSET, documents_tools, issues_tools};
 pub use factory::{ToolsetBuildError, ToolsetBuildResult};
 pub use serve::{McpHostError, build_server, serve, serve_on};

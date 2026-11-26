@@ -14,6 +14,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod hosted;
 mod issuer;
 mod mint;
 
@@ -21,6 +22,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{DocumentId, DocumentRevisionId, DocumentUploadId, McpServerId};
 
+pub use hosted::hosted_link_issuer;
 pub use issuer::{ApiLinkIssuer, LinkIssueError, LinkIssuer, LinkRefusal};
 pub use mint::{LinkMintError, LinkMinter, mint_link, mint_verified, verify_link_hop};
 

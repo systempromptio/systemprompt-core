@@ -1,6 +1,5 @@
 //! [`McpHostExtension`]: the toolset host's member. It opens the
-//! [`ToolsetSlot`] with core's `issues`, `documents` and `brain` toolsets, so
-//! the built
+//! [`ToolsetSlot`] with the `brain` toolset, so the built
 //! [`Toolsets`](crate::contract::Toolsets) are present, and the hosted
 //! toolset ids are checked, whenever this member is admitted.
 //!

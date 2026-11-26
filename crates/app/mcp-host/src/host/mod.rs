@@ -10,9 +10,9 @@
 //! holds no signing key, token authority, OAuth pepper, manifest seed or
 //! licence secret, nor the encryption master key unless that was granted. It
 //! constructs no OAuth repository. What only a signer may do (signing a
-//! document download or upload link) it asks the API for through its
-//! [`LinkIssuer`], presenting the hop
-//! token of the call it is serving.
+//! document download or upload link) a toolset asks the API for through the
+//! link issuer its owning member builds from this context's
+//! `api_internal_url`, presenting the hop token of the call it is serving.
 //!
 //! The boot sequence is [`HostKernel`](systemprompt_runtime::HostKernel), the
 //! runtime's composition stages run over the child's granted environment.
@@ -34,9 +34,8 @@ use std::sync::Arc;
 use systemprompt_config::GrantedSecrets;
 use systemprompt_config::paths::AppPaths;
 use systemprompt_database::DbPool;
-use systemprompt_documents::links::{ApiLinkIssuer, LinkIssueError, LinkIssuer};
 use systemprompt_governance::authz::{SharedAuthzHook, SubjectProviderSet};
-use systemprompt_identifiers::{McpServerId, UserId};
+use systemprompt_identifiers::UserId;
 use systemprompt_loader::ServicesState;
 use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_manifest::{Config, Profile};
@@ -141,13 +140,5 @@ impl HostContext {
     #[must_use]
     pub const fn background_tasks(&self) -> &BackgroundTasks {
         &self.parts.background_tasks
-    }
-
-    pub fn link_issuer(&self, server: &McpServerId) -> Result<Arc<dyn LinkIssuer>, LinkIssueError> {
-        let issuer: Arc<dyn LinkIssuer> = Arc::new(ApiLinkIssuer::new(
-            &self.parts.config.api_internal_url,
-            server.clone(),
-        )?);
-        Ok(issuer)
     }
 }

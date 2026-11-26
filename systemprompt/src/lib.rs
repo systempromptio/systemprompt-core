@@ -180,14 +180,14 @@ pub mod cli {
     pub use systemprompt_extension::cli::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 }
 
-#[cfg(feature = "api")]
-#[cfg_attr(docsrs, doc(cfg(feature = "api")))]
+#[cfg(feature = "files")]
+#[cfg_attr(docsrs, doc(cfg(feature = "files")))]
 pub mod documents {
     pub use systemprompt_documents::*;
 }
 
-#[cfg(feature = "issues")]
-#[cfg_attr(docsrs, doc(cfg(feature = "issues")))]
+#[cfg(feature = "files")]
+#[cfg_attr(docsrs, doc(cfg(feature = "files")))]
 pub mod issues {
     pub use systemprompt_issues::*;
 }

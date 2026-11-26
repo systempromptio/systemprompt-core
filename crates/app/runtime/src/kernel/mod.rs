@@ -68,13 +68,12 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use systemprompt_agent_runs::origin::AdmittedRunOrigins;
 use systemprompt_extension::contribute::PendingBind;
 use systemprompt_extension::reserved::ConferralRow;
 use systemprompt_extension::{
     Admitted, AdmittedAssets, AdmittedConfigs, AdmittedMigrations, AdmittedOwnerReassignments,
-    AdmittedProjections, AdmittedPurge, AdmittedSchedule, AudienceResolvers, HandleId,
-    KernelHandle, MemberResolved, MemberScope, ProvidePhase, Resolved, StandingTag,
+    AdmittedProjections, AdmittedPurge, AdmittedRunOrigins, AdmittedSchedule, AudienceResolvers,
+    HandleId, KernelHandle, MemberResolved, MemberScope, ProvidePhase, Resolved, StandingTag,
 };
 use systemprompt_identifiers::ExtensionId;
 use systemprompt_provider_contracts::{Conferred, Dependencies};

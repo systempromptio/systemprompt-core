@@ -71,6 +71,7 @@ pub mod admitted_doctor;
 pub mod admitted_migrations;
 pub mod admitted_purge;
 pub mod admitted_reassignment;
+pub mod admitted_run_origins;
 pub mod admitted_schedule;
 pub mod artifact_ui;
 mod asset;
@@ -128,6 +129,7 @@ pub use admitted_purge::{
 pub use admitted_reassignment::{
     AdmittedOwnerReassignments, OwnedReassignment, ReassignmentAdmissionError, ReassignmentClaim,
 };
+pub use admitted_run_origins::AdmittedRunOrigins;
 pub use admitted_schedule::{AdmittedSchedule, DuplicateJobOwner};
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
 pub use authz::{AuthzPolicy, HandlerVerifier};

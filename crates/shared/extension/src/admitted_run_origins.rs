@@ -9,7 +9,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_extension::BuiltState;
+use crate::BuiltState;
 
 /// Every admitted member's declared run origins, sorted and deduplicated.
 #[derive(Debug, Clone, Default)]

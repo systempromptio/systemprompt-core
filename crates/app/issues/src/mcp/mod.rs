@@ -18,6 +18,7 @@ mod hosted;
 pub mod read;
 pub mod refusal;
 pub mod report;
+mod toolset;
 
 use std::sync::Arc;
 
@@ -37,6 +38,8 @@ use systemprompt_documents::links::LinkIssuer;
 
 pub use self::hosted::IssuesMcpError;
 pub use self::refusal::IssueRefusalCode;
+pub(crate) use self::toolset::contribute as contribute_toolset;
+pub use self::toolset::issues_tools;
 
 pub const TOOLSET_ID: &str = systemprompt_documents::links::ISSUES_TOOLSET;
 
