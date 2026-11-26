@@ -7,9 +7,11 @@
 //! ([`super::ToolExecution::begin`]) verifies the hop token again against the
 //! deployment's verification keys, this deployment's issuer and the one
 //! server's audience, and refuses the execution unless the token's identity
-//! vouches for the context (actor, user, session, client, user type and act
-//! chain). A caller built from a forged, expired or other-server token, or a
-//! context for a different user than its token, records nothing.
+//! vouches for every field of the context a sink records: actor, the whole
+//! user record, session, client, user type, act chain, and the execution the
+//! edge attributed the request to (conversation context, trace, task, tool
+//! call, agent and call source). A caller built from a forged, expired or
+//! other-server token, or a context edited after admission, records nothing.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

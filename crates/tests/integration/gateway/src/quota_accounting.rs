@@ -39,9 +39,7 @@ fn gateway_journal(
 ) -> systemprompt_gateway::audit::journal::GatewayJournal {
     systemprompt_gateway::audit::journal::GatewayJournal::open(
         state_dir,
-        systemprompt_test_fixtures::ensure_test_secrets_bootstrap()
-            .encryption_master_key()
-            .expect("encryption master key"),
+        &systemprompt_test_fixtures::fixture_master_key(),
     )
     .expect("gateway journal opens")
 }

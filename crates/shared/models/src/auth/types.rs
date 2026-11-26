@@ -18,7 +18,7 @@ use super::permission::Permission;
 pub const BEARER_PREFIX: &str = "Bearer ";
 pub const API_KEY_PREFIX: &str = "sp-live-";
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AuthenticatedUser {
     pub id: UserId,
     pub username: String,

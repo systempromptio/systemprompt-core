@@ -59,16 +59,22 @@ impl ToolCallIntentClaims for AiRequestRepository {
     async fn claim(
         &self,
         call: &AiToolCallId,
+        session_id: &SessionId,
         execution: &McpExecutionId,
     ) -> Result<bool, RepositoryError> {
         let claimed = sqlx::query!(
             r#"
-            UPDATE ai_request_tool_calls
+            UPDATE ai_request_tool_calls c
             SET mcp_execution_id = $2, updated_at = NOW()
-            WHERE ai_tool_call_id = $1 AND mcp_execution_id IS NULL
+            FROM ai_requests r
+            WHERE c.ai_tool_call_id = $1
+              AND c.mcp_execution_id IS NULL
+              AND r.id = c.request_id
+              AND r.session_id = $3
             "#,
             call as _,
-            execution as _
+            execution as _,
+            session_id as _
         )
         .execute(self.write_pool())
         .await

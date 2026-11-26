@@ -76,6 +76,7 @@ fn hop(ctx: &AppContext, user: &AuthenticatedUser, server: &str) -> JwtToken {
         purpose: None,
         interaction: None,
         mcp_session: None,
+        execution: None,
     };
     JwtToken::new(
         ctx.token_authority()

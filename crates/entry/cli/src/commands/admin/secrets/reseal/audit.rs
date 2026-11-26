@@ -29,7 +29,6 @@ pub fn files_report(files: &dyn SealedFiles, apply: bool) -> Result<ColumnReport
         member_sealed: report.current,
         resealed: report.resealed,
         undecodable: report.undecodable,
-        unkeyed: 0,
         unwritten: 0,
     })
 }
@@ -91,5 +90,11 @@ pub(super) async fn audit(
             tool_use_id: None,
         })
         .await
-        .context("the re-seal could not be audited, so nothing was written")
+        .context(match phase {
+            AuditPhase::Planned => "the re-seal could not be audited, so nothing was written",
+            AuditPhase::Applied => {
+                "the values were re-sealed, but the applied audit row could not be written; the \
+                 planned row records the run"
+            },
+        })
 }

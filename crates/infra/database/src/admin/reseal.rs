@@ -7,9 +7,12 @@
 //! key order (each key column cast to text, compared as one array), and a
 //! batch of replacements is written in one transaction, each row only if its
 //! ciphertext is still the value that was read, so a concurrent writer's
-//! value is never overwritten. A `TEXT` ciphertext column (no nonce column)
-//! is read and written as its UTF-8 bytes. A row whose key has a NULL column
-//! cannot be named by its key, so it is read (and reported) but never written.
+//! value is never overwritten; with a nonce column the nonce that was read is
+//! part of that comparison. A `TEXT` ciphertext column (no nonce column) is
+//! read and written as its UTF-8 bytes. A key with a NULL column is named like
+//! any other: Postgres array equality treats two NULL elements as equal, so
+//! the compare-and-swap matches the row it read, and only a row still holding
+//! the ciphertext (and nonce) that was read is written.
 //! [`ResealStore::recorded_owner`] reads the member the installer recorded for
 //! a table.
 //!
@@ -173,12 +176,14 @@ impl ResealStore {
         replacements: &[Replacement<'_>],
     ) -> Result<u64, sqlx::Error> {
         let sql = format!(
-            "UPDATE {table} SET {ciphertext} = {new} WHERE {keys} = $2::text[] AND {ciphertext} = {old}",
+            "UPDATE {table} SET {ciphertext} = {new} WHERE {keys} = $2::text[] AND {ciphertext} = \
+             {old} AND {nonce} = $4",
             table = target.table.quoted(),
             ciphertext = target.ciphertext.quoted(),
             new = target.write_value("$1"),
             old = target.write_value("$3"),
             keys = target.key_array(),
+            nonce = target.read_nonce(),
         );
         let mut tx = self.pool.begin().await?;
         let mut written = 0;
@@ -187,6 +192,7 @@ impl ResealStore {
                 .bind(&replacement.ciphertext)
                 .bind(&replacement.row.keys)
                 .bind(&replacement.row.ciphertext)
+                .bind(&replacement.row.nonce)
                 .execute(&mut *tx)
                 .await?
                 .rows_affected();

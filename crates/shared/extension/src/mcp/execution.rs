@@ -4,13 +4,14 @@
 //! [`execute`] runs one typed [`McpToolHandler`] against a
 //! [`ToolExecution`]: [`ToolExecution::begin`] records the start of the
 //! execution for the [`VerifiedCaller`] it is handed, once its hop token
-//! verifies again, and returns
-//! the context
-//! the handler runs with (an AI tool-call intent claimed when one matches);
-//! the handler runs; [`ToolExecution::finish`] persists the output as an
-//! artifact, shapes the result for the negotiated client and records the
-//! completion. The MCP member provides the implementation per server through
-//! [`ToolExecutions`].
+//! verifies again and vouches for every recorded field of its context, and
+//! returns the context the handler runs with (an AI tool-call intent claimed
+//! when one matches); the handler runs; [`ToolExecution::finish`] persists the
+//! output as an artifact, shapes the result for the negotiated client and
+//! records the completion. `finish` reads the [`ToolRun`] it is handed as a
+//! key: the execution is completed under the context `begin` bound for that
+//! id, and a run the executor did not begin is refused. The MCP member provides
+//! the implementation per server through [`ToolExecutions`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -59,9 +60,10 @@ pub struct ToolOutput {
 ///
 /// The executor records usage and audit for the [`VerifiedCaller`] it is
 /// handed only after re-verifying the caller's hop token and that the token
-/// vouches for the caller's context, so the seam is open (rule 111): a forged
-/// caller records nothing, and the executor reads no secret and acts for no
-/// subject of its own.
+/// vouches for the caller's context, and completes a run only under the
+/// context it bound at `begin`, so the seam is open (rule 111): a forged
+/// caller or run records nothing, and the executor reads no secret and acts
+/// for no subject of its own.
 /// Injected as `dyn ToolExecution`, hence `#[async_trait]`.
 #[async_trait]
 pub trait ToolExecution: Send + Sync + Debug {

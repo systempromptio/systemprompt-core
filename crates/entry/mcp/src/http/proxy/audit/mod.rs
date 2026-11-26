@@ -185,7 +185,10 @@ async fn claim_exact(
     call_id: &AiToolCallId,
     mcp_execution_id: &McpExecutionId,
 ) {
-    if let Err(e) = intent_claims.claim_exact(call_id, mcp_execution_id).await {
+    if let Err(e) = intent_claims
+        .claim_exact(call_id, request.context.session_id(), mcp_execution_id)
+        .await
+    {
         tracing::warn!(
             tool = %request.tool_name,
             server = %request.server_name,

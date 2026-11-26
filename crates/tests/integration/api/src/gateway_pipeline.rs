@@ -46,9 +46,7 @@ fn gateway_journal() -> systemprompt_gateway::audit::journal::GatewayJournal {
             .app_paths
             .storage()
             .data(),
-        systemprompt_test_fixtures::ensure_test_secrets_bootstrap()
-            .encryption_master_key()
-            .expect("encryption master key"),
+        &systemprompt_test_fixtures::fixture_master_key(),
     )
     .expect("gateway journal opens")
 }
@@ -1612,9 +1610,7 @@ fn owned_gateway_repos(
 ) -> systemprompt_gateway::GatewayRepositories {
     let journal = systemprompt_gateway::audit::journal::GatewayJournal::open(
         state_dir.path(),
-        systemprompt_test_fixtures::ensure_test_secrets_bootstrap()
-            .encryption_master_key()
-            .expect("encryption master key"),
+        &systemprompt_test_fixtures::fixture_master_key(),
     )
     .expect("owned gateway journal");
     systemprompt_gateway::GatewayRepositories::new(

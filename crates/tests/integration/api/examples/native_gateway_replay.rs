@@ -205,7 +205,7 @@ async fn replay() -> Result<()> {
     let background = BackgroundTasks::new();
     let journal = systemprompt_gateway::audit::journal::GatewayJournal::open(
         bootstrap.app_paths.storage().data(),
-        systemprompt_test_fixtures::ensure_test_secrets_bootstrap().encryption_master_key()?,
+        &systemprompt_test_fixtures::fixture_master_key(),
     )?;
     let repos = GatewayRepositories::new(
         &db,

@@ -143,6 +143,7 @@ async fn an_expired_hop_token_is_refused() {
             purpose: None,
             interaction: None,
             mcp_session: None,
+            execution: None,
         },
     );
     let past = (Utc::now() - Duration::minutes(5)).timestamp();
@@ -171,6 +172,7 @@ async fn a_hop_token_signed_by_an_unknown_key_is_refused() {
             purpose: None,
             interaction: None,
             mcp_session: None,
+            execution: None,
         },
     );
     let token = encode_mcp_hop(&foreign, &claims).expect("encode");
@@ -256,6 +258,7 @@ fn staged_identity() -> systemprompt_models::auth::McpHopIdentity {
         purpose: None,
         interaction: None,
         mcp_session: None,
+        execution: None,
     }
 }
 

@@ -76,6 +76,7 @@ pub fn health_identity(mcp_session: Option<&str>) -> McpHopIdentity {
         purpose: Some(HEALTH_PURPOSE.to_owned()),
         interaction: None,
         mcp_session: mcp_session.map(str::to_owned),
+        execution: None,
     }
 }
 

@@ -2,7 +2,8 @@
 //! execution side: one intent goes to exactly one execution however many
 //! same-tool calls race for it, a tool name never matches by LIKE
 //! wildcard, and an intent whose call id an execution already carries is
-//! reconciled to that execution rather than claimed a second time.
+//! reconciled to that execution rather than claimed a second time. An exact
+//! claim takes only an intent asked for in the claimant's own session.
 
 use std::sync::Arc;
 use systemprompt_identifiers::{McpServerId, McpToolName};
@@ -208,13 +209,13 @@ async fn an_explicit_intent_claim_is_first_writer_wins() {
 
     assert!(
         claims
-            .claim_exact(&first, &exec_one)
+            .claim_exact(&first, &SessionId::new(&session), &exec_one)
             .await
             .expect("first claim")
     );
     assert!(
         !claims
-            .claim_exact(&first, &exec_two)
+            .claim_exact(&first, &SessionId::new(&session), &exec_two)
             .await
             .expect("competing claim is a no-op")
     );
@@ -291,4 +292,42 @@ async fn an_intent_an_execution_already_carries_is_handed_to_it_and_the_next_is_
     let row = repo.find_by_id(&inferred).await.unwrap().expect("row");
     assert_eq!(row.ai_tool_call_id, Some(older));
     assert_eq!(row.correlation, Correlation::Inferred);
+}
+
+#[tokio::test]
+async fn an_exact_claim_cannot_take_another_sessions_intent() {
+    let db = test_db_pool().await;
+    let repo = Arc::new(ToolUsageRepository::new(&db));
+    let claims = claims(&db, &repo);
+    let victim = unique("victim-session");
+    let attacker = unique("attacker-session");
+    let seeded = seed_intents(&db, &victim, &["Read"]).await;
+    let call = AiToolCallId::new(&seeded[0]);
+    let foreign = started_execution(&repo, &attacker).await;
+
+    assert!(
+        !claims
+            .claim_exact(&call, &SessionId::new(&attacker), &foreign)
+            .await
+            .expect("a foreign claim is a no-op"),
+        "an intent of another session is never claimed"
+    );
+    let raw = db.pool();
+    let owner: Option<String> = sqlx::query_scalar(
+        "SELECT mcp_execution_id FROM ai_request_tool_calls WHERE ai_tool_call_id = $1",
+    )
+    .bind(call.as_str())
+    .fetch_one(raw.as_ref())
+    .await
+    .expect("intent");
+    assert_eq!(owner, None, "the victim's intent stays unclaimed");
+
+    let own = started_execution(&repo, &victim).await;
+    assert!(
+        claims
+            .claim_exact(&call, &SessionId::new(&victim), &own)
+            .await
+            .expect("own claim"),
+        "the owning session still claims it"
+    );
 }

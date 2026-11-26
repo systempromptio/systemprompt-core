@@ -1,0 +1,14 @@
+[root]
+section = "Fixed"
+area = "MCP"
+text = "A hosted MCP server records a tool execution, and files its artifact, under the conversation context, trace, task, tool call and agent the API proxy signed into the hop token, and refuses a caller whose context differs from the token in any of them or in any field of the user record. `finish` completes only a run its executor began, under the context bound at `begin`."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "`McpHopIdentity` gains `execution: Option<McpHopExecution>`; `vouches_for` compares it and the whole `AuthenticatedUser`, which derives `PartialEq`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`ToolExecution::finish` treats the `ToolRun` it is handed as a key: a run the executor did not begin, or has already finished, is refused."

@@ -126,22 +126,33 @@ fn a_child_gets_none_of_the_api_held_secrets() {
 }
 
 #[test]
-fn a_host_child_gets_the_master_key_only_through_its_grant() {
+fn a_child_never_gets_the_master_key_and_its_grant_is_refused() {
+    use systemprompt_models::subprocess::{SecretGrant, SecretGrantError};
+    for spelling in [
+        "encryption_master_key",
+        " Encryption_Master_Key ",
+        "custom:encryption_master_key",
+        "custom:ENCRYPTION_MASTER_KEY",
+    ] {
+        assert!(
+            matches!(
+                spelling.parse::<SecretGrant>(),
+                Err(SecretGrantError::MasterKeyWithheld)
+            ),
+            "{spelling} is refused at validation"
+        );
+    }
     let env = env_of(
         &with_master_key(full_secrets()),
-        &["encryption_master_key"],
-        &[],
+        &["anthropic", "custom:stripe_key"],
+        &["openai"],
     );
-    assert_eq!(
-        env.get("ENCRYPTION_MASTER_KEY").map(String::as_str),
-        Some("mk")
+    assert!(!env.contains_key("ENCRYPTION_MASTER_KEY"));
+    assert!(!env.values().any(|value| value == "mk"));
+    assert!(
+        !env.get("SYSTEMPROMPT_CUSTOM_SECRETS")
+            .is_some_and(|names| names.contains("ENCRYPTION_MASTER_KEY"))
     );
-    assert_eq!(
-        env.get("SYSTEMPROMPT_CUSTOM_SECRETS").map(String::as_str),
-        Some("ENCRYPTION_MASTER_KEY")
-    );
-    assert!(!env.contains_key("OAUTH_AT_REST_PEPPER"));
-    assert!(!env.contains_key("LICENCE_SIGNING_SECRET"));
 }
 
 #[test]

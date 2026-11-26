@@ -167,6 +167,7 @@ async fn a_hop_token_signed_by_a_foreign_key_or_forged_is_refused() {
             purpose: None,
             interaction: None,
             mcp_session: None,
+            execution: None,
         },
     );
     let token = encode_mcp_hop(&foreign, &claims).expect("encode");
@@ -193,6 +194,7 @@ async fn an_anonymous_hop_is_refused() {
         purpose: None,
         interaction: None,
         mcp_session: None,
+        execution: None,
     };
     let token = link_authority()
         .mint_mcp_hop(&McpServerId::new(SERVER), &identity)
