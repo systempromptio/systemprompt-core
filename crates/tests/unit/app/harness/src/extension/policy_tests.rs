@@ -57,8 +57,13 @@ fn a_host_the_manifest_does_not_enable_gets_nothing() {
 }
 
 #[test]
-fn a_malformed_id_fails_the_manifest() {
+fn a_malformed_id_is_not_enabled_and_the_rest_are() {
     let malformed =
         body(&serde_json::json!({ "host_extensions": { "harness": ["Drive!", "brain"] } }));
-    assert!(Manifest::parse(&malformed).is_err());
+    let manifest = Manifest::parse(&malformed).unwrap();
+    let enabled = ExtensionPolicy::enabled_for(&manifest, HostKind::Harness).unwrap();
+    assert_eq!(
+        enabled.iter().map(|extension| extension.as_str()).collect::<Vec<_>>(),
+        ["brain"]
+    );
 }

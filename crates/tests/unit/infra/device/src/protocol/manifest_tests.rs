@@ -219,7 +219,7 @@ fn reads_the_host_settings_block() {
 }
 
 #[test]
-fn absent_lists_default_and_an_unknown_host_fails_the_manifest() {
+fn absent_lists_default_and_unknown_hosts_do_not_fail() {
     let mut value = serde_json::json!({
         "user_id": "u-1",
         "manifest_version": "2026-11-01T09:12:31Z-000001a19661c117",
@@ -239,7 +239,8 @@ fn absent_lists_default_and_an_unknown_host_fails_the_manifest() {
     assert!(manifest.host_settings().is_none());
     assert!(manifest.governance_plugin().is_none());
     value["enabled_hosts"] = serde_json::json!(["some-future-host"]);
-    assert!(parse(&value).is_err());
+    let manifest = parse(&value).unwrap();
+    assert!(!enables_host(&manifest.enabled_hosts, HostKind::Harness));
 }
 
 #[test]

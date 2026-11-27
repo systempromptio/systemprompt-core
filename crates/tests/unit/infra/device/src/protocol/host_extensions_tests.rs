@@ -43,10 +43,11 @@ fn host_extensions_are_read_per_host() {
 }
 
 #[test]
-fn an_unknown_host_key_fails_the_manifest() {
+fn an_unknown_host_key_is_skipped() {
     let mut body = serde_json::to_value(minimal(&serde_json::json!({})).signed()).unwrap();
     body["host_extensions"] = serde_json::json!({ "other-host": ["slack"] });
-    assert!(Manifest::parse(&body.to_string()).is_err());
+    let manifest = Manifest::parse(&body.to_string()).unwrap();
+    assert!(manifest.extensions_for(HostKind::Harness).is_none());
 }
 
 #[test]
