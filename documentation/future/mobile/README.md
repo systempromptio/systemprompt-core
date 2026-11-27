@@ -61,7 +61,7 @@ Further decisions and their alternatives are in [`risks-and-decisions.md`](risks
 | Stage | State |
 |---|---|
 | M0 Foundations | Done except the iOS binding (XCFramework and Swift package), which needs a Mac: the `systemprompt-mobile` crate, the phone closure gate, phone-target CI jobs and the first UniFFI surface are on `future` |
-| M1 Core server | Lanes A1 (contract types), B1 (APNs and FCM channels, `push.yaml`), B2 (migration 035, push tokens, device routes) and B4 (association files, discovery `clients`, the Android package in the release proxy) are on `future` at `c1d24b20a`. B3 (sessions and approvals from a phone) waits on harness S4, and review C2 waits with it. Reviews C1 and C3 found no high finding; what they changed and what they left open is in `risks-and-decisions.md` section 4. Still open from C1: revoking on a provider verdict deletes by device and provider rather than by token value, so a token refreshed in that instant is lost until the app next registers |
+| M1 Core server | Lanes A1 (contract types), B1 (APNs and FCM channels, `push.yaml`), B2 (migration 035, push tokens, device routes) and B4 (association files, discovery `clients`, the Android package in the release proxy) are on `future` at `c1d24b20a`. B3 (sessions and approvals from a phone) waits on harness S4, and review C2 waits with it. Reviews C1 and C3 found no high finding; what they changed and what they left open is in `risks-and-decisions.md` section 4. The item C1 left open is closed: a provider verdict now revokes the token by its value, so a token the device registered in the meantime is kept |
 | M2 Shared core | Not started |
 | M3 Native apps | Not started |
 | M4 Build and distribution | Not started |

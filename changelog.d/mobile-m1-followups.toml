@@ -1,0 +1,19 @@
+[root]
+section = "Changed"
+area = "Gateway"
+text = "The bridge release feed and download draw their own per-caller rate (5 a second, scope `bridge_release`) instead of the inference budget, an anonymous caller whose release does not resolve reads one fixed 404 (`app_download_unavailable`) that names no repository or version window, and a push token a provider reports as unregistered is revoked by its value, so a token the device registered in the meantime is kept."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Changed"
+text = "**Breaking.** `PushTokenDirectory::revoke` takes the `DevicePushToken` to drop instead of a device and provider. `GatewaySurfaceRoutes` gains `bridge_release`, the release feed and download routes the mount protects apart from `traffic`."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Changed"
+text = "**Breaking.** `UserRepository::delete_device_push_token_for_provider` takes the token and deletes only a row holding that value."
+
+[[crate]]
+name = "systemprompt-gateway-entry"
+section = "Changed"
+text = "**Breaking.** `http::bridge::routes` no longer builds the release routes and is infallible; `http::bridge::release_routes` builds them. `ReleaseError` gains `Unavailable` and `for_anonymous`."
