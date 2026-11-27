@@ -24,7 +24,7 @@ pub enum ExportCapability {
 #[error(
     "observability.otlp names the collector {endpoint}, but this build was compiled without \
      the `otel` feature and cannot export to it; build with the `otel` feature (the \
-     `systemprompt` facade's `otel`, included in `full`) or remove the observability.otlp \
+     `systemprompt` facade's `otel`, included in `reference`) or remove the observability.otlp \
      block"
 )]
 pub struct OtlpExportUnavailable {

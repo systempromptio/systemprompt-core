@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Logging"
+text = "`OtlpExportUnavailable` names the facade's `reference` feature as one that includes `otel`."
+
+[[crate]]
+name = "systemprompt-logging"
+section = "Fixed"
+text = "`OtlpExportUnavailable` names `reference` as the facade feature that includes `otel`; `ExportCapability::COMPILED` is selected by module."
