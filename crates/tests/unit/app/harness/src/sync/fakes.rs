@@ -34,10 +34,10 @@ pub(crate) fn version(seconds: i64, suffix: &str) -> String {
 }
 
 pub(crate) fn manifest(patch: Value) -> Manifest {
-    try_manifest(patch).unwrap()
+    Manifest::parse(&manifest_body(patch).to_string()).unwrap()
 }
 
-pub(crate) fn try_manifest(patch: Value) -> Result<Manifest, serde_json::Error> {
+pub(crate) fn manifest_body(patch: Value) -> Value {
     let mut base = json!({
         "user_id": "u-1",
         "manifest_version": version(0, "0000000000000001"),
@@ -55,7 +55,7 @@ pub(crate) fn try_manifest(patch: Value) -> Result<Manifest, serde_json::Error> 
     if let (Value::Object(base), Value::Object(patch)) = (&mut base, patch) {
         base.extend(patch);
     }
-    Manifest::parse(&base.to_string())
+    base
 }
 
 pub(crate) fn fetched(manifest: Manifest, etag: &str) -> ManifestFetch {

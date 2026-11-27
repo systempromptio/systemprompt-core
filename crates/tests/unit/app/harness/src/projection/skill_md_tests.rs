@@ -1,6 +1,7 @@
 use std::fs;
 
 use serde_json::{Value, json};
+use systemprompt_device::protocol::manifest::Manifest;
 use systemprompt_harness::projection::{BundleFiles, SKILLS_DIR, SKILLS_LEDGER};
 
 use crate::projection::fixtures::{self, projected, skill};
@@ -64,8 +65,11 @@ fn descriptions_are_quoted_only_when_yaml_would_misread_them() {
         "description: Route Odoo questions - DynBrain for how-to"
     );
     assert_eq!(line(""), "description: \"\"");
-    let missing = json!({ "id": "x", "name": "x", "instructions": "b" });
-    assert!(fixtures::try_manifest(json!({ "skills": [missing] })).is_err());
+    let missing = fixtures::manifest_body(json!({
+        "skills": [{ "id": "x", "name": "x", "instructions": "b" }]
+    }));
+    let refused = Manifest::parse(&missing.to_string()).unwrap_err();
+    assert!(refused.to_string().contains("description"), "{refused}");
 }
 
 #[test]

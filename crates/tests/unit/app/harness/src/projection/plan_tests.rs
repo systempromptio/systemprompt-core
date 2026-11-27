@@ -202,8 +202,9 @@ fn plan_is_total_on_odd_entries() {
             skill("_", json!({})),
             skill("x", json!({ "frontmatter": { "k": { "deep": [1, { "z": null }] } } }))
         ],
+        "managed_mcp_servers": [{ "name": "", "url": "not a url" }],
         "plugins": [{ "id": ".hidden", "files": [{ "path": "agents/a.md", "sha256": sha256_hex(b"a") }] }],
-        "rules": [{ "id": "r", "name": "R", "instructions": "", "hosts": [HostKind::Harness.as_str()] }]
+        "rules": [{ "id": "r", "name": "r", "instructions": "", "hosts": [HostKind::Harness.as_str()] }]
     }));
     let projection = projected(&manifest, &BundleFiles::new());
     assert!(projection.enabled);
@@ -217,9 +218,4 @@ fn plan_is_total_on_odd_entries() {
         Vec::<systemprompt_harness::projection::BundleFile>::new()
     );
     assert_eq!(projection.counts.rules, 1);
-    let unnamed =
-        json!({ "managed_mcp_servers": [{ "name": "", "url": "https://sp.example.com/mcp" }] });
-    assert!(fixtures::try_manifest(unnamed).is_err());
-    let unnamed_rule = json!({ "rules": [{ "id": "r", "name": "", "instructions": "", "hosts": [HostKind::Harness.as_str()] }] });
-    assert!(fixtures::try_manifest(unnamed_rule).is_err());
 }

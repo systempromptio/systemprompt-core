@@ -7,6 +7,8 @@ use systemprompt_device::client::{
 };
 use systemprompt_device::view::{KeyFingerprint, SyncErrorKind};
 use systemprompt_models::ApiPaths;
+use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::ids::HostExtensionId;
 use systemprompt_models::bridge::manifest::SignedManifestEnvelope;
 
 use crate::client::support::{FakeInstance, FakeResponse, jwt};
@@ -191,4 +193,93 @@ fn verification_is_over_the_exact_signed_bytes() {
         verify(&exact, &manifest_key(8)),
         Err(ClientError::SignatureInvalid { .. })
     ));
+}
+
+fn forward_payload() -> String {
+    format!(
+        r#"{{"enabled_hosts":["harness","some-future-host"],"host_extensions":{{"harness":["drive","Not An Id"],"some-future-host":["brain"]}},"host_model_protocols":{{"harness":["openai"],"some-future-host":["x"]}},"issued_at":"2026-11-01T09:12:31Z","managed_mcp_servers":[{{"name":"","url":"https://sp.example.com/a"}},{{"name":"docs","url":"not a url"}},{{"id":"","name":"notes","url":"https://sp.example.com/n"}},{{"name":"kept","url":"https://sp.example.com/k"}}],"manifest_version":"2026-11-01T09:12:31Z-000001a19661c117","min_schema_version":1,"not_before":"2026-11-01T09:11:31Z","plugins":[{{"files":[],"id":"../escape","sha256":"{DIGEST}","version":"1.0.0"}},{{"files":[],"id":"commons","sha256":"{DIGEST}","version":"1.0.0"}}],"revocations":[],"user_id":"{USER}"}}"#
+    )
+}
+
+const DIGEST: &str = "3322c4ddc2a08588fa10168039bf874590bf50cb59d7b03575ac042cc70ead90";
+
+#[test]
+fn unknown_hosts_and_malformed_ids_are_skipped_after_verification() {
+    let signer = signing_key(7);
+    let payload_text = forward_payload();
+    let envelope: SignedManifestEnvelope =
+        serde_json::from_value(envelope_json(&signer, &payload_text, &payload_text)).unwrap();
+    let manifest = open_manifest(&envelope, &manifest_key(7)).unwrap();
+    assert_eq!(envelope.payload, payload_text);
+    assert_eq!(manifest.enabled_hosts, [HostKind::Harness]);
+    assert_eq!(
+        manifest.host_extensions.keys().collect::<Vec<_>>(),
+        [&HostKind::Harness]
+    );
+    let extensions: Vec<&str> = manifest
+        .extensions_for(HostKind::Harness)
+        .unwrap()
+        .iter()
+        .map(HostExtensionId::as_str)
+        .collect();
+    assert_eq!(extensions, ["drive"]);
+    assert_eq!(
+        manifest.host_model_protocols.keys().collect::<Vec<_>>(),
+        [&HostKind::Harness]
+    );
+    let plugins: Vec<&str> = manifest.plugins.iter().map(|p| p.id.as_str()).collect();
+    assert_eq!(plugins, ["commons"]);
+    let servers: Vec<&str> = manifest
+        .managed_mcp_servers
+        .iter()
+        .map(|server| server.name.as_str())
+        .collect();
+    assert_eq!(servers, ["kept"]);
+}
+
+#[test]
+fn a_payload_with_the_unreadable_entries_removed_does_not_verify() {
+    let signer = signing_key(7);
+    let payload_text = forward_payload();
+    let pruned = payload_text
+        .replace(r#""harness","some-future-host""#, r#""harness""#)
+        .replace(r#""drive","Not An Id""#, r#""drive""#);
+    assert_ne!(pruned, payload_text);
+    let altered: SignedManifestEnvelope =
+        serde_json::from_value(envelope_json(&signer, &payload_text, &pruned)).unwrap();
+    assert!(matches!(
+        open_manifest(&altered, &manifest_key(7)),
+        Err(ClientError::SignatureInvalid { .. })
+    ));
+}
+
+#[test]
+fn a_malformed_field_outside_the_tolerated_ones_still_fails_the_manifest() {
+    let signer = signing_key(7);
+    for (from, to) in [
+        (
+            format!(r#""user_id":"{USER}""#),
+            r#""user_id":"has space""#.to_owned(),
+        ),
+        (
+            format!(r#""id":"commons","sha256":"{DIGEST}""#),
+            r#""id":"commons","sha256":"ABC""#.to_owned(),
+        ),
+        (
+            r#""revocations":[]"#.to_owned(),
+            r#""revocations":null"#.to_owned(),
+        ),
+    ] {
+        let payload_text = forward_payload().replace(&from, &to);
+        assert!(payload_text.contains(&to));
+        let envelope: SignedManifestEnvelope =
+            serde_json::from_value(envelope_json(&signer, &payload_text, &payload_text)).unwrap();
+        assert!(
+            matches!(
+                open_manifest(&envelope, &manifest_key(7)),
+                Err(ClientError::Protocol { .. })
+            ),
+            "{to}"
+        );
+    }
 }

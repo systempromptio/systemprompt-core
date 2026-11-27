@@ -1,11 +1,12 @@
 use chrono::TimeDelta;
 use serde_json::json;
+use systemprompt_device::protocol::manifest::Manifest;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 
 use systemprompt_harness::sync::acceptance::{Refusal, accept};
 
-use crate::sync::fakes::{at, manifest, try_manifest, version};
+use crate::sync::fakes::{at, manifest, manifest_body, version};
 
 fn parsed(seconds: i64, suffix: &str) -> ManifestVersion {
     ManifestVersion::try_new(version(seconds, suffix)).unwrap()
@@ -54,7 +55,12 @@ fn not_before_beyond_five_minutes_is_refused_either_way_before_anything_was_appl
 
 #[test]
 fn a_manifest_without_version_or_not_before_is_refused() {
-    assert!(try_manifest(json!({ "manifest_version": null })).is_err());
-    assert!(try_manifest(json!({ "not_before": null })).is_err());
-    assert!(try_manifest(json!({})).is_ok());
+    for field in ["manifest_version", "not_before"] {
+        let mut absent = manifest_body(json!({}));
+        absent.as_object_mut().unwrap().remove(field);
+        for body in [manifest_body(json!({ field: null })), absent] {
+            let refused = Manifest::parse(&body.to_string());
+            assert!(refused.is_err(), "{field}: {refused:?}");
+        }
+    }
 }

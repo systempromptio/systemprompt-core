@@ -4,7 +4,9 @@
 //! [`SignedManifest`](systemprompt_models::bridge::manifest::SignedManifest),
 //! the type the instance signs. `Manifest` holds it beside the one block that
 //! type does not carry: a marketplace's `harness` settings (`HostSettings`),
-//! read from the same verified payload.
+//! read from the same verified payload. Hosts and ids this build cannot read
+//! are dropped before decoding (`protocol::lenient`), so a newer instance does
+//! not stop an older device syncing.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,6 +17,8 @@ use serde::{Deserialize, Serialize};
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::bridge::ids::HostExtensionId;
 use systemprompt_models::bridge::manifest::{PluginEntry, SignedManifest, ThemeMode, ThemeRef};
+
+use crate::protocol::lenient;
 
 pub const SUPPORTED_SCHEMA_VERSION: u32 = 1;
 
@@ -50,8 +54,10 @@ impl Manifest {
             #[serde(default)]
             harness: Option<HostSettings>,
         }
-        let signed: SignedManifest = serde_json::from_str(payload)?;
-        let settings: Settings = serde_json::from_str(payload)?;
+        let mut body: serde_json::Value = serde_json::from_str(payload)?;
+        lenient::drop_unreadable(&mut body);
+        let settings = Settings::deserialize(&body)?;
+        let signed: SignedManifest = serde_json::from_value(body)?;
         Ok(Self {
             signed,
             host_settings: settings

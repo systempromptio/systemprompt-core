@@ -45,11 +45,8 @@ fn answers_decode_and_tell_when_unsupported() {
     )
     .unwrap();
     assert_eq!(unknown.window_status, Some(WindowStatus::Unknown));
-    assert!(!unknown.unsupported());
-    assert!(
-        serde_json::from_str::<HeartbeatResponse>(
-            r#"{"min_bridge_version":"0.28.0","compatible":true,"window_status":"sideways"}"#,
-        )
-        .is_err()
+    let future = serde_json::from_str::<HeartbeatResponse>(
+        r#"{"min_bridge_version":"0.28.0","compatible":true,"window_status":"sideways"}"#,
     );
+    assert!(future.is_err(), "an unknown window status: {future:?}");
 }

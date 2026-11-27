@@ -97,10 +97,22 @@ async fn discovery_documents_are_checked() {
         Err(ClientError::Protocol { .. })
     ));
 
+    let anonymous = FakeInstance::start(|_| {
+        FakeResponse::json(
+            200,
+            &json!({ "contract": "1", "device_link_path": "/bridge-auth/device-link" }),
+        )
+    })
+    .await;
+    assert!(matches!(
+        anonymous.client().discover().await,
+        Err(ClientError::Protocol { .. })
+    ));
+
     let newer = FakeInstance::start(|_| {
         FakeResponse::json(
             200,
-            &json!({ "contract": "2", "device_link_path": "/x", "identity_path": "/whoami" }),
+            &json!({ "contract": "2", "device_link_path": "/x", "identity_path": "/y" }),
         )
     })
     .await;

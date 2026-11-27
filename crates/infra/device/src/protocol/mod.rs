@@ -16,6 +16,7 @@ pub mod error;
 pub mod ids;
 /// RFC 8785 canonical JSON, the form the manifest payload is signed in.
 pub mod jcs;
+mod lenient;
 /// The device's reading of the signed manifest.
 pub mod manifest;
 /// Derived names several crates must agree on byte for byte.

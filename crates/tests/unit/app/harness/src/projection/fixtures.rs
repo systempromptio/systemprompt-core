@@ -22,10 +22,10 @@ pub(crate) fn merge(base: &mut Value, patch: Value) {
 }
 
 pub(crate) fn manifest(patch: Value) -> Manifest {
-    try_manifest(patch).unwrap()
+    Manifest::parse(&manifest_body(patch).to_string()).unwrap()
 }
 
-pub(crate) fn try_manifest(patch: Value) -> Result<Manifest, serde_json::Error> {
+pub(crate) fn manifest_body(patch: Value) -> Value {
     let mut base = json!({
         "user_id": "u-1",
         "manifest_version": "2026-11-01T09:12:31Z-000001a19661c117",
@@ -42,7 +42,7 @@ pub(crate) fn try_manifest(patch: Value) -> Result<Manifest, serde_json::Error> 
     });
     merge(&mut base, patch);
     complete(&mut base);
-    Manifest::parse(&base.to_string())
+    base
 }
 
 const NO_DIGEST: &str = "0000000000000000000000000000000000000000000000000000000000000000";
