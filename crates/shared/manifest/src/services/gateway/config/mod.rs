@@ -84,9 +84,11 @@ pub struct GatewayConfigSpec {
     pub bridge_instance: Option<BridgeInstanceSpec>,
 }
 
-/// What this instance tells its clients about itself: the routes, branding
-/// and phone apps discovered at `/.well-known/systemprompt-bridge`, and the
-/// apps its domain vouches for in the two association documents.
+/// What this instance tells its clients about itself.
+///
+/// It carries the routes, branding and phone apps discovered at
+/// `/.well-known/systemprompt-bridge`, and the apps its domain vouches for in
+/// the two association documents.
 ///
 /// Both paths are relative to the gateway origin: the sign-in page and the
 /// identity endpoint belong to the instance, not to the bridge build.

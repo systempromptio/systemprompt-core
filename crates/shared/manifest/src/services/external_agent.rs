@@ -133,8 +133,8 @@ impl ExternalAgentConfig {
     }
 }
 
-pub fn validate_catalog(
-    agents: &HashMap<ExternalAgentId, ExternalAgentConfig>,
+pub fn validate_catalog<S: std::hash::BuildHasher>(
+    agents: &HashMap<ExternalAgentId, ExternalAgentConfig, S>,
 ) -> Result<(), ServicesValidationError> {
     let mut keys: Vec<&ExternalAgentId> = agents.keys().collect();
     keys.sort_by(|a, b| a.as_str().cmp(b.as_str()));
