@@ -14,6 +14,7 @@ In core's test workspace (they test core crates):
 
 ```
 scripted-instance/        the mock instance and scripted inference (the crate and its interface exist from S0-B2)
+scripted-instance-tests/  sign-in, sync, heartbeat, hooks, feeds and one governed step against the scripted instance (S2-B1)
 golden/scenarios/         scenario data
 golden/runner/            runs scenarios against the engine through `run`
 parity/reference/         runs scenarios against the reference agent
@@ -48,7 +49,7 @@ S2-A2 owns a new directory in `systemprompt-harness`, which S1-B4 does not touch
 
 | Lane | Owned paths (core's test workspace) | Work | Specification |
 |---|---|---|---|
-| **S2-B1 Golden runner and comparator** | `golden/runner/**`; `parity/compare/**` | Run every scenario against the harness through `run`. Normalise both products' transcripts to one trace form. Compare. Write the parity ledger with every difference classified | `testing/03-golden-scenarios.md` sections 3, 6 |
+| **S2-B1 Golden runner and comparator** | `golden/runner/**`; `parity/compare/**`; `scripted-instance-tests/**` | Run every scenario against the harness through `run`. Normalise both products' transcripts to one trace form. Compare. Write the parity ledger with every difference classified. Re-express the eight behaviours of the harness's live test package against the scripted instance, with no real instance and no model call | `testing/03-golden-scenarios.md` sections 3, 6 |
 | **S2-B2 Migration batch 1: tools and shell** | `migrated/tools/**` | The 67 catalogue rows classified *port* for file tools, search tools, patch application, shell selection, output handling, truncation | `testing/04-test-migration.md` |
 | **S2-B3 Migration batch 2: session, store, permissions, configuration** | `migrated/session/**`, `migrated/config/**` | The 157 catalogue rows for the agent loop, steering and queueing, abort, retry, compaction, permission rules, settings, agents, skills, commands, instructions | Same |
 | **S2-B4 Migration batch 3: protocol clients** | `migrated/llm/**`, `migrated/mcp/**`, `migrated/lsp/**` | The 51 catalogue rows for streaming decode on both protocols, tool-call assembly, MCP transports, LSP diagnostics | Same |

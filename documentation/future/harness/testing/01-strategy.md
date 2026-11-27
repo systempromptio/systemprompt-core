@@ -24,7 +24,7 @@ Nothing of it is linked, vendored or copied into the harness. Names of other pro
 |---|---|---|---|
 | Unit and crate tests | One crate through its public API | The harness repository's count at the lift pin, less the retirements the lift manifest lists (`../stages/s1-lift.md` states the figure) | L2, three systems |
 | Migrated tests | Behaviours catalogued from the reference agent's suite, re-expressed in Rust | 920 catalogue rows to port at the first classification (`04-test-migration.md` section 1.1) | L2 |
-| Scripted-instance tests | Sign-in, key trust, sync, acceptance, heartbeat, telemetry against a mock instance | About 40 planned | L2 |
+| Scripted-instance tests | Sign-in, key trust, sync, acceptance, heartbeat, telemetry against a mock instance; seeded by the eight behaviours of the harness's live test package (lift manifest delta section 7) | About 40 planned | L2 |
 | Golden scenarios | A whole session: prompt in, scripted turns, tools run, end state | 24 in the first set | L2, Windows and macOS |
 | Parity comparison | The same scenarios through the reference agent; differences classified | Same 24 | L2, one system is enough |
 | Screenshot tour | The packaged app in each state on a list | About 20 states | Stage closure, by an agent on real Windows and macOS machines |
