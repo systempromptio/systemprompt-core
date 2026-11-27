@@ -11,9 +11,18 @@ fn origin(input: &str) -> String {
 
 #[test]
 fn https_origin_is_kept_without_a_trailing_slash() {
-    assert_eq!(origin("https://demo.systemprompt.io/"), "https://demo.systemprompt.io");
-    assert_eq!(origin("  https://demo.systemprompt.io  "), "https://demo.systemprompt.io");
-    assert_eq!(origin("https://demo.systemprompt.io:8443"), "https://demo.systemprompt.io:8443");
+    assert_eq!(
+        origin("https://demo.systemprompt.io/"),
+        "https://demo.systemprompt.io"
+    );
+    assert_eq!(
+        origin("  https://demo.systemprompt.io  "),
+        "https://demo.systemprompt.io"
+    );
+    assert_eq!(
+        origin("https://demo.systemprompt.io:8443"),
+        "https://demo.systemprompt.io:8443"
+    );
 }
 
 #[test]
@@ -28,8 +37,16 @@ fn plain_http_is_admitted_for_loopback_and_private_hosts_only() {
     ] {
         assert!(InstanceAddress::parse(local).is_ok(), "{local}");
     }
-    for public in ["http://demo.systemprompt.io", "http://8.8.8.8", "http://172.32.0.1"] {
-        assert_eq!(InstanceAddress::parse(public), Err(MobileError::InvalidAddress), "{public}");
+    for public in [
+        "http://demo.systemprompt.io",
+        "http://8.8.8.8",
+        "http://172.32.0.1",
+    ] {
+        assert_eq!(
+            InstanceAddress::parse(public),
+            Err(MobileError::InvalidAddress),
+            "{public}"
+        );
     }
 }
 
@@ -46,13 +63,18 @@ fn anything_beyond_an_origin_is_refused() {
         "https://demo.systemprompt.io/#top",
         "https://",
     ] {
-        assert_eq!(InstanceAddress::parse(input), Err(MobileError::InvalidAddress), "{input:?}");
+        assert_eq!(
+            InstanceAddress::parse(input),
+            Err(MobileError::InvalidAddress),
+            "{input:?}"
+        );
     }
 }
 
 #[test]
 fn join_appends_a_path_to_the_origin() {
-    let address = InstanceAddress::parse("https://demo.systemprompt.io/").expect("an instance address");
+    let address =
+        InstanceAddress::parse("https://demo.systemprompt.io/").expect("an instance address");
     assert_eq!(
         address.join("/v1/bridge/download/android"),
         "https://demo.systemprompt.io/v1/bridge/download/android"

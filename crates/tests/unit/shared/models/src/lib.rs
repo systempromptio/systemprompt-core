@@ -50,6 +50,8 @@ mod api_paths_bridge;
 #[cfg(test)]
 mod api_paths_mobile;
 #[cfg(test)]
+mod api_responses_specialized;
+#[cfg(test)]
 mod association_documents;
 #[cfg(test)]
 mod bridge_discovery_clients;
@@ -57,8 +59,6 @@ mod bridge_discovery_clients;
 mod device_contract;
 #[cfg(test)]
 mod push_contract;
-#[cfg(test)]
-mod api_responses_specialized;
 
 #[cfg(test)]
 mod artifacts;

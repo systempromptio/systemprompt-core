@@ -8,9 +8,10 @@
 //! Both types serialise to exactly the vendor's JSON.
 //!
 //! [`VouchedApps`] is the configuration shape that declares the apps. Each
-//! document is a pure function of it ([`VouchedApps::apple_app_site_association`],
-//! [`VouchedApps::asset_links`]) and is `None` when no app of that vendor is
-//! declared, so an instance with no apps serves neither file.
+//! document is a pure function of it
+//! ([`VouchedApps::apple_app_site_association`], [`VouchedApps::asset_links`])
+//! and is `None` when no app of that vendor is declared, so an instance with no
+//! apps serves neither file.
 //!
 //! ```
 //! use systemprompt_models::association::VouchedApps;

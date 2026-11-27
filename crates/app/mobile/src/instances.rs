@@ -70,7 +70,6 @@ impl Instances {
         })
     }
 
-    /// Reads the discovery document of the instance at `address`.
     pub async fn discover(&self, address: String) -> Result<InstanceDiscovery, MobileError> {
         let address = InstanceAddress::parse(&address)?;
         let document = SystempromptClient::new(address.as_str())?
@@ -84,7 +83,6 @@ impl Instances {
         Ok(discovery)
     }
 
-    /// The instance the last successful [`Instances::discover`] read.
     #[must_use]
     pub fn active(&self) -> Option<InstanceDiscovery> {
         self.active

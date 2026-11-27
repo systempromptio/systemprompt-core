@@ -217,16 +217,6 @@ impl ApiPaths {
         path.strip_prefix(Self::API_V1).unwrap_or(path)
     }
 
-    #[must_use]
-    pub fn notifications_relative(path: &'static str) -> &'static str {
-        path.strip_prefix(Self::NOTIFICATIONS).unwrap_or(path)
-    }
-
-    #[must_use]
-    pub fn admin_notifications_relative(path: &'static str) -> &'static str {
-        path.strip_prefix(Self::ADMIN_NOTIFICATIONS).unwrap_or(path)
-    }
-
     pub fn bridge_plugin_file(plugin_id: &PluginId, relative_path: &str) -> String {
         format!(
             "{}/{}/{relative_path}",

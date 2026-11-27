@@ -19,7 +19,10 @@ fn any_other_status_is_a_refusal_that_carries_it() {
 
 #[test]
 fn a_timeout_is_a_network_failure() {
-    assert_eq!(MobileError::from(ClientError::Timeout), MobileError::Network);
+    assert_eq!(
+        MobileError::from(ClientError::Timeout),
+        MobileError::Network
+    );
 }
 
 #[test]
@@ -30,7 +33,10 @@ fn an_internal_failure_carries_a_correlation_id_and_no_cause() {
         panic!("expected an internal error, got {error:?}");
     };
     assert_eq!(correlation_id.len(), 36);
-    assert_eq!(error.to_string(), format!("internal error {correlation_id}"));
+    assert_eq!(
+        error.to_string(),
+        format!("internal error {correlation_id}")
+    );
 }
 
 #[test]

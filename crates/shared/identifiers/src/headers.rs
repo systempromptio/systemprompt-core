@@ -59,6 +59,7 @@ pub const MEMORY: &str = "x-systemprompt-memory";
 pub const MEMORY_IDS: &str = "x-systemprompt-memory-ids";
 pub const RECOVERY_COUNT: &str = "x-systemprompt-recovery-count";
 pub const COLLAB_FORWARDED: &str = "x-systemprompt-collab-forwarded";
+pub const DEVICE_FINGERPRINT: &str = "x-systemprompt-device-fingerprint";
 pub const INGESTION_EVENT_ID: &str = "x-ingestion-event-id";
 pub const BRIDGE_MANIFEST_SCHEMA: &str = "x-bridge-manifest-schema";
 pub const UPLOAD_TOKEN: &str = "x-upload-token";
@@ -98,6 +99,7 @@ pub const ALL: &[&str] = &[
     MEMORY_IDS,
     RECOVERY_COUNT,
     COLLAB_FORWARDED,
+    DEVICE_FINGERPRINT,
     INGESTION_EVENT_ID,
     BRIDGE_MANIFEST_SCHEMA,
     UPLOAD_TOKEN,

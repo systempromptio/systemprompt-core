@@ -5,6 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod api_paths;
+mod api_paths_relative;
 mod cli_paths;
 mod service_category;
 

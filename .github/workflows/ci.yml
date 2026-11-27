@@ -249,6 +249,7 @@ jobs:
           ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
       - run: rustup show
       - run: rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+      - uses: ./.github/actions/sccache
       - run: |
           for target in aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios; do
             cargo check --target "$target" -p systemprompt-mobile -p systemprompt-client -p systemprompt-models -p systemprompt-identifiers -p systemprompt-wire -p systemprompt-provider-contracts -p systemprompt-traits --locked

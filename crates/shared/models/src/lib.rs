@@ -16,8 +16,8 @@
 //! - [`ai`] — LLM request/response shapes plus the [`ai::AiProvider`] trait.
 //! - [`api`] — public HTTP envelopes, error model, pagination, cloud DTOs.
 //! - [`artifacts`] — typed tool-result artifacts.
-//! - [`association`] — the app association documents an instance serves and
-//!   the declaration of the apps it vouches for.
+//! - [`association`] — the app association documents an instance serves and the
+//!   declaration of the apps it vouches for.
 //! - [`attribution`] — scope attribution of an AI request (one value per
 //!   registered subject dimension, plus the API key).
 //! - [`auth`] — authenticated user, permission, audience, and PKCE types.

@@ -46,9 +46,8 @@ impl From<ClientError> for MobileError {
                 Self::internal(&error)
             },
             ClientError::Timeout | ClientError::HttpError(_) => Self::Network,
-            ClientError::ApiError { status, .. } | ClientError::UnreadableErrorBody { status, .. } => {
-                Self::from_status(*status)
-            },
+            ClientError::ApiError { status, .. }
+            | ClientError::UnreadableErrorBody { status, .. } => Self::from_status(*status),
             ClientError::JsonError(_)
             | ClientError::AuthError { .. }
             | ClientError::StreamEndedWithoutExitCode

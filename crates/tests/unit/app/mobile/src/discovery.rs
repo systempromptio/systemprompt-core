@@ -69,7 +69,10 @@ async fn an_instance_with_no_apps_configured_lists_none() {
     body.as_object_mut().expect("an object").remove("clients");
     let server = instance(ResponseTemplate::new(200).set_body_json(body)).await;
 
-    let found = Instances::new().discover(server.uri()).await.expect("a discovery");
+    let found = Instances::new()
+        .discover(server.uri())
+        .await
+        .expect("a discovery");
 
     assert_eq!(found.ios, None);
     assert_eq!(found.android, None);
@@ -80,7 +83,10 @@ async fn an_instance_without_discovery_is_not_found_and_does_not_become_active()
     let server = instance(ResponseTemplate::new(404)).await;
     let instances = Instances::new();
 
-    assert_eq!(instances.discover(server.uri()).await, Err(MobileError::NotFound));
+    assert_eq!(
+        instances.discover(server.uri()).await,
+        Err(MobileError::NotFound)
+    );
     assert_eq!(instances.active(), None);
 }
 
@@ -107,7 +113,9 @@ async fn a_contract_this_build_does_not_read_is_too_old() {
 #[tokio::test]
 async fn an_unreachable_instance_is_a_network_failure() {
     assert_eq!(
-        Instances::new().discover("http://127.0.0.1:1".to_owned()).await,
+        Instances::new()
+            .discover("http://127.0.0.1:1".to_owned())
+            .await,
         Err(MobileError::Network)
     );
 }
@@ -115,7 +123,9 @@ async fn an_unreachable_instance_is_a_network_failure() {
 #[tokio::test]
 async fn an_address_that_is_not_an_origin_never_reaches_the_network() {
     assert_eq!(
-        Instances::new().discover("https://demo.systemprompt.io/admin".to_owned()).await,
+        Instances::new()
+            .discover("https://demo.systemprompt.io/admin".to_owned())
+            .await,
         Err(MobileError::InvalidAddress)
     );
 }
