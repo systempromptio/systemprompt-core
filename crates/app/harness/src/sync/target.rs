@@ -16,13 +16,13 @@
 use std::future::Future;
 use std::sync::Arc;
 
-use systemprompt_device::accounts::Accounts;
 use crate::extension::{AppliedInstance, EnabledExtensions, ManifestAppliers};
 use crate::governance::{Governance, SessionBinding, UsageTotals};
 use crate::projection::{Applied, Applier, ApplyReport, Projection};
-use sp_protocol::DeviceCredential;
-use sp_protocol::ids::AccountId;
-use sp_protocol::wire::consumer::{InstallationPlan, RuntimeReadback};
+use systemprompt_device::accounts::Accounts;
+use systemprompt_device::protocol::DeviceCredential;
+use systemprompt_device::protocol::ids::AccountId;
+use systemprompt_models::feedback::receipts::{ConsumerInstallationPlan, RuntimeFileReadback};
 use tokio::sync::{Mutex, broadcast};
 
 pub use crate::sync::error::TargetError;
@@ -51,13 +51,13 @@ pub trait Target: Clone + Send + Sync + 'static {
     fn materialize(
         &self,
         skill_dir: String,
-        plan: InstallationPlan,
-    ) -> impl Future<Output = Result<Vec<RuntimeReadback>, TargetError>> + Send;
+        plan: ConsumerInstallationPlan,
+    ) -> impl Future<Output = Result<Vec<RuntimeFileReadback>, TargetError>> + Send;
 
     fn inspect(
         &self,
         skill_dir: String,
-        plan: InstallationPlan,
+        plan: ConsumerInstallationPlan,
     ) -> impl Future<Output = bool> + Send;
 
     fn set_device(&self, device: Option<DeviceCredential>);
@@ -177,15 +177,15 @@ impl Target for LiveTarget {
     async fn materialize(
         &self,
         skill_dir: String,
-        plan: InstallationPlan,
-    ) -> Result<Vec<RuntimeReadback>, TargetError> {
+        plan: ConsumerInstallationPlan,
+    ) -> Result<Vec<RuntimeFileReadback>, TargetError> {
         self.applier
             .run(move |applier| applier.materialize(&skill_dir, &plan))
             .await?
             .map_err(TargetError::Materialize)
     }
 
-    async fn inspect(&self, skill_dir: String, plan: InstallationPlan) -> bool {
+    async fn inspect(&self, skill_dir: String, plan: ConsumerInstallationPlan) -> bool {
         match self
             .applier
             .run(move |applier| applier.inspect(&skill_dir, &plan))

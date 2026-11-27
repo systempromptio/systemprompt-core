@@ -2,17 +2,17 @@
 //! byte.
 //!
 //! A session UUID is the RFC 4122 v5 UUID of the native session id under
-//! [`SESSION_NAMESPACE`](crate::protocol::names::SESSION_NAMESPACE), so every client of
-//! an instance derives the same one for hook events and model metadata; the
-//! instance knows the session by that
-//! UUID ([`native_session_id`](crate::protocol::names::native_session_id)). An MCP server
-//! slug keeps lowercase `[a-z0-9_]` and folds every other run into one `-`;
-//! tool names are `<slug>_<tool>`, so skills and rules that name a tool depend
-//! on it. A skill directory keeps lowercase ASCII alphanumerics, at most 64,
-//! and is empty when nothing is left. Plain ids, bundle paths and plugin
-//! segments are checked before they touch a file system. Fingerprints are hex
-//! SHA-256: of the raw ed25519 key bytes (prefixed `sha256:`), and of the
-//! install id and user id under a fixed domain line for a device.
+//! [`SESSION_NAMESPACE`](crate::protocol::names::SESSION_NAMESPACE), so every
+//! client of an instance derives the same one for hook events and model
+//! metadata; the instance knows the session by that
+//! UUID ([`native_session_id`](crate::protocol::names::native_session_id)). An
+//! MCP server slug keeps lowercase `[a-z0-9_]` and folds every other run into
+//! one `-`; tool names are `<slug>_<tool>`, so skills and rules that name a
+//! tool depend on it. A skill directory keeps lowercase ASCII alphanumerics, at
+//! most 64, and is empty when nothing is left. Plain ids, bundle paths and
+//! plugin segments are checked before they touch a file system. Fingerprints
+//! are hex SHA-256: of the raw ed25519 key bytes (prefixed `sha256:`), and of
+//! the install id and user id under a fixed domain line for a device.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -22,7 +22,9 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::protocol::error::PubkeyError;
-use crate::protocol::ids::{InstallId, NativeSessionId, UserId};
+use systemprompt_identifiers::{NativeSessionId, UserId};
+
+use crate::protocol::ids::InstallId;
 
 pub const SESSION_NAMESPACE: Uuid = Uuid::from_u128(0x7c1f_5b6e_3a2d_4e8f_9b0c_2d6a_1e4f_8c73);
 

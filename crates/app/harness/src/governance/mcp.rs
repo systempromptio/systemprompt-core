@@ -11,12 +11,12 @@
 use std::fmt;
 use std::sync::Arc;
 
-use chrono::{TimeDelta, Utc};
-use systemprompt_engine::run::McpSpec;
-use systemprompt_engine::mcp::{BoxError, HeaderSource};
-use systemprompt_device::client::{CredentialSource, Freshness};
 use crate::projection::ManagedMcp;
-use sp_protocol::origin::bearer_allowed;
+use chrono::{TimeDelta, Utc};
+use systemprompt_device::client::{CredentialSource, Freshness};
+use systemprompt_device::protocol::origin::bearer_allowed;
+use systemprompt_engine::mcp::{BoxError, HeaderSource};
+use systemprompt_engine::run::McpSpec;
 use url::Url;
 
 use crate::governance::instance::JWT_MIN_VALIDITY;

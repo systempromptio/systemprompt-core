@@ -9,9 +9,10 @@
 
 use std::path::{Path, PathBuf};
 
-use sp_protocol::ids::{AccountId, DeviceId};
-use sp_protocol::names::sha256_hex;
+use systemprompt_device::protocol::ids::AccountId;
+use systemprompt_device::protocol::names::sha256_hex;
 use systemprompt_device::secure::{SecureError, read_optional, write_private};
+use systemprompt_identifiers::DeviceId;
 
 use super::Outbox;
 

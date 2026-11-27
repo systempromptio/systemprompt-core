@@ -6,8 +6,8 @@
 
 use std::collections::BTreeMap;
 
-use sp_protocol::ids::DocumentId;
-use sp_protocol::wire::drive::FeedEntry;
+use systemprompt_identifiers::DocumentId;
+use systemprompt_models::documents::client::FeedEntry;
 
 use super::cycle::{Cycle, Report};
 use super::disk::{synced_entry, write_verified};

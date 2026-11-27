@@ -14,7 +14,7 @@ use systemprompt_identifiers::engine::{PermissionId, QuestionId};
 use crate::llm::ModelSpec;
 use crate::mcp::StatusMap;
 use crate::store::{MessageId, MessagePage, MessageWithParts, Session, SessionId, Store};
-use harness_tasks::CancellationToken;
+use systemprompt_traits::CancellationToken;
 use crate::workspace::FileDiff;
 use tokio::sync::broadcast;
 
@@ -221,7 +221,7 @@ impl Engine {
         inner.asks.cancel_all();
         let stopped = inner.jobs.shutdown();
         inner.close_dirs().await;
-        let report = inner.tasks.shutdown(SHUTDOWN_GRACE).await;
+        let report = inner.tasks.shutdown_or_abort(SHUTDOWN_GRACE).await;
         let drained = report.is_drained();
         tracing::info!(background_jobs = stopped, drained, "engine shut down");
     }

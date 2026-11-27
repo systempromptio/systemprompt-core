@@ -13,7 +13,7 @@ mod lines;
 mod sse;
 mod stdio;
 
-use harness_tasks::BackgroundTasks;
+use systemprompt_traits::BackgroundTasks;
 use serde_json::Value;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;

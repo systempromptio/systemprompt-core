@@ -15,12 +15,13 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::protocol::ids::{AccountId, InstallId, InstanceKey};
+use crate::secure::SealedString;
+use crate::view::KeyFingerprint;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sp_protocol::ManifestVersion;
-use sp_protocol::ids::{AccountId, DeviceId, InstallId, InstanceKey, UserId};
-use sp_protocol::view::KeyFingerprint;
-use crate::secure::SealedString;
+use systemprompt_identifiers::{DeviceId, UserId};
+use systemprompt_models::bridge::manifest_version::ManifestVersion;
 
 use crate::accounts::error::AccountsError;
 use crate::accounts::slug::unique_slug;

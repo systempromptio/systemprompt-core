@@ -13,14 +13,13 @@ use crate::extension::service::BackgroundService;
 
 /// A feature on the instance side of the app.
 ///
-/// `Default`-constructed by
-/// [`register_sp_extension!`](crate::extension::register_sp_extension) and held as `dyn
-/// SpExtension`. Only `metadata` is required. The composition root first calls
-/// `provide` on every resolved extension, each after the extensions it depends
-/// on (insert the handles the extension shares with its shell half and with
-/// others into `ctx.handles`), then `engine`, `appliers` and `services` in
-/// resolved order. The engine half's metadata carries the same id as this
-/// one.
+/// `Default`-constructed from the registration list
+/// [`REGISTERED`](crate::extension::REGISTERED) and held as `dyn SpExtension`.
+/// Only `metadata` is required. The composition root first calls `provide` on
+/// every resolved extension, each after the extensions it depends on (insert
+/// the handles the extension shares with its shell half and with others into
+/// `ctx.handles`), then `engine`, `appliers` and `services` in resolved order.
+/// The engine half's metadata carries the same id as this one.
 pub trait SpExtension: Send + Sync + 'static {
     fn metadata(&self) -> ExtensionMetadata;
 

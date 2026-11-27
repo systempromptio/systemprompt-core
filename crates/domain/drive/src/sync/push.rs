@@ -16,8 +16,8 @@
 
 use bytes::Bytes;
 use chrono::Utc;
-use sp_protocol::ids::DocumentRevisionId;
-use sp_protocol::wire::drive::{CommitMeta, CommitOutcome};
+use systemprompt_identifiers::DocumentRevisionId;
+use systemprompt_models::documents::client::{CommitMeta, CommitOutcome};
 
 use super::cycle::{Cycle, Report};
 use super::error::SyncError;

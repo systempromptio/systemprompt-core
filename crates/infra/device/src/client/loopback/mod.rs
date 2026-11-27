@@ -22,8 +22,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use harness_tasks::OwnedTask;
-use sp_protocol::OneTimeCode;
+use crate::protocol::OneTimeCode;
+use systemprompt_traits::OwnedTask;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;

@@ -18,11 +18,13 @@
 use url::{Host, Url};
 
 use crate::protocol::error::OriginError;
-use crate::protocol::wire::paths;
+use systemprompt_models::ApiPaths;
+
+use crate::protocol::paths;
 
 const LOOPBACK_HOSTS: [&str; 3] = ["127.0.0.1", "localhost", "[::1]"];
 
-pub const DEFAULT_TOKEN_ENDPOINT_PATH: &str = paths::OAUTH_TOKEN;
+pub const DEFAULT_TOKEN_ENDPOINT_PATH: &str = ApiPaths::OAUTH_TOKEN;
 
 #[must_use]
 pub fn is_loopback(url: &Url) -> bool {

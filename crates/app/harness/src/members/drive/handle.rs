@@ -9,7 +9,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use systemprompt_device::client::SpClient;
-use sp_protocol::ids::AccountId;
+use systemprompt_device::protocol::ids::AccountId;
 use tokio::sync::watch;
 
 use systemprompt_drive::client::DriveClient;

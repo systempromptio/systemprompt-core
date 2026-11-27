@@ -11,7 +11,7 @@ use crate::llm::{Message, Request};
 use crate::prompt::agents::TITLE;
 use crate::prompt::generate::{TITLE_MAX_CHARS, TITLE_PROMPT, clean_title, title_request};
 use crate::store::SessionId;
-use harness_tasks::CancellationToken;
+use systemprompt_traits::CancellationToken;
 
 use super::model_call;
 use crate::run::error::EngineError;

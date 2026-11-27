@@ -9,7 +9,7 @@
 use futures_util::StreamExt;
 use crate::llm::retry::{self, Retry};
 use crate::llm::{Event, EventStream, LlmError, ModelResponse, Request, Usage};
-use harness_tasks::CancellationToken;
+use systemprompt_traits::CancellationToken;
 
 use crate::run::error::EngineError;
 use crate::run::events::RunStatus;

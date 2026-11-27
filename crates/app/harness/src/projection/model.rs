@@ -8,9 +8,11 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use serde_json::{Map, Value};
-use sp_protocol::ids::{InstanceKey, McpServerId, PluginId, SkillId};
-use sp_protocol::view::SyncCounts;
-use sp_protocol::wire::manifest::{Publication, ThemeMode, ToolPolicy};
+use systemprompt_device::protocol::ids::InstanceKey;
+use systemprompt_device::view::SyncCounts;
+use systemprompt_identifiers::{McpServerId, PluginId, SkillId};
+use systemprompt_models::bridge::ids::ToolPolicy;
+use systemprompt_models::bridge::manifest::{ManagedPublicationRef, ThemeMode};
 
 /// One managed skill: its directory under `skills/` and the exact bytes of its
 /// `SKILL.md`.
@@ -147,7 +149,7 @@ impl Counts {
 pub struct SkillPublication {
     pub skill: SkillId,
     pub dir: String,
-    pub publication: Publication,
+    pub publication: ManagedPublicationRef,
 }
 
 /// Everything one manifest projects for one host.

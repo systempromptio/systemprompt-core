@@ -44,9 +44,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod catalog;
 pub mod clients;
+pub mod consumer;
 pub mod cowork_artifact;
+pub mod envelope;
 pub mod gateway;
+pub mod heartbeat;
+pub mod hook_events;
 pub mod host;
 pub mod ids;
 pub mod instance;
@@ -55,6 +60,7 @@ pub mod manifest_version;
 pub mod opencode;
 pub mod plugin_bundle;
 pub mod profile;
+pub mod session;
 pub mod update_policy;
 
 pub mod desktop_policy;

@@ -5,10 +5,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use reqwest::Method;
-use sp_protocol::wire::brain::{
-    BrainFact, BrainFactId, BrainProposal, FactPage, FactRevision, FactWhy, SubjectKey,
-};
-use sp_protocol::wire::paths;
+use systemprompt_device::protocol::paths;
+use systemprompt_identifiers::BrainFactId;
+use systemprompt_models::brain::client::{FactPage, FactWhy};
+use systemprompt_models::brain::{BrainFact, BrainProposal, FactRevision, SubjectKey};
 
 use super::query::strip_empty_query;
 use super::{BrainClient, FactQuery};

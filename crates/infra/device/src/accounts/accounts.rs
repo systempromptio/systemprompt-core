@@ -18,11 +18,11 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use parking_lot::Mutex;
 use crate::client::HttpClient;
-use sp_protocol::ids::{AccountId, InstallId};
-use sp_protocol::view::AccountView;
+use crate::protocol::ids::{AccountId, InstallId};
 use crate::secure::Sealer;
+use crate::view::AccountView;
+use parking_lot::Mutex;
 use tokio::runtime::Handle;
 use tokio::sync::{broadcast, watch};
 use tokio_util::sync::CancellationToken;

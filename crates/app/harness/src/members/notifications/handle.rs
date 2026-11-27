@@ -8,8 +8,9 @@ use std::fmt;
 use std::sync::Arc;
 
 use chrono::Utc;
-use sp_protocol::ids::{AccountId, NotificationId};
-use sp_protocol::wire::notifications::{MarkRead, MarkSeen};
+use systemprompt_device::protocol::ids::AccountId;
+use systemprompt_identifiers::NotificationId;
+use systemprompt_models::notifications::{MarkRead, MarkSeen};
 use tokio::sync::futures::Notified;
 use tokio::sync::{Notify, watch};
 

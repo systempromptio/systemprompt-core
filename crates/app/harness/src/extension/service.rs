@@ -4,13 +4,13 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use harness_tasks::CancellationToken;
+use systemprompt_traits::CancellationToken;
 
 /// Work that runs for the life of the app, such as following the active
 /// account.
 ///
 /// Held as `dyn`, which is why the trait uses `async_trait`. The composition
-/// root spawns `run` through `harness-tasks` under `name` and cancels it at
+/// root spawns `run` as an owned task under `name` and cancels it at
 /// shutdown; `run` returns once `cancel` fires. An extension never spawns its
 /// own task.
 #[async_trait]

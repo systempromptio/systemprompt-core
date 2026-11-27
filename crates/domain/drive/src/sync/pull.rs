@@ -14,8 +14,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
-use sp_protocol::ids::{DocumentId, DocumentRevisionId};
-use sp_protocol::wire::drive::{ChangeKind, FeedChange, FeedManifest};
+use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
+use systemprompt_models::documents::client::{ChangeKind, FeedChange, FeedManifest};
 
 use super::cycle::{Cycle, Report};
 use super::disk::{free_conflict_sibling, move_file, move_to_trash};

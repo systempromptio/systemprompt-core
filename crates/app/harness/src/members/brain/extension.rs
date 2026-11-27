@@ -1,5 +1,5 @@
-//! [`BrainExtension`]: the brain's instance-side half, registered with
-//! `register_sp_extension!`.
+//! [`BrainExtension`]: the brain's instance-side half, named in the
+//! registration list of [`crate::extension`].
 //!
 //! `provide` publishes the [`BrainService`] in the shared handles, where the
 //! shell half finds it; the engine half, the applier and the probe are built
@@ -15,7 +15,6 @@ use std::sync::Arc;
 use crate::extension::{
     AppliedInstance, ApplyError, BackgroundService, EngineExtension, ExtensionId,
     ExtensionMetadata, ManifestApplier, SpContext, SpExtension, extension_id,
-    register_sp_extension,
 };
 
 use crate::members::brain::client::BrainClient;
@@ -34,7 +33,6 @@ pub(crate) const fn metadata() -> ExtensionMetadata {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct BrainExtension;
 
-register_sp_extension!(BrainExtension);
 
 impl SpExtension for BrainExtension {
     fn metadata(&self) -> ExtensionMetadata {

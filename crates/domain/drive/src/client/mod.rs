@@ -5,7 +5,7 @@
 //! refuses the token. A write can name the conversation it belongs to
 //! (`x-context-id`, an id the instance issued with
 //! [`DriveClient::create_context`]). A file up to
-//! [`INLINE_UPLOAD_LIMIT`](sp_protocol::wire::drive::INLINE_UPLOAD_LIMIT) goes
+//! [`INLINE_UPLOAD_LIMIT`](systemprompt_models::documents::client::INLINE_UPLOAD_LIMIT) goes
 //! up as one multipart request; a bigger one as a resumable upload that is then
 //! imported by its blob.
 //!
@@ -23,8 +23,8 @@ use std::time::Duration;
 
 use serde::Serialize;
 use systemprompt_device::client::{CredentialSource, HttpClient, SpClient, with_jwt};
-use sp_protocol::ids::DocumentId;
-use sp_protocol::wire::paths;
+use systemprompt_identifiers::DocumentId;
+use systemprompt_models::ApiPaths;
 use url::Url;
 
 pub use types::{
@@ -105,7 +105,7 @@ impl DriveClient {
         let mut segments = Vec::with_capacity(rest.len() + 1);
         segments.push(id.as_str());
         segments.extend_from_slice(rest);
-        self.url(paths::DOCUMENTS, &segments)
+        self.url(ApiPaths::DOCUMENTS, &segments)
     }
 
     async fn answer(&self, call: Call, expect: &[u16]) -> Result<Answer, DriveError> {

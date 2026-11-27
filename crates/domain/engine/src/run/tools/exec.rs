@@ -11,7 +11,7 @@ use std::sync::Arc;
 use futures_util::future::join_all;
 use crate::prompt::{notices, tool_names};
 use crate::store::{JsonMap, MessageId, ToolState, now_ms};
-use harness_tasks::CancellationToken;
+use systemprompt_traits::CancellationToken;
 use crate::tools::{PermissionGate, PermissionRequest, ToolContext};
 use serde_json::Value;
 

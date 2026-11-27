@@ -11,11 +11,11 @@
 //!
 //! The sync talks to the instance's Drive sync feed (`/v1/bridge/drive/`),
 //! whose credential is a sync token traded for the device token of the sign-in
-//! ([`systemprompt_device::client::DeviceTokenSource`]); the account's session JWT is never used
-//! for it. Conflict policy: a local edit is never overwritten; when the
-//! instance moved on, the local file is kept beside the head as `<name>
-//! (conflict from <device>).<ext>` and listed in the status until the user
-//! removes the copy.
+//! ([`systemprompt_device::client::DeviceTokenSource`]); the account's session
+//! JWT is never used for it. Conflict policy: a local edit is never
+//! overwritten; when the instance moved on, the local file is kept beside the
+//! head as `<name> (conflict from <device>).<ext>` and listed in the status
+//! until the user removes the copy.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -43,7 +43,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use harness_tasks::OwnedTask;
+use systemprompt_traits::OwnedTask;
 use tokio::sync::{Notify, watch};
 use tokio_util::sync::CancellationToken;
 
@@ -189,7 +189,7 @@ impl DriveSync {
             return;
         };
         running.cancel.cancel();
-        if let Err(error) = running.task.join().await {
+        if let Err(error) = running.task.join_named().await {
             tracing::error!(error = %error, "the Drive sync task ended abnormally");
         }
         self.shared

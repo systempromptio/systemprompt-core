@@ -6,7 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::ids::{DocumentFolderId, DocumentId};
+use systemprompt_identifiers::{DocumentFolderId, DocumentId};
 
 /// The folder a grant is inherited from.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -7,7 +7,7 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
-use sp_protocol::ids::{InstallationReceiptId, ManagedResourceId, NativeSessionId};
+use systemprompt_identifiers::{InstallationReceiptId, ManagedResourceId, NativeSessionId};
 
 use super::{Binding, BindingAnswer, Delivery, Entry, Outbox, SESSIONS_PER_ENTRY, defer};
 

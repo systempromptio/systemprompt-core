@@ -16,7 +16,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use crate::config::Loaded;
 use crate::lsp::LspManager;
 use crate::mcp::{ManagerConfig, McpManager, StatusMap};
-use harness_tasks::CancellationToken;
+use systemprompt_traits::CancellationToken;
 use crate::tools::{ShellSpec, Tool};
 use crate::workspace::Workspace;
 use parking_lot::RwLock;

@@ -7,13 +7,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::collections::BTreeMap;
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
-use crate::ids::{ClientId, PluginId, SessionId};
-use crate::secret::{ClientSecret, HookToken, Jwt, Pat};
+use systemprompt_identifiers::{ClientId, PluginId};
 
 /// `GET /v1/auth/bridge/capabilities`. An instance before 0.76 answers `404`,
 /// which means no modes.
@@ -62,12 +60,6 @@ impl fmt::Debug for SessionPatRequest<'_> {
     }
 }
 
-/// Answer of `POST /v1/auth/bridge/session-pat`: a durable PAT.
-#[derive(Debug, Clone, Deserialize)]
-pub struct SessionPatResponse {
-    pub pat: Pat,
-}
-
 /// Body of `POST /v1/auth/bridge/session`: the one-time code, exchanged for a
 /// JWT and no durable credential.
 #[derive(Serialize)]
@@ -83,47 +75,11 @@ impl fmt::Debug for SessionExchangeRequest<'_> {
     }
 }
 
-/// Answer of `POST /v1/auth/bridge/pat` (PAT as bearer, no body) and of `POST
-/// /v1/auth/bridge/session`.
-#[derive(Debug, Clone, Deserialize)]
-pub struct PatSession {
-    pub token: Jwt,
-    pub ttl: u64,
-    #[serde(default)]
-    pub headers: BTreeMap<String, String>,
-    #[serde(default)]
-    pub device_token: Option<Jwt>,
-}
-
-impl PatSession {
-    #[must_use]
-    pub fn session_id(&self) -> Option<SessionId> {
-        self.headers
-            .iter()
-            .find(|(name, _)| name.eq_ignore_ascii_case(crate::wire::headers::SESSION_ID))
-            .map(|(_, value)| value.clone())
-            .or_else(|| self.token.session_id())
-            .and_then(|raw| SessionId::try_new(raw).ok())
-    }
-}
-
 /// `GET /v1/bridge/pubkey`: base64 of the 32 raw bytes of the instance's
 /// ed25519 manifest key.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PubkeyResponse {
     pub pubkey: String,
-}
-
-/// Answer of `POST /v1/auth/bridge/oauth-client` (the user's JWT, body `{}`):
-/// the per-user hook client.
-#[derive(Debug, Clone, Deserialize)]
-pub struct OAuthClientResponse {
-    pub client_id: ClientId,
-    pub client_secret: ClientSecret,
-    #[serde(default)]
-    pub scopes: Vec<String>,
-    #[serde(default)]
-    pub token_endpoint: Option<String>,
 }
 
 pub const HOOK_TOKEN_SCOPE: &str = "hook:govern hook:track";
@@ -180,15 +136,4 @@ impl fmt::Debug for HookTokenRequest<'_> {
             .field("plugin_id", &self.plugin_id)
             .finish_non_exhaustive()
     }
-}
-
-/// Answer of the hook token request.
-#[derive(Debug, Clone, Deserialize)]
-pub struct HookTokenResponse {
-    pub access_token: HookToken,
-    #[serde(default)]
-    pub token_type: Option<String>,
-    pub expires_in: i64,
-    #[serde(default)]
-    pub scope: Option<String>,
 }

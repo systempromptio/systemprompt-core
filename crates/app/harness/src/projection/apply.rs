@@ -12,8 +12,8 @@
 
 use std::path::Path;
 
+use systemprompt_device::view::SyncCounts;
 use systemprompt_engine::config::{Layout, Paths};
-use sp_protocol::view::SyncCounts;
 
 use crate::projection::bundle::is_owned_path;
 use crate::projection::error::ProjectionError;

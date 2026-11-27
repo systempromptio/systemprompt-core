@@ -13,15 +13,21 @@ use systemprompt_device::client::{
     ClientError, ConsumerOutcome, CredentialError, CredentialSource, Freshness, JwtSession,
     ManifestFetch, ManifestKey, SpClient,
 };
-use sp_protocol::ids::{AccountId, InstallId, InstanceKey, PluginId, UserId};
-use sp_protocol::wire::catalog::{ModelCatalog, Profile};
-use sp_protocol::wire::consumer::{
-    DeviceEnrolRequest, DeviceEnrolment, InstallationPlan, ReceiptRequest, ReceiptResponse,
-    SessionBinding, SessionBindingRequest,
+use systemprompt_device::protocol::ids::{AccountId, InstallId, InstanceKey};
+use systemprompt_device::protocol::wire::DeviceEnrolment;
+use systemprompt_device::protocol::{DeviceCredential, Jwt};
+use systemprompt_identifiers::{PluginId, UserId};
+use systemprompt_models::bridge::catalog::ModelCatalog;
+use systemprompt_models::bridge::consumer::SessionBinding;
+use systemprompt_models::bridge::gateway::SelfEnrollRequest as DeviceEnrolRequest;
+use systemprompt_models::bridge::heartbeat::{HeartbeatRequest, HeartbeatResponse};
+use systemprompt_models::bridge::manifest::ManagedPublicationRef;
+use systemprompt_models::bridge::manifest_version::ManifestVersion;
+use systemprompt_models::bridge::profile::BridgeProfileResponse as Profile;
+use systemprompt_models::feedback::receipts::{
+    ConsumerInstallationPlan, ConsumerReceiptRequest, ConsumerReceiptResponse,
+    SessionBindingRequest,
 };
-use sp_protocol::wire::heartbeat::{HeartbeatRequest, HeartbeatResponse};
-use sp_protocol::wire::manifest::Publication;
-use sp_protocol::{DeviceCredential, Jwt, ManifestVersion};
 
 /// The calls the engine makes on one systemprompt instance; implemented for
 /// `SpClient`.
@@ -58,14 +64,14 @@ pub trait Instance: Clone + Send + Sync + 'static {
     fn installation_plan(
         &self,
         device: &DeviceCredential,
-        publication: &Publication,
-    ) -> impl Future<Output = ConsumerOutcome<InstallationPlan>> + Send;
+        publication: &ManagedPublicationRef,
+    ) -> impl Future<Output = ConsumerOutcome<ConsumerInstallationPlan>> + Send;
 
     fn post_receipt(
         &self,
         device: &DeviceCredential,
-        receipt: &ReceiptRequest,
-    ) -> impl Future<Output = ConsumerOutcome<ReceiptResponse>> + Send;
+        receipt: &ConsumerReceiptRequest,
+    ) -> impl Future<Output = ConsumerOutcome<ConsumerReceiptResponse>> + Send;
 
     fn post_session_binding(
         &self,
@@ -127,16 +133,16 @@ impl Instance for SpClient {
     fn installation_plan(
         &self,
         device: &DeviceCredential,
-        publication: &Publication,
-    ) -> impl Future<Output = ConsumerOutcome<InstallationPlan>> + Send {
+        publication: &ManagedPublicationRef,
+    ) -> impl Future<Output = ConsumerOutcome<ConsumerInstallationPlan>> + Send {
         Self::installation_plan(self, device, publication)
     }
 
     fn post_receipt(
         &self,
         device: &DeviceCredential,
-        receipt: &ReceiptRequest,
-    ) -> impl Future<Output = ConsumerOutcome<ReceiptResponse>> + Send {
+        receipt: &ConsumerReceiptRequest,
+    ) -> impl Future<Output = ConsumerOutcome<ConsumerReceiptResponse>> + Send {
         Self::post_receipt(self, device, receipt)
     }
 

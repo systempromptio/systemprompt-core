@@ -18,8 +18,8 @@ use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sp_protocol::ids::{DocumentId, DocumentProposalId, DocumentRevisionId};
 use systemprompt_device::secure::{Access, write_atomic};
+use systemprompt_identifiers::{DocumentId, DocumentProposalId, DocumentRevisionId};
 
 use super::error::SyncError;
 

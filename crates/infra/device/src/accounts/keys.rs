@@ -11,7 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::client::ManifestKey;
-use sp_protocol::view::{KeyFingerprint, KeyOffer};
+use crate::view::{KeyFingerprint, KeyOffer};
 
 use crate::accounts::store::AccountRecord;
 

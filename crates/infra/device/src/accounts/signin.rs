@@ -12,8 +12,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::client::{InstanceDiscovery, SpClient};
-use sp_protocol::view::{SignInFailure, SignInOutcome};
-use sp_protocol::{OneTimeCode, Pat};
+use crate::protocol::{OneTimeCode, Pat};
+use crate::view::{SignInFailure, SignInOutcome};
 use tokio_util::sync::CancellationToken;
 
 use crate::accounts::accounts::Accounts;

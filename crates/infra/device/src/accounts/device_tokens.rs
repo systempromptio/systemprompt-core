@@ -13,10 +13,10 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use async_trait::async_trait;
 use crate::client::{CredentialError, DeviceTokenSource, Freshness};
-use sp_protocol::Jwt;
-use sp_protocol::ids::AccountId;
+use crate::protocol::Jwt;
+use crate::protocol::ids::AccountId;
+use async_trait::async_trait;
 
 use crate::accounts::accounts::Accounts;
 

@@ -8,8 +8,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::client::ManifestKey;
-use sp_protocol::ids::AccountId;
-use sp_protocol::view::{KeyFingerprint, KeyOffer};
+use crate::protocol::ids::AccountId;
+use crate::view::{KeyFingerprint, KeyOffer};
 
 use crate::accounts::accounts::Accounts;
 use crate::accounts::error::AccountsError;

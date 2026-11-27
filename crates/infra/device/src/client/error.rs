@@ -11,8 +11,8 @@
 
 use std::time::Duration;
 
-use sp_protocol::OriginError;
-use sp_protocol::view::{KeyFingerprint, SignInFailure, SyncErrorKind};
+use crate::protocol::OriginError;
+use crate::view::{KeyFingerprint, SignInFailure, SyncErrorKind};
 
 use crate::client::credentials::CredentialError;
 

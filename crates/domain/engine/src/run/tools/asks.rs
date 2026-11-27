@@ -10,7 +10,7 @@ use std::hash::Hash;
 use crate::config::{Action, Rule, Ruleset};
 use systemprompt_identifiers::engine::{PermissionId, QuestionId};
 use crate::store::SessionId;
-use harness_tasks::CancellationToken;
+use systemprompt_traits::CancellationToken;
 use parking_lot::Mutex;
 use tokio::sync::oneshot;
 

@@ -1,10 +1,11 @@
 //! One bounded exchange with an instance route, the bearer attached.
 //!
 //! The URL is resolved on the instance's own origin, redirects are never
-//! followed (the shared `systemprompt_device::client::HttpClient` refuses them), an answer is
-//! read up to its route's limit and refused past it, and a transport error is
-//! reported without its URL. A 401 is turned into the client's refusal so
-//! `systemprompt_device::client::with_jwt` mints a fresh token and tries once more.
+//! followed (the shared `systemprompt_device::client::HttpClient` refuses
+//! them), an answer is read up to its route's limit and refused past it, and a
+//! transport error is reported without its URL. A 401 is turned into the
+//! client's refusal so `systemprompt_device::client::with_jwt` mints a fresh
+//! token and tries once more.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,8 +16,9 @@ use reqwest::Method;
 use reqwest::header::{ACCEPT, CONTENT_TYPE, RETRY_AFTER};
 use serde::Deserialize;
 use systemprompt_device::client::{ClientError, TransportFailure};
-use sp_protocol::wire::headers;
-use sp_protocol::{HOST_ID, Jwt};
+use systemprompt_device::protocol::Jwt;
+use systemprompt_identifiers::headers;
+use systemprompt_models::bridge::host::HostKind;
 use url::Url;
 
 const TIMEOUT: Duration = Duration::from_secs(30);
@@ -51,7 +53,7 @@ pub(crate) async fn send_once(
         .request(call.method.clone(), call.url.clone())
         .bearer_auth(jwt.expose())
         .header(ACCEPT, "application/json")
-        .header(headers::CLIENT, HOST_ID)
+        .header(headers::CLIENT_KIND, HostKind::Harness.as_str())
         .timeout(TIMEOUT);
     if let Some(body) = &call.body {
         request = request

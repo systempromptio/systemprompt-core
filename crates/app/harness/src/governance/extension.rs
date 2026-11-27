@@ -10,12 +10,12 @@
 use std::fmt;
 use std::sync::Arc;
 
-use systemprompt_engine::run::extension::GovernorObserver;
-use systemprompt_identifiers::engine::extension_id;
 use crate::extension::{
     AppliedInstance, ApplyError, EngineExtension, ExtensionId, ExtensionMetadata, ManifestApplier,
-    SpContext, SpExtension, register_sp_extension,
+    SpContext, SpExtension,
 };
+use systemprompt_engine::run::extension::GovernorObserver;
+use systemprompt_identifiers::extension_id;
 
 use crate::governance::governance::{Governance, GovernanceTelemetry};
 
@@ -35,7 +35,6 @@ const fn metadata() -> ExtensionMetadata {
     ExtensionMetadata::new(GovernanceExtension::ID, "Governance").mark_required()
 }
 
-register_sp_extension!(GovernanceExtension);
 
 impl SpExtension for GovernanceExtension {
     fn metadata(&self) -> ExtensionMetadata {

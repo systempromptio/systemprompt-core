@@ -1,11 +1,11 @@
-//! The request layer under [`crate::members::brain::BrainClient`]: one bounded JSON exchange
-//! with a bearer.
+//! The request layer under [`crate::members::brain::BrainClient`]: one bounded
+//! JSON exchange with a bearer.
 //!
 //! The URL is always resolved on the account's own origin
-//! (`sp_protocol::origin`), redirects are never followed (the shared
-//! [`systemprompt_device::client::HttpClient`] refuses them), every answer is read up to its
-//! route's limit and refused past it, and a transport error is reported
-//! without its URL.
+//! (`systemprompt_device::protocol::origin`), redirects are never followed (the
+//! shared [`systemprompt_device::client::HttpClient`] refuses them), every
+//! answer is read up to its route's limit and refused past it, and a transport
+//! error is reported without its URL.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -16,10 +16,11 @@ use bytes::Bytes;
 use reqwest::Method;
 use reqwest::header::{ACCEPT, CONTENT_TYPE, HeaderMap};
 use systemprompt_device::client::{ClientError, TransportFailure};
-use sp_protocol::origin::resolve_instance_path;
-use sp_protocol::wire::envelope::ErrorEnvelope;
-use sp_protocol::wire::headers;
-use sp_protocol::{HOST_ID, Jwt};
+use systemprompt_device::protocol::Jwt;
+use systemprompt_device::protocol::origin::resolve_instance_path;
+use systemprompt_identifiers::headers;
+use systemprompt_models::bridge::envelope::ErrorEnvelope;
+use systemprompt_models::bridge::host::HostKind;
 use url::Url;
 
 use crate::members::brain::error::{plain_key, protocol, refusal};
@@ -112,7 +113,7 @@ async fn exchange(http: &reqwest::Client, call: &Call, jwt: &Jwt) -> Result<Answ
         .request(call.method.clone(), call.url.clone())
         .bearer_auth(jwt.expose())
         .header(ACCEPT, "application/json")
-        .header(headers::CLIENT, HOST_ID)
+        .header(headers::CLIENT_KIND, HostKind::Harness.as_str())
         .timeout(TIMEOUT);
     if let Some(body) = &call.body {
         request = request

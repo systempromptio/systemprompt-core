@@ -11,12 +11,12 @@
 
 use std::sync::Arc;
 
+use crate::client::{CredentialError, CredentialSource, Freshness, JwtSession};
+use crate::protocol::Jwt;
+use crate::protocol::ids::AccountId;
+use crate::secure::SealedString;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use crate::client::{CredentialError, CredentialSource, Freshness, JwtSession};
-use sp_protocol::Jwt;
-use sp_protocol::ids::AccountId;
-use crate::secure::SealedString;
 use tokio::sync::broadcast;
 
 use crate::accounts::accounts::Accounts;

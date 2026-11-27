@@ -7,9 +7,9 @@
 
 use std::collections::HashMap;
 
-use sp_protocol::ids::AccountId;
-use sp_protocol::view::InstanceSummary;
+use crate::protocol::ids::AccountId;
 use crate::secure::SealedString;
+use crate::view::InstanceSummary;
 use tokio_util::sync::CancellationToken;
 
 use crate::accounts::session::SessionSlot;

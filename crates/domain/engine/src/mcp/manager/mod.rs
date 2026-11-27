@@ -17,7 +17,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 pub use config::{ManagerConfig, ServerConfig, ServerSpec, ServerStatus, StatusMap};
-use harness_tasks::BackgroundTasks;
+use systemprompt_traits::BackgroundTasks;
 use parking_lot::Mutex;
 use serde_json::Value;
 use state::{ConnectSettings, Shared, Slot, State};
@@ -203,7 +203,7 @@ impl McpManager {
         if !self
             .shared
             .tasks
-            .shutdown(SHUTDOWN_GRACE)
+            .shutdown_or_abort(SHUTDOWN_GRACE)
             .await
             .is_drained()
         {

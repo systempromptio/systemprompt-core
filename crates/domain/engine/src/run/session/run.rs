@@ -12,7 +12,7 @@ use crate::config::{AgentDef, Loaded, Ruleset};
 use crate::llm::{LlmError, Message, ModelSpec, Request};
 use crate::prompt::notices;
 use crate::store::{MessageId, MessagePage, MessageWithParts, PartBody, Session, SessionId};
-use harness_tasks::CancellationToken;
+use systemprompt_traits::CancellationToken;
 
 use super::{admit, compaction, history, meta, step, system};
 use crate::run::directory::DirState;

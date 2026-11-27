@@ -6,7 +6,9 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::ids::{DocumentCommentId, DocumentRevisionId, UserId};
+use crate::notifications::Attention;
+
+use systemprompt_identifiers::{DocumentCommentId, DocumentRevisionId, UserId};
 
 /// The node a comment is pinned to, and the quoted text in it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -98,16 +100,6 @@ pub struct DrivePerson {
     pub email: Option<String>,
     #[serde(default)]
     pub access: Option<String>,
-}
-
-/// How the instance treats a mention in a comment; `agent` hands it to the
-/// mentioned user's own agent.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Attention {
-    Silent,
-    Agent,
-    Human,
 }
 
 /// A mention option; the comment body must carry the mention as

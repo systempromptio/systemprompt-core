@@ -5,11 +5,12 @@
 
 use std::sync::Arc;
 
+use crate::protocol::OriginError;
+use crate::protocol::origin::{instance_origin, normalize_instance_url, resolve_instance_path};
 use reqwest::RequestBuilder;
 use reqwest::header::ACCEPT;
-use sp_protocol::origin::{instance_origin, normalize_instance_url, resolve_instance_path};
-use sp_protocol::wire::headers;
-use sp_protocol::{HOST_ID, OriginError};
+use systemprompt_identifiers::headers;
+use systemprompt_models::bridge::host::HostKind;
 use url::Url;
 
 use crate::client::error::ClientError;
@@ -87,14 +88,14 @@ impl SpClient {
             .reqwest()
             .get(url)
             .header(ACCEPT, "*/*")
-            .header(headers::CLIENT, HOST_ID)
+            .header(headers::CLIENT_KIND, HostKind::Harness.as_str())
     }
 }
 
 fn decorate(request: RequestBuilder) -> RequestBuilder {
     request
         .header(ACCEPT, "application/json")
-        .header(headers::CLIENT, HOST_ID)
+        .header(headers::CLIENT_KIND, HostKind::Harness.as_str())
 }
 
 pub(crate) fn push_segments<'a>(

@@ -14,10 +14,10 @@
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
-use harness_tasks::OwnedTask;
 use crate::client::{CredentialError, JwtSession};
-use sp_protocol::ids::AccountId;
+use crate::protocol::ids::AccountId;
+use chrono::{DateTime, Utc};
+use systemprompt_traits::OwnedTask;
 use tokio::runtime::Handle;
 use tokio_util::sync::CancellationToken;
 

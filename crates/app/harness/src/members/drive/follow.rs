@@ -13,11 +13,12 @@
 use std::fmt;
 use std::path::PathBuf;
 
+use crate::extension::{BackgroundService, CancellationToken, ExtensionSettings};
 use async_trait::async_trait;
 use systemprompt_device::accounts::Accounts;
 use systemprompt_device::client::HttpClient;
-use crate::extension::{BackgroundService, CancellationToken, ExtensionSettings};
-use sp_protocol::ids::{AccountId, DriveDeviceId};
+use systemprompt_device::protocol::ids::AccountId;
+use systemprompt_identifiers::DriveDeviceId;
 
 use super::handle::{DriveHandle, Target};
 use super::settings::DriveSettings;

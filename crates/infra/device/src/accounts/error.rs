@@ -7,7 +7,7 @@
 use std::path::PathBuf;
 
 use crate::client::{ClientError, CredentialError};
-use sp_protocol::ids::AccountId;
+use crate::protocol::ids::AccountId;
 use crate::secure::SecureError;
 
 /// Why an accounts call failed.

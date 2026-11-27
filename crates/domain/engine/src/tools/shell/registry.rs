@@ -14,7 +14,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use systemprompt_identifiers::engine::{JobId, SessionId};
-use harness_tasks::{BackgroundTasks, CancellationToken};
+use systemprompt_traits::{BackgroundTasks, CancellationToken};
 use parking_lot::Mutex;
 
 use super::jobs::{JobInfo, JobListener, JobReport, JobState};
@@ -193,7 +193,7 @@ impl BackgroundJobs {
             ToolError::io(format!("could not create {}", output_path.display()), err)
         })?;
         let running = process::start(request.spec, request.command, request.cwd)?;
-        let cancel = self.inner.tasks.child_token();
+        let cancel = self.inner.tasks.cancellation_token();
         let info = JobInfo {
             id: id.clone(),
             session_id: request.session_id.clone(),

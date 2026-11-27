@@ -5,18 +5,13 @@
 //! The routes take the bridge JWT as bearer. A feed page is newest first; its
 //! `next_cursor` continues with older items when sent back as `since`. The
 //! instance clamps a page to 1..=`FEED_PAGE_MAX` items. The bodies are the
-//! platform's own types, re-exported here; `SeenAnswer` is the one answer
-//! the platform serves without a shared type.
+//! types of [`crate::notifications`]; `SeenAnswer` is the one answer the
+//! platform served without a shared type.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
-pub use systemprompt_models::notifications::{
-    ActionPrompt, Attention, AttentionReason, DeliveryState, KeysetCursor, KeysetCursorError,
-    MarkRead, MarkSeen, Notification, NotificationKind, NotificationPage, NotificationReadPayload,
-    SubjectRef,
-};
 
 pub const FEED_PAGE_MAX: u32 = 100;
 

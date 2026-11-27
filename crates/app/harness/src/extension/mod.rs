@@ -1,13 +1,13 @@
 //! The instance-side extension contract.
 //!
 //! A feature that talks to an instance is an [`SpExtension`]: a
-//! `Default`-constructed type registered with [`register_sp_extension!`] and
-//! found at startup by [`SpExtensions::discover`]. Each contribution method
+//! `Default`-constructed type named in the registration list [`REGISTERED`] and
+//! built at startup by [`SpExtensions::registered`]. Each contribution method
 //! receives the [`SpContext`] the composition root built: the accounts, the
 //! instance HTTP client, the paths, the extension's own settings, the shared
 //! handles and the instance's enablement. An extension contributes its engine
 //! half, [`ManifestApplier`]s that follow the applied instance, and
-//! [`BackgroundService`]s the composition root runs through `harness-tasks`;
+//! [`BackgroundService`]s the composition root runs as owned tasks;
 //! it never spawns work itself.
 //!
 //! Enablement fails closed: [`ExtensionPolicy`] reads the manifest's
@@ -29,9 +29,6 @@ mod register;
 mod service;
 mod settings;
 
-#[doc(hidden)]
-pub use inventory as __inventory;
-
 pub use applier::{AppliedInstance, ApplyError, ManifestApplier, ManifestAppliers};
 pub use context::{HostInfo, SpContext, SpPaths};
 pub use discovery::SpExtensions;
@@ -39,12 +36,13 @@ pub use enablement::Enablement;
 pub use error::ExtensionError;
 pub use extension::SpExtension;
 pub use handles::Handles;
+pub use systemprompt_traits::CancellationToken;
+pub use policy::ExtensionPolicy;
+pub use register::{REGISTERED, SpExtensionRegistration};
+pub use service::BackgroundService;
+pub use settings::{ExtensionSettings, SettingsAccess, SettingsError};
 pub use systemprompt_engine::run::extension::{
     Contributed, EnabledExtensions, EngineExtension, ExtensionMetadata, ResolveError, Resolved,
 };
-pub use systemprompt_identifiers::engine::{ExtensionId, extension_id};
-pub use harness_tasks::CancellationToken;
-pub use policy::ExtensionPolicy;
-pub use register::SpExtensionRegistration;
-pub use service::BackgroundService;
-pub use settings::{ExtensionSettings, SettingsAccess, SettingsError};
+pub use systemprompt_identifiers::engine::ExtensionId;
+pub use systemprompt_identifiers::extension_id;

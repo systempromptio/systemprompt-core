@@ -6,7 +6,7 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
-use harness_tasks::TaskError;
+use systemprompt_traits::TaskError;
 
 use super::SnapshotId;
 

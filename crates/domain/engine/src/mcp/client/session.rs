@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock, Weak};
 use std::time::Duration;
 
-use harness_tasks::BackgroundTasks;
+use systemprompt_traits::BackgroundTasks;
 use parking_lot::Mutex;
 use serde_json::{Map, Value, json};
 use tokio::sync::{broadcast, mpsc, oneshot};
@@ -128,7 +128,7 @@ impl Session {
     }
 
     pub(super) async fn drain_tasks(&self) {
-        if !self.tasks.shutdown(TASK_DRAIN).await.is_drained() {
+        if !self.tasks.shutdown_or_abort(TASK_DRAIN).await.is_drained() {
             tracing::debug!("session tasks outlived the shutdown and were aborted");
         }
     }

@@ -6,12 +6,12 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use reqwest::Method;
-use sp_protocol::ids::{DocumentFolderId, DocumentId, DocumentRevisionId};
-use sp_protocol::wire::drive::{
+use systemprompt_identifiers::{DocumentFolderId, DocumentId, DocumentRevisionId};
+use systemprompt_models::ApiPaths;
+use systemprompt_models::documents::client::{
     CreateFolderRequest, DriveDetail, DriveFolder, DriveListing, DriveOutline, DriveRevision,
     DriveRevisions, DriveScope,
 };
-use sp_protocol::wire::{headers, paths};
 
 use super::types::{ContentFormat, DocumentBytes, ListQuery, ReadView, RenderedPage};
 use super::{
@@ -21,6 +21,7 @@ use super::{
 use crate::error::DriveError;
 use crate::http::Call;
 
+const CONTENT_SHA256: &str = "x-document-content-sha256";
 const LIST: &str = "GET /api/v1/documents";
 const FOLDERS: &str = "GET /api/v1/document-folders";
 const CREATE_FOLDER: &str = "POST /api/v1/document-folders";
@@ -35,7 +36,7 @@ const READ: &str = "GET /api/v1/documents/{id}/read";
 
 impl DriveClient {
     pub async fn list_documents(&self, query: &ListQuery) -> Result<DriveListing, DriveError> {
-        let mut url = self.url(paths::DOCUMENTS, &[])?;
+        let mut url = self.url(ApiPaths::DOCUMENTS, &[])?;
         {
             let mut pairs = url.query_pairs_mut();
             pairs.append_pair("scope", query.scope.as_str());
@@ -77,7 +78,7 @@ impl DriveClient {
         &self,
         parent: Option<&DocumentFolderId>,
     ) -> Result<Vec<DriveFolder>, DriveError> {
-        let mut url = self.url(paths::DOCUMENT_FOLDERS, &[])?;
+        let mut url = self.url(ApiPaths::DOCUMENT_FOLDERS, &[])?;
         if let Some(parent) = parent {
             url.query_pairs_mut().append_pair("folder", parent.as_ref());
         }
@@ -93,7 +94,7 @@ impl DriveClient {
     ) -> Result<DriveFolder, DriveError> {
         let call = Call::new(
             Method::POST,
-            self.url(paths::DOCUMENT_FOLDERS, &[])?,
+            self.url(ApiPaths::DOCUMENT_FOLDERS, &[])?,
             CREATE_FOLDER,
         )
         .json(request)?;
@@ -154,7 +155,7 @@ impl DriveClient {
         Ok(DocumentBytes {
             content_type: answer.header("content-type"),
             revision: revision_of(&answer),
-            sha256: answer.header(headers::DOCUMENT_CONTENT_SHA256),
+            sha256: answer.header(CONTENT_SHA256),
             bytes: answer.body,
         })
     }
@@ -197,7 +198,7 @@ impl DriveClient {
         Ok(RenderedPage {
             content_security_policy: answer.header("content-security-policy"),
             revision: revision_of(&answer),
-            sha256: answer.header(headers::DOCUMENT_CONTENT_SHA256),
+            sha256: answer.header(CONTENT_SHA256),
             html: String::from_utf8_lossy(&answer.body).into_owned(),
         })
     }

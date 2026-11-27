@@ -11,8 +11,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
-use sp_protocol::Jwt;
-use sp_protocol::ids::DriveDeviceId;
+use systemprompt_device::protocol::Jwt;
+use systemprompt_identifiers::DriveDeviceId;
 
 use super::deletes;
 use super::disk::prune_trash;

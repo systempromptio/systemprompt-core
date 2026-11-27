@@ -4,7 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, SecondsFormat, Utc};
-use sp_protocol::wire::brain::{FactKindId, FactStatus, SubjectKey};
+use systemprompt_identifiers::FactKindId;
+use systemprompt_models::brain::{FactStatus, SubjectKey};
 use url::Url;
 
 /// Which facts a listing returns.

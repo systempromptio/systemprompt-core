@@ -11,6 +11,7 @@
 //!   shell and the agent can act on.
 //! - [`upload`]: the part plan of a resumable upload, progress reports and
 //!   cancellation.
+//! - [`view`]: the document rows a listing is shown as.
 //! - [`sync`]: [`DriveSync`], the local folder mirrored with the instance over
 //!   the Drive sync feed: initial pull, debounced watching, periodic polls,
 //!   uploads of local edits, conflicts kept beside, a state index on disk.
@@ -28,6 +29,7 @@ mod hash;
 mod http;
 pub mod sync;
 pub mod upload;
+pub mod view;
 
 pub use client::{
     ContentFormat, DocumentBytes, DriveClient, EditOutcome, ImportFile, ListQuery, ReadView,

@@ -122,7 +122,8 @@ impl AsRef<str> for ExtensionId {
 #[macro_export]
 macro_rules! extension_id {
     ($value:literal) => {{
-        const LITERAL: $crate::ExtensionLiteral = match $crate::ExtensionLiteral::new($value) {
+        const LITERAL: $crate::engine::ExtensionLiteral =
+            match $crate::engine::ExtensionLiteral::new($value) {
             ::core::option::Option::Some(literal) => literal,
             ::core::option::Option::None => ::core::panic!("not a well-formed extension id"),
         };

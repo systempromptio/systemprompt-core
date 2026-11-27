@@ -12,17 +12,17 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+use crate::projection::Applied;
 use chrono::{DateTime, Utc};
-use systemprompt_engine::run::extension::EnabledExtensions;
-use systemprompt_engine::run::{McpSpec, Purpose};
-use systemprompt_identifiers::engine::SessionId;
-use systemprompt_engine::llm::ModelSpec;
 use parking_lot::Mutex;
 use systemprompt_device::client::{CredentialSource, HookClient, HookGrant};
-use crate::projection::Applied;
-use sp_protocol::HookToken;
-use sp_protocol::ids::PluginId;
-use sp_protocol::origin::is_transport_secure;
+use systemprompt_device::protocol::HookToken;
+use systemprompt_device::protocol::origin::is_transport_secure;
+use systemprompt_engine::llm::ModelSpec;
+use systemprompt_engine::run::extension::EnabledExtensions;
+use systemprompt_engine::run::{McpSpec, Purpose};
+use systemprompt_identifiers::PluginId;
+use systemprompt_identifiers::engine::SessionId;
 use url::Url;
 
 use crate::governance::error::GovernanceError;

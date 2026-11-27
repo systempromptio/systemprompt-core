@@ -16,10 +16,10 @@ mod install;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use chrono::{DateTime, Utc};
 use crate::projection::SkillPublication;
-use sp_protocol::ids::{NativeSessionId, PublicationId, UserId};
-use sp_protocol::wire::consumer::InstallationPlan;
+use chrono::{DateTime, Utc};
+use systemprompt_identifiers::{NativeSessionId, PublicationId, UserId};
+use systemprompt_models::feedback::receipts::ConsumerInstallationPlan;
 
 use crate::sync::outbox::{self, Outbox};
 use crate::sync::poll::Scope;
@@ -62,7 +62,7 @@ pub struct RuntimeFiles {
     state_dir: PathBuf,
     device_label: String,
     waits: HashMap<WaitKey, Wait>,
-    plans: HashMap<PublicationId, InstallationPlan>,
+    plans: HashMap<PublicationId, ConsumerInstallationPlan>,
 }
 
 impl RuntimeFiles {

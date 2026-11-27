@@ -10,7 +10,7 @@ use std::sync::Arc;
 use crate::config::{AgentDef, Loaded, Ruleset, permission};
 use crate::prompt::tool_names::FILE_WRITERS;
 use crate::store::{MessagePage, MessageWithParts, PartBody, SessionId};
-use harness_tasks::CancellationToken;
+use systemprompt_traits::CancellationToken;
 use crate::tools::ToolError;
 
 use super::history::text_of;

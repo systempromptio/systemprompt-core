@@ -10,7 +10,7 @@
 //!
 //! Credentials only ever travel to the instance's own origin. The base URL must
 //! be https, or plain http on loopback; every path is resolved with the
-//! same-origin rules of `sp_protocol::origin`, and redirects are never
+//! same-origin rules of [`crate::protocol::origin`], and redirects are never
 //! followed.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

@@ -13,7 +13,7 @@
 use std::collections::HashSet;
 
 use crate::client::SpClient;
-use sp_protocol::ids::{AccountId, InstanceKey};
+use crate::protocol::ids::{AccountId, InstanceKey};
 
 use crate::accounts::accounts::Accounts;
 use crate::accounts::error::AccountsError;

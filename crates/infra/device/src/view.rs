@@ -7,7 +7,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::ids::AccountId;
+use crate::protocol::ids::AccountId;
 
 /// A manifest key fingerprint as shown and compared: `sha256:<64 hex>`
 /// (`names::key_fingerprint`).
@@ -22,7 +22,7 @@ impl KeyFingerprint {
 
     #[must_use]
     pub fn of_key(raw_key: &[u8]) -> Self {
-        Self(crate::names::key_fingerprint(raw_key))
+        Self(crate::protocol::names::key_fingerprint(raw_key))
     }
 
     #[must_use]

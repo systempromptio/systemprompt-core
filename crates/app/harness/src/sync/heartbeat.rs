@@ -18,14 +18,14 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::governance::UsageTotals;
 use systemprompt_device::accounts::{AccountsError, AccountsSnapshot};
 use systemprompt_device::client::{ClientError, CredentialError, Freshness, JwtSession};
-use crate::governance::UsageTotals;
-use sp_protocol::ids::AccountId;
-use sp_protocol::wire::heartbeat::{
-    ClientState, HEARTBEAT_INTERVAL_SECS, HeartbeatRequest, HeartbeatResponse, WindowStatus,
-    saturating_total,
+use systemprompt_device::protocol::ids::AccountId;
+use systemprompt_models::bridge::heartbeat::{
+    ClientState, HEARTBEAT_INTERVAL_SECS, HeartbeatRequest, HeartbeatResponse, saturating_total,
 };
+use systemprompt_models::bridge::instance::WindowStatus;
 use tokio::sync::watch;
 use tokio::time::{Instant, MissedTickBehavior};
 use tokio_util::sync::CancellationToken;

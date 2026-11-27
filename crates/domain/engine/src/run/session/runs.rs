@@ -7,7 +7,7 @@
 use std::collections::HashMap;
 
 use crate::store::SessionId;
-use harness_tasks::CancellationToken;
+use systemprompt_traits::CancellationToken;
 use parking_lot::Mutex;
 use tokio::sync::broadcast;
 

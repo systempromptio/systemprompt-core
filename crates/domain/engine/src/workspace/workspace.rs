@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use harness_tasks::{CancellationToken, OwnedTask};
+use systemprompt_traits::{CancellationToken, OwnedTask};
 use tokio::sync::broadcast;
 use tokio_util::sync::DropGuard;
 
@@ -179,7 +179,7 @@ impl Workspace {
     pub async fn vcs(&self) -> Result<Option<VcsStatus>, VcsError> {
         let root = self.inner.root.clone();
         match OwnedTask::spawn_blocking(VCS_TASK, move || VcsInfo::status(&root))
-            .join()
+            .join_named()
             .await
         {
             Ok(result) => result,
@@ -201,7 +201,7 @@ impl Workspace {
     {
         let store = self.inner.snapshots.clone();
         OwnedTask::spawn_blocking(SNAPSHOT_TASK, move || work(&store))
-            .join()
+            .join_named()
             .await
             .map_err(SnapshotError::Task)?
     }
@@ -234,7 +234,7 @@ async fn prune_periodically(
         }
         let store = store.clone();
         match OwnedTask::spawn_blocking(PRUNE_TASK, move || store.prune(policy))
-            .join()
+            .join_named()
             .await
         {
             Ok(Ok(report)) => tracing::debug!(

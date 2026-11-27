@@ -12,12 +12,12 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
-use systemprompt_device::client::{ClientError, CredentialSource, with_jwt};
 use crate::projection::BundleFiles;
-use sp_protocol::ids::PluginId;
-use sp_protocol::names::sha256_hex;
-use sp_protocol::wire::manifest::Sha256Digest;
+use systemprompt_device::client::{ClientError, CredentialSource, with_jwt};
+use systemprompt_device::protocol::names::sha256_hex;
 use systemprompt_device::secure::{read_optional, remove_if_exists, write_private};
+use systemprompt_identifiers::PluginId;
+use systemprompt_models::bridge::ids::Sha256Digest;
 
 use crate::sync::ports::Instance;
 

@@ -1,23 +1,12 @@
-//! What the user may call and who they are: `/v1/bridge/profile`, `/v1/models`
-//! and `/v1/bridge/whoami`.
+//! The model catalog a device reads from `/v1/models`.
 //!
-//! The profile and whoami bodies are `systemprompt-models`' own types, the ones
-//! the instance serializes.
+//! The profile and whoami bodies are [`crate::bridge::profile`] and
+//! [`crate::bridge::gateway`].
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
-
-pub use systemprompt_models::bridge::gateway::WhoamiResponse;
-pub use systemprompt_models::bridge::profile::{
-    AdvertisedLimits, BridgeProfileResponse, ProviderHealth,
-};
-
-/// `GET /v1/bridge/profile`. Its `inference_gateway_base_url` is the instance's
-/// internal address; model calls go to the account's own base URL plus `/v1`
-/// instead.
-pub type Profile = BridgeProfileResponse;
 
 #[must_use]
 pub fn base_model_id(id: &str) -> &str {

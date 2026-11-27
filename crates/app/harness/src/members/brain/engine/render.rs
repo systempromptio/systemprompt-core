@@ -4,7 +4,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_protocol::wire::brain::{BrainFact, FactPage, FactScope, FactWhy, TopicId};
+use systemprompt_identifiers::TopicId;
+use systemprompt_models::brain::client::{FactPage, FactWhy};
+use systemprompt_models::brain::{BrainFact, FactScope};
 
 use crate::members::brain::error::BrainError;
 

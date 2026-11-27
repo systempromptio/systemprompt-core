@@ -7,7 +7,7 @@
 use std::path::{Path, PathBuf};
 
 use systemprompt_identifiers::engine::SessionId;
-use sp_protocol::wire::hooks::HookEvent;
+use systemprompt_models::bridge::hook_events::HookEvent;
 
 use super::Governance;
 use crate::governance::instance::Instance;

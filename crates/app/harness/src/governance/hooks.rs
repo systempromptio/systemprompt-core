@@ -17,14 +17,17 @@ use std::path::Path;
 use std::sync::Arc;
 
 use chrono::Utc;
-use systemprompt_engine::run::{ToolCall, ToolOutcome, UserPrompt};
-use systemprompt_identifiers::engine::SessionId;
 use serde_json::json;
 use systemprompt_device::client::{ClientError, HookClient, HookGrant, SpClient, with_jwt};
-use sp_protocol::ids::{PluginId, SkillId};
-use sp_protocol::names::{native_session_id, skill_dir_name};
-use sp_protocol::wire::hooks::{GovernAnswer, HookContext, HookEvent, ToolResponse, skill_ref};
-use sp_protocol::{DeviceCredential, HOST_ID, HookToken, Jwt};
+use systemprompt_device::protocol::names::{native_session_id, skill_dir_name};
+use systemprompt_device::protocol::{DeviceCredential, HookToken, Jwt};
+use systemprompt_engine::run::{ToolCall, ToolOutcome, UserPrompt};
+use systemprompt_identifiers::engine::SessionId;
+use systemprompt_identifiers::{NativeSessionId, PluginId, SkillId, ToolUseId};
+use systemprompt_models::bridge::hook_events::{
+    GovernAnswer, HookContext, HookEvent, ToolResponse, skill_ref,
+};
+use systemprompt_models::bridge::host::HostKind;
 use uuid::Uuid;
 
 use crate::governance::error::GovernanceError;
@@ -148,9 +151,9 @@ async fn provision(instance: &Instance) -> Result<HookClient, GovernanceError> {
 fn context(native_session: &SessionId, cwd: &Path) -> HookContext {
     HookContext {
         session_id: native_session_id(native_session.as_str()),
-        native_session_id: native_session.as_str().to_owned(),
+        native_session_id: NativeSessionId::new(native_session.as_str()),
         cwd: cwd.to_string_lossy().into_owned(),
-        native_host: HOST_ID.to_owned(),
+        native_host: HostKind::Harness.as_str().to_owned(),
     }
 }
 
@@ -195,7 +198,7 @@ pub(crate) fn pre_tool(call: &ToolCall) -> HookEvent {
         context: context(&call.session_id, &call.directory),
         tool_name: call.tool.clone(),
         tool_input: call.input.clone(),
-        tool_use_id: call.call_id.as_str().to_owned(),
+        tool_use_id: ToolUseId::new(call.call_id.as_str()),
     }
 }
 
@@ -213,7 +216,11 @@ pub(crate) fn post_tool(
                 .map(|(_, plugin)| plugin);
             (
                 json!({ "name": name }),
-                Some(skill_ref(owner.map(PluginId::as_str), HOST_ID, name)),
+                Some(skill_ref(
+                    owner.map(PluginId::as_str),
+                    HostKind::Harness.as_str(),
+                    name,
+                )),
             )
         },
     );
@@ -233,7 +240,7 @@ pub(crate) fn post_tool(
         context: context(&call.session_id, &call.directory),
         tool_name: call.tool.clone(),
         tool_input,
-        tool_use_id: call.call_id.as_str().to_owned(),
+        tool_use_id: ToolUseId::new(call.call_id.as_str()),
         tool_response,
         skill_ref: skill,
     }

@@ -14,8 +14,8 @@ use std::fmt;
 use std::pin::Pin;
 
 use crate::client::{CallbackOutcome, LoopbackCallback};
-use sp_protocol::OneTimeCode;
-use sp_protocol::view::{SignInFailure, SignInOutcome};
+use crate::protocol::OneTimeCode;
+use crate::view::{SignInFailure, SignInOutcome};
 use tokio_util::sync::CancellationToken;
 
 use crate::accounts::accounts::Accounts;

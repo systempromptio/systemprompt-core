@@ -22,8 +22,8 @@
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Duration, Utc};
-use sp_protocol::ids::DocumentId;
-use sp_protocol::wire::drive::TrashOutcome;
+use systemprompt_identifiers::DocumentId;
+use systemprompt_models::documents::client::TrashOutcome;
 
 use super::cycle::{Cycle, Report};
 use super::disk::move_file;

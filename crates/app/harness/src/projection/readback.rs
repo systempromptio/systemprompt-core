@@ -8,16 +8,18 @@
 use std::fs;
 use std::path::Path;
 
-use sp_protocol::names::sha256_hex;
-use sp_protocol::wire::consumer::{Check, RuntimeFile, RuntimeReadback};
-use sp_protocol::wire::manifest::Sha256Digest;
+use systemprompt_device::protocol::names::sha256_hex;
+use systemprompt_models::feedback::ContentDigest;
+use systemprompt_models::feedback::receipts::{
+    InstallationPlanFile, ReadbackStatus, RuntimeFileReadback,
+};
 
 use crate::projection::error::MaterializeError;
 
 pub(crate) fn read_back(
     path: &Path,
-    planned: &RuntimeFile,
-) -> Result<RuntimeReadback, MaterializeError> {
+    planned: &InstallationPlanFile,
+) -> Result<RuntimeFileReadback, MaterializeError> {
     let metadata = fs::symlink_metadata(path)
         .ok()
         .filter(fs::Metadata::is_file);
@@ -29,16 +31,17 @@ pub(crate) fn read_back(
         })?,
         None => Vec::new(),
     };
-    let digest =
-        Sha256Digest::try_new(sha256_hex(&bytes)).map_err(|_invalid| MaterializeError::Digest {
+    let digest = ContentDigest::try_from(sha256_hex(&bytes)).map_err(|_invalid| {
+        MaterializeError::Digest {
             path: planned.path.clone(),
-        })?;
+        }
+    })?;
     let content_check = if metadata.is_some() && bytes == planned.bytes {
-        Check::Verified
+        ReadbackStatus::Verified
     } else {
-        Check::Mismatch
+        ReadbackStatus::Mismatch
     };
-    Ok(RuntimeReadback {
+    Ok(RuntimeFileReadback {
         path: planned.path.clone(),
         digest,
         bytes: u64::try_from(bytes.len()).unwrap_or(u64::MAX),
@@ -66,23 +69,23 @@ pub(crate) fn set_mode(path: &Path, executable: bool) -> Result<(), MaterializeE
 }
 
 #[cfg(unix)]
-fn mode_check(metadata: Option<&fs::Metadata>, executable: bool) -> Check {
+fn mode_check(metadata: Option<&fs::Metadata>, executable: bool) -> ReadbackStatus {
     use std::os::unix::fs::PermissionsExt as _;
     match metadata {
         Some(metadata) if metadata.permissions().mode() & 0o7777 == expected_mode(executable) => {
-            Check::Verified
+            ReadbackStatus::Verified
         },
-        _ => Check::Mismatch,
+        _ => ReadbackStatus::Mismatch,
     }
 }
 
 // Why: Windows has no mode bits; a plain file has nothing to verify and an
 // executable cannot be confirmed.
 #[cfg(not(unix))]
-const fn mode_check(metadata: Option<&fs::Metadata>, executable: bool) -> Check {
+const fn mode_check(metadata: Option<&fs::Metadata>, executable: bool) -> ReadbackStatus {
     match metadata {
-        None => Check::Mismatch,
-        Some(_) if executable => Check::Unavailable,
-        Some(_) => Check::Verified,
+        None => ReadbackStatus::Mismatch,
+        Some(_) if executable => ReadbackStatus::Unavailable,
+        Some(_) => ReadbackStatus::Verified,
     }
 }

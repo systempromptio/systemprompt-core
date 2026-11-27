@@ -9,13 +9,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use chrono::Utc;
 use crate::client::{JwtSession, ManifestFetch, ManifestKey, SpClient};
-use sp_protocol::Pat;
-use sp_protocol::ids::{AccountId, InstanceKey, UserId};
-use sp_protocol::view::{InstanceSummary, SignInFailure, SignInOutcome};
-use sp_protocol::wire::catalog::WhoamiResponse;
+use crate::protocol::Pat;
+use crate::protocol::ids::{AccountId, InstanceKey};
 use crate::secure::SealedString;
+use crate::view::{InstanceSummary, SignInFailure, SignInOutcome};
+use chrono::Utc;
+use systemprompt_identifiers::UserId;
+use systemprompt_models::bridge::gateway::WhoamiResponse;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 

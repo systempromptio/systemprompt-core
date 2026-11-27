@@ -7,8 +7,9 @@
 //! changed, hands the result and the extensions its manifest enabled to the
 //! extensions' manifest appliers (governance among them), then delivers the
 //! skills' runtime files and their receipts. A heartbeat reports this install
-//! as online. Every failure is a [`SyncStatus`](sp_protocol::view::SyncStatus),
-//! never a panic or an error returned to a caller.
+//! as online. Every failure is a
+//! [`SyncStatus`](systemprompt_device::view::SyncStatus), never a panic or an
+//! error returned to a caller.
 //!
 //! The engine is generic over the instance, the accounts and the apply target
 //! ([`ports`], [`target`]); [`SyncEngine::start`] wires the live ones and

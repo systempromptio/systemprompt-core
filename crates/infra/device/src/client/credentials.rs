@@ -19,7 +19,7 @@
 use std::future::Future;
 use std::time::Duration;
 
-use sp_protocol::Jwt;
+use crate::protocol::Jwt;
 
 use crate::client::error::ClientError;
 

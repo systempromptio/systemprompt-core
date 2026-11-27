@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use crate::extension::{
     AppliedInstance, ApplyError, ExtensionId, ExtensionMetadata, ManifestApplier, SpContext,
-    SpExtension, extension_id, register_sp_extension,
+    SpExtension, extension_id,
 };
 use crate::members::notifications::{NotificationsExtension, NotificationsHandle};
 
@@ -84,7 +84,6 @@ impl SpExtension for SlackExtension {
     }
 }
 
-register_sp_extension!(SlackExtension);
 
 struct Admission {
     shared: Arc<Shared>,

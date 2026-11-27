@@ -6,9 +6,9 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::client::ManifestFetch;
-use sp_protocol::ids::AccountId;
-use sp_protocol::view::InstanceSummary;
-use sp_protocol::wire::manifest::Manifest;
+use crate::protocol::ids::AccountId;
+use crate::protocol::manifest::Manifest;
+use crate::view::InstanceSummary;
 
 use crate::accounts::accounts::Accounts;
 use crate::accounts::error::AccountsError;

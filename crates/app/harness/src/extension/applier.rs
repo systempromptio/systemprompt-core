@@ -9,10 +9,10 @@ use std::error::Error as StdError;
 use std::fmt;
 use std::sync::Arc;
 
-use systemprompt_engine::run::extension::{EnabledExtensions, Resolved, admitted};
-use systemprompt_device::client::{CredentialSource, SpClient};
 use crate::projection::Applied;
-use sp_protocol::ids::AccountId;
+use systemprompt_device::client::{CredentialSource, SpClient};
+use systemprompt_device::protocol::ids::AccountId;
+use systemprompt_engine::run::extension::{EnabledExtensions, Resolved, admitted};
 
 use crate::extension::enablement::Enablement;
 use crate::extension::error::ExtensionError;

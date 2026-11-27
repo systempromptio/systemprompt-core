@@ -13,9 +13,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use serde_json::{Map, Value};
-use sp_protocol::names::sha256_hex;
-use sp_protocol::wire::manifest::SkillEntry;
+use serde_yaml::{Mapping, Value};
+use systemprompt_device::protocol::names::sha256_hex;
+use systemprompt_models::bridge::manifest::SkillEntry;
 
 use crate::projection::model::SkillFile;
 
@@ -39,7 +39,7 @@ pub(crate) fn render(skill: &SkillEntry, dir: &str) -> Result<String, serde_yaml
         return Ok(markdown);
     }
     let passthrough = passthrough(skill.frontmatter.as_ref())?;
-    let description = scalar(skill.description.as_deref().unwrap_or_default());
+    let description = scalar(&skill.description);
     Ok(ending_newline(format!(
         "---\nname: {dir}\ndescription: {description}\n{passthrough}---\n\n{body}"
     )))
@@ -92,46 +92,38 @@ fn scalar(text: &str) -> String {
     }
 }
 
-// JSON: a skill's front matter as the manifest carries it, rendered to YAML key
-// by key.
-fn passthrough(frontmatter: Option<&Map<String, Value>>) -> Result<String, serde_yaml::Error> {
+fn passthrough(frontmatter: Option<&Mapping>) -> Result<String, serde_yaml::Error> {
     let Some(frontmatter) = frontmatter else {
         return Ok(String::new());
     };
-    let mut kept: Vec<(&String, &Value)> = frontmatter
-        .iter()
-        .filter(|(key, _)| !PLATFORM_KEYS.contains(&key.as_str()))
-        .collect();
+    let kept = sorted_entries(frontmatter, |key| !PLATFORM_KEYS.contains(&key));
     if kept.is_empty() {
         return Ok(String::new());
     }
-    kept.sort_by(|a, b| a.0.cmp(b.0));
-    let sorted: Map<String, Value> = kept
-        .into_iter()
-        .map(|(key, value)| (key.clone(), sorted_value(value)))
-        .collect();
-    let text = serde_yaml::to_string(&Value::Object(sorted))?;
+    let text = serde_yaml::to_string(&Value::Mapping(kept))?;
     if let Some(rest) = text.strip_prefix("---\n") {
         return Ok(rest.to_owned());
     }
     Ok(text)
 }
 
-// JSON: a front matter value of any shape, copied with its object keys sorted
-// at every depth.
+fn sorted_entries(map: &Mapping, keep: impl Fn(&str) -> bool) -> Mapping {
+    let mut entries: Vec<(&str, &Value)> = map
+        .iter()
+        .filter_map(|(key, value)| key.as_str().map(|key| (key, value)))
+        .filter(|(key, _)| keep(key))
+        .collect();
+    entries.sort_by(|a, b| a.0.cmp(b.0));
+    entries
+        .into_iter()
+        .map(|(key, value)| (Value::String(key.to_owned()), sorted_value(value)))
+        .collect()
+}
+
 fn sorted_value(value: &Value) -> Value {
     match value {
-        Value::Object(map) => {
-            let mut entries: Vec<(&String, &Value)> = map.iter().collect();
-            entries.sort_by(|a, b| a.0.cmp(b.0));
-            Value::Object(
-                entries
-                    .into_iter()
-                    .map(|(key, value)| (key.clone(), sorted_value(value)))
-                    .collect(),
-            )
-        },
-        Value::Array(items) => Value::Array(items.iter().map(sorted_value).collect()),
+        Value::Mapping(map) => Value::Mapping(sorted_entries(map, |_| true)),
+        Value::Sequence(items) => Value::Sequence(items.iter().map(sorted_value).collect()),
         other => other.clone(),
     }
 }

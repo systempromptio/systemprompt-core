@@ -5,8 +5,8 @@
 
 use serde::Deserialize;
 use serde_json::{Value, json};
-use sp_protocol::ids::{DocumentFolderId, DocumentId};
-use sp_protocol::wire::drive::DriveScope;
+use systemprompt_identifiers::{DocumentFolderId, DocumentId};
+use systemprompt_models::documents::client::DriveScope;
 
 use super::{DriveOperation, SCOPES};
 use crate::members::drive::agent;

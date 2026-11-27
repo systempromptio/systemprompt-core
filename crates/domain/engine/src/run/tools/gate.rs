@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use crate::config::{Action, AgentDef, Loaded, Rule, Ruleset};
 use systemprompt_identifiers::engine::PermissionId;
 use crate::store::SessionId;
-use harness_tasks::CancellationToken;
+use systemprompt_traits::CancellationToken;
 use crate::tools::{PermissionGate, PermissionRequest, ToolError};
 use parking_lot::Mutex;
 use tokio::sync::OnceCell;

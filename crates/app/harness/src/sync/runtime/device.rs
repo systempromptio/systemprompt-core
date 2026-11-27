@@ -10,10 +10,10 @@
 
 use systemprompt_device::accounts::DeviceEntry;
 use systemprompt_device::client::with_jwt;
-use sp_protocol::DeviceCredential;
-use sp_protocol::ids::{ConsumerInstallationId, DeviceId, UserId};
-use sp_protocol::names::device_fingerprint;
-use sp_protocol::wire::consumer::DeviceEnrolRequest;
+use systemprompt_device::protocol::DeviceCredential;
+use systemprompt_device::protocol::names::device_fingerprint;
+use systemprompt_identifiers::{ConsumerInstallationId, DeviceId, UserId};
+use systemprompt_models::bridge::gateway::SelfEnrollRequest as DeviceEnrolRequest;
 use uuid::Uuid;
 
 use super::{RuntimeFiles, WaitKey};

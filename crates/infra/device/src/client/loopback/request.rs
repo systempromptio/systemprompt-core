@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_protocol::OneTimeCode;
+use crate::protocol::OneTimeCode;
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpStream;
 

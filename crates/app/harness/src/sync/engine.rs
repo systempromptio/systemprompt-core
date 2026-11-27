@@ -9,13 +9,13 @@ use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use harness_tasks::OwnedTask;
-use parking_lot::Mutex;
-use systemprompt_device::accounts::{Accounts, AccountsSnapshot};
 use crate::extension::ManifestAppliers;
 use crate::governance::Governance;
 use crate::projection::Applier;
-use sp_protocol::view::SyncStatus;
+use systemprompt_traits::OwnedTask;
+use parking_lot::Mutex;
+use systemprompt_device::accounts::{Accounts, AccountsSnapshot};
+use systemprompt_device::view::SyncStatus;
 use tokio::runtime::Handle;
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
@@ -219,7 +219,7 @@ impl SyncEngine {
         self.shared.cancel.cancel();
         let tasks = std::mem::take(&mut *self.shared.tasks.lock());
         for task in tasks {
-            if let Err(error) = task.join().await {
+            if let Err(error) = task.join_named().await {
                 tracing::warn!(error = %error, "a sync task ended abnormally");
             }
         }

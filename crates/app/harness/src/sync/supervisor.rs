@@ -7,10 +7,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use harness_tasks::OwnedTask;
+use systemprompt_traits::OwnedTask;
 use systemprompt_device::accounts::AccountsSnapshot;
-use sp_protocol::ids::AccountId;
-use sp_protocol::view::{AccountStatus, AccountView, KeyFingerprint, SyncStatus};
+use systemprompt_device::protocol::ids::AccountId;
+use systemprompt_device::view::{AccountStatus, AccountView, KeyFingerprint, SyncStatus};
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
@@ -50,7 +50,7 @@ struct Running {
 impl Running {
     async fn stop(self) -> LoopKey {
         self.cancel.cancel();
-        if let Err(error) = self.task.join().await {
+        if let Err(error) = self.task.join_named().await {
             tracing::warn!(error = %error, "a sync loop ended abnormally");
         }
         self.key

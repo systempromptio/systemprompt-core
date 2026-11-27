@@ -5,8 +5,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_protocol::ids::AccountId;
-use sp_protocol::view::{AccountStatus, AccountView, KeyOffer};
+use crate::protocol::ids::AccountId;
+use crate::view::{AccountStatus, AccountView, KeyOffer};
 
 use crate::accounts::keys;
 use crate::accounts::store::AccountRecord;

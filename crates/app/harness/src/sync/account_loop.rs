@@ -11,8 +11,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::governance::SessionBinding;
-use sp_protocol::ids::AccountId;
-use sp_protocol::view::{SyncErrorKind, SyncStatus};
+use systemprompt_device::protocol::ids::AccountId;
+use systemprompt_device::view::{SyncErrorKind, SyncStatus};
 use tokio::sync::{broadcast, watch};
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;

@@ -7,11 +7,11 @@
 
 use std::time::Duration;
 
-use systemprompt_device::accounts::AccountsError;
-use systemprompt_device::client::ClientError;
 use crate::extension::ExtensionError;
 use crate::projection::{MaterializeError, ProjectionError};
-use sp_protocol::view::SyncErrorKind;
+use systemprompt_device::accounts::AccountsError;
+use systemprompt_device::client::ClientError;
+use systemprompt_device::view::SyncErrorKind;
 
 use crate::sync::acceptance::Refusal;
 

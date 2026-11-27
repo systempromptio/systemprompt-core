@@ -8,12 +8,13 @@
 
 use reqwest::Method;
 use serde_json::{Map, Value};
-use sp_protocol::wire::brain::{
-    BrainDisputeId, BrainFactId, BrainProposalId, DisputeCreated, DisputeRequest, EnterAccepted,
-    EnteredFact, EventOutboxId, FactRevision, FieldsRequest, ReplayReport, ReplayRequest,
+use systemprompt_device::protocol::paths;
+use systemprompt_identifiers::{BrainDisputeId, BrainFactId, BrainProposalId, EventOutboxId};
+use systemprompt_models::brain::client::{
+    DisputeCreated, DisputeRequest, EnterAccepted, FieldsRequest, ReplayReport, ReplayRequest,
     ResolveRequest, RetractRequest,
 };
-use sp_protocol::wire::paths;
+use systemprompt_models::brain::{EnteredFact, FactRevision};
 
 use super::BrainClient;
 use crate::members::brain::error::BrainError;

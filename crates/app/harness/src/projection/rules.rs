@@ -11,8 +11,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_protocol::host::rule_targets_host;
-use sp_protocol::wire::manifest::RuleEntry;
+use systemprompt_device::protocol::targets::rule_targets_host;
+use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::manifest::RuleEntry;
 
 use crate::projection::plan::unique_plain;
 
@@ -25,7 +26,7 @@ const BUDGET_BYTES: usize = 64 * 1024;
 
 pub(crate) fn select<'m>(
     rules: &'m [RuleEntry],
-    host: &str,
+    host: HostKind,
     warnings: &mut Vec<String>,
 ) -> Vec<&'m RuleEntry> {
     let mut selected: Vec<&RuleEntry> =
@@ -44,9 +45,9 @@ pub(crate) fn block(rules: &[&RuleEntry]) -> Option<String> {
     let mut out = String::from(RULES_BEGIN);
     out.push('\n');
     for rule in rules {
-        let instructions = rule.instructions.as_deref().unwrap_or_default().trim();
+        let instructions = rule.instructions.trim();
         out.push_str("\n## ");
-        out.push_str(&rule.name);
+        out.push_str(rule.name.as_str());
         out.push_str("\n\n");
         out.push_str(instructions);
         out.push('\n');

@@ -6,17 +6,17 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{TimeDelta, Utc};
+use serde_json::json;
+use systemprompt_device::client::Freshness;
+use systemprompt_device::protocol::names::session_uuid;
 use systemprompt_engine::run::extension::EnabledExtensions;
 use systemprompt_engine::run::{
     Endpoint, GovernError, Governor, McpSpec, ModelCall, ModelSpec, Purpose, ResponseAction,
     ToolCall, Usage, Verdict,
 };
-use serde_json::json;
-use systemprompt_device::client::Freshness;
-use sp_protocol::HOST_ID;
-use sp_protocol::names::session_uuid;
-use sp_protocol::wire::headers;
-use sp_protocol::wire::hooks::session_metadata_user_id;
+use systemprompt_identifiers::headers;
+use systemprompt_models::bridge::hook_events::session_metadata_user_id;
+use systemprompt_models::bridge::host::HostKind;
 
 use super::Governance;
 use crate::governance::error::GovernanceError;
@@ -40,9 +40,10 @@ fn signed_endpoint(instance: &Instance, call: &ModelCall, bearer: &str) -> Endpo
     endpoint
         .headers
         .push(("authorization".to_owned(), format!("Bearer {bearer}")));
-    endpoint
-        .headers
-        .push((headers::CLIENT.to_owned(), HOST_ID.to_owned()));
+    endpoint.headers.push((
+        headers::CLIENT_KIND.to_owned(),
+        HostKind::Harness.as_str().to_owned(),
+    ));
     if let Some(protocols) = &instance.protocols {
         endpoint
             .headers

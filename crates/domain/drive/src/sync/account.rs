@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use systemprompt_device::client::{DeviceTokenSource, HttpClient, SpClient};
-use sp_protocol::ids::DriveDeviceId;
+use systemprompt_identifiers::DriveDeviceId;
 
 /// The account a sync runs for and the folder it mirrors into.
 pub struct SyncAccount {

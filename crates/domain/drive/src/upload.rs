@@ -12,7 +12,7 @@
 
 use std::ops::Range;
 
-use sp_protocol::wire::drive::DriveUpload;
+use systemprompt_models::documents::client::DriveUpload;
 
 use crate::error::DriveError;
 

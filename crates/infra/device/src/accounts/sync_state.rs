@@ -9,9 +9,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_protocol::ids::{AccountId, DeviceId, UserId};
-use sp_protocol::{DeviceCredential, ManifestVersion};
+use crate::protocol::DeviceCredential;
+use crate::protocol::ids::AccountId;
 use crate::secure::SealedString;
+use systemprompt_identifiers::{DeviceId, UserId};
+use systemprompt_models::bridge::manifest_version::ManifestVersion;
 
 use crate::accounts::accounts::Accounts;
 use crate::accounts::error::AccountsError;

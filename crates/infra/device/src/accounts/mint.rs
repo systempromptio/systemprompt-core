@@ -10,9 +10,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::client::{ClientError, CredentialError, JwtSession, SpClient};
-use sp_protocol::Pat;
-use sp_protocol::ids::{AccountId, SessionId};
+use crate::protocol::Pat;
+use crate::protocol::ids::AccountId;
 use crate::secure::SealedString;
+use systemprompt_identifiers::SessionId;
 
 use crate::accounts::accounts::Accounts;
 use crate::accounts::state::State;

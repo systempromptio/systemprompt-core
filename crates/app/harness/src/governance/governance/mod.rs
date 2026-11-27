@@ -15,18 +15,18 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
+use crate::extension::AppliedInstance;
+use crate::projection::Applied;
 use arc_swap::ArcSwapOption;
-use systemprompt_engine::run::extension::EnabledExtensions;
-use systemprompt_identifiers::engine::SessionId;
-use harness_tasks::CancellationToken;
+use systemprompt_traits::CancellationToken;
 use indexmap::IndexMap;
 use parking_lot::Mutex;
 use systemprompt_device::client::CredentialSource;
-use crate::extension::AppliedInstance;
-use crate::projection::Applied;
-use sp_protocol::DeviceCredential;
-use sp_protocol::ids::NativeSessionId;
-use sp_protocol::origin::normalize_instance_url;
+use systemprompt_device::protocol::DeviceCredential;
+use systemprompt_device::protocol::origin::normalize_instance_url;
+use systemprompt_engine::run::extension::EnabledExtensions;
+use systemprompt_identifiers::NativeSessionId;
+use systemprompt_identifiers::engine::SessionId;
 use tokio::sync::broadcast;
 use url::Url;
 
@@ -112,8 +112,9 @@ impl Shared {
 /// resets the usage totals and moves the generation on; a snapshot that names
 /// another URL than its client leaves nothing applied. `clear` forgets the
 /// instance. The governance extension follows the applied instance through
-/// [`GovernanceApplier`](crate::governance::GovernanceApplier) and reports governance
-/// telemetry through [`GovernanceTelemetry`](crate::governance::GovernanceTelemetry).
+/// [`GovernanceApplier`](crate::governance::GovernanceApplier) and reports
+/// governance telemetry through
+/// [`GovernanceTelemetry`](crate::governance::GovernanceTelemetry).
 pub struct Governance {
     shared: Arc<Shared>,
     events: Option<EventQueue>,

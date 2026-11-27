@@ -11,10 +11,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use serde_json::Value;
-use sp_protocol::ids::{ContextId, DocumentFolderId, DocumentId, DocumentRevisionId};
-use sp_protocol::wire::drive::{
+use systemprompt_identifiers::{ContextId, DocumentFolderId, DocumentId, DocumentRevisionId};
+use systemprompt_models::documents::EditMode;
+use systemprompt_models::documents::client::{
     CommentRequest, CreateDocumentRequest, DriveAnchor, DriveComment, DriveCreated, DriveOutline,
-    DriveScope, EditMode, EditRequest,
+    DriveScope, EditRequest,
 };
 
 use systemprompt_drive::client::{DriveClient, EditOutcome, ListQuery, ReadView};

@@ -6,10 +6,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_protocol::wire::brain::{
-    BrainDisputeId, BrainFact, BrainFactId, BrainProposal, BrainProposalId, EnteredFact,
-    EventOutboxId, FactPage, FactRevision, FactWhy, SubjectKey,
-};
+use systemprompt_identifiers::{BrainDisputeId, BrainFactId, BrainProposalId, EventOutboxId};
+use systemprompt_models::brain::client::{FactPage, FactWhy};
+use systemprompt_models::brain::{BrainFact, BrainProposal, EnteredFact, FactRevision, SubjectKey};
 
 use super::{BrainService, Change};
 use crate::members::brain::client::FactQuery;

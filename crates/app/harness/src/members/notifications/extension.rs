@@ -7,11 +7,11 @@
 
 use std::sync::Arc;
 
-use systemprompt_device::client::HttpClient;
 use crate::extension::{
     AppliedInstance, ApplyError, BackgroundService, ExtensionId, ExtensionMetadata,
-    ManifestApplier, SpContext, SpExtension, extension_id, register_sp_extension,
+    ManifestApplier, SpContext, SpExtension, extension_id,
 };
+use systemprompt_device::client::HttpClient;
 
 use crate::members::notifications::client::NotificationsClient;
 use crate::members::notifications::handle::NotificationsHandle;
@@ -60,7 +60,6 @@ impl SpExtension for NotificationsExtension {
     }
 }
 
-register_sp_extension!(NotificationsExtension);
 
 struct FollowInstance {
     handle: NotificationsHandle,
