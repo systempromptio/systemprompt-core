@@ -22,7 +22,6 @@ use systemprompt_extension::bridge_catalog::{CatalogFreshness, ManifestEntries};
 use systemprompt_gateway::surface::views::GatewayManifestSigner;
 use systemprompt_identifiers::{TenantId, UserId};
 use systemprompt_manifest::services::{BridgePolicyConfig, BridgeReleasesSpec};
-use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::bridge::instance::{BridgeVersionWindow, InstanceBranding};
 use systemprompt_models::bridge::manifest::{
     MANIFEST_INLINE_SCHEMA_VERSION, SignedManifest, SignedManifestEnvelope,
