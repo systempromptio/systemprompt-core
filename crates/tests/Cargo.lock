@@ -12961,6 +12961,7 @@ dependencies = [
  "bytemuck",
  "byteorder",
  "bytes",
+ "camino",
  "cc",
  "chacha20",
  "chrono",
