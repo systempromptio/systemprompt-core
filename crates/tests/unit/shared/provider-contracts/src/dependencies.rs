@@ -104,7 +104,10 @@ fn host_types_name_host_seeds_and_reservations_but_no_provided_value() {
 fn a_withheld_type_reads_as_withheld_through_get_and_get_arc() {
     let mut deps = Dependencies::new();
     deps.withhold::<u64>();
-    assert_eq!(deps.get::<u64>().err(), Some(MissingDependency::withheld::<u64>()));
+    assert_eq!(
+        deps.get::<u64>().err(),
+        Some(MissingDependency::withheld::<u64>())
+    );
     let err = deps.get_arc::<u64>().unwrap_err();
     assert!(err.is_withheld());
     assert!(err.to_string().contains("withheld on this host"));

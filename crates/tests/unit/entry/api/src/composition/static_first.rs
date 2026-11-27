@@ -314,7 +314,10 @@ async fn without_an_index_the_web_root_is_the_site_fallbacks() {
     assert_eq!((status, body.as_str()), (StatusCode::OK, "site:GET"));
     let (status, _, body) = send(&router, Method::GET, "/.well-known/openid-configuration").await;
     assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
-    assert!(!body.starts_with("site:"), "a reserved path stays refused: {body}");
+    assert!(
+        !body.starts_with("site:"),
+        "a reserved path stays refused: {body}"
+    );
 }
 
 #[tokio::test]
@@ -326,5 +329,8 @@ async fn an_asset_extension_does_not_pass_site_auth_on_the_fallback() {
         assert!(!body.starts_with("site:"), "{uri}: {body}");
     }
     let (status, _, body) = send(&router, Method::POST, "/admin/report.js").await;
-    assert!(status.is_redirection(), "a write is judged by its prefix: {status} {body}");
+    assert!(
+        status.is_redirection(),
+        "a write is judged by its prefix: {status} {body}"
+    );
 }
