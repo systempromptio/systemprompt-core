@@ -253,7 +253,9 @@ results="[]"
 bloat_md=""
 if [ -n "$merge_dir" ]; then
     rows=()
-    results="$(jq -s 'map(.compositions) | add // []' $(find "$merge_dir" -name '*.json' ! -name 'bloat.json' | sort))"
+    mapfile -t sidecars < <(find "$merge_dir" -name '*.json' ! -name 'bloat.json' | sort)
+    [ "${#sidecars[@]}" -gt 0 ] || { echo "--merge found no composition sidecar in $merge_dir" >&2; exit 1; }
+    results="$(jq -s 'map(.compositions) | add // []' "${sidecars[@]}")"
     if [ -f "$merge_dir/bloat.json" ]; then
         bloat_md="$(jq -r '"| Crate | Size (bytes) |\n|---|---:|", (.crates[] | "| \(.name) | \(.size) |")' "$merge_dir/bloat.json")"
     fi
@@ -277,6 +279,7 @@ for row in "${rows[@]}"; do
     check_lock "$dir" "$pkg"
     closure="$(python3 -B "$root/scripts/lib/cargo_graph.py" tree-closure <<<"$tree")"
     read -r packages members <<<"$closure"
+    [ "${packages:-0}" -gt 0 ] || { echo "cargo tree for $name parsed to no packages" >&2; exit 1; }
     capability_list="$(python3 -B "$root/scripts/lib/cargo_graph.py" tree-capabilities "$root/scripts/units.txt" <<<"$tree")"
     capabilities="$(jq -Rsc 'split("\n") | map(select(length > 0))' <<<"$capability_list")"
 

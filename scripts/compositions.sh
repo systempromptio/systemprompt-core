@@ -79,6 +79,12 @@ report=(--closure-only "${offline[@]}")
 [ -n "$only" ] && report+=(--only "$only")
 bash scripts/build-report.sh "${report[@]}" "$out" >/dev/null
 json="${out%.md}.json"
+empty_floors="$(jq -r '.compositions[] | select(.flags | index("floor")) | select(.packages == 0) | .name' "$json")"
+while read -r name; do
+    [ -n "$name" ] || continue
+    echo "$name is the floor composition and its closure parsed to no packages" >&2
+    failed+=("$name: empty floor closure")
+done <<<"$empty_floors"
 floor_links="$(jq -r '.compositions[] | select(.flags | index("floor")) | select((.capability_packages | length) > 0)
     | "\(.name) \(.capability_packages | join(","))"' "$json")"
 while read -r name linked; do

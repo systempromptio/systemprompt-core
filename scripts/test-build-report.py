@@ -10,6 +10,7 @@ registry ones, and only capability-unit path packages are reported.
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -59,6 +60,31 @@ class TreeClosure(unittest.TestCase):
         self.assertIn("cargo_graph.py\" tree-capabilities", text)
         self.assertIn("-e normal,build --prefix none --target", text)
         self.assertIn("capability_packages", text)
+
+
+
+class EmptyInput(unittest.TestCase):
+    def test_merge_with_no_sidecar_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = subprocess.run(["bash", str(ROOT / "scripts" / "build-report.sh"), "--merge", tmp,
+                                     str(Path(tmp) / "report.md")],
+                                    capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("found no composition sidecar", result.stderr)
+
+    def test_an_empty_closure_fails_the_report(self):
+        text = (ROOT / "scripts" / "build-report.sh").read_text()
+        self.assertIn('[ "${packages:-0}" -gt 0 ]', text)
+
+    def test_tree_closure_of_nothing_is_zero_packages(self):
+        result = subprocess.run([sys.executable, "-B", str(ROOT / "scripts" / "lib" / "cargo_graph.py"), "tree-closure"],
+                                input="", capture_output=True, text=True, check=True)
+        self.assertEqual(result.stdout.split()[0], "0")
+
+    def test_the_floor_check_fails_an_empty_floor_closure(self):
+        text = (ROOT / "scripts" / "compositions.sh").read_text()
+        self.assertIn('select(.packages == 0)', text)
+        self.assertIn('empty floor closure', text)
 
 
 if __name__ == "__main__":
