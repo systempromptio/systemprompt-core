@@ -61,10 +61,10 @@ Further decisions and their alternatives are in [`risks-and-decisions.md`](risks
 | Stage | State |
 |---|---|
 | M0 Foundations | Done except the iOS binding (XCFramework and Swift package), which needs a Mac: the `systemprompt-mobile` crate, the phone closure gate, phone-target CI jobs and the first UniFFI surface are on `future` |
-| M1 Core server | Lanes A1 (contract types), B1 (APNs and FCM channels, `push.yaml`), B2 (migration 035, push tokens, device routes) and B4 (association files, discovery `clients`, the Android package in the release proxy) are on `future` at `c1d24b20a`. B3 (sessions and approvals from a phone) waits on harness S4, and review C2 waits with it. Reviews C1 and C3 found no high finding; what they changed and what they left open is in `risks-and-decisions.md` section 4. The item C1 left open is closed: a provider verdict now revokes the token by its value, so a token the device registered in the meantime is kept |
+| M1 Core server | Lanes A1 (contract types), B1 (APNs and FCM channels, `push.yaml`), B2 (migration 035, push tokens, device routes) and B4 (association files, discovery `clients`, the Android package in the release proxy) are on `future` at `c1d24b20a`. B3 (sessions and approvals from a phone) waits on harness S4, and review C2 waits with it. Reviews C1 and C3 found no high finding; what they changed and what they left open is in `risks-and-decisions.md` section 4. The item C1 left open is closed: a provider verdict now revokes the token by its value, so a token the device registered in the meantime is kept. The release routes an anonymous caller reaches carry their own request budget, and the 404 such a caller reads is one fixed message. All of it was exercised on a running instance on 2026-11-27 |
 | M2 Shared core | Not started |
-| M3 Native apps | Not started |
+| M3 Native apps | Not started as a stage. Ahead of it, the template's Android app has its first screen: it takes an instance address, discovers the instance through the shared library and shows its name and app entries, or says why it could not. No sign-in, no feature slice, nothing drawn on iOS |
 | M4 Build and distribution | Not started |
-| M5 Parity and proof | Not started |
+| M5 Parity and proof | Not started as a stage. Ahead of it, for that first screen on Android: three instrumented tests against a stub instance, a screenshot recipe that captures each state and one against a real instance, and an evidence runbook, all in the template |
 
 Update this table in the commit that closes a stage.
