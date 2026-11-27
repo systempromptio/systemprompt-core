@@ -425,11 +425,11 @@ fn a_catalog_key_that_names_no_host_fails_validation() {
          refused"
     );
 
-    let mut with_extensions = ServicesConfig::default();
-    with_extensions
+    let mut unknown_key = ServicesConfig::default();
+    unknown_key
         .external_agents
         .extend([with_extensions("cursor", &["drive"])]);
-    let err = with_extensions
+    let err = unknown_key
         .validate()
         .expect_err("the key is refused before its extensions are read");
     assert!(err.to_string().contains("names no host"), "{err}");
