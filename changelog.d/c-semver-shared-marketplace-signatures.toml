@@ -1,0 +1,14 @@
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Breaking"
+text = "`import::sidecar::load_plugin_sidecar(root, path)` and `import::sidecar::load_marketplace_sidecar(root, path)` take the root the sidecar path is confined to. `InventoryService::refresh(owner, &InstallServicesView)` replaces the root, services and `SourcesContext` arguments. `SourcesContext` is not `Copy`: it owns its `BundleSources`."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Breaking"
+text = "`MarketplaceFilterRegistration` is removed; contribute a filter to `contract::MarketplaceSlot`. `MarketplaceError::Catalog` is removed; a catalogue failure is `MarketplaceError::CatalogSource { context, source }`. `PublicationGateError::Evidence` is a struct variant `{ message }`."
+
+[[crate]]
+name = "systemprompt-marketplace"
+section = "Breaking"
+text = "`MarketplaceError::{SkillIdMismatch, RuleIdMismatch, RuleContentMissing, ArtifactToolMalformed, ArtifactServerUnknown, ArtifactServerDisabled, PluginUnconfigured, ManagedBindingLost}` and `ManagedError::{NonUtf8EntryName, SkillHosts, InvalidBundle, GateRefused, MergeMismatch, GenerationMismatch}` are new variants of exhaustive enums."

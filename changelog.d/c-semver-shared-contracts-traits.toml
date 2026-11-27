@@ -1,0 +1,19 @@
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Breaking"
+text = "`ChangeSourceError::Unknown` is a struct variant `{ text }`; `ConfigPlaneError::UnknownPlane` is `{ plane }`, `ConfigPlaneError::DuplicatePlane` and `ConfigPlaneError::DependencyCycle` are `{ plane: &'static str }`. `ProviderError::SourceNotFound { source_id }` is a new variant of an exhaustive enum."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`DatabaseHandle::into_any(self: Arc<Self>)` is a required method; an implementor returns `self` as `Arc<dyn Any + Send + Sync>`. `ToolCallIntentClaims::claim(call, session_id, execution)` takes the calling `&SessionId`; `ProcessLiveness::owns(pid, service, nonce)` takes the `Option<&SpawnNonce>` recorded with the pid. `SsoError::InvalidAssertion` is a struct variant `{ reason }` and `ContextPropagationError::MissingHeader` is `{ header }`."
+
+[[crate]]
+name = "systemprompt-slack"
+section = "Breaking"
+text = "`SlackError::Outbound` is a struct variant `{ code }`."
+
+[[crate]]
+name = "systemprompt-storage"
+section = "Breaking"
+text = "`S3Error::EndpointHost` is a struct variant `{ endpoint }`."

@@ -1,0 +1,9 @@
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "The `toolset` and `middleware` modules (`middleware::hop`, `middleware::rbac`, `middleware::rbac::scopes`, `middleware::session_handler`, with `build_hop_authz_request`, `validate_scopes_for_permissions` and `DatabaseSessionHandlerError`) are removed; the toolset host and its middleware are `systemprompt_mcp_host::serving::middleware`, and `McpToolset`/`ToolsetCall` are `systemprompt_extension::mcp`. `WEBSITE_URL`, `build_extension_capabilities`, `default_tool_visibility`, `mcp_apps_ui_extension`, `model_only_visibility`, `tool_ui_meta` and `visibility_to_json` are removed from the crate root; use `systemprompt_extension::mcp::capabilities`."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "`services::network::routing` (`create_base_router`, `apply_cors_layer`, `create_mcp_router`, `add_middleware`) and `services::network::proxy` (`create_proxy_router`) are removed, with `NetworkService::{create_router, apply_cors, create_proxy}`; the MCP HTTP host is served by `systemprompt-mcp-host`. `services::ui_renderer::ArtifactThemeRegistration` is removed; contribute a theme through `contract::UiSlot`."

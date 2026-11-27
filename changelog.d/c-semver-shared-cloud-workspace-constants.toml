@@ -1,0 +1,4 @@
+[[crate]]
+name = "systemprompt-cloud"
+section = "Breaking"
+text = "`constants::docker` (`CONTAINER_NAME_PREFIX`, `COMPOSE_PATH`, `container_name`), `constants::tenants`, `constants::operator`, `constants::credentials`, `constants::cli_session` and `constants::paths` (`ROOT_DIR`, `PROFILES_DIR`, `DOCKER_DIR`, `STORAGE_DIR`, `DOCKERFILE`, `PROFILE_CONFIG`, `PROFILE_SECRETS`, `CREDENTIALS_FILE`, `TENANTS_FILE`, `SESSION_FILE`, `PROFILE_DOCKER_DIR`, `ENTRYPOINT`, `DOCKERIGNORE`, `COMPOSE_FILE`), with each module's `DEFAULT_DIR_NAME` and `DEFAULT_FILE_NAME`, are removed; use the same names under `systemprompt_loader::workspace::constants`. `LOCAL_SESSION_KEY` and the `cli_session` and `paths` modules are removed; use `systemprompt_loader::workspace::{LOCAL_SESSION_KEY, CliSession, SessionKey, SessionStore}` and `systemprompt_loader::workspace::paths`."

@@ -1,0 +1,9 @@
+[[crate]]
+name = "systemprompt-analytics"
+section = "Breaking"
+text = "`AnalyticsError::invalid_argument(field: &'static str, reason: impl Into<String>)` names the argument; migrate `invalid_argument(msg)` to `invalid_argument(\"field\", msg)`."
+
+[[crate]]
+name = "systemprompt-analytics"
+section = "Breaking"
+text = "The consts `BOT_KEYWORDS` and `BOT_IP_PREFIXES` move to `systemprompt_models::analytics::bot_keywords`."

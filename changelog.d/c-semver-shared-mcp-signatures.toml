@@ -1,0 +1,19 @@
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "`McpOrchestrator::new(service_repo, app_paths, registry, McpSpawn)` takes one `McpSpawn` in place of the spawner and secrets service. `ProcessService::new(spawner, config, DynChildSecretEnv, TokenVerificationKeys)` takes the child secret environment and the verification keys; `ProcessService::owns`, `ProcessService::owned_port_holders` and `ProcessService::stop` take the recorded `SpawnStamp`. `services::process::spawner::spawn_environment(spec, &SpawnSecrets, lookup)` replaces the config and secrets arguments."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "`MonitoringService::new(HealthProbe)` and `ProxyHealthCheck::new(service_repo, HealthProbe)` take the health probe, and `MonitoringService` is not `Copy`. `monitoring::health::check_service_health(config, &HealthProbe)`, `monitoring::health::perform_health_check(config, &HealthProbe)` and `lifecycle::startup::wait_for_startup(config, &HealthProbe, expected_pid, events)` take it too; `lifecycle::startup::check_health_status(config, &HealthProbe, StartupAttempt, events)` folds the attempt counters and start time into `StartupAttempt`. `orchestrator::process_cleanup::detect_and_handle_orphaned_processes(servers, database, &SpawnNonce)` takes the boot nonce."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "`IntentClaimService::claim_exact(call, session_id, execution)` and `ToolUsageRepository::complete_execution(id, ToolCallSubject, result)` take the calling session and subject. `McpToolExecutor::new(tool_usage_repo, Option<DynToolCallIntentClaims>, ingest, Arc<UiRendererRegistry>, ServerCallers)` takes the renderer registry and the server's `ServerCallers` in place of the server id."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Breaking"
+text = "`McpDomainError::ServerNotFound` is a struct variant `{ server }`. `McpDomainError::ToolExecutionFailed` is removed; a tool call fails as `McpDomainError::TaskFailed { error }`, `McpDomainError::TaskCancelled`, `McpDomainError::UnexpectedToolResponse { variant }` or `ToolCall`, which are new variants."

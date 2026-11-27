@@ -1,0 +1,24 @@
+[root]
+section = "Breaking"
+area = "Scheduler"
+text = "Capability jobs live in the crate that owns their tables, and the scheduler resolves job names against the admitted schedule rather than a process-wide inventory."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Breaking"
+text = "`jobs::usage_anomaly_scan` moves to `systemprompt_ai::jobs::usage_anomaly_scan`, with `UsageAnomaly`, `AnomalyKind`, `evaluate`, `scan_window`, `previous_hour` and the consts `SPEND_RATIO`, `REQUEST_RATIO`, `SPEND_FLOOR_MICRODOLLARS` and `REQUEST_FLOOR`. `jobs::AnalyticsEventLinkFactsRollupJob` is `systemprompt_analytics::jobs::LinkFactsRollupJob`."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Breaking"
+text = "The `otlp_export` job is removed, with its `JOB_NAME` and the `repository::otlp` consts `SETTLE` and `BATCH_ROWS`; OTLP export runs from the tracing pipeline. The consts `REQUEST_SPAN`, `TOOL_SPAN` and `GOVERNANCE_SPAN` move to `systemprompt_logging::otlp` (`audit_spans`), and `RETRY_DELAYS` and `BATCHES_TOTAL` to `systemprompt_logging::otlp` (`transport`)."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Breaking"
+text = "`unknown_job_names` and `unlisted_job_names` take the `&AdmittedSchedule` as their last argument, and `SchedulerService::new(config, &DbPool, Arc<AppContext>, Arc<AdmittedSchedule>)` borrows the pool, takes the admitted schedule and returns a `SchedulerResult<Self>`."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Breaking"
+text = "`stop_owned_port_holders(port, &ChildClaim, grace)` takes the `ChildClaim` a holder must match in place of the `ChildKind` and `&ServiceName`."

@@ -1,0 +1,14 @@
+[[crate]]
+name = "systemprompt-database"
+section = "Breaking"
+text = "`validate_table_exists`, `validate_column_exists`, `audit_schema_residue` and `MigrationService::assess_freshness` take the target `&SchemaName` (after the `db` for the validators, last for the audit and the freshness check), and resolve tables in that schema."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Breaking"
+text = "`services::schema_linter::created_table_names` is removed; use `systemprompt_extension::created_table_names`."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Breaking"
+text = "`Reaped` gains the `held_elsewhere` field, set when another node holds the reap; a struct literal adds it. `ProcessOwnershipWake::is_listening` is not a `const fn`: it reads the node's notification hub subscription."

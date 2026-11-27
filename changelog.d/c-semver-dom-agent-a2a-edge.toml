@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Agents"
+text = "The hosted A2A server's HTTP edge (the standalone entry point, the JSON-RPC router and its body and page limits) lives in `systemprompt-agent-entry`; `systemprompt-agent` keeps the A2A domain services."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Breaking"
+text = "`services::a2a_server::standalone` is removed, with `run_standalone`; use `systemprompt_agent_entry::a2a_server::standalone`. The consts `A2A_MAX_REQUEST_BODY_BYTES` (`systemprompt_agent_entry::a2a_server::server`), `DEFAULT_PAGE_SIZE` and `MAX_PAGE_SIZE` (`systemprompt_agent_entry::a2a_server::request::list_tasks`) move with it."

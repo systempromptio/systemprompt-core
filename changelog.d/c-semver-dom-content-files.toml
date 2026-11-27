@@ -1,0 +1,9 @@
+[[crate]]
+name = "systemprompt-content"
+section = "Breaking"
+text = "`ContentError` gains `InvalidFileId { id, source }`, `FileSource(ContentFileLinksError)` and `FileNotLinked { file, content }`, returned by the content file links; migrate exhaustive matches by adding the arms."
+
+[[crate]]
+name = "systemprompt-content"
+section = "Breaking"
+text = "`execute_content_ingestion` takes the `&ContentHooks` after the `&AppPaths`, and `IngestionService::new` takes the `Vec<Arc<dyn FrontmatterProcessor>>` the ingestion runs after the `ContentRepository`."

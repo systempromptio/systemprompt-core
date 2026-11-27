@@ -1,0 +1,14 @@
+[[crate]]
+name = "systemprompt-agent"
+section = "Breaking"
+text = "`ConfigAuthoringError::InvalidSetFormat { value }`, `ConfigAuthoringError::UnknownSetKey { key }`, `ConfigAuthoringError::NoModelForProvider { provider }` and `ConfigAuthoringError::ModelNotServable { model }` are struct variants; `ConfigAuthoringError` gains `NameReserved { name }`, returned when an agent is created under a reserved name. Migrate patterns from `V(x)` to `V { .. }` and add the arm to exhaustive matches."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Breaking"
+text = "`OrchestrationError::AgentNotFound { agent }`, `OrchestrationError::AgentAlreadyRunning { agent }` and `OrchestrationError::HealthCheckTimeout { agent }` are struct variants carrying an `AgentName`. `OrchestrationError::ProcessSpawnFailed` is removed; a spawn failure is one of `OrchestrationError::PortNotReleased { port, timeout_secs }`, `OrchestrationError::PortHolderUnidentified { port }`, `OrchestrationError::ProfilePathNotUtf8 { path }`, `OrchestrationError::DiedAfterSpawn { agent, pid }`, `OrchestrationError::AgentNotDeclared { agent }` or the existing `Spawn { context, source }`."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Breaking"
+text = "`AgentServiceError::ToolExecution { message }` is a struct variant, and `AgentError` gains `DefaultAgentNotConfigured`, returned when the registry has no default agent. Migrate exhaustive matches by adding the arm."

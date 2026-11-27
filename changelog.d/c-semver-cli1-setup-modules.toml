@@ -1,0 +1,9 @@
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`admin::setup::ddl` (`quote_literal`, `build_create_user_sql`, `build_alter_user_password_sql`, `build_create_db_sql`, `build_grant_sql`) is `shared::ddl`, and `admin::setup::postgres_access` (`PostgresConfig`, `connect`, `generate_password`, `detect_postgresql`, `test_connection`, `enable_extensions`) is `shared::postgres_access`; `postgres_access::postgres_url` is crate-private."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`admin::setup::docker_compose` is removed; use `systemprompt_loader::workspace::docker_compose`. Its `ComposeCredentials`, `PostgresCompose`, `postgres_compose`, `create_compose_files_if_missing`, `start_compose` and `wait_for_postgres_ready` keep their shape, and `is_docker_available`, `is_compose_available` and `is_container_running` take a `&dyn ChildSupervisor`."

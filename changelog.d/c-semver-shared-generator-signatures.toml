@@ -1,0 +1,4 @@
+[[crate]]
+name = "systemprompt-generator"
+section = "Breaking"
+text = "`prerender_content(db_pool, content_repo, env)` drops the `ContentAnalyticsRepository` argument; popularity is read from the `DynContentPopularity` in the prerender state. `execute_copy_extension_assets(paths, assets)` takes the admitted `&[(ExtensionId, AssetDefinition)]` instead of discovering the extension registry."

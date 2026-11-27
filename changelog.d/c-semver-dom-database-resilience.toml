@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Database"
+text = "The resilience primitives (circuit breaker, bulkhead, retry, guard and their configuration) live in `systemprompt_storage::resilience`; `systemprompt-database` does not carry them."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Breaking"
+text = "The `resilience` module is removed; use `systemprompt_storage::resilience`, which holds the same items: `resilience::classify`, `resilience::retry`, `resilience::breaker` (`Probe`, `Tripped`), `resilience::bulkhead` (`Full`), `resilience::guard` (`Admission`), `resilience::config` (`ResilienceConfig`, `RetryConfig`, `BulkheadConfig`, `BreakerConfig`) and `resilience::error` (`ResilienceError`)."

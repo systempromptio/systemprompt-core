@@ -1,0 +1,29 @@
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "The registration macros `register_brain_importance!`, `register_brain_reranker!`, `register_brain_analysis!`, `register_brain_validator!`, `register_brain_retriever!`, `register_brain_outcome_signal!`, `register_brain_extractor!`, `register_brain_source_content!`, `register_brain_injection_policy!`, `register_brain_consolidator!`, `register_brain_filter!`, `register_notification_router!`, `register_notification_channel!`, `register_notification_publish_policy!` and `register_notification_audience!` are removed; contribute each seam to its owning crate's `contract` slot from `Extension::contribute`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`user_purge_tables!`, `orphan_sweeps!`, `purge::registered_user_purge_tables` and `purge::registered_orphan_sweeps` are removed; declare a `UserPurgeTable` with `Contributions::user_purge` and an `OrphanSweep` with `Contributions::orphan_sweep`, and read the admitted set through `AdmittedPurge`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`retention::RetentionHoldRegistration`, `retention::discover_retention_holds` and `RetentionHolds::discover` are removed; holds are declared in `Extension::contribute` and read as `AdmittedSchedule::holds`, or built with `RetentionHolds::new`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`gateway_guard::GatewayRequestGuardRegistration` and `GatewayGuards::discover` are removed; contribute a guard factory with `Contributions::gateway_guard`, and the runtime builds the gateway's `GatewayGuards::new(installed)`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`registry::ExtensionRegistration` is removed with the `registry` module; members are composed explicitly instead of collected through `inventory`. `registry::WEB_ROOT_BASE_PATH` is `reserved::WEB_ROOT_BASE_PATH`."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`CostDirectiveError::NotAPair`, `UnknownField`, `Rows`, `Measured` and `Triggers` are struct variants: `NotAPair { field }`, `UnknownField { field }`, `Rows { value }`, `Measured { value }`, `Triggers { value }`."

@@ -1,0 +1,14 @@
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`admin::config::plane_validate::append_full_validation` takes `(&Config, &BuiltState, Option<&String>, &mut Vec<ConfigFileInfo>)` and `plane_validate::plane_declaration_results` takes `(&Config, &BuiltState)`: the config planes come from the admitted members of `systemprompt_extension::BuiltState`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`admin::session::login_helpers::fetch_admin_user` takes `(&dyn AdminBootstrap, &str, bool, Option<&str>, CloudScope<'_>)` and returns `Result<AdminAccount>` (`systemprompt_traits::{AdminBootstrap, AdminAccount}`, `cloud_access::CloudScope`) instead of a `&DbPool` and a `User`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`admin::config::git_credentials::migrate_file` takes a `credential_key: &dyn Fn(&str, &str) -> Option<String>` before `apply`."

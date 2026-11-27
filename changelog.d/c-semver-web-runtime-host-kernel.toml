@@ -1,0 +1,29 @@
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`host::HostBootError` and `host::PROFILE_ENV` are `host_kernel::HostBootError` and `host_kernel::PROFILE_ENV`, both re-exported at the crate root. `HostBootError` has the variant `HostBootError::Admission`, returned when the `AdmitFn` handed to `HostKernel::boot` refuses the profile; `HostBootError` is exhaustive, so a `match` over it needs the arm."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`StartupValidator::validate` takes `(&Config, &BuiltState)`: pass the admitted composition's `BuiltState` beside the config."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`collect_toolset_errors` is removed; a hosted toolset is contributed through `ToolsetSlot` in `systemprompt-mcp-host`, whose build refuses an unregistered toolset id. `core_notifications` and `notification_sink` are removed with the `notifications` feature; read `NotificationsServiceSlot` and the `DynNotificationSink` the `notifications` member provides from the kernel state."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`TraceError::MalformedState { column, value, source }` is a new variant on the exhaustive `TraceError`, returned when a stored state column holds a value outside its vocabulary."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "The `engine-loro` and `geolocation` features are removed. GeoIP loading is the analytics member's: enable `systemprompt-analytics/geolocation` (the facade enables it with `systemprompt-analytics`)."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`managed::git_sources::GIT_CREDENTIAL_NAMESPACE` and `managed::git_sources::MIGRATE_GIT_CREDENTIALS_COMMAND` are `systemprompt_marketplace::managed::git_sources::{GIT_CREDENTIAL_NAMESPACE, MIGRATE_GIT_CREDENTIALS_COMMAND}`."

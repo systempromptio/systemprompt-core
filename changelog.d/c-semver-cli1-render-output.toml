@@ -1,0 +1,9 @@
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`admin config` and `infra logs` leaves return their output and the dispatcher renders it: `admin::config::catalog::execute` takes `(&CatalogCommands, Option<&ServicesState>)` and returns `Result<CommandOutput>`; `catalog_edit::render_list`, `catalog_discovery::render_discovery`, `logs::display_log_row`, `logs::shared::display_log_row`, `logs::shared::print_level_line` and `logs::trace::print_summary` are removed."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`infrastructure::logs::format_optional_duration_ms` and `logs::shared::format_optional_duration_ms` are removed; use `systemprompt_extension::cli::time_format::format_optional_duration_ms`."

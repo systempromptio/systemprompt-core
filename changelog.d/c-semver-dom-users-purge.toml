@@ -1,0 +1,9 @@
+[[crate]]
+name = "systemprompt-users"
+section = "Breaking"
+text = "`UserRepository::purge_preview`, `UserRepository::delete`, `UserService::purge_preview`, `UserService::delete` and `UserService::purge` take the `&AdmittedPurge` plan after the `&UserId` and return a `PurgeOutcome`; `UserService::purge_expired_archives` takes the plan last and returns `Vec<PurgedArchive>`. `PurgeCount` holds an owning `ExtensionId`, a `String` table and an `absent` flag, and is not `Copy`."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Breaking"
+text = "The const `API_KEY_PREFIX` moves to `systemprompt_models::auth`."

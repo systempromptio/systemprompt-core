@@ -1,0 +1,34 @@
+[root]
+section = "Breaking"
+area = "CLI"
+text = "The CLI settings, command descriptor, prompt, output, parser and time-format helpers a command crate builds against live in `systemprompt_extension::cli`; `systemprompt_cli::cli_settings`, `systemprompt_cli::descriptor`, `shared::command_result`, `shared::parsers`, `shared::time_format` and `shared::confirm` are removed. Import from `systemprompt_extension::cli` instead."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`systemprompt_cli::cli_settings` is removed, along with the crate-root re-exports `OutputFormat`, `ColorMode` and `VerbosityLevel`; use `systemprompt_extension::cli::{CliConfig, OutputFormat, ColorMode, VerbosityLevel}`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`systemprompt_cli::descriptor` is removed; `DescribeCommand`, `DataImpact` and `RoutingClass` are `systemprompt_extension::cli::{DescribeCommand, DataImpact, RoutingClass}`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`shared::command_result` is removed with its re-exports `SuccessOutput`, `TextOutput`, `TableOutput`, `KeyValueOutput` and `KeyValueItem`; use the same types from `systemprompt_extension::cli` (`CommandOutput` and its output types). `render_result` is `shared::render::render_result` (re-exported as `shared::render_result`)."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`shared::parsers` is removed with its `shared::` re-exports `parse_profile_name`, `parse_profile_name_arg`, `parse_email`, `parse_extension_id`, `parse_agent_name`, `parse_ai_request_id`, `parse_api_key_id`, `parse_campaign_id`, `parse_category_id`, `parse_client_id`, `parse_job_name`, `parse_link_click_id`, `parse_link_id`, `parse_mcp_server_id`, `parse_mcp_tool_name`, `parse_model_id`, `parse_plugin_id`, `parse_provider_id`, `parse_secret_name`, `parse_service_name`, `parse_skill_id`, `parse_tenant_id`, `parse_trace_id`; use `systemprompt_extension::cli::parsers`, which provides the same functions."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`shared::time_format` is removed; `format_date`, `format_date_range` and `format_optional_duration_ms` are in `systemprompt_extension::cli::time_format`. `shared::confirm` is removed; `ConfirmArgs` is `systemprompt_extension::cli::ConfirmArgs`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`interactive::require_confirmation`, `interactive::require_confirmation_default_yes` and `interactive::resolve_required` are removed; use the functions of the same name in `systemprompt_extension::cli` (prompt module), where `resolve_required` is generic over the error type `E` of its resolver."

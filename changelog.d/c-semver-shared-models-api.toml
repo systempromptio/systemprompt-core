@@ -1,0 +1,14 @@
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "`authz::AlreadyBound` is removed; use `systemprompt_models::AlreadyBound`, the error of every late-bound cell. `SecretGrant::EncryptionMasterKey` is removed (the master key is never granted, `SecretGrantError::MasterKeyWithheld`), so `SecretGrant::Storage` and `SecretGrant::Custom` order before their earlier positions under the derived `PartialOrd`/`Ord`. `subprocess::environ_identifies_child(environ, name_key, service_name, nonce)` takes the expected `Option<&SpawnNonce>`."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "`PathConfinementError::NotASegment` is `{ kind, source: IdValidationError }`, replacing its `value` field."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "Error variants that carried one unnamed value are struct variants: `OutboundUrlError::Scheme { scheme }`, `OutboundUrlError::Loopback { host }`, `OutboundUrlError::BlockedHost { host }`, `OutboundUrlError::Unresolved { host }`; `ContextExtractionError::MissingHeader { header }`, `ContextExtractionError::UserNotFound { user_id, state }`; `ManifestVersionParseError::NoSeparator { input }`, `ManifestVersionParseError::BadSuffix { input }`; `SecretGrantError::ApiHeld { name }`, `SecretGrantError::Unknown { name }`, `SecretGrantError::InvalidCustomName { name }`, `SecretGrantError::AlwaysGranted { name }`; `TokenError::UnknownKid { kid }`; `StatementError::BadPlaceholder { placeholder }`, `StatementError::MissingField { field }`; `SubjectKeyError::Shape { input }`; `OriginParseError::WireProtocol { value }`, `OriginParseError::Attestation { value }`, `OriginParseError::NativeMarker { value }`; `DesktopPolicyError::Unsupported { setting }`, `DesktopPolicyError::Reserved { setting }`, `DesktopPolicyError::Range { setting }`, `DesktopPolicyError::EnumValue { setting }`, `DesktopPolicyError::ServerUrl { setting }`; `SubjectSourceError::UnknownDimension { dimension }`."

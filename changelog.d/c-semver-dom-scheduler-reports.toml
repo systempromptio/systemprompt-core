@@ -1,0 +1,9 @@
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Breaking"
+text = "`PlaneReport` carries `failure: Option<PlaneFailure>` (`UnmetRequirement { requirement }` or `Failed { error }`, holding an `Arc<SchedulerError>`) in place of the `error` string, and `JobRunReport` gains `executed` and an `error: Option<Arc<ProviderError>>`; so `PlaneReport`, `ReconcileReport`, `JobRunReport` and `JobBatchReport` are not `UnwindSafe` or `RefUnwindSafe`, and a `JobRunReport` struct literal adds the fields."
+
+[[crate]]
+name = "systemprompt-scheduler"
+section = "Breaking"
+text = "`PlaneOutcome` gains `Unavailable`, declared before `Failed`, so the implicit discriminant of `PlaneOutcome::Failed` is 4; do not persist or compare `PlaneOutcome` as an integer."

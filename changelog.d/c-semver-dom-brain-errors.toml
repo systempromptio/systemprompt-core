@@ -1,0 +1,4 @@
+[[crate]]
+name = "systemprompt-brain"
+section = "Breaking"
+text = "`Unreadable::Gone { origin }` (a `FactSource`), `BrainError::InvalidFields { kind, reason }`, `BrainError::UnknownEvent { kind }` (a `BrainEventKind`) and `ModelOutputError::Schema { reason }` are struct variants; `ModelOutputError` gains `UnexpectedKey { key }`, returned for a model output key the schema does not declare."

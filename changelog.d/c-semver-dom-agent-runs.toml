@@ -1,0 +1,14 @@
+[[crate]]
+name = "systemprompt-agent-runs"
+section = "Breaking"
+text = "`register_run_origin!` is removed; a member declares a run origin with `c.run_origin(RunOrigin::new(..))` in its extension, and the runner reads the admitted set (`AdmittedRunOrigins`)."
+
+[[crate]]
+name = "systemprompt-agent-runs"
+section = "Breaking"
+text = "`A2aRunnerService` is a struct holding its `A2aRunHandler`, `AgentRunRepository` and claimant, so it is not `Copy`, `UnwindSafe` or `RefUnwindSafe`; build it through the agent-runs member's runner service."
+
+[[crate]]
+name = "systemprompt-agent-runs"
+section = "Breaking"
+text = "`HarnessError::MissingAsset { path }` and `HarnessError::Collision { path }` are struct variants."
