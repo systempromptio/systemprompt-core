@@ -23,7 +23,7 @@ fn main() -> Result<ExitCode, RunError> {
 }
 ```
 
-`MyExtension` implements `Extension` (`metadata` and `contribute`); `systemprompt/examples/extension.rs` is the smallest complete member, and [authoring extensions](https://github.com/systempromptio/systemprompt-core/blob/main/documentation/guides/authoring-extensions.md) is the guide. `Composition` and `reference()` need the `reference` feature.
+`MyExtension` implements `Extension` (`metadata` and `contribute`); `systemprompt/examples/extension.rs` is the smallest complete member, and [authoring extensions](https://github.com/systempromptio/systemprompt-core/blob/main/documentation/guides/authoring-extensions.md) is the guide. `Composition` and `reference()` need the `runtime` feature, which `reference` implies.
 
 | Feature | Includes |
 |---------|----------|
@@ -31,11 +31,12 @@ fn main() -> Result<ExitCode, RunError> {
 | `database` | PostgreSQL abstraction (`DbPool`) |
 | `api` | HTTP server, `AppContext` and OAuth token issuance (requires `core` + `database`) |
 | `cli` | CLI entry point and the command contract member commands implement |
-| `reference` | The reference composition: every core capability, the CLI, and `Composition` / `reference()` |
-| `slack` | `systemprompt::slack` module (not in `reference`; `api` compiles the crate regardless) |
-| `teams` | `systemprompt::teams` module (not in `reference`; `api` compiles the crate regardless) |
+| `runtime` | The kernel: `api`, `cli` and the infrastructure the kernel members need, plus `Composition` / `reference()` |
+| `reference` | The reference composition: `runtime` and every core capability |
+| `slack` | `systemprompt::slack` module and the Slack member (not in `reference`) |
+| `teams` | `systemprompt::teams` module and the Teams member (not in `reference`) |
 
-Supported compositions are `reference`, `reference` with `slack` and `teams`, `api` alone, `cli` alone, the gateway alone (`api`, `ai`) the minimal kernel (`core`, `database`) and `core` alone for extension authoring; CI builds each one. Any other feature combination is unsupported.
+Supported compositions are `reference`, `reference` with `slack` and `teams`, `runtime` alone (the kernel), four flavours (gateway, MCP, agents and site), `api` alone, the gateway library (`api`, `ai`), the minimal kernel (`core`, `database`) and `core` alone for extension authoring; CI builds each one and boots each that links the `systemprompt` binary. Any other feature combination is unsupported; [feature flags](https://github.com/systempromptio/systemprompt-core/blob/main/documentation/reference/feature-flags.md#supported-compositions) lists each composition's features.
 
 The per-feature matrix, including the finer-grained flags (`config`, `mcp`, `events`, `security`, `runtime`, `content`, `analytics`, `notifications`, `brain`, and the rest), is on the [docs.rs crate root](https://docs.rs/systemprompt).
 

@@ -42,14 +42,10 @@ A binary needs `runtime`: `Composition`, `reference()` and the `systemprompt` bi
 | `systemprompt-oauth` | `oauth` | optional |
 | `systemprompt-oauth-issuance` | `identity` | optional |
 | `systemprompt-mcp-host` | `mcp_host` | optional |
-| `systemprompt-documents` | `documents` | REQUIRED |
-| `systemprompt-files` | `files` | REQUIRED |
-| `systemprompt-gateway` | `gateway` | optional |
 | `systemprompt-scheduler` | `scheduler` | optional |
-| `systemprompt-gateway-entry` | `gateway-http` | optional |
 | `systemprompt-api`, `systemprompt-runtime`, `systemprompt-cli`, `systemprompt-config`, `systemprompt-security` | (none) | the server, the application context and the CLI |
 
-The kernel crates link some capability crates themselves (`systemprompt-api` and `systemprompt-cli` depend on, among others, `systemprompt-ai`, `systemprompt-agent-runs`, `systemprompt-issues` and `systemprompt-cloud`), so dropping a capability's feature removes its members, routes and commands but not always its code from the binary. The flavours above drop the members, routes and commands of the capabilities they omit.
+The floor links no capability crate: CI checks that the resolved dependency closure of the `runtime` composition holds none, so a capability whose feature is off contributes neither members, routes and commands nor code to the binary. The document store, files, the AI gateway and every other capability arrive with their own features (`files`, `ai`, ...), and `api` mounts each one's HTTP routes only when that feature is enabled.
 
 Any other combination of features is unsupported: it may compile, but it is not built or tested.
 
@@ -65,7 +61,7 @@ Cargo enables the transitive dependencies of each selected feature.
 | `database` | `dep:systemprompt-database`, `dep:sqlx`, `systemprompt-extension?/sqlx` |
 | `config` | `dep:systemprompt-config` |
 | `mcp` | `dep:rmcp`, `systemprompt-models?/mcp` |
-| `api` | `core`, `database`, `dep:systemprompt-api`, `dep:systemprompt-gateway`, `dep:systemprompt-runtime`, `dep:systemprompt-mcp-host`, `dep:systemprompt-oauth-issuance`, `dep:systemprompt-gateway-entry`, `dep:systemprompt-users`, `dep:systemprompt-oauth`, `dep:systemprompt-scheduler`, `dep:systemprompt-documents`, `dep:systemprompt-files`, `dep:axum`, `systemprompt-extension?/router`, `systemprompt-slack-entry?/http`, `systemprompt-teams-entry?/http`, `systemprompt-agent-runs-entry?/http`, `systemprompt-notifications-entry?/http`, `systemprompt-content-entry?/http`, `systemprompt-analytics-entry?/http`, `systemprompt-marketplace-entry?/http`, `systemprompt-files-entry?/http`, `systemprompt-mcp-entry?/http`, `systemprompt-cloud-entry?/http`, `systemprompt-agent-entry?/http`, `systemprompt-brain-entry?/http`, `systemprompt-gateway-entry/http`, `systemprompt-identity-entry?/http` |
+| `api` | `core`, `database`, `dep:systemprompt-api`, `dep:systemprompt-runtime`, `dep:systemprompt-mcp-host`, `dep:systemprompt-oauth-issuance`, `dep:systemprompt-users`, `dep:systemprompt-oauth`, `dep:systemprompt-scheduler`, `dep:axum`, `systemprompt-extension?/router`, `systemprompt-slack-entry?/http`, `systemprompt-teams-entry?/http`, `systemprompt-agent-runs-entry?/http`, `systemprompt-notifications-entry?/http`, `systemprompt-content-entry?/http`, `systemprompt-analytics-entry?/http`, `systemprompt-marketplace-entry?/http`, `systemprompt-files-entry?/http`, `systemprompt-mcp-entry?/http`, `systemprompt-cloud-entry?/http`, `systemprompt-agent-entry?/http`, `systemprompt-brain-entry?/http`, `systemprompt-gateway-entry?/http`, `systemprompt-documents?/http`, `systemprompt-identity-entry?/http` |
 | `identity` | `dep:systemprompt-identity-entry` |
 | `cloud` | `dep:systemprompt-cloud`, `dep:systemprompt-cloud-entry` |
 | `logging` | `dep:systemprompt-logging` |
@@ -79,9 +75,9 @@ Cargo enables the transitive dependencies of each selected feature.
 | `analytics` | `dep:systemprompt-analytics`, `dep:systemprompt-analytics-entry` |
 | `content` | `dep:systemprompt-content`, `dep:systemprompt-content-entry`, `dep:systemprompt-generator`, `systemprompt-analytics-entry?/content-commands` |
 | `marketplace` | `dep:systemprompt-marketplace`, `dep:systemprompt-marketplace-entry` |
-| `files` | `dep:systemprompt-files`, `dep:systemprompt-files-entry`, `dep:systemprompt-documents` |
-| `mcp-servers` | `dep:systemprompt-mcp`, `dep:systemprompt-mcp-entry` |
-| `agents` | `dep:systemprompt-agent`, `dep:systemprompt-agent-entry` |
+| `files` | `dep:systemprompt-files`, `dep:systemprompt-files-entry`, `dep:systemprompt-documents`, `dep:systemprompt-issues` |
+| `mcp-servers` | `ai`, `dep:systemprompt-mcp`, `dep:systemprompt-mcp-entry` |
+| `agents` | `ai`, `mcp-servers`, `dep:systemprompt-agent`, `dep:systemprompt-agent-entry` |
 | `slack` | `dep:systemprompt-slack`, `dep:systemprompt-slack-entry`, `systemprompt-extension?/slack` |
 | `teams` | `dep:systemprompt-teams`, `dep:systemprompt-teams-entry`, `systemprompt-extension?/teams` |
 | `agent-runs` | `dep:systemprompt-agent-runs`, `dep:systemprompt-agent-runs-entry` |
@@ -93,9 +89,8 @@ Cargo enables the transitive dependencies of each selected feature.
 | `files-collab-loro` | `files-collab`, `systemprompt-documents/engine-loro` |
 | `notifications` | `dep:systemprompt-notifications`, `dep:systemprompt-notifications-entry` |
 | `brain` | `dep:systemprompt-brain`, `dep:systemprompt-brain-entry`, `notifications` |
-| `issues` | `dep:systemprompt-issues` |
-| `ai` | `dep:systemprompt-ai`, `systemprompt-models?/mcp` |
-| `reference` | `runtime`, `mcp`, `cloud`, `agents`, `ai`, `mcp-servers`, `content`, `analytics`, `marketplace`, `files`, `files-office`, `files-pdf`, `files-collab-loro`, `agent-runs`, `otel`, `bridge`, `notifications`, `brain`, `issues`, `identity`, `loader`, `storage`, `client` |
+| `ai` | `dep:systemprompt-ai`, `dep:systemprompt-gateway`, `dep:systemprompt-gateway-entry`, `systemprompt-models?/mcp` |
+| `reference` | `runtime`, `mcp`, `cloud`, `agents`, `ai`, `mcp-servers`, `content`, `analytics`, `marketplace`, `files`, `files-office`, `files-pdf`, `files-collab-loro`, `agent-runs`, `otel`, `bridge`, `notifications`, `brain`, `identity`, `loader`, `storage`, `client` |
 
 `dep:` selects an optional dependency; an unprefixed name selects another feature.
 `dependency/feature` enables a feature on that dependency. `reference` excludes the opt-in
@@ -105,11 +100,11 @@ Cargo enables the transitive dependencies of each selected feature.
 
 `slack` and `teams` link the Slack and Teams entry crates, whose members contribute the `/api/v1/slack` and `/api/v1/teams` inbound routes; each route verifies its platform's signature or bot token in the handler, and a profile that disables the `slack` or `teams` member leaves its routes unmounted. `agent-runs` mounts `/api/v1/agent-runs` and wires the run launcher into hosted agents. `otel` mounts the gateway's OTLP/HTTP ingest routes and enables the live OTLP export of the server's own logs and spans. `bridge` mounts the device-credential consumer routes the bridge reports installation evidence through. Without a feature its member is not in `reference()`: its routes are not mounted and its job does not exist.
 
-`agents` serves agent processes only together with `api`, which enables the `agent-http` member and with it the hosted A2A server that every agent child process runs; with `agents` and no `api`, an agent child host refuses to serve and names `agent-http`. `agent-runs` belongs to the agents capability and `issues` to the files capability, and `ai` holds the gateway's storage: each reaches no other capability except through the shared contracts the members provide.
+`agents` serves agent processes only together with `api`, which enables the `agent-http` member and with it the hosted A2A server that every agent child process runs; with `agents` and no `api`, an agent child host refuses to serve and names `agent-http`. `agent-runs` belongs to the agents capability and issue reports (`systemprompt-issues`) come with `files`, and `ai` holds the gateway's storage: each reaches no other capability except through the shared contracts the members provide.
 
 `notifications` adds notification streams, rules, the per-user feed and their outbox consumer. `brain` adds the brain: its capture consumer, gateway recall, routes and jobs (see [the brain](../brain.md)); it implies `notifications`, and a profile with `brain.enabled: false` composes none of it.
 
-The `mcp` feature exposes `rmcp` and the `rmcp`-typed items of `systemprompt-models` (its `mcp` feature); the `systemprompt-mcp` domain crate, its `mcp` and `mcp-http` members and its re-export in `systemprompt::mcp` come with `mcp-servers`. `ai` adds the `ai` member, the provider dispatch and tool execution, and is part of `reference`. `runtime` is the kernel: `api`, `cli` and the infrastructure the kernel members need. `Composition` and `reference()`, which build a binary, need `runtime`; `reference()` holds the core members of the features the build enables. Without `content`, analytics events are recorded with no content id. The `api` dependency on
+The `mcp` feature exposes `rmcp` and the `rmcp`-typed items of `systemprompt-models` (its `mcp` feature); the `systemprompt-mcp` domain crate, its `mcp` and `mcp-http` members and its re-export in `systemprompt::mcp` come with `mcp-servers`. `ai` adds the `ai` member, the provider dispatch and tool execution, and the AI gateway (the `gateway` and `gateway-http` members), and is part of `reference`; `mcp-servers` and `agents` imply it. `runtime` is the kernel: `api`, `cli` and the infrastructure the kernel members need. `Composition` and `reference()`, which build a binary, need `runtime`; `reference()` holds the core members of the features the build enables. Without `content`, analytics events are recorded with no content id. The `api` dependency on
 `systemprompt-runtime` enables its `geolocation` feature.
 
 ## Panic strategy

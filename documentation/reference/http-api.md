@@ -446,8 +446,9 @@ These areas are mounted by `mount_content_and_misc` (`crates/entry/api/src/servi
 
 | Base path | Auth | Purpose |
 |-----------|------|---------|
-| `/api/v1/content` | Public | Published content by source and slug (JSON, or Markdown through content negotiation), search (`POST /query`), and link listings and analytics under `/links`. |
+| `/api/v1/content` | Public | Published content by source and slug (JSON, or Markdown through content negotiation) and search (`POST /query`). |
 | `/api/v1/content/links/generate` | User | Trackable-link generation. |
+| `/api/v1/content/links`, `/links/journey`, `/links/{link_id}/clicks`, `/links/{link_id}/performance`, `/links/campaigns/{campaign_id}/performance` | Admin | Link listings and link analytics; a signed-in non-admin is refused with `403`. |
 | `/r/{short_code}` | Public | Short-link redirect; a click is recorded for every session that is not a detected bot. |
 | `/api/v1/documents`, `/api/v1/document-folders`, `/v1/bridge/drive` | User; device | The document store, listed under [Documents](#documents) above. |
 | `/api/v1/sync` | Restricted (Service) | Cloud sync of files. |
