@@ -12,7 +12,14 @@ use systemprompt_test_fixtures::{fixture_admitted_without, schema_admitted};
 
 const OWNED: &[(&str, &[&str])] = &[
     ("events", &["event_outbox"]),
-    ("users", &["user_rate_limit_buckets", "sso_login_events"]),
+    (
+        "users",
+        &[
+            "user_rate_limit_buckets",
+            "sso_login_events",
+            "user_device_push_tokens",
+        ],
+    ),
     ("logging", &["logs"]),
     ("authz", &["governance_decisions"]),
     ("oauth", &["oauth_jti_revocations"]),

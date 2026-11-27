@@ -1,0 +1,144 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT d.id, d.user_id AS \"user_id: UserId\", d.label, d.platform, d.os_version,\n                   d.app_version, d.app_id, d.enrolled_at, d.last_seen_at, d.revoked_at,\n                   (SELECT t.provider FROM user_device_push_tokens t\n                     WHERE t.device_id = d.id\n                     ORDER BY t.registered_at DESC LIMIT 1) AS push_provider\n            FROM user_device_certs d\n            WHERE ($1::text IS NULL OR d.user_id = $1)\n            ORDER BY d.enrolled_at DESC, d.id\n            LIMIT $2\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "user_device_certs",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id: UserId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "user_device_certs",
+            "name": "user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "label",
+        "type_info": "Varchar",
+        "origin": {
+          "Table": {
+            "table": "user_device_certs",
+            "name": "label"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "platform",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "user_device_certs",
+            "name": "platform"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "os_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "user_device_certs",
+            "name": "os_version"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "app_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "user_device_certs",
+            "name": "app_version"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "app_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "user_device_certs",
+            "name": "app_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "enrolled_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "user_device_certs",
+            "name": "enrolled_at"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "last_seen_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "user_device_certs",
+            "name": "last_seen_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "revoked_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "user_device_certs",
+            "name": "revoked_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "push_provider",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "768e66a1008ef3751bfd1eae3fe19c9f0221e883cca7cff8c9be9a43ffacb3a9"
+}

@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE user_device_certs\n            SET platform = $3, os_version = $4, app_version = $5, app_id = $6,\n                last_seen_at = CURRENT_TIMESTAMP\n            WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "dda476faa7bc571f932d0c01071fcbf3ae878aa3e32a3c982a6bbf40cae61f77"
+}

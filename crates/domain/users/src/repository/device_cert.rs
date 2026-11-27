@@ -1,4 +1,5 @@
-//! Device-certificate persistence on the user repository.
+//! Device-certificate persistence on the user repository. Revoking a device
+//! removes its push tokens in the same transaction.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -77,6 +78,7 @@ impl UserRepository {
     }
 
     pub async fn revoke_device_cert(&self, id: &DeviceCertId, user_id: &UserId) -> Result<bool> {
+        let mut tx = self.write_pool.begin().await?;
         let result = sqlx::query!(
             r#"
             UPDATE user_device_certs
@@ -86,8 +88,16 @@ impl UserRepository {
             id as _,
             user_id as _,
         )
-        .execute(&*self.write_pool)
+        .execute(&mut *tx)
         .await?;
+        sqlx::query!(
+            "DELETE FROM user_device_push_tokens WHERE device_id = $1 AND user_id = $2",
+            id as _,
+            user_id as _,
+        )
+        .execute(&mut *tx)
+        .await?;
+        tx.commit().await?;
         Ok(result.rows_affected() > 0)
     }
 }

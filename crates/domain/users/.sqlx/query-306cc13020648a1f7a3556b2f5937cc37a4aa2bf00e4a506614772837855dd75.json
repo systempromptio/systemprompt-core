@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO user_device_push_tokens (device_id, user_id, provider, token, app_id)\n            VALUES ($1, $2, $3, $4, $5)\n            ON CONFLICT (device_id, provider) DO UPDATE\n            SET token = EXCLUDED.token, app_id = EXCLUDED.app_id,\n                registered_at = CURRENT_TIMESTAMP\n            RETURNING registered_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "registered_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "user_device_push_tokens",
+            "name": "registered_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "306cc13020648a1f7a3556b2f5937cc37a4aa2bf00e4a506614772837855dd75"
+}

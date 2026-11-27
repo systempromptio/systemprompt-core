@@ -57,6 +57,7 @@ mod extension_schema_tests {
                 "user_api_keys",
                 "user_api_key_scopes",
                 "user_device_certs",
+                "user_device_push_tokens",
                 "user_rate_limit_buckets",
                 "api_key_sessions",
                 "federated_identities",
