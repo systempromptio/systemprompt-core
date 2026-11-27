@@ -1,0 +1,9 @@
+[root]
+section = "Changed"
+area = "Conferred capabilities"
+text = "When the encryption master key or the manifest signing seed cannot be read or derived, the API kernel logs the cause at `warn` before withholding the member ciphers or share tokens built from it."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Changed"
+text = "A member cipher or share-token issuer that is not seeded logs its cause; a slot-built type is held to the core-only provide rule like a provided one."
