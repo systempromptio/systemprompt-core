@@ -62,12 +62,14 @@ The native engine is host `harness`. It needs no integration: it reads the manif
 Decided (D42).
 
 - A host whose owner is `Host` is served only when the instance declares it in `external_agents` **and** the entry has `enabled: true`. No entry means withheld. A bridge-owned host keeps the existing rule: no entry means enabled.
+- On an instance that serves it, a host-owned host reaches a user only through that user's own enabled preference row. `default_enabled` does not apply to it. The row is independent of the user's bridge-owned hosts: writing it never switches one of them on or off.
 - The entry must be complete: `id`, `display_name`, `kind` and `enabled` are required and unknown keys are refused.
-- Withheld means absent from the instance's hosts, from every user's `enabled_hosts` and `host_extensions`, refused by marketplace consumer authorization for `host=harness`, and refused by the per-host model-filter route.
-- **Enabling one raises the manifest's minimum bridge version.** A bridge released before the variant parses `enabled_hosts` strictly and would fail the whole manifest; the raised floor (`manifest_min_bridge_version`, the mechanism external marketplace references already use) turns that into the upgrade-required refusal. Enabling a host-owned host is therefore a change to the instance's minimum client version, which is reserved to people (`../stages/operating-model.md` section 8).
+- Withheld means absent from the instance's hosts, from every user's `enabled_hosts` and `host_extensions`, refused by marketplace consumer authorization for `host=harness`, and refused by both preference routes, for every write that names it (enable, disable, store a filter, clear a filter).
+- **A manifest that names one carries that host's bridge floor.** A bridge released before the variant parses `enabled_hosts` strictly and would fail the whole manifest; the floor (`manifest_min_bridge_version`, the mechanism external marketplace references already use) turns that into the upgrade-required refusal. A manifest that names a host-owned host, in `enabled_hosts` or as a key of `host_model_protocols` or `host_extensions`, carries at least that host's floor. The floor is a property of the host (`HostKind::min_bridge_version`, an exhaustive match), so a later host cannot compile without naming the first bridge that parses it. The floor reaches the users whose manifests name the host, not every user of the instance.
 - **The well-known bridge document never lists a host-owned host.** It is unauthenticated, carries no version floor, and its only reader is the bridge, which does not manage such a host.
 - A user's last-host guard counts bridge-owned hosts only, so switching off every host the bridge shows cannot leave a user with only a host the bridge never lists.
-- A bridge that finds a host id it does not know in its own stored last-sync record drops it with a warning, so a rolled-back bridge still installs and uninstalls.
+- A bridge that finds a host id it does not know in its own stored last-sync record drops it with a warning, so a rolled-back bridge still installs and uninstalls. The bridge records only bridge-owned hosts in its last-sync record, so the record is also readable by the bridge released before the host existed.
+- An `external_agents` key that names no host is refused at validation.
 
 #### 3.1.3 How far `config_owner = Host` reaches
 
@@ -90,7 +92,7 @@ On the server the owner decides opt-in (3.1.2), the well-known document, the las
 #### 3.1.4 Credential, principal and attestation
 
 - The harness holds no loopback secret and no scoped host token, and the stock bridge cannot mint or accept one for it (3.1.3).
-- The gateway refuses `host-token` attestation whose declared client is a host-owned host, with a typed classification rejection, whatever principal presents it (S0-C1).
+- The gateway refuses `host-token` attestation whose declared client is a host-owned host, with a typed classification rejection, whatever principal presents it, and `host-token` attestation for a client kind that has no host.
 - Nothing new is granted on a self-declared client kind. `ClientKind` feeds attribution and one behaviour switch (recall, off unless an operator lists the kind).
 - The harness signs in through the device sign-in routes the bridge uses (device link, or a PAT exchanged for a session) and fetches its manifest and sends inference with the session that returns.
 - **Open (O6): which principal that session is, and so which attestation tier harness traffic records.** If it is a bridge principal, the `bridge-secret` channel is open to it; if it is the user's, traffic is `declared` or `user-agent`. Nothing in the specification or the S0 notes decides it. Needed by S2: S2-A1 issues the test tokens and the golden scenarios assert the tier. Until then no lane may rely on a tier above `declared`.
