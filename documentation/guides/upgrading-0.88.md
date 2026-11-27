@@ -48,7 +48,7 @@ external_agents:
 
 ## Every breaking change
 
-Each entry below is one breaking change of this release, with its migration where code must change. They are grouped by area; the same text, per crate, is under `### Breaking` in `CHANGELOG.md` and each crate's changelog. This list has 280 entries.
+Each entry below is one breaking change of this release, with its migration where code must change. They are grouped by area; the same text, per crate, is under `### Breaking` in `CHANGELOG.md` and each crate's changelog. This list has 283 entries.
 
 ## API
 
@@ -229,6 +229,7 @@ Each entry below is one breaking change of this release, with its migration wher
 - `systemprompt-mcp`: `services::network::{proxy, routing}` and `NetworkService::{create_router, apply_cors, create_proxy}` are removed; nothing in the platform served them. The crate no longer depends on `axum` or `tower-http`.
 - `systemprompt-mcp`: Removed `host`, `middleware`, `create_router`, `McpHttpConfig`, `SessionTimeouts`, `MAX_REQUEST_BODY_BYTES`, `bind_loopback`, `client_profile_from_peer`, `build_tool_list_result`, `default_server_icons` and `contract::{AccessRecorderSlot, AccessRecorderSlotBuilder, AccessRecorders}`; `services::client::validate_connection_with_auth` is replaced by `validate_hosted_service`. The member provides the session store sealed (`DynMcpSessionStore`) instead of `Arc<McpSessionRepository>`.
 - `systemprompt-config`: `register_secrets_source!`, `SecretsSourceRegistration` and `registered_external_kinds` are removed; `SecretsSources` carries the composition's external secrets sources and `SecretsService::load`, `from_secrets` and `build_external_provider` take it. `yaml_document` (with `YamlDocumentError`) is added.
+- `ConfigCredentials` carries the write and session database URLs beside the primary one, so a literal construction names `write_url` and `session_url`.
 
 ## Data access
 
@@ -286,6 +287,10 @@ Each entry below is one breaking change of this release, with its migration wher
 
 - The gateway accounting journal is an append-only, encrypted, group-committed segment log: concurrent requests share one fsync instead of several each. Receipts written by older releases in the per-file format are not replayed — drain a node (let it settle its pending receipts) before upgrading it.
 - `GatewaySurfaceRoutes::consumer_catalog` is replaced by `managed_consumer: Option<ManagedConsumer>`, which builds the `marketplace-http` consumer routes from the marketplace route state; the API no longer depends on `systemprompt-marketplace`. Migrate by reading `ManagedConsumer::catalog`.
+
+## Harness
+- `Refusal::Version` is removed: a manifest without a version never decodes, so acceptance cannot see one. Enablement is all-or-nothing per host: `ExtensionPolicy::enabled_for` yields `None` if any listed id is not an extension id.
+
 
 ## Hosts
 
@@ -350,6 +355,7 @@ No kernel crate (`systemprompt-runtime`, `-api`, `-cli`, `-scheduler`, `-mcp-hos
 - `notifications::NotificationEvent` gains `actor_is_system: bool`; `NotificationEvent::with_actor_is_system(true)` marks an event produced on the platform's own schedule (a scheduled job), whose `actor` is the account it is attributed to, and that account is then kept among the recipients, where a person's own action never notifies them. Routing reads the flag only: it is not stored on the notification and no API or SDK field carries it. An event serialised without the field decodes as `false`. Migrate a struct literal by setting `actor_is_system: false`; `NotificationEvent::new` already does.
 - The documents MCP server reaches a user's notification feed through the `NotificationInbox` seam (`systemprompt_extension::{NotificationInbox, DynNotificationInbox, InboxError}`) that the `notifications` member provides, so `documents_inbox` is offered whenever that member is admitted and `systemprompt-documents` has no `notifications` feature. `FeedQuery` and `MarkReadOutcome` move to `systemprompt_models::notifications`. Migrate by importing them from there and passing a `DynNotificationInbox` to `DocumentsMcpConfig::notifications`.
 - `NotificationAudienceResolver::dimensions` is a required method: it names every custom `Dimension` kind the resolver answers. An install resolver is consulted only for the kinds it declares, and two resolvers declaring the same kind refuse the audience set. Migrate by returning the dimension kinds the resolver handles, or `&[]` for a resolver that answers none.
+- `ChannelError` gains the `Rejected` variant for a provider that refuses a notification; it is not retried, and an exhaustive match on `ChannelError` needs the new arm.
 
 ## Observability
 

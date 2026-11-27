@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Notifications"
+text = "`ChannelError` gains the `Rejected` variant for a provider that refuses a notification; it is not retried, and an exhaustive match on `ChannelError` needs the new arm."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Breaking"
+text = "`notifications::ChannelError` gains the variant `Rejected { surface, source }`."
