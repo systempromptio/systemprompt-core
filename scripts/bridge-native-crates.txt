@@ -28,4 +28,9 @@ systemprompt-bridge-ts-export-tests
 systemprompt-bridge-validate-tests
 systemprompt-bridge-verdicts-tests
 systemprompt-bridge-window-state-tests
+systemprompt-device-tests
+systemprompt-drive-tests
+systemprompt-engine-tests
+systemprompt-harness-tests
+systemprompt-models-device-tests
 systemprompt-scripted-instance

@@ -1,0 +1,28 @@
+[package]
+name = "systemprompt-drive-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-drive crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-drive = { workspace = true }
+
+[dev-dependencies]
+systemprompt-device = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-traits = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+reqwest = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true }
+url = { workspace = true }

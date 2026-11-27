@@ -40,6 +40,7 @@ members = [
     "unit/shared/models",
     "unit/shared/models-brain",
     "unit/shared/models-notifications",
+    "unit/shared/models-device",
     "unit/shared/client",
     "unit/app/mobile",
     "unit/shared/identifiers",
@@ -55,6 +56,7 @@ members = [
     "unit/infra/logging",
     "unit/infra/security",
     "unit/infra/security/authz",
+    "unit/infra/device",
     # Unit tests - domain layer
     "unit/domain/agent",
     "unit/domain/ai",
@@ -70,6 +72,8 @@ members = [
     "unit/domain/marketplace",
     "unit/domain/slack",
     "unit/domain/teams",
+    "unit/domain/engine",
+    "unit/domain/drive",
     # Unit tests - app layer
     "unit/app/gateway",
     "unit/app/gateway-golden",
@@ -80,6 +84,7 @@ members = [
     "unit/app/scheduler",
     "unit/app/documents",
     "unit/app/issues",
+    "unit/app/harness",
     # Unit tests - entry layer
     "unit/entry/agent-runs",
     "unit/entry/analytics",
@@ -240,6 +245,9 @@ walkdir = "2.5"
 config = { version = "0.15", features = ["yaml"] }
 futures = "0.3"
 futures-util = "0.3"
+httpdate = "1"
+parking_lot = "0.13"
+rusqlite = { version = "0.39", features = ["bundled"] }
 tokio-stream = "0.1"
 bytes = "1.12"
 schemars = { version = "1.2", features = ["derive"] }
@@ -265,6 +273,7 @@ tokio-rustls = { version = "0.26", default-features = false, features = ["ring",
 webauthn-rs = { version = "0.6.2", features = ["danger-allow-state-serialisation"] }
 webauthn-authenticator-rs = { version = "0.6.2", default-features = false, features = ["softtoken"] }
 keyring-core = "1"
+security-framework = { version = "3.7", default-features = false }
 # Headless credential store for the bridge OAuth suites on Linux: the kernel
 # keyring needs no Secret Service daemon, so these tests run on a bare CI box.
 # Installed before the first entry so the bridge's own lazy platform-store
@@ -320,6 +329,9 @@ systemprompt-templates = { path = "../domain/templates" }
 systemprompt-marketplace = { path = "../domain/marketplace" }
 systemprompt-slack = { path = "../domain/slack" }
 systemprompt-teams = { path = "../domain/teams" }
+systemprompt-engine = { path = "../domain/engine" }
+systemprompt-drive = { path = "../domain/drive" }
+systemprompt-device = { path = "../infra/device" }
 systemprompt-runtime = { path = "../app/runtime" }
 systemprompt-mcp-host = { path = "../app/mcp-host" }
 systemprompt-scheduler = { path = "../app/scheduler" }
@@ -328,6 +340,7 @@ systemprompt-generator = { path = "../app/generator" }
 systemprompt-oauth-issuance = { path = "../app/oauth-issuance" }
 systemprompt-gateway = { path = "../app/gateway" }
 systemprompt-documents = { path = "../app/documents", features = ["engine-loro"] }
+systemprompt-harness = { path = "../app/harness" }
 systemprompt-issues = { path = "../app/issues", features = ["cli"] }
 systemprompt-api = { path = "../entry/api" }
 systemprompt-cli = { path = "../entry/cli" }
