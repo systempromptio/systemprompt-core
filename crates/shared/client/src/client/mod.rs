@@ -17,6 +17,7 @@ use reqwest::Client;
 use std::time::Duration;
 use systemprompt_identifiers::{AgentName, ContextId, JwtToken, TaskId};
 use systemprompt_models::a2a::{Artifact, Message, Task, methods};
+use systemprompt_models::bridge::instance::BridgeDiscovery;
 use systemprompt_models::net::{HTTP_DEFAULT_TIMEOUT, HTTP_HEALTH_CHECK_TIMEOUT};
 use systemprompt_models::{
     AgentCard, ApiPaths, CollectionResponse, CreateContextRequest, SingleResponse, UserContext,
@@ -78,6 +79,11 @@ impl SystempromptClient {
         let response: CollectionResponse<AgentCard> =
             http::get(&self.client, &url, self.token.as_ref()).await?;
         Ok(response.data)
+    }
+
+    pub async fn get_bridge_discovery(&self) -> ClientResult<BridgeDiscovery> {
+        let url = format!("{}{}", self.base_url, ApiPaths::WELLKNOWN_BRIDGE);
+        http::get(&self.client, &url, None).await
     }
 
     pub async fn get_agent_card(&self, agent_name: &str) -> ClientResult<AgentCard> {

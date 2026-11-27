@@ -1,0 +1,14 @@
+[root]
+section = "Added"
+area = "Mobile binding layer"
+text = "`systemprompt-mobile` exports its first surface through UniFFI: `Instances` (`discover` reads an instance's discovery document from an address and `active` returns the last one read), `diagnostics` (the core version the library was built from) and `MobileError`, the one error type that crosses the boundary. An address is an HTTPS origin; plain HTTP is admitted only for a loopback or private-network host. An internal failure reaches the app as a correlation id, with its cause logged on the Rust side. `SystempromptClient::get_bridge_discovery` reads `/.well-known/systemprompt-bridge`."
+
+[[crate]]
+name = "systemprompt-mobile"
+section = "Added"
+text = "`Instances`, `InstanceDiscovery`, `AppRelease`, `InstanceAddress`, `Diagnostics`, `diagnostics` and `MobileError`, annotated for UniFFI 0.33."
+
+[[crate]]
+name = "systemprompt-client"
+section = "Added"
+text = "`SystempromptClient::get_bridge_discovery` reads the instance's unauthenticated discovery document."

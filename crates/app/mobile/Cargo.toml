@@ -17,6 +17,17 @@ include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md"]
 [lints]
 workspace = true
 
+[dependencies]
+uniffi = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+uuid = { workspace = true }
+rustls = { workspace = true }
+systemprompt-client = { workspace = true }
+systemprompt-models = { workspace = true }
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
