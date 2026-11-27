@@ -49,18 +49,24 @@ pub(super) fn with_secret_issuers(
     mut state: Dependencies,
     secrets: &dyn SecretStore,
 ) -> Dependencies {
-    if let Some(ciphers) = MasterKey::from_store(secrets)
-        .ok()
-        .and_then(|key| MemberCiphers::from_master_key(&key).ok())
-    {
+    let ciphers = MasterKey::from_store(secrets)
+        .map_err(|error| -> Box<dyn std::error::Error> { Box::new(error) })
+        .and_then(|key| MemberCiphers::from_master_key(&key).map_err(Into::into))
+        .inspect_err(|error| {
+            tracing::warn!(error = %error, "member ciphers are not issued; every sealed member value is withheld");
+        });
+    if let Ok(ciphers) = ciphers {
         let issuer: DynConferralIssuer<dyn MemberCipher> = Arc::new(ciphers);
         state.insert_sealed(issuer);
     }
-    if let Some(tokens) = secrets
+    let tokens = secrets
         .manifest_signing_secret_seed()
-        .ok()
-        .and_then(|seed| MemberShareTokens::from_seed(&seed).ok())
-    {
+        .map_err(|error| -> Box<dyn std::error::Error> { Box::new(error) })
+        .and_then(|seed| MemberShareTokens::from_seed(&seed).map_err(Into::into))
+        .inspect_err(|error| {
+            tracing::warn!(error = %error, "member share tokens are not issued; every share-token conferral is withheld");
+        });
+    if let Ok(tokens) = tokens {
         let issuer: DynConferralIssuer<dyn ShareTokenSigner> = Arc::new(tokens);
         state.insert_sealed(issuer);
     }

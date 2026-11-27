@@ -1,7 +1,7 @@
 //! A table is the member's own only when no record, kernel ledger or other
 //! member's schema claims it first: a pending migration's `CREATE TABLE` of
 //! a name another member owns is refused, and a mutation is skipped only for
-//! the owner itself (K-SEC5-1).
+//! the owner itself.
 
 use systemprompt_database::lifecycle::{
     MigrationOwnershipError, Recorded, RecordedTable, TableMutation, check_migration_ownership,

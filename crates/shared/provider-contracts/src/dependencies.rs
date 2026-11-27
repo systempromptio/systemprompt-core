@@ -236,7 +236,7 @@ impl Dependencies {
     }
 
     pub fn get<T: Any + Send + Sync>(&self) -> Result<&T, MissingDependency> {
-        self.find::<T>().ok_or_else(MissingDependency::of::<T>)
+        self.find::<T>().ok_or_else(|| self.missing::<T>())
     }
 
     #[must_use]
@@ -250,7 +250,15 @@ impl Dependencies {
         self.entries
             .get(&TypeId::of::<T>())
             .and_then(|entry| Arc::clone(&entry.value).downcast::<T>().ok())
-            .ok_or_else(MissingDependency::of::<T>)
+            .ok_or_else(|| self.missing::<T>())
+    }
+
+    fn missing<T: Any + Send + Sync>(&self) -> MissingDependency {
+        if self.is_withheld::<T>() {
+            MissingDependency::withheld::<T>()
+        } else {
+            MissingDependency::of::<T>()
+        }
     }
 
     #[must_use]

@@ -1,7 +1,6 @@
-//! Stage 3 dry-run sheet: for every route group, job and command that moves
-//! or changes owner this stage, the exact value the moved code reads resolves
-//! from the context it will run in, and a value the rules withhold is refused
-//! there.
+//! For every route group, job and command a member owns, the exact value its
+//! code reads resolves from the context it runs in, and a value the rules
+//! withhold is refused there.
 
 use std::sync::Arc;
 use systemprompt_test_fixtures::AppContextSeeds as _;

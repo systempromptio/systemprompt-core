@@ -2,19 +2,19 @@
 //! object's owner, whatever spelling names it: a table form (`ALTER TABLE`,
 //! `RENAME`, `SET SCHEMA`, `OWNER TO`) of a view, materialized view,
 //! sequence or index, the object's own form, a type attribute or domain
-//! constraint alter, and a trigger create, rename or drop (K-SEC7-1/2/3/5).
+//! constraint alter, and a trigger create, rename or drop.
 //! Each row is refused for an install member, admitted for a core member and
 //! admitted when the owner runs it, so removing any one refusal turns its row
 //! red. Ownership ranks a record first, then core before install, then a
 //! declarative schema before a migration, then composition order; a held-back
 //! member owns what it creates and its schema is not judged; a member outside
-//! the composition owns what its records name (K-SEC7-4). An install
+//! the composition owns what its records name. An install
 //! member's declarative schema runs through the same judgement as a
 //! migration, every row of the table included; every relation a statement
 //! changes is judged (`INHERITS`, `PARTITION OF`, `INHERIT`, `ATTACH` and
 //! `DETACH PARTITION`), while a read or reference is not; a grant on any
 //! object is judged; a statement kind the reader does not classify is refused
-//! for an install and logged for core (K-SEC8-1/3/6).
+//! for an install and logged for core.
 
 use std::sync::Arc;
 

@@ -1,10 +1,10 @@
 //! A data write into a kernel ledger by any member other than `database`
 //! is refused, except a `DELETE` of the `extension_migrations` rows of
-//! members no longer in the composition (K-SEC5-4). Every other statement on
+//! members no longer in the composition. Every other statement on
 //! a ledger, a trigger, index, rule or policy included, is refused at either
 //! standing, in a migration or an install's declarative schema, and so is a
 //! rule whose action writes a ledger; an install member registered as
-//! `database` holds none of that member's rights (K-SEC8-1/5/6).
+//! `database` holds none of that member's rights.
 
 use systemprompt_database::lifecycle::{MigrationOwnershipError, TableMutation};
 use systemprompt_extension::{Migration, StandingTag};

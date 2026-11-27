@@ -24,7 +24,7 @@ pub enum ExportCapability {
 #[error(
     "observability.otlp names the collector {endpoint}, but this build was compiled without \
      the `otel` feature and cannot export to it; build with the `otel` feature (the \
-     `systemprompt` facade's `otel`, included in `full`) or remove the observability.otlp \
+     `systemprompt` facade's `otel`, included in `reference`) or remove the observability.otlp \
      block"
 )]
 pub struct OtlpExportUnavailable {
@@ -32,11 +32,7 @@ pub struct OtlpExportUnavailable {
 }
 
 impl ExportCapability {
-    pub const COMPILED: Self = if cfg!(feature = "otel") {
-        Self::Linked
-    } else {
-        Self::NotLinked
-    };
+    pub const COMPILED: Self = compiled::CAPABILITY;
 
     pub fn admit(self, otlp: Option<&OtlpExportConfig>) -> Result<(), OtlpExportUnavailable> {
         match (self, otlp) {
@@ -46,4 +42,14 @@ impl ExportCapability {
             _ => Ok(()),
         }
     }
+}
+
+#[cfg(feature = "otel")]
+mod compiled {
+    pub(super) const CAPABILITY: super::ExportCapability = super::ExportCapability::Linked;
+}
+
+#[cfg(not(feature = "otel"))]
+mod compiled {
+    pub(super) const CAPABILITY: super::ExportCapability = super::ExportCapability::NotLinked;
 }

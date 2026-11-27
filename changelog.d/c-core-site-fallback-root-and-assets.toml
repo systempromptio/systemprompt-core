@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Site fallback"
+text = "With a site fallback admitted and no `index.html` in the web dist, `GET /` reaches the fallback instead of answering `404`. A path the site fallback answers is judged by site auth by its prefix, so a protected path ending in a static-asset extension (`/admin/report.js`) needs a session like any page."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Fixed"
+text = "The site fallback answers `/` on a static miss, and site auth skips the static-asset extension check for any request the site fallback answers."

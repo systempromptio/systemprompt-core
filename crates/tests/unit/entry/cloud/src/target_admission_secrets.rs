@@ -1,6 +1,6 @@
 //! A target-admission refusal names the variable a disabled entry came from,
 //! never its resolved value, in the error chain and in the doctor's
-//! composition check; a literal unknown id is still named (K-SEC5-3).
+//! composition check; a literal unknown id is still named.
 
 #![allow(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
 
@@ -16,7 +16,7 @@ use systemprompt_extension::cli::{CliConfig, CommandDescriptor, CommandError, Co
 
 use crate::target_host::reference_admit;
 
-const SECRET: &str = "sk-live-kfix8-0f9e8d7c6b5a4f3e";
+const SECRET: &str = "sk-live-probe-0f9e8d7c6b5a4f3e";
 
 struct Target {
     _dir: tempfile::TempDir,
@@ -108,16 +108,16 @@ fn a_disabled_field_that_is_not_a_list_is_named_by_the_variable() {
 
 #[test]
 fn a_literal_unknown_id_is_named_as_written() {
-    let profile = target("  disabled:\n    - \"no-such-member-kfix8\"\n");
+    let profile = target("  disabled:\n    - \"no-such-member-probe\"\n");
     let error = admit(&profile.path);
     let text = chain(&error);
-    assert!(text.contains("no-such-member-kfix8"), "{text}");
+    assert!(text.contains("no-such-member-probe"), "{text}");
     assert!(
         composition_failure(&error)
             .detail
-            .contains("no-such-member-kfix8")
+            .contains("no-such-member-probe")
     );
-    let literal = target("  disabled: \"no-such-member-kfix8\"\n");
+    let literal = target("  disabled: \"no-such-member-probe\"\n");
     assert!(matches!(
         read_disabled(&literal.path),
         Err(TargetAdmissionError::Parse { .. })

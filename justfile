@@ -1082,7 +1082,7 @@ worktree NAME REF="origin/next":
     echo "$WT"
 
 # Per-worktree target dirs plus the shared sccache wrapper for a worktree made
-# another way (a lane branch's `git worktree add`); see scripts/worktree-cache.sh.
+# another way (a plain `git worktree add`); see scripts/worktree-cache.sh.
 worktree-cache PATH:
     bash scripts/worktree-cache.sh "{{PATH}}"
 

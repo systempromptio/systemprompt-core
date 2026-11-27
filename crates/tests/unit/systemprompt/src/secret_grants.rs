@@ -10,12 +10,12 @@ use crate::probe::{Probe, profile};
 fn a_secret_grant_to_an_unknown_member_is_refused() {
     let mut granted = profile(&[]);
     granted.extensions.secrets.insert(
-        ExtensionId::new("no-such-member-fx2"),
+        ExtensionId::new("no-such-member-grant"),
         vec![systemprompt_traits::SecretPattern::parse("acme_*").expect("a prefix")],
     );
     assert!(matches!(
         reference().build(&granted),
-        Err(CompositionError::UnknownSecretGrant(id)) if id.as_str() == "no-such-member-fx2"
+        Err(CompositionError::UnknownSecretGrant(id)) if id.as_str() == "no-such-member-grant"
     ));
 }
 
@@ -23,11 +23,11 @@ fn a_secret_grant_to_an_unknown_member_is_refused() {
 fn a_secret_grant_to_a_composed_member_is_admitted() {
     let mut granted = profile(&[]);
     granted.extensions.secrets.insert(
-        ExtensionId::new("probe-granted-fx2"),
+        ExtensionId::new("probe-granted-secret"),
         vec![systemprompt_traits::SecretPattern::parse("acme_*").expect("a prefix")],
     );
     reference()
-        .with(Probe::new("probe-granted-fx2", |c| {
+        .with(Probe::new("probe-granted-secret", |c| {
             c.secret_prefix("acme_");
         }))
         .build(&granted)

@@ -7,15 +7,18 @@ handoff the kernel mounts and dispatches from; only the facade
 verified gateway caller; only the API kernel's gateway verifier
 (`crates/entry/api/src/routes/gateway/registered.rs`) calls it, after the
 request authenticator accepted the bearer.
-A call anywhere else in the root workspace's production source fails.
+A call or any other reference (a function pointer) anywhere else in the root
+workspace's production source fails.
 
 The facade also must not re-export a `systemprompt_api` or
 `systemprompt_cli` function that takes an `Admitted` or a
 `DeclaredCommands` (`run_composed`, `mount_admitted`, ...), so an install
 reaches the kernel only through `Composition`. The banned set is read from
-the `pub fn` signatures in those two crates. A `pub use` in the facade that
-names one, globs (`*`) either crate or a module of it, or aliases either
-crate whole, fails: a glob or alias re-exports every such function.
+the `pub fn` signatures in those two crates (`const`, `async`, `unsafe` and
+`extern` qualifiers included). A `pub use` in the facade (with or without a
+leading `::`) that names one, globs (`*`) either crate or a module of it, or
+aliases either crate whole, fails: a glob or alias re-exports every such
+function. An `extern crate` of either crate in the facade fails too.
 
 This gate binds core only; `crates/tests` (a separate workspace whose
 acceptance tests forge handoffs on purpose) is not scanned. Installs are
@@ -40,6 +43,7 @@ SCANNED = ("crates", FACADE)
 EXCLUDED = ("crates/tests",)
 KERNEL_CRATES = {"systemprompt_api": "crates/entry/api/src", "systemprompt_cli": "crates/entry/cli/src"}
 HANDOFF_TYPES = {"Admitted", "DeclaredCommands"}
+FN_QUALIFIERS = {("id", "const"), ("id", "async"), ("id", "unsafe"), ("id", "extern")}
 
 
 def under(rel, prefixes):
@@ -55,8 +59,8 @@ def constructor_calls(root):
                 continue
             if i > 0 and tokens[i - 1][:2] == ("id", "fn"):
                 continue
-            if i + 1 < len(tokens) and tokens[i + 1][:2] == ("p", "(") and not under(rel, ALLOWED[value]):
-                found.append(f"  {rel}:{line}: calls {value} outside {', '.join(ALLOWED[value])}")
+            if not under(rel, ALLOWED[value]):
+                found.append(f"  {rel}:{line}: references {value} outside {', '.join(ALLOWED[value])}")
     return found
 
 
@@ -66,9 +70,14 @@ def handoff_fns(root):
         for _, path in rust_files(root, (src,)):
             tokens = located(path.read_text())
             for i in range(len(tokens) - 2):
-                if tokens[i][:2] == ("id", "pub") and tokens[i + 1][:2] == ("id", "fn"):
-                    name = tokens[i + 2][1]
-                    j = i + 3
+                if tokens[i][:2] != ("id", "pub"):
+                    continue
+                k = i + 1
+                while k < len(tokens) and (tokens[k][0] == "str" or tokens[k][:2] in FN_QUALIFIERS):
+                    k += 1
+                if k + 1 < len(tokens) and tokens[k][:2] == ("id", "fn"):
+                    name = tokens[k + 1][1]
+                    j = k + 2
                     while j < len(tokens) and tokens[j][:2] not in (("p", "{"), ("p", ";")):
                         if tokens[j][0] == "id" and tokens[j][1] in HANDOFF_TYPES:
                             banned.add(name)
@@ -82,11 +91,16 @@ def facade_reexports(root, banned):
         tokens = located(path.read_text())
         i = 0
         while i < len(tokens) - 1:
+            if (tokens[i][:2] == ("id", "extern") and tokens[i + 1][:2] == ("id", "crate")
+                    and i + 2 < len(tokens) and tokens[i + 2][1] in KERNEL_CRATES):
+                found.append(f"  {rel}:{tokens[i][2]}: extern crate {tokens[i + 2][1]} reaches its handoff functions")
             if tokens[i][:2] == ("id", "pub") and tokens[i + 1][:2] == ("id", "use"):
                 j = i + 2
                 while j < len(tokens) and tokens[j][:2] != ("p", ";"):
                     j += 1
                 stmt = tokens[i + 2:j]
+                while stmt and stmt[0][:2] == ("p", ":"):
+                    stmt = stmt[1:]
                 if stmt and stmt[0][0] == "id" and stmt[0][1] in KERNEL_CRATES:
                     crate = stmt[0][1]
                     names = {t[1] for t in stmt if t[0] == "id"}

@@ -104,16 +104,18 @@ async fn an_admin_reaches_the_link_analytics_handlers() -> anyhow::Result<()> {
         .execute(pool.pool().as_ref())
         .await?;
     for template in ANALYTICS_READS {
-        let status = app
+        let response = app
             .clone()
             .oneshot(read(template, Some(admin.jwt.as_str()))?)
-            .await?
-            .status();
+            .await?;
+        let status = response.status();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await?;
         let refused = [401, 403].contains(&status.as_u16());
         let unmounted = status.as_u16() == 404 && !template.contains("{id}");
         assert!(
             !refused && !unmounted,
-            "{template} does not reach its handler for an admin: {status}"
+            "{template} does not reach its handler for an admin: {status} {}",
+            String::from_utf8_lossy(&body)
         );
     }
     Ok(())

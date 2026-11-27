@@ -7,7 +7,9 @@
 //! `HEAD` the static router serves is its answer, and only a response marked
 //! [`StaticMiss`] is handed to the site fallback with the original request.
 //! Every other method goes to the site fallback directly, since static content
-//! is read-only.
+//! is read-only. Every request the site fallback receives carries
+//! [`StaticMiss`] as a request extension, so the site-auth gate in front of it
+//! never lets a path through for its static-asset extension alone.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -63,8 +65,9 @@ impl RootFallback {
     }
 }
 
-async fn static_first(statics: Router, site: Router, request: Request) -> Response {
+async fn static_first(statics: Router, site: Router, mut request: Request) -> Response {
     if !matches!(*request.method(), Method::GET | Method::HEAD) {
+        request.extensions_mut().insert(StaticMiss);
         return answer(site, request).await;
     }
     let (parts, body) = request.into_parts();
@@ -72,7 +75,9 @@ async fn static_first(statics: Router, site: Router, request: Request) -> Respon
     if response.extensions().get::<StaticMiss>().is_none() {
         return response;
     }
-    answer(site, Request::from_parts(parts, body)).await
+    let mut request = Request::from_parts(parts, body);
+    request.extensions_mut().insert(StaticMiss);
+    answer(site, request).await
 }
 
 async fn answer(router: Router, request: Request) -> Response {

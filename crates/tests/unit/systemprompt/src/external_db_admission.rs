@@ -3,7 +3,7 @@
 //! member's command, `Direct` routing included, is refused with
 //! `CommandDisabled`, and a kernel command (`infra db migrate`) admits a
 //! composition without the disabled member, so its schema is not installed.
-//! Only a run with no profile at all admits every linked member (K-SEC4-3).
+//! Only a run with no profile at all admits every linked member.
 
 use systemprompt::reference;
 use systemprompt_cli::CliRunError;
