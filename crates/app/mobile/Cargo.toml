@@ -1,0 +1,32 @@
+[package]
+name = "systemprompt-mobile"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "The binding layer of systemprompt.io for phones: the surface the iOS and Android apps call."
+readme = "README.md"
+include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md"]
+
+[lints]
+workspace = true
+
+[dependencies]
+uniffi = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+uuid = { workspace = true }
+rustls = { workspace = true }
+systemprompt-client = { workspace = true }
+systemprompt-models = { workspace = true }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

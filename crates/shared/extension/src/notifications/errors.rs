@@ -102,12 +102,18 @@ pub enum ChannelError {
         #[source]
         source: BoxedSource,
     },
+    #[error("channel {surface} refused the notification")]
+    Rejected {
+        surface: &'static str,
+        #[source]
+        source: BoxedSource,
+    },
 }
 
 impl ChannelError {
     #[must_use]
     pub const fn is_retryable(&self) -> bool {
-        !matches!(self, Self::Encode(_))
+        !matches!(self, Self::Encode(_) | Self::Rejected { .. })
     }
 }
 

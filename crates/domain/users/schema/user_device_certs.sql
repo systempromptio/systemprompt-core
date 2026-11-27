@@ -4,7 +4,13 @@ CREATE TABLE IF NOT EXISTS user_device_certs (
     fingerprint VARCHAR(128) NOT NULL UNIQUE,
     label VARCHAR(100) NOT NULL,
     enrolled_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    revoked_at TIMESTAMPTZ
+    revoked_at TIMESTAMPTZ,
+    platform TEXT NOT NULL DEFAULT 'unknown'
+        CHECK (platform IN ('ios', 'android', 'macos', 'windows', 'linux', 'unknown')),
+    os_version TEXT,
+    app_version TEXT,
+    app_id TEXT,
+    last_seen_at TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS idx_user_device_certs_user ON user_device_certs(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_device_certs_fingerprint_active

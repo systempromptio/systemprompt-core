@@ -61,6 +61,9 @@ mod routes_mcp_registry_mounted;
 mod routes_wellknown;
 
 #[cfg(test)]
+mod routes_wellknown_association;
+
+#[cfg(test)]
 mod routes_wellknown_agent_cards_populated;
 
 #[cfg(test)]

@@ -41,6 +41,7 @@ members = [
     "unit/shared/models-brain",
     "unit/shared/models-notifications",
     "unit/shared/client",
+    "unit/app/mobile",
     "unit/shared/identifiers",
     "unit/shared/provider-contracts",
     "unit/shared/template-provider",
@@ -291,6 +292,7 @@ systemprompt-models = { path = "../shared/models", features = ["mcp"] }
 systemprompt-wire = { path = "../shared/wire" }
 systemprompt-manifest = { path = "../shared/manifest" }
 systemprompt-client = { path = "../shared/client" }
+systemprompt-mobile = { path = "../app/mobile" }
 systemprompt-template-provider = { path = "../shared/template-provider", features = ["tokio"] }
 systemprompt-database = { path = "../infra/database" }
 systemprompt-logging = { path = "../infra/logging" }

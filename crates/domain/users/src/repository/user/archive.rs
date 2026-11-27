@@ -3,12 +3,13 @@
 //! An archive keeps the `users` row and everything that keys on it: the row
 //! moves to status `deleted` — which every listing, search and sign-in path
 //! already excludes — and records who archived it, when and why. The same
-//! transaction revokes the user's sessions, API keys and device certificates,
-//! so nothing issued before the archive authenticates after it. A restore
-//! inside the retention window reverses the status and the archive fields;
-//! revoked credentials stay revoked and are re-issued by signing in again.
-//! Physical removal is the purge in `updates.rs`, run for an archive past the
-//! window by `database_cleanup` and refused while `legal_hold` is set.
+//! transaction revokes the user's sessions, API keys and device certificates
+//! and removes the devices' push tokens, so nothing issued before the archive
+//! authenticates after it and no push reaches an archived user's device. A
+//! restore inside the retention window reverses the status and the archive
+//! fields; revoked credentials stay revoked and are re-issued by signing in
+//! again. Physical removal is the purge in `updates.rs`, run for an archive
+//! past the window by `database_cleanup` and refused while `legal_hold` is set.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -94,6 +95,12 @@ impl UserRepository {
         .await?;
         let device_certs = sqlx::query!(
             "UPDATE user_device_certs SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL",
+            id as _
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            "DELETE FROM user_device_push_tokens WHERE user_id = $1",
             id as _
         )
         .execute(&mut *tx)

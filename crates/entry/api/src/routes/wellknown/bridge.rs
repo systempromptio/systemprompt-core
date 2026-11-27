@@ -1,10 +1,13 @@
 //! `/.well-known/systemprompt-bridge`, the unauthenticated discovery document.
 //!
 //! A shared bridge binary reads it to find this instance's sign-in and
-//! identity routes, its branding and the hosts it serves. It carries no trust
-//! material. The bridge is its only reader and manages no host that configures
-//! itself, so `enabled_hosts` lists the [`ConfigOwner::Bridge`] hosts only: a
-//! bridge of any version parses the document whatever the instance enables.
+//! identity routes, its branding and the hosts it serves; a phone reads its
+//! `clients` section to learn which app the instance offers, the oldest
+//! version it still supports and where to get it. It carries no trust
+//! material and is built from configuration alone. The bridge manages no host
+//! that configures itself, so `enabled_hosts` lists the
+//! [`ConfigOwner::Bridge`] hosts only: a bridge of any version parses the
+//! document whatever the instance enables.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -59,5 +62,6 @@ pub fn discovery_document(services: &ServicesConfig) -> Option<BridgeDiscovery> 
             .into_iter()
             .filter(|host| host.config_owner() == ConfigOwner::Bridge)
             .collect(),
+        clients: instance.clients.to_clients(),
     })
 }

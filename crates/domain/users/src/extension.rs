@@ -23,7 +23,14 @@
 //! member's store), and exposes no create, revoke or mint; with no store bound
 //! every token id is refused. The
 //! per-user rate-limit windows (`DynRateLimitBuckets`) are open: they charge
-//! one hit and read back the window's count, with no reset or prune.
+//! one hit and read back the window's count, with no reset or prune. The push
+//! token directory (`DynPushTokenDirectory`: every live token of a user's
+//! unrevoked devices, and the removal of one) is **sealed**, since a token is
+//! the address a push reaches a device at: the notification channels read it
+//! in their factories. The device push service (`Arc<DevicePushService>`) is
+//! open: it writes and removes a token only for the active device a caller
+//! proves by its enrolment fingerprint, and lists device records without
+//! their tokens.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -32,6 +39,7 @@ use std::sync::Arc;
 
 use systemprompt_database::DbPool;
 use systemprompt_extension::NotificationAudienceResolver;
+use systemprompt_extension::notifications::DynPushTokenDirectory;
 use systemprompt_extension::prelude::*;
 use systemprompt_governance::authz::SharedRoleDirectory;
 use systemprompt_governance::contract::RoleDirectorySlot;
@@ -46,7 +54,7 @@ use crate::repository::{
     BannedIpRepository, SessionRepository, UserRepository, UsersRoleDirectory,
     UsersRoleSubjectProvider,
 };
-use crate::services::UserRoleAudienceResolver;
+use crate::services::{DevicePushService, UserRoleAudienceResolver};
 
 type RoleAudienceSeam = CoreSeam<dyn NotificationAudienceResolver, RoleAudience>;
 
@@ -66,7 +74,11 @@ impl Extension for UsersExtension {
         for schema in schemas() {
             c.schema(schema);
         }
-        for table in ["user_rate_limit_buckets", "sso_login_events"] {
+        for table in [
+            "user_rate_limit_buckets",
+            "sso_login_events",
+            "user_device_push_tokens",
+        ] {
             c.user_purge(UserPurgeTable {
                 table,
                 column: "user_id",
@@ -106,6 +118,18 @@ impl Extension for UsersExtension {
                 ConferralRow::IdentitySignInSessions,
                 crate::provides::sign_in_sessions,
             )
+            .provide_sealed(|r: &Resolved<'_>| {
+                let db = r.get::<DbPool>()?;
+                let directory: DynPushTokenDirectory =
+                    Arc::new(DevicePushService::new(Arc::new(UserRepository::new(&db))));
+                Ok(directory)
+            })
+            .provide(|r: &Resolved<'_>| {
+                let db = r.get::<DbPool>()?;
+                Ok(Arc::new(DevicePushService::new(Arc::new(
+                    UserRepository::new(&db),
+                ))))
+            })
             .provide(crate::provides::request_authenticator)
             .provide(crate::provides::rate_limit_buckets)
             .provide(|r: &Resolved<'_>| {
@@ -196,6 +220,17 @@ fn schemas() -> Vec<SchemaDefinition> {
             "user_id".into(),
             "fingerprint".into(),
             "label".into(),
+            "platform".into(),
+        ]),
+        SchemaDefinition::new(
+            "user_device_push_tokens",
+            include_str!("../schema/user_device_push_tokens.sql"),
+        )
+        .with_required_columns(vec![
+            "device_id".into(),
+            "user_id".into(),
+            "provider".into(),
+            "token".into(),
         ]),
         SchemaDefinition::new(
             "user_rate_limit_buckets",

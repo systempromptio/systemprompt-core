@@ -26,6 +26,7 @@ DEVICE_LAYERS = {
     "systemprompt-drive": "domain",
     "systemprompt-runner": "domain",
     "systemprompt-harness": "app",
+    "systemprompt-mobile": "app",
 }
 SERVER = {
     "systemprompt-identifiers": ("shared", "kernel", ()),

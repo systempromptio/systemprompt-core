@@ -62,6 +62,12 @@ impl UserRepository {
         )
         .execute(&mut *tx)
         .await?;
+        sqlx::query!(
+            "DELETE FROM user_device_push_tokens WHERE user_id = ANY($1)",
+            user_ids as _
+        )
+        .execute(&mut *tx)
+        .await?;
         tx.commit().await?;
         Ok(result.rows_affected())
     }

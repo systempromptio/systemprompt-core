@@ -2,8 +2,8 @@
 //! and the bridge inbox under `/v1/bridge/notifications`.
 //!
 //! They serve a user's notification feed, seen, read and escalation state,
-//! streams, subscriptions and personal rules, and the admin routing
-//! simulator.
+//! streams, subscriptions and personal rules, the calling device's push
+//! token, the admin routing simulator and the admin device list.
 //!
 //! [`user_routes`], [`admin_routes`] and [`bridge_routes`] are the three
 //! route sets the member contributes, each with its conferred shape; the
@@ -21,6 +21,7 @@
 
 mod admin;
 mod bridge;
+pub mod devices;
 mod error;
 mod escalate;
 mod feed;
@@ -44,12 +45,15 @@ use systemprompt_models::RequestContext;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::notifications::{SURFACE_API, SURFACE_DASHBOARD};
 use systemprompt_notifications::service::{NotificationsService, NotificationsServiceSlot};
+use systemprompt_users::DevicePushService;
 
 /// State of every notification route set: the one notification service,
-/// read from the late-bound handle the composition root binds.
+/// read from the late-bound handle the composition root binds, and the
+/// device push service the users member provides.
 #[derive(Clone)]
 pub struct NotificationsState {
     pub(crate) service: Arc<NotificationsService>,
+    pub(crate) devices: Arc<DevicePushService>,
 }
 
 impl std::fmt::Debug for NotificationsState {
@@ -66,6 +70,7 @@ impl FromState for NotificationsState {
             .ok_or_else(MissingDependency::of::<NotificationsService>)?;
         Ok(Self {
             service: Arc::clone(service),
+            devices: r.get::<Arc<DevicePushService>>()?,
         })
     }
 }
@@ -122,6 +127,18 @@ pub fn user_routes() -> RouteSet {
     )
     .route(Method::GET, "/rules", rules::list, USER)
     .route(Method::PUT, "/rules", rules::replace, USER)
+    .route(
+        Method::PUT,
+        devices::PUSH_TOKEN_ROUTE,
+        devices::register,
+        USER,
+    )
+    .route(
+        Method::DELETE,
+        devices::PUSH_TOKEN_ROUTE,
+        devices::revoke,
+        USER,
+    )
     .build()
 }
 
@@ -132,6 +149,12 @@ pub fn admin_routes() -> RouteSet {
         RouteGroup::ContentAndMisc,
     )
     .route(Method::POST, "/simulate", admin::simulate, ADMIN)
+    .route(
+        Method::GET,
+        devices::ADMIN_DEVICES_ROUTE,
+        devices::list,
+        ADMIN,
+    )
     .build()
 }
 

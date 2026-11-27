@@ -21,6 +21,7 @@ pub const MERGE_EXCLUDED_SECURITY_TABLES: &[&str] = &[
     "webauthn_setup_tokens",
     "user_api_keys",
     "user_device_certs",
+    "user_device_push_tokens",
     "bridge_sessions",
     "bridge_exchange_codes",
     "federated_identities",

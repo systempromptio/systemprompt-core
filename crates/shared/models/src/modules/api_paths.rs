@@ -76,6 +76,9 @@ impl ApiPaths {
     pub const WELLKNOWN_OAUTH_PROTECTED: &'static str = "/.well-known/oauth-protected-resource";
     pub const WELLKNOWN_JWKS: &'static str = "/.well-known/jwks.json";
     pub const WELLKNOWN_BRIDGE: &'static str = "/.well-known/systemprompt-bridge";
+    pub const WELLKNOWN_APPLE_APP_SITE_ASSOCIATION: &'static str =
+        "/.well-known/apple-app-site-association";
+    pub const WELLKNOWN_ASSETLINKS: &'static str = "/.well-known/assetlinks.json";
 
     pub const A2A_CARD: &'static str = "/api/a2a/card";
 
@@ -142,7 +145,9 @@ impl ApiPaths {
     pub const PUBLIC_DOCUMENT_LINKS: &'static str = "/s";
     pub const NOTIFICATIONS: &'static str = "/api/v1/notifications";
     pub const NOTIFICATIONS_SEEN: &'static str = "/api/v1/notifications/seen";
+    pub const NOTIFICATIONS_PUSH_TOKEN: &'static str = "/api/v1/notifications/push-token";
     pub const ADMIN_NOTIFICATIONS: &'static str = "/api/v1/admin/notifications";
+    pub const ADMIN_NOTIFICATIONS_DEVICES: &'static str = "/api/v1/admin/notifications/devices";
     pub const BRAIN: &'static str = "/api/v1/brain";
     pub const ADMIN_BRAIN: &'static str = "/api/v1/admin/brain";
     pub const ADMIN_API_KEYS: &'static str = "/api/v1/admin/api-keys";

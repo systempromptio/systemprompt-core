@@ -1,0 +1,9 @@
+[root]
+section = "Added"
+area = "Device crates"
+text = "New crate `systemprompt-mobile` (app layer) is the binding layer the iOS and Android apps link. It declares no items and has no dependencies. `just lint-layers` and `just lint-device-closure` judge it with the other device crates, and `just lint-phone-closure` refuses any crate it reaches other than `systemprompt-device`, `systemprompt-harness` and the shared layer, following only the optional dependencies its enabled features turn on."
+
+[[crate]]
+name = "systemprompt-mobile"
+section = "Added"
+text = "New crate. It declares no items and has no dependencies."

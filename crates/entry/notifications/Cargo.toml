@@ -29,6 +29,7 @@ http = [
     "dep:systemprompt-models",
     "dep:systemprompt-notifications",
     "dep:systemprompt-traits",
+    "dep:systemprompt-users",
     "dep:axum",
     "dep:serde",
     "dep:thiserror",
@@ -41,6 +42,7 @@ systemprompt-identifiers = { workspace = true, optional = true }
 systemprompt-models = { workspace = true, optional = true }
 systemprompt-notifications = { workspace = true, optional = true }
 systemprompt-traits = { workspace = true, optional = true }
+systemprompt-users = { workspace = true, optional = true }
 axum = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }

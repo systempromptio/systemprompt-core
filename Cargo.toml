@@ -53,6 +53,7 @@ members = [
     "crates/app/documents",
     "crates/app/issues",
     "crates/app/harness",
+    "crates/app/mobile",
     # Entry layer
     "crates/entry/api",
     "crates/entry/cli",
@@ -286,6 +287,7 @@ ipnet = "2.12"
 xxhash-rust = { version = "0.8", features = ["xxh64"] }
 schemars = { version = "1.2", features = ["derive", "chrono04"] }
 url = "2.5"
+uniffi = { version = "0.33", features = ["tokio"] }
 urlencoding = "2.1"
 async-stream = "0.3"
 wiremock = "0.6"
@@ -389,6 +391,7 @@ systemprompt-gateway = { path = "crates/app/gateway", version = "0.87.0" }
 systemprompt-documents = { path = "crates/app/documents", version = "0.87.0" }
 systemprompt-issues = { path = "crates/app/issues", version = "0.87.0" }
 systemprompt-harness = { path = "crates/app/harness", version = "0.87.0" }
+systemprompt-mobile = { path = "crates/app/mobile", version = "0.87.0" }
 systemprompt-api = { path = "crates/entry/api", version = "0.87.0" }
 systemprompt-cli = { path = "crates/entry/cli", version = "0.87.0" }
 systemprompt-slack-entry = { path = "crates/entry/slack", version = "0.87.0" }

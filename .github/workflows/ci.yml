@@ -68,6 +68,8 @@ jobs:
       run_fmt: ${{ steps.plan.outputs.run_fmt }}
       run_build: ${{ steps.plan.outputs.run_build }}
       run_build_no_engine: ${{ steps.plan.outputs.run_build_no_engine }}
+      run_phone_android: ${{ steps.plan.outputs.run_phone_android }}
+      run_phone_ios: ${{ steps.plan.outputs.run_phone_ios }}
       run_compositions: ${{ steps.plan.outputs.run_compositions }}
       run_migrator: ${{ steps.plan.outputs.run_migrator }}
       run_test_tools: ${{ steps.plan.outputs.run_test_tools }}
@@ -213,6 +215,45 @@ jobs:
               | grep -E '^loro' ; then
             echo "::error::a document engine is linked without the collab-loro feature"; exit 1
           fi
+
+  # The crates a phone links (the binding crate and the shared crates under
+  # it) are checked for the three Android targets here and the three iOS
+  # targets below; nothing else in the workspace compiles for a phone.
+  phone-android:
+    name: Phone targets (Android)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: affected
+    if: needs.affected.outputs.run_phone_android == 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+      - run: rustup show
+      - run: rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+      - uses: ./.github/actions/sccache
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        with:
+          tool: cargo-ndk@4.1.2
+      - run: ANDROID_NDK_HOME="$ANDROID_NDK_LATEST_HOME" cargo ndk -t arm64-v8a -t armeabi-v7a -t x86_64 check -p systemprompt-mobile -p systemprompt-client -p systemprompt-models -p systemprompt-identifiers -p systemprompt-wire -p systemprompt-provider-contracts -p systemprompt-traits --locked
+
+  phone-ios:
+    name: Phone targets (iOS)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    needs: affected
+    if: needs.affected.outputs.run_phone_ios == 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+      - run: rustup show
+      - run: rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+      - uses: ./.github/actions/sccache
+      - run: |
+          for target in aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios; do
+            cargo check --target "$target" -p systemprompt-mobile -p systemprompt-client -p systemprompt-models -p systemprompt-identifiers -p systemprompt-wire -p systemprompt-provider-contracts -p systemprompt-traits --locked
+          done
 
   # Every supported composition (scripts/build-compositions.txt) is built
   # against the committed lock; a composition flagged `boot` links the
@@ -483,7 +524,7 @@ jobs:
     name: Escape report
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [affected, fmt, build, build-no-engine, compositions, migrator, test-tools, test, schema-ladder]
+    needs: [affected, fmt, build, build-no-engine, phone-android, phone-ios, compositions, migrator, test-tools, test, schema-ladder]
     if: ${{ always() && needs.affected.outputs.shadow == 'true' }}
     permissions:
       contents: read
@@ -523,7 +564,7 @@ jobs:
     name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'CI passed' || 'CI passed (push)' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [affected, gate-plan, fmt, build, build-no-engine, compositions, migrator, test-tools, test, schema-ladder]
+    needs: [affected, gate-plan, fmt, build, build-no-engine, phone-android, phone-ios, compositions, migrator, test-tools, test, schema-ladder]
     if: always()
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

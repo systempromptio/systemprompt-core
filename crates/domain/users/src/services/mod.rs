@@ -2,8 +2,9 @@
 //!
 //! Wraps the repositories behind cohesive services: [`UserService`] for
 //! account lifecycle and sessions, [`UserAdminService`] for promote/demote
-//! workflows, [`ApiKeyService`] for API-key issuance, and [`DeviceCertService`]
-//! for device-certificate enrollment. [`UserService`] itself implements the
+//! workflows, [`ApiKeyService`] for API-key issuance, [`DeviceCertService`]
+//! for device-certificate enrollment, and [`DevicePushService`] for a device's
+//! push token and client info. [`UserService`] itself implements the
 //! cross-crate `UserProvider` trait (see `user::provider`).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -13,6 +14,7 @@ mod admin_service;
 mod api_key_service;
 mod api_key_validation;
 mod device_cert_service;
+mod device_push_service;
 mod role_audience;
 mod service_accounts;
 mod sso_events;
@@ -25,6 +27,9 @@ pub use api_key_service::{ApiKeyLifetime, ApiKeyService, EnsuredApiKey, IssueApi
 pub use device_cert_service::{
     DEVICE_FINGERPRINT_FOREIGN_USER, DeviceCertService,
     EnrollParams as EnrollDeviceCertServiceParams,
+};
+pub use device_push_service::{
+    ADMIN_DEVICE_LIST_LIMIT, DevicePushError, DevicePushService, MAX_OS_VERSION_LEN,
 };
 pub use role_audience::UserRoleAudienceResolver;
 pub use service_accounts::UsersServiceAccounts;

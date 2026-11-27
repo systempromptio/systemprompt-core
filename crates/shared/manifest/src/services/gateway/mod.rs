@@ -24,7 +24,8 @@ mod route_id;
 mod state;
 
 pub use config::{
-    BridgeBrandingSpec, BridgeInstanceSpec, BridgeReleasesSpec, GatewayConfig, GatewayConfigSpec,
+    AndroidClientSpec, BridgeBrandingSpec, BridgeClientsError, BridgeClientsSpec,
+    BridgeInstanceSpec, BridgeReleasesSpec, GatewayConfig, GatewayConfigSpec, IosClientSpec,
     QuotaFaultMode,
 };
 pub use error::{GatewayProfileError, GatewayResult};

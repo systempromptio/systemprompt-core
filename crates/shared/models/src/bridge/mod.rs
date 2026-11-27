@@ -20,6 +20,8 @@
 //!   lockdown, rendered once for the bridge and the headless host.
 //! - [`manifest_version`] — the parsed `<rfc3339>-<hex>` version identifier
 //!   carried inside every manifest.
+//! - [`clients`] — the native apps an instance offers in its discovery document
+//!   and the per-platform minimum versions.
 //! - [`gateway`] — the whoami, device self-enrolment, session PAT and release
 //!   feed bodies.
 //! - [`host`] — [`host::HostKind`], the closed set of host applications the
@@ -42,6 +44,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod clients;
 pub mod cowork_artifact;
 pub mod gateway;
 pub mod host;

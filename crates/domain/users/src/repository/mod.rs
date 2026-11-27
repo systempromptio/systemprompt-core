@@ -2,10 +2,11 @@
 //!
 //! [`UserRepository`] holds the read and write pools and implements user CRUD,
 //! sessions, and federated identity across the `user` submodule; the API-key,
-//! device-cert, banned-IP, rate-limit-bucket and session repositories live
-//! alongside it. Mutating
+//! device-cert, device push-token, banned-IP, rate-limit-bucket and session
+//! repositories live alongside it. Mutating
 //! operations take typed parameter structs ([`UpdateUserParams`],
-//! [`CreateApiKeyParams`], [`EnrollDeviceCertParams`], [`BanIpParams`]).
+//! [`CreateApiKeyParams`], [`EnrollDeviceCertParams`],
+//! [`UpsertDevicePushTokenParams`], [`BanIpParams`]).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,6 +15,7 @@ mod api_key;
 mod api_key_session;
 mod banned_ip;
 mod device_cert;
+mod device_push;
 mod federated_identity;
 mod rate_limit_bucket;
 mod role_directory;
@@ -27,6 +29,8 @@ pub use banned_ip::{
     BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp, BannedIpRepository,
 };
 pub use device_cert::EnrollDeviceCertParams;
+pub use device_push::UpsertDevicePushTokenParams;
+pub(crate) use device_push::device_id_of;
 pub use federated_identity::{IssuerRekeyOutcome, IssuerRekeyPlan};
 pub use rate_limit_bucket::UserRateLimitBucketRepository;
 pub use role_directory::{UsersRoleDirectory, UsersRoleSubjectProvider};

@@ -1,15 +1,30 @@
 //! Construction helpers the release feed shares: the timed HTTP client, the
-//! server's own version ceiling and the configured-platform check.
+//! server's own version ceiling, the configured-platform check and the media
+//! type a platform's asset is served under.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_manifest::services::BridgeReleasesSpec;
+use systemprompt_models::devices::DevicePlatform;
 use systemprompt_models::net::{HTTP_CONNECT_TIMEOUT, HTTP_DEFAULT_TIMEOUT};
 
 use systemprompt_models::bridge::gateway::ReleaseManifest;
 
 use super::error::ReleaseError;
+
+pub const ANDROID_PACKAGE_CONTENT_TYPE: &str = "application/vnd.android.package-archive";
+
+const BINARY_CONTENT_TYPE: &str = "application/octet-stream";
+
+#[must_use]
+pub fn asset_content_type(platform: &str) -> &'static str {
+    if platform == DevicePlatform::Android.as_str() {
+        ANDROID_PACKAGE_CONTENT_TYPE
+    } else {
+        BINARY_CONTENT_TYPE
+    }
+}
 
 /// One platform's release as the feed resolved it: what `/latest` answers with
 /// plus the asset `/download` streams.

@@ -1,0 +1,24 @@
+[root]
+section = "Added"
+area = "Devices"
+text = "A device record carries its platform, operating-system version, app version, app identifier and when it was last seen, and holds a push token. `PUT /api/v1/notifications/push-token` registers or refreshes the calling device's token and `DELETE` removes it; the caller names its device with the `x-systemprompt-device-fingerprint` header, and an unknown, revoked or foreign device is refused with 403 `device_not_enrolled`. Revoking a device, archiving a user and purging a user remove the tokens. `GET /api/v1/admin/notifications/devices` lists device records with platform and app version. Users migration 035 adds the columns and the `user_device_push_tokens` table."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Added"
+text = "`DevicePushService` registers, refreshes and revokes the push token of the active device a caller proves by its enrolment fingerprint, records the device's client info and last seen, and lists device records for an admin (`AdminDeviceRow`). It implements `PushTokenDirectory`, which the member provides sealed as `DynPushTokenDirectory`; `Arc<DevicePushService>` is provided open. `UserRepository` gains `upsert_device_push_token`, `delete_device_push_tokens`, `delete_device_push_token_for_provider`, `list_live_push_tokens_for_user` and `list_admin_devices`. Migration 035 adds `platform`, `os_version`, `app_version`, `app_id` and `last_seen_at` to `user_device_certs` and creates `user_device_push_tokens`, which the user purge lists."
+
+[[crate]]
+name = "systemprompt-users"
+section = "Changed"
+text = "`UserRepository::revoke_device_cert`, `archive` and `bulk_delete` delete the push tokens of the devices they revoke in the same transaction."
+
+[[crate]]
+name = "systemprompt-notifications-entry"
+section = "Added"
+text = "`PUT` and `DELETE /push-token` on the user route set and `GET /devices` on the admin route set (`http::devices`). `NotificationsState` reads `Arc<DevicePushService>` from the users member, so the member depends on `systemprompt-users`."
+
+[[crate]]
+name = "systemprompt-traits"
+section = "Changed"
+text = "`MERGE_EXCLUDED_SECURITY_TABLES` lists `user_device_push_tokens`: a push token dies with a merged source user."

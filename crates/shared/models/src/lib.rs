@@ -16,12 +16,15 @@
 //! - [`ai`] — LLM request/response shapes plus the [`ai::AiProvider`] trait.
 //! - [`api`] — public HTTP envelopes, error model, pagination, cloud DTOs.
 //! - [`artifacts`] — typed tool-result artifacts.
+//! - [`association`] — the app association documents an instance serves and the
+//!   declaration of the apps it vouches for.
 //! - [`attribution`] — scope attribution of an AI request (one value per
 //!   registered subject dimension, plus the API key).
 //! - [`auth`] — authenticated user, permission, audience, and PKCE types.
 //! - [`bridge`] — bridge wire formats (signed manifest, plugin bundles,
 //!   telemetry).
 //! - [`content`], [`content_config`] — published content metadata.
+//! - [`devices`] — device platform, app identifier and the admin device row.
 //! - [`errors`] — `thiserror`-derived public error enums.
 //! - [`events`] — analytics, A2A and system event envelopes.
 //! - [`execution`] — request context and execution-step bookkeeping.
@@ -70,6 +73,7 @@ pub mod ai;
 pub mod analytics;
 pub mod api;
 pub mod artifacts;
+pub mod association;
 pub mod attribution;
 pub mod audit_spans;
 pub mod auth;
@@ -80,6 +84,7 @@ pub mod build;
 pub mod content;
 pub mod content_config;
 pub mod defaults;
+pub mod devices;
 pub mod documents;
 pub mod errors;
 pub mod events;

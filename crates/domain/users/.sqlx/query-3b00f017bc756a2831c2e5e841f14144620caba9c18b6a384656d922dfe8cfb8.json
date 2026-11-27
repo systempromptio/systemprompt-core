@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            DELETE FROM user_device_push_tokens\n            WHERE (device_id = $1 AND provider <> $2)\n               OR (provider = $2 AND md5(token) = md5($3) AND token = $3 AND device_id <> $1)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3b00f017bc756a2831c2e5e841f14144620caba9c18b6a384656d922dfe8cfb8"
+}

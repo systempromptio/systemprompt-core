@@ -81,7 +81,7 @@ impl DeviceCertService {
     }
 }
 
-fn normalize_fingerprint(fingerprint: &str) -> Result<String> {
+pub(super) fn normalize_fingerprint(fingerprint: &str) -> Result<String> {
     let trimmed = fingerprint.trim().to_ascii_lowercase();
     if trimmed.len() != FINGERPRINT_LEN {
         return Err(UserError::Validation(format!(

@@ -81,3 +81,4 @@ systemprompt-hosts                 capability:device
 systemprompt-drive                 capability:device
 systemprompt-runner                capability:device
 systemprompt-harness               capability:device
+systemprompt-mobile                capability:device

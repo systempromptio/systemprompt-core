@@ -40,12 +40,18 @@ fn notifications_router(ctx: &AppContext) -> Router {
         .get::<std::sync::Arc<NotificationsServiceSlot>>()
         .expect("notification service handle provided")
         .clone();
+    let devices = ctx
+        .kernel()
+        .state()
+        .get::<Arc<systemprompt_users::DevicePushService>>()
+        .expect("device push service provided")
+        .clone();
     let database: Arc<dyn DatabaseHandle> =
         Arc::<systemprompt_database::Database>::clone(ctx.db_pool());
     let kernel = Kernel::new(
         database,
         BackgroundTasks::new(),
-        Dependencies::default().with(slot),
+        Dependencies::default().with(slot).with(devices),
     );
     user_routes()
         .materialize(&kernel.resolved())

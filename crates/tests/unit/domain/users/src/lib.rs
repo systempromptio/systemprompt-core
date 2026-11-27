@@ -45,6 +45,9 @@ mod services;
 mod device_cert_reuse;
 
 #[cfg(test)]
+mod device_push_db;
+
+#[cfg(test)]
 mod authoritative_reads_db;
 #[cfg(test)]
 mod session_mutations;

@@ -67,6 +67,7 @@ mod routes {
 
     pub(super) fn contribute(c: &mut Contributions<'_>) {
         c.requires::<Arc<NotificationsServiceSlot>>()
+            .requires::<Arc<systemprompt_users::DevicePushService>>()
             .routes(user_routes())
             .routes(admin_routes())
             .gateway_route(GatewayRouteDecl {
