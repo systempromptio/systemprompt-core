@@ -7,6 +7,12 @@
 //! the next attempt at the same manifest is not refused as a replay, and the
 //! policy so nothing reads a half-applied manifest back as delivered.
 //!
+//! The recorded host set holds only hosts the bridge configures
+//! ([`ConfigOwner::Bridge`]). The bridge does nothing for a host that
+//! configures itself, and a bridge released before that host existed reads the
+//! record against its own closed host vocabulary, so the record must stay
+//! readable by it after a rollback.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -15,6 +21,7 @@ use super::error::SyncError;
 use crate::gateway::manifest::SignedManifest;
 use crate::gateway::manifest_version::ManifestVersion;
 use crate::last_sync::LastSyncState;
+use systemprompt_models::bridge::host::ConfigOwner;
 
 pub(super) enum Applied<'a> {
     Fully(ManifestVersion),
@@ -78,7 +85,12 @@ fn last_sync_state(
         agent_count: manifest.agents.len(),
         hook_count: manifest.hooks.len(),
         user: manifest.user.as_ref().map(|u| u.email.as_str().to_owned()),
-        enabled_hosts: manifest.enabled_hosts.clone(),
+        enabled_hosts: manifest
+            .enabled_hosts
+            .iter()
+            .copied()
+            .filter(|host| host.config_owner() == ConfigOwner::Bridge)
+            .collect(),
         auto_update: manifest.auto_update,
         host_failures: report
             .host_failures

@@ -40,11 +40,14 @@ fn an_opencode_block_raises_the_bridge_floor() {
     let without = parsed(json!(null));
     assert!(without.opencode.is_none());
     assert_eq!(
-        manifest_min_bridge_version(std::slice::from_ref(&without)),
+        manifest_min_bridge_version(std::slice::from_ref(&without), std::iter::empty()),
         min_bridge_version()
     );
     let with = parsed(json!({}));
-    assert_eq!(manifest_min_bridge_version(&[with]), OPENCODE_V2_MIN_BRIDGE);
+    assert_eq!(
+        manifest_min_bridge_version(&[with], std::iter::empty()),
+        OPENCODE_V2_MIN_BRIDGE
+    );
 }
 
 #[test]

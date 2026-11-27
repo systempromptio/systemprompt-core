@@ -45,11 +45,14 @@ pub(crate) fn unreadable_env(error: ProfileFactsError) -> ProbeEnv {
 }
 
 pub(crate) fn inputs_for(host: &dyn HostApp) -> ProfileGenInputs {
-    facts().inputs_for(host.profile_identity())
+    facts()
+        .inputs_for(host.profile_identity())
+        .expect("the bridge owns this host's configuration")
 }
 
 pub(crate) fn host_token(host: systemprompt_models::bridge::host::HostKind) -> String {
     systemprompt_bridge::proxy::scoped_token::host_token(&LoopbackSecret::new(SECRET), host)
+        .expect("the bridge owns this host's configuration")
         .as_str()
         .to_owned()
 }

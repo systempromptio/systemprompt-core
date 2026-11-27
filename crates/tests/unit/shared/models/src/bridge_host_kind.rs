@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
 
-use systemprompt_models::bridge::host::{HostAppKind, HostKind, HostProduct};
-use systemprompt_models::bridge::manifest::SignedManifest;
+use systemprompt_models::bridge::host::{ConfigOwner, HostAppKind, HostKind, HostProduct};
+use systemprompt_models::bridge::ids::HostExtensionId;
+use systemprompt_models::bridge::manifest::{
+    SignedManifest, bridge_version_is_supported, manifest_min_bridge_version, min_bridge_version,
+};
 use systemprompt_models::feedback::EvaluatorClient;
 use systemprompt_models::mcp::ExecutionSource;
 use systemprompt_models::origin::ClientKind;
@@ -69,6 +72,41 @@ fn packaging_and_product_split_the_pairs() {
     assert_eq!(hermes, [HostKind::Hermes]);
     let harness: Vec<HostKind> = HostProduct::Harness.hosts().collect();
     assert_eq!(harness, [HostKind::Harness]);
+}
+
+#[test]
+fn the_bridge_owns_every_configuration_but_the_harness_apps() {
+    assert_eq!(HostKind::Harness.config_owner(), ConfigOwner::Host);
+    let host_owned: Vec<HostKind> = HostKind::ALL
+        .into_iter()
+        .filter(|host| host.config_owner() == ConfigOwner::Host)
+        .collect();
+    assert_eq!(host_owned, [HostKind::Harness]);
+    let bridge_owned: Vec<HostKind> = HostKind::ALL
+        .into_iter()
+        .filter(|host| host.config_owner() == ConfigOwner::Bridge)
+        .collect();
+    assert_eq!(
+        bridge_owned,
+        [
+            HostKind::ClaudeCode,
+            HostKind::ClaudeDesktop,
+            HostKind::Codex,
+            HostKind::CodexCli,
+            HostKind::OpenCode,
+            HostKind::OpenCodeCli,
+            HostKind::Hermes,
+        ]
+    );
+    for host in HostKind::ALL {
+        if let Some(sibling) = host.shares_config_with() {
+            assert_eq!(
+                sibling.config_owner(),
+                host.config_owner(),
+                "{host} and {sibling} read one configuration tree, so one party owns it"
+            );
+        }
+    }
 }
 
 #[test]
@@ -161,24 +199,90 @@ fn the_opencode_alias_is_gone_from_the_evaluator_wire() {
 fn hook_host_execution_source_follows_the_product() {
     assert_eq!(
         ExecutionSource::from_hook_host(HostKind::OpenCode),
-        ExecutionSource::HookOpenCode
+        Some(ExecutionSource::HookOpenCode)
     );
     assert_eq!(
         ExecutionSource::from_hook_host(HostKind::OpenCodeCli),
-        ExecutionSource::HookOpenCode
+        Some(ExecutionSource::HookOpenCode)
     );
     assert_eq!(
         ExecutionSource::from_hook_host(HostKind::ClaudeCode),
-        ExecutionSource::HookClaudeCode
+        Some(ExecutionSource::HookClaudeCode)
     );
     assert_eq!(
         ExecutionSource::from_hook_host(HostKind::CodexCli),
-        ExecutionSource::HookClaudeCode
+        Some(ExecutionSource::HookClaudeCode)
+    );
+}
+
+#[test]
+fn a_host_with_no_hook_vantage_point_borrows_no_other_hosts_source() {
+    assert_eq!(ExecutionSource::from_hook_host(HostKind::Harness), None);
+    for host in HostKind::ALL {
+        if host.config_owner() == ConfigOwner::Bridge {
+            assert!(
+                ExecutionSource::from_hook_host(host).is_some(),
+                "{host} reports tool results through a hook the platform records"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_manifest_naming_a_host_requires_the_first_bridge_that_parses_it() {
+    assert_eq!(
+        HostKind::Harness.min_bridge_version(),
+        Some(semver::Version::new(0, 88, 0))
+    );
+    for host in HostKind::ALL {
+        let required = manifest_min_bridge_version(&[], [host]);
+        match host.min_bridge_version() {
+            Some(first) => {
+                assert!(first > min_bridge_version(), "{host}");
+                assert_eq!(required, first, "{host}: the floor is the host's own");
+            },
+            None => assert_eq!(required, min_bridge_version(), "{host}"),
+        }
+        if host.config_owner() == ConfigOwner::Host {
+            assert!(
+                host.min_bridge_version().is_some(),
+                "{host}: no bridge released before a host that configures itself can parse it"
+            );
+        }
+    }
+    let bridge_owned = HostKind::ALL
+        .into_iter()
+        .filter(|host| host.config_owner() == ConfigOwner::Bridge);
+    assert_eq!(
+        manifest_min_bridge_version(&[], bridge_owned),
+        min_bridge_version(),
+        "hosts every supported bridge parses leave the floor alone"
     );
     assert_eq!(
-        ExecutionSource::from_hook_host(HostKind::Harness),
-        ExecutionSource::HookClaudeCode
+        manifest_min_bridge_version(&[], std::iter::empty()),
+        min_bridge_version()
     );
+
+    let floor = manifest_min_bridge_version(&[], [HostKind::ClaudeCode, HostKind::Harness]);
+    assert_eq!(
+        Some(&floor),
+        HostKind::Harness.min_bridge_version().as_ref()
+    );
+    assert_eq!(
+        manifest_min_bridge_version(&[], HostKind::ALL),
+        HostKind::ALL
+            .into_iter()
+            .filter_map(HostKind::min_bridge_version)
+            .max()
+            .expect("a host with a floor"),
+        "naming several hosts requires the newest of their floors"
+    );
+    assert!(
+        !bridge_version_is_supported("0.87.0", &floor),
+        "a 0.87 bridge cannot parse the host id and must be told to upgrade"
+    );
+    assert!(!bridge_version_is_supported("0.87.9", &floor));
+    assert!(bridge_version_is_supported("0.88.0", &floor));
 }
 
 #[test]
@@ -292,7 +396,7 @@ fn host_extensions_map_a_host_id_to_its_extension_ids() {
     let manifest: SignedManifest = serde_json::from_value(value).expect("parses");
     assert_eq!(
         manifest.host_extensions.get(&HostKind::Harness),
-        Some(&vec!["drive".to_owned(), "brain".to_owned()])
+        Some(&vec![extension("drive"), extension("brain")])
     );
     let round = serde_json::to_value(&manifest).unwrap();
     assert_eq!(
@@ -303,4 +407,47 @@ fn host_extensions_map_a_host_id_to_its_extension_ids() {
     let mut unknown: serde_json::Value = serde_json::from_str(&manifest_json("[]", "{}")).unwrap();
     unknown["host_extensions"] = serde_json::json!({"cursor": ["drive"]});
     assert!(serde_json::from_value::<SignedManifest>(unknown).is_err());
+}
+
+fn extension(id: &str) -> HostExtensionId {
+    HostExtensionId::try_new(id).expect("kebab-case extension id")
+}
+
+#[test]
+fn an_extension_id_is_kebab_case() {
+    for id in ["drive", "a", "a1", "drive-sync", "a1-2b-c3"] {
+        assert_eq!(extension(id).as_str(), id);
+        assert_eq!(extension(id).to_string(), id);
+    }
+    let longest = "a".repeat(HostExtensionId::MAX_CHARS);
+    assert!(HostExtensionId::try_new(longest.as_str()).is_ok());
+    let too_long = "a".repeat(HostExtensionId::MAX_CHARS + 1);
+    for id in [
+        "",
+        "a-",
+        "-a",
+        "a--b",
+        "Drive",
+        "9lives",
+        "drive_sync",
+        "drive sync",
+        too_long.as_str(),
+    ] {
+        assert!(
+            HostExtensionId::try_new(id).is_err(),
+            "{id:?} is not kebab-case"
+        );
+    }
+}
+
+#[test]
+fn a_manifest_carrying_a_malformed_extension_id_does_not_deserialise() {
+    for id in ["a-", "a--b", "Drive", ""] {
+        let mut value: serde_json::Value =
+            serde_json::from_str(&manifest_json(r#"["harness"]"#, "{}")).unwrap();
+        value["host_extensions"] = serde_json::json!({"harness": [id]});
+        let err = serde_json::from_value::<SignedManifest>(value)
+            .expect_err("the reader validates what the loader validated");
+        assert!(err.to_string().contains("kebab-case"), "{id:?}: {err}");
+    }
 }

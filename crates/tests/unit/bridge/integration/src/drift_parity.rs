@@ -244,24 +244,29 @@ fn another_profiles_models_reach_claude_desktops_rendered_policy_only() {
             max_output_tokens: 64_000,
         },
     );
-    let policy = desired(&facts.inputs_for(HostKind::ClaudeDesktop)).expect("policy renders");
+    let policy = desired(&facts.desktop_inputs()).expect("policy renders");
     let models = policy
         .entries()
         .iter()
         .find(|e| e.key == "inferenceModels")
         .expect("policy lists models");
     assert_eq!(models.value, r#"["claude-sonnet-5[1m]"]"#);
-    assert!(facts.inputs_for(HostKind::ClaudeCode).models.is_empty());
+    assert!(
+        facts
+            .inputs_for(HostKind::ClaudeCode)
+            .expect("the bridge owns this host's configuration")
+            .models
+            .is_empty()
+    );
 }
 
 #[test]
 fn the_ownership_fingerprint_is_the_key_a_desktop_policy_carries() {
     use systemprompt_bridge::integration::claude_desktop::reg_profile::desired;
     use systemprompt_bridge::proxy::scoped_token::desktop_policy_fingerprint;
-    use systemprompt_models::bridge::host::HostKind;
 
     let facts = crate::support::facts();
-    let desired = desired(&facts.inputs_for(HostKind::ClaudeDesktop)).expect("policy renders");
+    let desired = desired(&facts.desktop_inputs()).expect("policy renders");
     let key = desired
         .entries()
         .iter()

@@ -12,6 +12,7 @@ use systemprompt_models::bridge::manifest::UserInfo;
 
 use super::super::error::BridgeError;
 use super::super::{BridgeRouteState, data};
+use super::hosts;
 
 // Why: the recorded grant is the consumer's reach — a manifest whose grants
 // could not be written must not serve the skills it would grant.
@@ -70,12 +71,7 @@ pub(super) async fn load_per_user_context(
         .map_err(|e| BridgeError::internal("manifest: revocations unavailable", e))?;
 
     let enabled_hosts = match data::load_enabled_hosts(state, user_id).await {
-        Ok(prefs) => instance_hosts
-            .enabled
-            .iter()
-            .copied()
-            .filter(|host| prefs.admits(*host, &instance_hosts))
-            .collect(),
+        Ok(prefs) => hosts::user_enabled_hosts(&prefs, &instance_hosts),
         Err(e) => {
             return Err(BridgeError::internal(
                 "manifest: enabled hosts unavailable",
@@ -85,7 +81,7 @@ pub(super) async fn load_per_user_context(
     };
 
     let host_model_protocols = match data::load_host_model_protocols(state, user_id).await {
-        Ok(rows) => rows.into_iter().collect(),
+        Ok(rows) => hosts::host_model_protocols_for(rows, &instance_hosts),
         Err(e) => {
             tracing::warn!(
                 error = %e,

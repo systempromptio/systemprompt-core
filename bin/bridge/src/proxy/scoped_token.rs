@@ -9,6 +9,10 @@
 //! that host. Neither reconstructs the secret, and a secret reset invalidates
 //! every derived token at once.
 //!
+//! A host token exists only for a host whose configuration the bridge owns
+//! ([`ConfigOwner::Bridge`]): [`host_token`] refuses any other host and
+//! [`verify`] accepts no token under its scope.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -18,7 +22,7 @@ use hmac::digest::KeyInit as _;
 use hmac::{Hmac, Mac as _};
 use sha2::{Digest as _, Sha256};
 
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{ConfigOwner, HostKind};
 
 use crate::ids::{HookToken, HostToken, LoopbackSecret, PluginId, ProxySecret};
 
@@ -55,21 +59,41 @@ pub fn hook_token(secret: &LoopbackSecret, plugin: &PluginId) -> HookToken {
     ))
 }
 
-#[must_use]
-pub fn host_token(secret: &LoopbackSecret, host: HostKind) -> HostToken {
+/// The refusal to issue or accept a loopback credential for a host that owns
+/// its configuration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("host `{0}` configures itself; the bridge issues it no loopback credential")]
+pub struct HostOwnsConfig(pub HostKind);
+
+fn derive_host(secret: &LoopbackSecret, host: HostKind) -> HostToken {
     HostToken::new(derive_raw(
         secret.as_str().as_bytes(),
         &TokenScope::Host(host),
     ))
 }
 
+pub fn host_token(secret: &LoopbackSecret, host: HostKind) -> Result<HostToken, HostOwnsConfig> {
+    match host.config_owner() {
+        ConfigOwner::Bridge => Ok(derive_host(secret, host)),
+        ConfigOwner::Host => Err(HostOwnsConfig(host)),
+    }
+}
+
+#[must_use]
+pub fn desktop_host_token(secret: &LoopbackSecret) -> HostToken {
+    derive_host(secret, HostKind::ClaudeDesktop)
+}
+
 #[must_use]
 pub fn desktop_policy_fingerprint(secret: &LoopbackSecret) -> String {
-    super::secret::fingerprint(host_token(secret, HostKind::ClaudeDesktop).as_str())
+    super::secret::fingerprint(desktop_host_token(secret).as_str())
 }
 
 #[must_use]
 pub fn verify(presented: &str, secret: &ProxySecret, scope: &TokenScope) -> bool {
+    if matches!(scope, TokenScope::Host(host) if host.config_owner() != ConfigOwner::Bridge) {
+        return false;
+    }
     let expected = derive_raw(secret.as_str().as_bytes(), scope);
     super::secret::verify(presented, &ProxySecret::new(expected))
 }

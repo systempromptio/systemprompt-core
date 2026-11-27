@@ -71,7 +71,7 @@ A member's contributions live in its crate's `src/extension.rs`, as core's membe
 
 | Method | Contributes |
 |---|---|
-| `brand(BrandDecl)` | Product name, vendor, app id, URL scheme, data root, default instance, icon, displayed version. Exactly one per composition |
+| `brand(BrandDecl)` | Product name, vendor, app id, URL scheme, data root, default instance, icon, displayed version. Exactly one per composition Also the brand id sent to the instance in the brand header (D43) |
 | `theme(ThemeDecl)` | A named palette pair (light, dark), syntax palette, type-scale overrides. Contrast checked at declare time |
 | `view(ViewDecl)` | A view at a named mount point |
 | `part_renderer(R)` | How a transcript part or a tool's row renders |
@@ -102,7 +102,7 @@ pub fn composition() -> HarnessComposition {
 ```
 
 1. **Declare.** Every `contribute` runs once, before settings or accounts load. Checks: member ids; tool, command, view, theme and host ids for collisions; exactly one brand; no install claims a reserved shape; CLI paths against the reserved list.
-2. **Admit.** Reads local settings and the applied manifest. Drops every contribution of a member the user or the instance disabled; withholds dependants; refuses to start when a required member is withheld (the instance's `harness.members` can make a member required). Withholds a host integration whose host the instance does not publish.
+2. **Admit.** Reads local settings and the applied manifest. Drops every contribution of a member the user or the instance disabled; withholds dependants; refuses to start when a required member is withheld (the instance's `harness.members` can make a member required). Withholds a host integration whose host the instance does not publish. Until `harness.members` is published (S9), the only instance-side enablement input is `host_extensions`, additive only (`04-host-integrations.md` section 3.3).
 3. **Run.** Builds state in dependency order, builds slots, starts the role.
 
 Admission re-runs when a new manifest is applied. A member that becomes disabled is stopped and its contributions withdrawn; one that becomes required and is not linked raises a visible governance fault.

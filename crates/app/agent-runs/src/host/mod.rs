@@ -147,7 +147,7 @@ pub fn host_for(kind: HostKind) -> Execution {
             reason: "desktop applications do not run headless; queue the CLI packaging",
         },
         HostKind::Harness => Execution::Unsupported {
-            reason: "the harness desktop app has no headless packaging",
+            reason: "the harness host has no headless adapter",
         },
     }
 }

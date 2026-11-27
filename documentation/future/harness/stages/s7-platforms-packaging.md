@@ -8,6 +8,8 @@
 
 Windows and macOS already build, test and (on Windows) package from S1. This stage replaces stubs with real implementations and adds what a release needs.
 
+**Catalogue rows deferred to this stage.** 15 rows of the reference-test catalogue wait here (`../testing/04-test-migration.md` section 1.1): the update flow, including replacing a running binary and release notes after an upgrade; installers and install-method handling for macOS and Linux; shell selection and environment on macOS and Linux; child-process-tree kill on real platform modules. The lane that delivers the feature ports its rows: S7-A2 the shell and process-tree rows, S7-C1 the installer rows, S7-C3 the update rows.
+
 ## Wave A — platform modules, four lanes, parallel
 
 One lane per concern group; each owns its `platform` module in one crate.
@@ -53,7 +55,8 @@ After S6, the bridge's implementations are the base for A1 and A3; before S6, A1
 
 1. Stage gate green.
 2. No stub implementation remains; a missing platform implementation is a compile error.
-3. The manual walk has been done on real machines and its result recorded.
+3. No catalogue row deferred to this stage is `open`.
+4. The manual walk has been done on real machines and its result recorded.
 
 ## Decisions reserved to people
 

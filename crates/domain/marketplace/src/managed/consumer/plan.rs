@@ -123,7 +123,9 @@ fn render_skill(bundle: &RevisionBundle, host: EvaluatorClient, key: &str) -> Re
         EvaluatorClient::ClaudeCode | EvaluatorClient::ClaudeDesktop | EvaluatorClient::Harness => {
             instructions.trim()
         },
-        _ => instructions.trim_end(),
+        EvaluatorClient::OpenCode | EvaluatorClient::Codex | EvaluatorClient::Hermes => {
+            instructions.trim_end()
+        },
     };
     Ok(format!(
         "---\nname: {rendered_name}\ndescription: {description}\n{passthrough}---\n\n{instructions}\n"

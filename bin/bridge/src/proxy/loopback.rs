@@ -75,7 +75,7 @@ impl LoopbackEndpoint {
         host: systemprompt_models::bridge::host::HostKind,
     ) -> std::io::Result<String> {
         self.secret_or_mint()
-            .map(|s| super::scoped_token::host_token(&s, host))
+            .and_then(|s| super::scoped_token::host_token(&s, host).map_err(std::io::Error::other))
             .map(|t| format!("Bearer {}", t.as_str()))
     }
 

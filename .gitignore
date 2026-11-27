@@ -160,6 +160,8 @@ scripts/*
 !scripts/test-lint-layers.py
 !scripts/lint-kernel-deps.py
 !scripts/test-lint-kernel-deps.py
+!scripts/lint-device-closure.py
+!scripts/test-lint-device-closure.py
 !scripts/lint-hidden-constructors.py
 !scripts/test-lint-hidden-constructors.py
 !scripts/lint-no-inventory.py

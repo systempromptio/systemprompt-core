@@ -37,12 +37,12 @@ agents can work on it at the same time without colliding.
 | `01-current-state.md` | What exists today in the harness repository, the bridge, core `future` and the template |
 | `02-target-architecture.md` | The two tiers, the eight crates and their layers, slices, every deployment form |
 | `03-composition-contract.md` | The member trait, the sink, phases, standing, reserved shapes |
-| `04-host-integrations.md` | Managing third-party coding agents; open host identity; orchestration |
+| `04-host-integrations.md` | Managing third-party coding agents; host identity and what a host-owned host is; `host_extensions`; orchestration |
 | `05-bridge-split.md` | The bridge module by module: core, extension, or retired |
 | `06-harness-repo-disposition.md` | The harness repository crate by crate |
 | `07-template-extension.md` | `extensions/harness/*`; flavour; licence; what a fork owns |
 | `08-platforms-and-packaging.md` | Windows, macOS, Linux; packaging and signing |
-| `09-quality-and-gates.md` | Standards, gates, security review |
+| `09-quality-and-gates.md` | Standards, gates, which core gates device crates meet and which are scoped, security review |
 | `10-release-and-fleet-handover.md` | Release after the change; moving installed bridges |
 | `11-execution-modes.md` | One loop in core; the `Unrestricted`, `Sandboxed` and `Remote` modes; the sandbox policy; the instance as the record of every session |
 | `12-workbench-and-automation.md` | Parallel sessions with isolated working copies, the integrated terminal, the preview pane, scheduled sessions, memory |
@@ -63,13 +63,13 @@ Phone apps built from the same extension are specified in the sibling set, [`../
 | D8 | The harness repository is retired first, then the result is proven, then it is restructured |
 | D9 | Testing is deterministic. No stage spends money on model inference. Parity is measured against an unmodified reference agent and against a catalogue of migrated tests |
 
-D10 to D26 (crate list, publishing, contract placement, layout, naming, Linux, deprecation, evidence, signing and others) are in [`risks-and-decisions.md`](risks-and-decisions.md) section 3.
+D10 to D49 (crate list, publishing, contract placement, layout, naming, Linux, deprecation, evidence, signing, execution modes, and what S0 decided about the host, the lift and the reference pin) are in [`risks-and-decisions.md`](risks-and-decisions.md) section 3.
 
 ## Status
 
 | Stage | State |
 |---|---|
-| S0 Foundations | Not started |
+| S0 Foundations | In progress, wave C. Waves A and B are merged: the eight crate skeletons, the closure gate, the scripted-instance interface, the template scaffold and both inventories exist. Host `harness` is on `future` and its review did not close; wave C is the second fix round (opt-in per instance, D42), the lift's re-pin to `a214511` (D45) and this specification catch-up. Merging the host variant to `next` follows the closed review and is a person's decision |
 | S1 Lift | Not started |
 | S2 Parity and proof | Not started |
 | S3 Execution environment and sandbox | Not started |

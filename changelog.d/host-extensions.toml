@@ -1,17 +1,17 @@
 [root]
 section = "Added"
 area = "Bridge manifest"
-text = "The signed manifest carries `host_extensions`, a map from host id to the extension ids the instance enables for that host. `external_agents.<host>.extensions` in the services tree sets it, and the manifest names only hosts the user has enabled. An extension id is 1 to 64 lowercase letters, digits or hyphens starting with a letter, listed once, on an entry whose key names a known host; anything else fails services validation. The field is omitted when no host has extensions, so such a manifest is signed byte for byte as before."
+text = "The signed manifest carries `host_extensions`, a map from host id to the extension ids the instance enables for that host. `external_agents.harness.extensions` in the services tree sets it, and the manifest names only hosts the user has enabled. An extension only adds capability: a host that is not told of one runs without it. An extension id is kebab-case (1 to 64 lowercase letters and digits in segments joined by single hyphens, starting with a letter); a malformed id fails the load and the manifest read, and a repeated id, extensions on an entry for a host the bridge configures, or an entry whose key names no host, fails services validation. The field is omitted when no host has extensions, so such a manifest is signed byte for byte as before."
 
 [[crate]]
 name = "systemprompt-models"
 section = "Breaking"
-text = "`bridge::manifest::SignedManifest` gains `host_extensions: BTreeMap<HostKind, Vec<String>>`, skipped when empty. Migrate a struct literal by setting it."
+text = "`bridge::manifest::SignedManifest` gains `host_extensions: BTreeMap<HostKind, Vec<HostExtensionId>>`, skipped when empty. Migrate a struct literal by setting it. `bridge::ids::HostExtensionId` is the validated kebab-case id."
 
 [[crate]]
 name = "systemprompt-manifest"
 section = "Breaking"
-text = "`services::ExternalAgentConfig` gains `extensions` and `validate`, which `ServicesConfig::validate` runs; `ServicesConfig::instance_host_extensions` and `services::external_agent_host` are added. Migrate a struct literal by setting `extensions`."
+text = "`services::ExternalAgentConfig` gains `extensions: Vec<HostExtensionId>` and `validate`; `ServicesConfig::instance_host_extensions`, `services::external_agent_host` and `services::external_agent::validate_catalog` (run by `ServicesConfig::validate`) are added. Migrate a struct literal by setting `extensions`."
 
 [[crate]]
 name = "systemprompt-gateway-entry"

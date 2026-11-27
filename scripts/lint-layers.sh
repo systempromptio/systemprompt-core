@@ -37,6 +37,13 @@
 #      depends on neither `systemprompt-wire` nor `systemprompt-manifest`
 #      (services manifest and profile), so the bridge, which links only
 #      `systemprompt-models`, never pulls the codecs or the manifest in.
+#   6. The device crates sit at their layers. DEVICE_LAYERS below places each
+#      of the eight at `infra`, `domain` or `app`, and one found anywhere
+#      else fails. Rules 1 to 3 judge them like every other crate, so the
+#      device-domain crates are peers of each other and of the server's domain
+#      crates, under the same empty LEGACY_DOMAIN_EDGES. That no server kernel
+#      crate names them, and that they name no server crate above `shared`,
+#      is lint-device-closure.py.
 #
 # Layer membership is read from each crate's position on disk (crates/<layer>/),
 # so a crate moved between layers is re-classified automatically. Only normal
@@ -94,6 +101,24 @@ deps = production_edges(pkgs)
 # Empty by design: adding an edge here requires a written justification in the
 # commit that adds it. Cross-domain capability flows through shared-layer traits.
 LEGACY_DOMAIN_EDGES = set()
+
+# The device crates and the layer each sits at; lint-device-closure.py judges
+# the same eight (scripts/test-lint-device-closure.py holds the two lists equal).
+DEVICE_LAYERS = {
+    "systemprompt-device": "infra",
+    "systemprompt-machine": "infra",
+    "systemprompt-engine": "domain",
+    "systemprompt-proxy": "domain",
+    "systemprompt-hosts": "domain",
+    "systemprompt-drive": "domain",
+    "systemprompt-runner": "domain",
+    "systemprompt-harness": "app",
+}
+misplaced = [
+    f"  {name} ({layer[name]}): a device crate of the {expected} layer"
+    for name, expected in sorted(DEVICE_LAYERS.items())
+    if name in layer and layer[name] != expected
+]
 
 violations = []
 for name in sorted(local):
@@ -170,12 +195,15 @@ if cycles:
 if capability:
     print("Shared-layer manifests listing an I/O capability:")
     print("\n".join(capability))
+if misplaced:
+    print("Device crates off their layer:")
+    print("\n".join(misplaced))
 
-if violations or cycles or capability:
-    print(f"lint-layers: FAIL — {len(violations)} layer violation(s), {len(cycles)} cycle(s), {len(capability)} shared-layer capability dep(s)")
+if violations or cycles or capability or misplaced:
+    print(f"lint-layers: FAIL — {len(violations)} layer violation(s), {len(cycles)} cycle(s), {len(capability)} shared-layer capability dep(s), {len(misplaced)} misplaced device crate(s)")
     sys.exit(1)
 
-print(f"lint-layers: OK — {len(local)} crates, no upward dependencies, no cycles, domain isolation holds, shared model crates ordered, shared layer is I/O-free")
+print(f"lint-layers: OK — {len(local)} crates, no upward dependencies, no cycles, domain isolation holds, shared model crates ordered, shared layer is I/O-free, device crates at their layers")
 '
 
 if [ "${1:-}" = "--metadata" ]; then

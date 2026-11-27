@@ -1,3 +1,5 @@
+-- @supersedes-checksum: 61dfca5ca6c37959
+-- @cost: rows=300000 measured=110ms triggers=live
 -- `ai_requests.client_kind` and `ai_request_client_evidence.attested_host`
 -- gain 'harness', the ClientKind of the harness desktop app
 -- (schema/ai_requests.sql, schema/ai_request_client_evidence.sql). Each wider

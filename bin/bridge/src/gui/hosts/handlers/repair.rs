@@ -30,7 +30,8 @@ pub(crate) fn repair_stale_unattended(
     if !app.unattended_repairs.insert(host_id) {
         return;
     }
-    let Some(host) = crate::integration::find_host_by_id(host_id) else {
+    let Some(host) = crate::gui::hosts::resolve::resolve_or_reply(app, host_id, "repair", None)
+    else {
         return;
     };
     let why = match reason {

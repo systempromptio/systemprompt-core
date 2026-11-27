@@ -73,3 +73,11 @@ systemprompt-bench                 tooling
 systemprompt-fuzz                  tooling
 systemprompt-loadtest              tooling
 mock-inference                     tooling
+systemprompt-device                capability:device
+systemprompt-machine               capability:device
+systemprompt-engine                capability:device
+systemprompt-proxy                 capability:device
+systemprompt-hosts                 capability:device
+systemprompt-drive                 capability:device
+systemprompt-runner                capability:device
+systemprompt-harness               capability:device

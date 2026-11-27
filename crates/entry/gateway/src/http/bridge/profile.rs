@@ -4,6 +4,10 @@
 //! stale bearer is 401, never an anonymous profile, and its model list is
 //! what dispatch would serve that user (see `bridge_admission`).
 //!
+//! Both preference routes refuse a host the instance does not serve
+//! (`host_disabled`) whatever the write is: switching on, switching off,
+//! storing a protocol filter or clearing one.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -51,7 +55,7 @@ pub async fn set_enabled_host(
 
     let services = state.host.services.view();
     let instance = services.config().instance_hosts();
-    if body.enabled && !instance.enabled.contains(&body.host_id) {
+    if !instance.enabled.contains(&body.host_id) {
         return Err(BridgeError::HostDisabled(body.host_id).into());
     }
 
@@ -94,6 +98,11 @@ pub async fn set_host_model_filter(
 ) -> Result<Json<HostModelFilterResponse>, ApiHttpError> {
     let (claims, _user) = authenticate_bridge(&state.authenticator, &headers).await?;
     let Json(body) = body.map_err(BridgeError::InvalidBody)?;
+
+    let instance = state.host.services.view().config().instance_hosts();
+    if !instance.enabled.contains(&body.host_id) {
+        return Err(BridgeError::HostDisabled(body.host_id).into());
+    }
 
     let normalized = body
         .model_protocols

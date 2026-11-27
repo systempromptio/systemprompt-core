@@ -3,17 +3,47 @@
 //!
 //! The credential is the only line on stdout; diagnostics are a JSON object
 //! on stderr. A CLI host receives the token derived for it from the loopback
-//! secret, never the secret itself.
+//! secret, never the secret itself. A host that owns its configuration
+//! receives nothing: naming it is a usage error, like an unknown id.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::process::ExitCode;
 
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{ConfigOwner, HostKind, UnknownHostKind};
 
 use crate::context::BridgeContext;
+use crate::proxy::scoped_token::HostOwnsConfig;
 use crate::{auth, config, stdio};
+
+/// The credential the helper prints for a host.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HelperCredential {
+    GatewayChain,
+    HostToken(HostKind),
+}
+
+/// Why `--host <id>` names no host the helper serves.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum HelperHostError {
+    #[error(transparent)]
+    Unknown(#[from] UnknownHostKind),
+    #[error(transparent)]
+    HostOwned(#[from] HostOwnsConfig),
+}
+
+pub fn credential_for(host: &str) -> Result<HelperCredential, HelperHostError> {
+    let kind = host.parse::<HostKind>()?;
+    if kind.config_owner() != ConfigOwner::Bridge {
+        return Err(HostOwnsConfig(kind).into());
+    }
+    Ok(if kind == HostKind::ClaudeDesktop {
+        HelperCredential::GatewayChain
+    } else {
+        HelperCredential::HostToken(kind)
+    })
+}
 
 pub(super) fn cmd_credential_helper(ctx: &BridgeContext, args: &[String]) -> ExitCode {
     let Some(host) = parse_host(args) else {
@@ -21,9 +51,9 @@ pub(super) fn cmd_credential_helper(ctx: &BridgeContext, args: &[String]) -> Exi
         return ExitCode::from(64);
     };
 
-    match host.parse::<HostKind>() {
-        Ok(HostKind::ClaudeDesktop) => emit_claude_via_chain(ctx),
-        Ok(kind) => emit_host_token(ctx, kind),
+    match credential_for(&host) {
+        Ok(HelperCredential::GatewayChain) => emit_claude_via_chain(ctx),
+        Ok(HelperCredential::HostToken(kind)) => emit_host_token(ctx, kind),
         Err(e) => {
             stdio::eprint_line(&error_json(&e.to_string()));
             ExitCode::from(64)
@@ -67,9 +97,16 @@ fn emit_host_token(ctx: &BridgeContext, host: HostKind) -> ExitCode {
     };
     // Why: CLI clients forward helper stdout as the bearer credential, so it must
     // be a bare token.
-    let token = crate::proxy::scoped_token::host_token(&secret, host);
-    stdio::print_line(token.as_str());
-    ExitCode::SUCCESS
+    match crate::proxy::scoped_token::host_token(&secret, host) {
+        Ok(token) => {
+            stdio::print_line(token.as_str());
+            ExitCode::SUCCESS
+        },
+        Err(e) => {
+            stdio::eprint_line(&error_json(&e.to_string()));
+            ExitCode::from(64)
+        },
+    }
 }
 
 fn emit_claude(out: &crate::gateway::types::HelperOutput) -> ExitCode {

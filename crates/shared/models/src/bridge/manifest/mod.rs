@@ -11,11 +11,22 @@
 //! [`MANIFEST_SCHEMA_VERSION`] of the consuming bridge, which then refuses
 //! with an upgrade message instead of a signature error.
 //!
+//! A bridge parses every host id a manifest names against the closed
+//! [`HostKind`] vocabulary of its own release, so a manifest naming a host
+//! added later fails its parse. [`manifest_min_bridge_version`] therefore
+//! requires, for each named host, the first bridge able to parse it
+//! ([`HostKind::min_bridge_version`]), which turns that parse failure into the
+//! same upgrade-required refusal.
+//!
 //! `host_extensions` maps a host id to the extension ids the instance
 //! enables for that host (a client compiled with optional feature extensions
 //! turns on only those named; an absent host or an empty map enables none).
-//! It is skipped when empty, so a manifest that enables no extension
-//! serialises, and is signed, byte for byte as before the field existed.
+//! An extension is additive capability only: nothing that restricts or
+//! enforces may be expressed as one, because a reader that does not see the
+//! id runs without it. Each id is a [`HostExtensionId`], so a malformed one
+//! fails the read. The field is skipped when empty, so a manifest that enables
+//! no extension serialises, and is signed, byte for byte as before the field
+//! existed.
 //!
 //! Signing, signature verification, and manifest construction live in
 //! the bridge crate (`bin/bridge/src/gateway/manifest.rs`) alongside
@@ -39,7 +50,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::bridge::host::HostKind;
-pub use crate::bridge::ids::ManifestSignature;
+pub use crate::bridge::ids::{HostExtensionId, ManifestSignature};
 use crate::bridge::manifest_version::ManifestVersion;
 use crate::bridge::update_policy::AutoUpdatePolicy;
 use systemprompt_identifiers::{ApiKeyId, MarketplaceId, PluginId, TenantId, UserId};
@@ -72,7 +83,10 @@ pub const fn min_bridge_version() -> semver::Version {
 pub const EXTERNAL_MARKETPLACE_REF_MIN_BRIDGE: semver::Version = semver::Version::new(0, 63, 0);
 
 #[must_use]
-pub fn manifest_min_bridge_version(marketplaces: &[ManifestMarketplace]) -> semver::Version {
+pub fn manifest_min_bridge_version(
+    marketplaces: &[ManifestMarketplace],
+    named_hosts: impl IntoIterator<Item = HostKind>,
+) -> semver::Version {
     let floor = min_bridge_version();
     let carries_ref = marketplaces
         .iter()
@@ -88,7 +102,10 @@ pub fn manifest_min_bridge_version(marketplaces: &[ManifestMarketplace]) -> semv
     if carries_opencode {
         required = required.max(OPENCODE_V2_MIN_BRIDGE);
     }
-    required
+    named_hosts
+        .into_iter()
+        .filter_map(HostKind::min_bridge_version)
+        .fold(required, Ord::max)
 }
 
 #[must_use]
@@ -133,7 +150,7 @@ pub struct SignedManifest {
     #[serde(default)]
     pub host_model_protocols: BTreeMap<HostKind, Vec<String>>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub host_extensions: BTreeMap<HostKind, Vec<String>>,
+    pub host_extensions: BTreeMap<HostKind, Vec<HostExtensionId>>,
     #[serde(default)]
     pub artifacts: Vec<ArtifactEntry>,
     #[serde(default)]

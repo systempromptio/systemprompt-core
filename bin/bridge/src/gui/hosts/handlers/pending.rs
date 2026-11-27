@@ -13,8 +13,8 @@ use systemprompt_models::bridge::host::HostKind;
 use crate::gui::GuiApp;
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
+use crate::integration::ConfigFormat;
 use crate::integration::agent_health::PendingStep;
-use crate::integration::{ConfigFormat, find_host_by_id};
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 use super::finish;
@@ -24,7 +24,9 @@ use super::finish;
 const QUIT_SETTLE: Duration = Duration::from_secs(2);
 
 pub(crate) fn note_install_pending(app: &GuiApp, host_id: HostKind) {
-    let Some(host) = find_host_by_id(host_id) else {
+    let Some(host) =
+        crate::gui::hosts::resolve::resolve_or_reply(app, host_id, "install profile", None)
+    else {
         return;
     };
     // Why: macOS installs a configuration profile only after the user approves

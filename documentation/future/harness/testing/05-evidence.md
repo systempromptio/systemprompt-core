@@ -97,7 +97,7 @@ evidence/<system>/
 
 | Line | Example of the format |
 |---|---|
-| Suites | Crate tests 942 of 942; migrated 310 of 318 (8 in ledger); golden 48 of 48 |
+| Suites | Crate tests 1,146 of 1,146; migrated 310 of 318 (8 in ledger); golden 48 of 48 |
 | Parity | 39 same, 7 intended, 2 gap, 0 defect, 0 unclassified |
 | Tour | 20 of 20 states on this system |
 | Package | Installer built, installed, reported its version |

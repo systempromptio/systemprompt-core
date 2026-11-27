@@ -134,6 +134,7 @@ members = [
     "unit/bridge/lib-entry",
     "unit/bridge/cli-subprocess",
     # Common test utilities
+    "scripted-instance",
     "common/hack",
     "common/mocks",
     "common/migrate",
@@ -255,6 +256,7 @@ ed25519-dalek = "3"
 jsonwebtoken = { version = "11", features = ["rust_crypto"] }
 rsa = { version = "0.9", features = ["pem", "sha2"] }
 sha2 = "0.11"
+hmac = "0.13"
 
 # Testing utilities
 wiremock = "0.6"

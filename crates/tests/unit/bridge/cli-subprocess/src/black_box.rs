@@ -648,7 +648,8 @@ fn credential_helper_emits_only_the_host_scoped_token_on_stdout() {
     let expected = systemprompt_bridge::proxy::scoped_token::host_token(
         &secret,
         systemprompt_models::bridge::host::HostKind::CodexCli,
-    );
+    )
+    .expect("the bridge owns this host's configuration");
 
     let output = require_bin!(run_bridge(
         &sb,
@@ -670,6 +671,30 @@ fn credential_helper_emits_only_the_host_scoped_token_on_stdout() {
     assert!(
         output.stderr.is_empty(),
         "successful helper emits no diagnostics"
+    );
+}
+
+#[test]
+fn credential_helper_refuses_a_host_that_owns_its_configuration() {
+    let sb = sandbox(None);
+    with_sandbox_env(&sb, || {
+        systemprompt_bridge::proxy::secret::proxy_init().expect("sandbox mints a loopback secret")
+    });
+
+    let output = require_bin!(run_bridge(&sb, &["credential-helper", "--host", "harness"]));
+    assert_eq!(
+        output.status.code(),
+        Some(64),
+        "a host the bridge issues no credential to is a usage error, like an unknown id"
+    );
+    assert!(
+        output.stdout.is_empty(),
+        "no token reaches stdout for a host that owns its configuration"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("harness") && stderr.contains("no loopback credential"),
+        "stderr: {stderr}"
     );
 }
 

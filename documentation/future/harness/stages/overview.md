@@ -6,7 +6,7 @@ Ten stages. Each is a set of **waves**; each wave is a set of **lanes** that run
 
 | Stage | Outcome | Repositories |
 |---|---|---|
-| **S0 Foundations** | Core knows host `harness` (on `next` and `future`). The eight device crates exist in core as empty, gated skeletons. The template has an empty shell workspace and a three-system workflow. Two inventories exist: the lift manifest and the reference-test catalogue | core, template |
+| **S0 Foundations** | Core knows host `harness` (on `next` and `future`), opt-in per instance and never bridge-managed. The eight device crates exist in core as empty, gated skeletons. The scripted-instance interface is fixed. The template has an empty shell workspace and a three-system workflow. Two inventories exist: the lift manifest and the reference-test catalogue. The specification records what they found | core, template |
 | **S1 Lift** | The harness repository is dissolved. Its engine and governance are core crates; its shell is in the template. Both build and pass their tests on Windows, macOS and Linux against core `future`. The repository is archived | core, template |
 | **S2 Parity and proof** | A scripted instance, golden scenarios, a comparison against an unmodified reference agent, the migrated test batches, and an evidence run with screenshots from Windows and macOS | core, template |
 | **S3 Execution environment and sandbox** | Every tool effect goes through one execution environment. The runtime runs `Unrestricted` or `Sandboxed` on a desktop from one loop, with typed mode availability. Begins with a sandbox prototype | core, template |
@@ -24,16 +24,16 @@ Decided. Eight new crates in core; everything else merges into crates that alrea
 | Crate | Holds | Arrives in |
 |---|---|---|
 | `systemprompt-engine` | The one runtime: agent loop, tools, MCP, LSP, workspace, configuration, prompts, the execution environment and the sandbox. The harness's eleven engine crates become its top-level modules. The same code runs in all three modes | S1, S3 |
-| `systemprompt-device` | Sign-in, keyrings, config and policy stores, sync, acceptance, platform modules | S1 (harness code), S6 (bridge code replaces it) |
-| `systemprompt-harness` | The device composition, the governor, projection, update, shared client state machines, the headless role the instance starts for `Remote` | S1, S3, S5 |
+| `systemprompt-device` | Sign-in, keyrings, config and policy stores, sync, acceptance, platform modules | S1 (the harness's sign-in, sealing and client; its sync lands in `systemprompt-harness`), S6 (bridge code replaces it, sync included) |
+| `systemprompt-harness` | The device composition, the governor, projection, update, shared client state machines, the headless role the instance starts for `Remote`. From the lift until S5 and S6 replace them: the harness's sync, its extension contract with an explicit registration list, the Drive's engine half, and the Brain, notifications and Slack members (D46) | S1, S3, S5 |
 | `systemprompt-drive` | Folder sync | S1, merged with the bridge's in S6 |
 | `systemprompt-proxy` | Loopback proxy, scoped tokens, heartbeat | S6 |
 | `systemprompt-machine` | Install, device-management snippets, policy writer, elevation; lockdown as a feature | S6 |
 | `systemprompt-hosts` | The host contract; one feature per product | S6 |
-| `systemprompt-runner` | Headless adapters, shared with the server | S9 |
+| `systemprompt-runner` | Headless adapters, shared with the server once the kernel no longer reaches `agent-runs` (D49) and the runner's unit is decided (O5) | S9 |
 | `systemprompt-mobile` | The binding layer for the iOS and Android apps; a ninth crate, owned by the [mobile set](../../mobile/README.md) | Mobile M2 |
 
-Merged into existing crates: typed ids into `systemprompt-identifiers`; owned tasks deleted for `systemprompt-traits`; wire types into `systemprompt-models::bridge`; typed instance calls into `systemprompt-client`; the composition machinery into `systemprompt-provider-contracts`.
+Merged into existing crates: typed ids into `systemprompt-identifiers`, those whose names are already taken there in an `engine` submodule; owned tasks deleted for `systemprompt-traits`, which gains the operations the lifted callers need; wire types into `systemprompt-models::bridge`; typed instance calls into `systemprompt-client`; the composition machinery into `systemprompt-provider-contracts`.
 
 All eight are published with core.
 
@@ -62,6 +62,8 @@ S0 ──► S1 ──► S3 ──► S4 ──► S5 ──► S6 ──► S8
 | S8 | S6, S7 | S9 |
 | S9 | S5 | S6 to S8 |
 
+**Stage numbers in the S0 working files.** The lift manifest, the reference-test catalogue and the wave A and B hand-off notes were written against the numbering that preceded the two execution-mode stages. Read their S3 as S5, S4 as S6, S5 as S7, S6 as S8 and S7 as S9.
+
 **The critical path to the first goal** (harness repository retired; core and the template building and tested on Windows and macOS against `future`; parity measured) is S0, S1, S2. None of it touches the bridge.
 
 **Why S2 comes before S3 to S5.** The deterministic suite is built around the lifted code while it still behaves as it did in its own repository. S3 puts every tool behind one execution environment, S4 adds the remote mode and the session record, S5 restructures how the device is assembled. The suite is how each proves it changed nothing a user can see.
@@ -78,13 +80,14 @@ Counts are lanes that can be open at once, before the cap of four in `operating-
 |---|---|---|---|
 | S0 | A | 5 | Host; crate skeletons; template scaffold; two read-only inventories |
 | S0 | B | 2 | Review of the host change; scripted-instance interface |
+| S0 | C | 3 | Added after the review did not close: host fix, round 2; lift re-pin; specification catch-up |
 | S1 | A | 2 | Two imports, one per repository. Each is serial inside its repository |
 | S1 | B | 6 | Four in core by module group, two in the template |
 | S1 | C | 4 | Tests, gates and workflows, the template onto core |
 | S1 | D | up to 6 | One consolidated fix round from the first three-system run |
 | S2 | A | 4 | Alongside S1 wave B; all new paths |
 | S2 | B | 4 | Comparator and three migration batches |
-| S2 | C | 3 | Tour and evidence scripts; fourth migration batch |
+| S2 | C | 2, then 5 in succession | Tour and evidence scripts; the fourth migration batch (645 of the 920 rows to port) as successive lanes by area |
 | S3 | P | 1 | Sandbox prototype, thrown away |
 | S3 | A | 1 then a review | Contract |
 | S3 | B | 4 | Tools onto the environment; sandbox backends; availability and policy; isolated working copies |

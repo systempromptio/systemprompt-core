@@ -9,7 +9,7 @@ use crate::ids::BearerToken;
 use async_trait::async_trait;
 use std::path::Path;
 use std::sync::LazyLock;
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{ConfigOwner, HostKind};
 
 use crate::gateway::GatewayClient;
 use crate::gateway::manifest::SignedManifest;
@@ -195,6 +195,7 @@ static REGISTRY: LazyLock<Vec<&'static dyn HostSync>> = LazyLock::new(|| {
     let mut seen: std::collections::BTreeSet<std::any::TypeId> = std::collections::BTreeSet::new();
     let mut v: Vec<&'static dyn HostSync> = regs
         .into_iter()
+        .filter(|r| writes_for(r.emitter))
         .filter(|r| seen.insert(r.emitter.type_id()))
         .map(|r| r.emitter)
         .collect();
@@ -203,11 +204,18 @@ static REGISTRY: LazyLock<Vec<&'static dyn HostSync>> = LazyLock::new(|| {
 });
 
 #[must_use]
+pub fn writes_for(emitter: &dyn HostSync) -> bool {
+    emitter.host_id().config_owner() == ConfigOwner::Bridge
+}
+
+#[must_use]
 pub fn enabled_for(emitter: &dyn HostSync, manifest: &SignedManifest) -> bool {
-    manifest
-        .enabled_hosts
-        .iter()
-        .any(|host| emitter.serves(*host))
+    writes_for(emitter)
+        && manifest
+            .enabled_hosts
+            .iter()
+            .filter(|host| host.config_owner() == ConfigOwner::Bridge)
+            .any(|host| emitter.serves(*host))
 }
 
 pub fn registry() -> &'static [&'static dyn HostSync] {

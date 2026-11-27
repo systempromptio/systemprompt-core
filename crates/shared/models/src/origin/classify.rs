@@ -8,6 +8,7 @@ use super::evidence::{
     DECLARED_CLIENT_MAX, SDK_FIELD_MAX, UA_PRODUCT_MAX, UA_VERSION_MAX, bounded,
 };
 use super::{ClientAttestation, ClientEvidence, ClientKind, NativeMarker};
+use crate::bridge::host::ConfigOwner;
 
 /// The `x-stainless-*` headers every Stainless-generated SDK sends.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -54,6 +55,10 @@ pub enum ClassificationRejection {
     MalformedAttestation { evidence: Box<ClientEvidence> },
     #[error("host-token attestation requires x-systemprompt-client")]
     HostTokenWithoutClient { evidence: Box<ClientEvidence> },
+    #[error("host-token attestation is not issued for a client that configures itself")]
+    HostTokenForHostOwnedClient { evidence: Box<ClientEvidence> },
+    #[error("host-token attestation requires a client the bridge configures a host for")]
+    HostTokenForClientWithoutHost { evidence: Box<ClientEvidence> },
 }
 
 impl ClassificationRejection {
@@ -63,7 +68,9 @@ impl ClassificationRejection {
             Self::MalformedDeclaredClient { evidence }
             | Self::AttestationNotFromBridge { evidence }
             | Self::MalformedAttestation { evidence }
-            | Self::HostTokenWithoutClient { evidence } => evidence,
+            | Self::HostTokenWithoutClient { evidence }
+            | Self::HostTokenForHostOwnedClient { evidence }
+            | Self::HostTokenForClientWithoutHost { evidence } => evidence,
         }
     }
 }
@@ -150,6 +157,17 @@ pub fn classify(input: &ClassificationInput<'_>) -> Result<Classified, Classific
                     evidence: Box::new(evidence),
                 });
             };
+            let mut packagings = host.hosts().peekable();
+            if packagings.peek().is_none() {
+                return Err(ClassificationRejection::HostTokenForClientWithoutHost {
+                    evidence: Box::new(evidence),
+                });
+            }
+            if packagings.any(|packaging| packaging.config_owner() == ConfigOwner::Host) {
+                return Err(ClassificationRejection::HostTokenForHostOwnedClient {
+                    evidence: Box::new(evidence),
+                });
+            }
             evidence.attested_host = Some(host);
             (host, ClientAttestation::HostToken)
         },

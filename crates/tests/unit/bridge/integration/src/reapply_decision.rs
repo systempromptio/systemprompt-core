@@ -292,7 +292,8 @@ fn the_profile_inputs_carry_the_live_secret_port_and_the_hosts_own_family() {
         systemprompt_bridge::proxy::scoped_token::host_token(
             &systemprompt_bridge::ids::LoopbackSecret::new("seeded-loopback-secret"),
             CODEX_CLI_HOST.id(),
-        ),
+        )
+        .expect("the bridge owns this host's configuration"),
         "the profile carries the host token derived from the loopback secret the proxy will check"
     );
     assert_eq!(inputs.organization_uuid, Some("org-1234".to_owned()));

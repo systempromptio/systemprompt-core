@@ -670,6 +670,163 @@ fn run_once_with_hosts_disabled_clears_all_host_state() {
     assert!(!dirs.session_org_dir.join("cowork_artifacts").exists());
 }
 
+fn host_facing_files(dirs: &HostSandbox) -> Vec<PathBuf> {
+    let roots = [
+        PathBuf::from(&dirs.home),
+        PathBuf::from(&dirs.config_home).join("Claude-3p"),
+        PathBuf::from(&dirs.data_home).join("Claude"),
+    ];
+    let mut files = Vec::new();
+    let mut pending: Vec<PathBuf> = roots.iter().filter(|root| root.exists()).cloned().collect();
+    while let Some(dir) = pending.pop() {
+        for entry in fs::read_dir(&dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                pending.push(path);
+            } else {
+                files.push(path.strip_prefix(dirs._temp.path()).unwrap().to_path_buf());
+            }
+        }
+    }
+    files.sort();
+    files
+}
+
+fn sync_fresh_sandbox(
+    rt: &tokio::runtime::Runtime,
+    enabled_hosts: Vec<HostKind>,
+    suffix: &str,
+) -> (HostSandbox, systemprompt_bridge::sync::SyncSummary) {
+    let m = manifest(enabled_hosts, true, suffix);
+    let (server, dirs) = rt.block_on(async {
+        let server = MockServer::start().await;
+        crate::mount_profile(&server).await;
+        mount_gateway(&server, &m).await;
+        let dirs = sandbox(&server.uri());
+        (server, dirs)
+    });
+    let summary = run_sync(&dirs).expect("run_once should succeed");
+    drop(server);
+    (dirs, summary)
+}
+
+// Why: no emitter serves a host that configures itself, so a manifest
+// enabling only that host must leave exactly what a manifest enabling no host
+// leaves: nothing in any host's configuration tree.
+#[test]
+fn a_manifest_enabling_only_harness_writes_no_host_file() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+
+    let (harness_only, summary) = sync_fresh_sandbox(&rt, vec![HostKind::Harness], "eeee0001");
+    assert!(
+        summary.host_failures.is_empty(),
+        "no emitter runs, so none fails: {:?}",
+        summary.host_failures
+    );
+    let (no_host, _) = sync_fresh_sandbox(&rt, vec![], "eeee0002");
+
+    let written = host_facing_files(&harness_only);
+    assert_eq!(
+        written,
+        host_facing_files(&no_host),
+        "enabling harness writes what enabling nothing writes"
+    );
+    assert!(
+        written
+            .iter()
+            .all(|path| !path.to_string_lossy().contains("harness")),
+        "no file is written for the host itself: {written:?}"
+    );
+
+    let plugins = harness_only.claude_home.join("plugins");
+    assert!(
+        !plugins
+            .join("marketplaces")
+            .join("org-provisioned")
+            .exists()
+    );
+    assert!(!plugins.join("cache").join("org-provisioned").exists());
+    assert!(
+        !harness_only
+            .session_org_dir
+            .join("cowork_artifacts")
+            .exists()
+    );
+}
+
+fn last_sync_record(dirs: &HostSandbox) -> serde_json::Value {
+    let mut pending = vec![dirs._temp.path().to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        for entry in fs::read_dir(&dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                pending.push(path);
+            } else if path
+                .file_name()
+                .is_some_and(|name| name == "last-sync.json")
+            {
+                return serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+            }
+        }
+    }
+    panic!("the sync wrote no last-sync record");
+}
+
+// Why: the bridge released before harness reads the record's host list
+// against a vocabulary without it and fails the whole read, so install and
+// uninstall stop after a rollback unless the record names only hosts the
+// bridge configures.
+#[test]
+fn the_last_sync_record_names_only_hosts_the_bridge_configures() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+
+    let (dirs, summary) = sync_fresh_sandbox(
+        &rt,
+        vec![HostKind::ClaudeCode, HostKind::Harness],
+        "eeee0003",
+    );
+    assert!(
+        summary.host_failures.is_empty(),
+        "{:?}",
+        summary.host_failures
+    );
+    let record = last_sync_record(&dirs);
+    assert_eq!(
+        record["enabled_hosts"],
+        serde_json::json!(["claude-code"]),
+        "the manifest enabled harness too; the record keeps the host the bridge configures"
+    );
+    assert!(
+        record["manifest_version"].is_string(),
+        "the manifest was applied in full: {record}"
+    );
+    let known_before_harness: Vec<&str> = HostKind::ALL
+        .iter()
+        .filter(|host| host.min_bridge_version().is_none())
+        .map(|host| host.as_str())
+        .collect();
+    for host in record["enabled_hosts"].as_array().unwrap() {
+        assert!(
+            known_before_harness.contains(&host.as_str().unwrap()),
+            "a strict reader of an earlier release cannot parse {host}"
+        );
+    }
+
+    let (harness_only, _) = sync_fresh_sandbox(&rt, vec![HostKind::Harness], "eeee0004");
+    assert_eq!(
+        last_sync_record(&harness_only)["enabled_hosts"],
+        serde_json::json!([])
+    );
+}
+
 fn bridge() -> std::sync::Arc<BridgeContext> {
     BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None)).expect("runtime builds")
 }
