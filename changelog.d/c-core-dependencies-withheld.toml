@@ -1,0 +1,9 @@
+[root]
+section = "Fixed"
+area = "Extension dependencies"
+text = "`Dependencies::get` and `get_arc` report a withheld type as withheld: the `MissingDependency` they return answers `is_withheld() == true` and its message says the type is withheld on this host."
+
+[[crate]]
+name = "systemprompt-provider-contracts"
+section = "Fixed"
+text = "`Dependencies::get` and `get_arc` build `MissingDependency::withheld` for a withheld type."
