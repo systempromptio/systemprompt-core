@@ -1,0 +1,10 @@
+{
+  "default": "allow",
+  "tools": {
+    "write": {
+      "deny": {
+        "reason": "Writes are blocked by policy in this scenario."
+      }
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "tool_call",
+      "call": "t1",
+      "tool": "write",
+      "input": {
+        "path": "late.txt",
+        "content": "written after the budget\n"
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t1",
+      "tool": "write",
+      "outcome": "allowed_by_rule"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t1",
+      "tool": "write",
+      "status": "ok",
+      "digest": "sha256:dfce3800e7c2e8ccb258acd57dc17b193518043c2562693d74d3589ea6248cb5"
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t1"
+      ]
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:1f6357adcddef7d37515a65a140d1779e0da6476288d894bbc9ad465d21ec320"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:765c6b6bfe954156bbc9903743cadfd8ffe927a0b37dd6d987c35cf7210ccd90",
+    "changed": [
+      "late.txt"
+    ]
+  },
+  "session": {
+    "messages": 4,
+    "state": "idle"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "default": "allow",
+  "tools": {
+    "write": {
+      "delay": {
+        "millis": 5000
+      }
+    }
+  }
+}

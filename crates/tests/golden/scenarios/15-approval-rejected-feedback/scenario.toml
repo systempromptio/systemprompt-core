@@ -1,0 +1,35 @@
+id = "15-approval-rejected-feedback"
+number = 15
+title = "Tool needing approval, rejected with feedback"
+proves = "No execution; feedback returned to the model"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 15"
+products = ["harness", "reference"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[[permission.rule]]
+permission = "shell"
+pattern = "*"
+action = "ask"
+
+[title_call]
+text = "Printing a marker"
+
+[[ask]]
+tool = "shell"
+permission = "shell"
+reply = "reject"
+feedback = "Do not run commands; just explain."
+
+[end]
+exit = "ok"
+
+[harness]
+title = "Printing a marker"
+verdicts = []
+
+[[harness.denial]]
+call = "t1"
+by = "rejected"

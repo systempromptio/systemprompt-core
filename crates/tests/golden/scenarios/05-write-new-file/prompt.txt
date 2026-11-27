@@ -1,0 +1,1 @@
+Create journal/changes.txt with two entries.

@@ -1,0 +1,54 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "tool_call",
+      "call": "t1",
+      "tool": "write",
+      "input": {
+        "path": "blocked.txt",
+        "content": "never written\n"
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t1",
+      "tool": "write",
+      "outcome": "denied_by_verdict"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t1",
+      "tool": "write",
+      "status": "denied",
+      "digest": "sha256:c0dfdb62665611d0f22f94f1cebe59261827fe202837e10805aedb34810ed568"
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t1"
+      ]
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:ac84ec3608c493925f54dc6f53fe743b92664dbc40b313ffa4962da984d3c0f9"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:04f68e19238fc783370f34e064356735bc7d74445170f05f45bbcf49d7e32cf7",
+    "changed": []
+  },
+  "session": {
+    "messages": 4,
+    "state": "idle"
+  }
+}

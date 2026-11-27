@@ -1,0 +1,21 @@
+id = "07-multi-file-patch"
+number = 7
+title = "Multi-file patch"
+proves = "Atomic application; partial failure leaves nothing applied"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 7"
+products = ["harness", "reference"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[title_call]
+text = "Patching three files"
+
+[end]
+exit = "ok"
+
+[harness]
+title = "Patching three files"
+verdicts = ["patch"]
+patch_files = ["old/remove.txt", "src/alpha.txt", "src/gamma.txt"]

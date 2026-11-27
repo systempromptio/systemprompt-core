@@ -1,0 +1,413 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "expected/trace.json",
+  "description": "The normalised trace of one run: the ordered steps, the workspace afterwards and the session afterwards.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "steps",
+    "workspace",
+    "session"
+  ],
+  "properties": {
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/step"
+      }
+    },
+    "workspace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tree_digest",
+        "changed"
+      ],
+      "properties": {
+        "tree_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "changed": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "messages",
+        "state"
+      ],
+      "properties": {
+        "messages": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "state": {
+          "enum": [
+            "idle"
+          ]
+        },
+        "todos": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "content",
+              "status"
+            ],
+            "properties": {
+              "content": {
+                "type": "string",
+                "minLength": 1
+              },
+              "status": {
+                "enum": [
+                  "pending",
+                  "in_progress",
+                  "completed",
+                  "cancelled"
+                ]
+              }
+            }
+          }
+        },
+        "jobs": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "running",
+              "exited",
+              "timed_out",
+              "killed"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "step": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "protocol",
+            "tool_results"
+          ],
+          "properties": {
+            "kind": {
+              "const": "model_request"
+            },
+            "protocol": {
+              "const": "{{protocol}}"
+            },
+            "tool_results": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9]*$"
+              }
+            },
+            "status": {
+              "enum": [
+                401,
+                429,
+                500,
+                529
+              ]
+            },
+            "purpose": {
+              "enum": [
+                "compaction"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "digest"
+          ],
+          "properties": {
+            "kind": {
+              "const": "assistant_text"
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "call",
+            "tool",
+            "input"
+          ],
+          "properties": {
+            "kind": {
+              "const": "tool_call"
+            },
+            "call": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*$"
+            },
+            "tool": {
+              "enum": [
+                "shell",
+                "read",
+                "write",
+                "edit",
+                "patch",
+                "glob",
+                "grep",
+                "fetch",
+                "todo",
+                "task"
+              ]
+            },
+            "input": {
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "call",
+            "tool",
+            "outcome"
+          ],
+          "properties": {
+            "kind": {
+              "const": "permission"
+            },
+            "call": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*$"
+            },
+            "tool": {
+              "enum": [
+                "shell",
+                "read",
+                "write",
+                "edit",
+                "patch",
+                "glob",
+                "grep",
+                "fetch",
+                "todo",
+                "task"
+              ]
+            },
+            "outcome": {
+              "enum": [
+                "allowed_by_rule",
+                "approved",
+                "approved_always",
+                "denied_by_rule",
+                "denied_by_verdict",
+                "rejected"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "call",
+            "tool",
+            "status",
+            "digest"
+          ],
+          "properties": {
+            "kind": {
+              "const": "tool_result"
+            },
+            "call": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*$"
+            },
+            "tool": {
+              "enum": [
+                "shell",
+                "read",
+                "write",
+                "edit",
+                "patch",
+                "glob",
+                "grep",
+                "fetch",
+                "todo",
+                "task"
+              ]
+            },
+            "status": {
+              "enum": [
+                "ok",
+                "error",
+                "denied",
+                "rejected",
+                "aborted"
+              ]
+            },
+            "digest": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "pattern": "^sha256:[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "truncated": {
+              "const": true
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "agent",
+            "steps"
+          ],
+          "properties": {
+            "kind": {
+              "const": "subagent"
+            },
+            "agent": {
+              "type": "string",
+              "minLength": 1
+            },
+            "steps": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/definitions/step"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "delivery",
+            "message"
+          ],
+          "properties": {
+            "kind": {
+              "const": "user_message"
+            },
+            "delivery": {
+              "enum": [
+                "steer",
+                "prompt"
+              ]
+            },
+            "message": {
+              "type": "integer",
+              "minimum": 2
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "auto",
+            "digest"
+          ],
+          "properties": {
+            "kind": {
+              "const": "compaction"
+            },
+            "auto": {
+              "type": "boolean"
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "abort"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "message"
+          ],
+          "properties": {
+            "kind": {
+              "const": "revert"
+            },
+            "message": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "reason"
+          ],
+          "properties": {
+            "kind": {
+              "const": "finish"
+            },
+            "reason": {
+              "enum": [
+                "end",
+                "aborted",
+                "error",
+                "stopped"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

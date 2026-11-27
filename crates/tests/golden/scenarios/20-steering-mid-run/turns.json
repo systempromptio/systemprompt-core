@@ -1,0 +1,45 @@
+{
+  "turns": [
+    {
+      "expect": {
+        "tools_include": [
+          "write"
+        ]
+      },
+      "respond": [
+        {
+          "tool_call": {
+            "id": "t1",
+            "name": "write",
+            "input": {
+              "path": "note.txt",
+              "content": "first draft\n"
+            }
+          }
+        }
+      ],
+      "stop": "tool_use",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    },
+    {
+      "expect": {
+        "tool_results": [
+          "t1"
+        ]
+      },
+      "respond": [
+        {
+          "text": "Created note.txt, as you asked, and I am naming the file here: note.txt."
+        }
+      ],
+      "stop": "end",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    }
+  ]
+}

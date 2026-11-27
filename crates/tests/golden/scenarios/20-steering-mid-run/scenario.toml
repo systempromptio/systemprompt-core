@@ -1,0 +1,37 @@
+id = "20-steering-mid-run"
+number = 20
+title = "Steering mid-run"
+proves = "A message sent during a run is admitted at the next step"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 20"
+products = ["harness", "reference"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[[permission.rule]]
+permission = "edit"
+pattern = "*"
+action = "ask"
+
+[title_call]
+text = "Creating a note"
+
+[[ask]]
+tool = "write"
+permission = "edit"
+reply = "once"
+
+[[action]]
+on = "ask"
+index = 1
+do = "steer"
+message = 2
+
+[end]
+exit = "ok"
+
+[harness]
+title = "Creating a note"
+verdicts = ["write"]
+patch_files = ["note.txt"]

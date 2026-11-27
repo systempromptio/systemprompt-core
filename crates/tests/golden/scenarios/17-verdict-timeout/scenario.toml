@@ -1,0 +1,22 @@
+id = "17-verdict-timeout"
+number = 17
+title = "Verdict slower than its budget"
+proves = "The documented behaviour on timeout. Harness only"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 17"
+products = ["harness"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[title_call]
+text = "Creating a late file"
+
+[end]
+exit = "ok"
+
+[harness]
+title = "Creating a late file"
+verdicts = ["write"]
+verdict_timeouts = ["t1"]
+patch_files = ["late.txt"]

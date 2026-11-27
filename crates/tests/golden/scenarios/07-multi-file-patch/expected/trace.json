@@ -1,0 +1,85 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "tool_call",
+      "call": "t1",
+      "tool": "patch",
+      "input": {
+        "patch": "%% begin patch\n%% add src/gamma.txt\n+new file\n%% delete src/missing.txt\n%% end patch"
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t1",
+      "tool": "patch",
+      "outcome": "allowed_by_rule"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t1",
+      "tool": "patch",
+      "status": "error",
+      "digest": "sha256:497b42b35798b60ecef9059f7ae9dd39dccfad9721393c9c34342e895694b197"
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t1"
+      ]
+    },
+    {
+      "kind": "tool_call",
+      "call": "t2",
+      "tool": "patch",
+      "input": {
+        "patch": "%% begin patch\n%% add src/gamma.txt\n+new file\n%% update src/alpha.txt\n@@\n one\n-two\n+2\n three\n%% delete old/remove.txt\n%% end patch"
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t2",
+      "tool": "patch",
+      "outcome": "allowed_by_rule"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t2",
+      "tool": "patch",
+      "status": "ok",
+      "digest": "sha256:50777fe5a209f2db7205c7ec1448a64749a204042f5738461e60d8a5dbdd3aeb"
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t2"
+      ]
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:7c3c75b4736d5db025a29c97b2feb568c70a626eefd744c2904b64f60c835323"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:aebe8129992fd152c81ce77dbeb728c1493a6a50ec8fb93c3ab9a46d4f14057b",
+    "changed": [
+      "old/remove.txt",
+      "src/alpha.txt",
+      "src/gamma.txt"
+    ]
+  },
+  "session": {
+    "messages": 6,
+    "state": "idle"
+  }
+}

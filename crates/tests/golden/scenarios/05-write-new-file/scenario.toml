@@ -1,0 +1,21 @@
+id = "05-write-new-file"
+number = 5
+title = "Write a new file"
+proves = "Creation inside the workspace"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 5"
+products = ["harness", "reference"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[title_call]
+text = "Creating a change log"
+
+[end]
+exit = "ok"
+
+[harness]
+title = "Creating a change log"
+verdicts = ["write"]
+patch_files = ["journal/changes.txt"]

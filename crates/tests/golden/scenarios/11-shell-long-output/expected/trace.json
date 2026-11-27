@@ -1,0 +1,55 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "tool_call",
+      "call": "t1",
+      "tool": "shell",
+      "input": {
+        "command": "{{command.long_output}}",
+        "description": "Print three thousand lines"
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t1",
+      "tool": "shell",
+      "outcome": "allowed_by_rule"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t1",
+      "tool": "shell",
+      "status": "ok",
+      "digest": null,
+      "truncated": true
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t1"
+      ]
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:6bb8c70281666025988ba212cf4c63a00bbb77167dd4a00509f870b13c8860b8"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:04f68e19238fc783370f34e064356735bc7d74445170f05f45bbcf49d7e32cf7",
+    "changed": []
+  },
+  "session": {
+    "messages": 4,
+    "state": "idle"
+  }
+}

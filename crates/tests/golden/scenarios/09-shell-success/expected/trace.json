@@ -1,0 +1,54 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "tool_call",
+      "call": "t1",
+      "tool": "shell",
+      "input": {
+        "command": "echo hello",
+        "description": "Print a greeting"
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t1",
+      "tool": "shell",
+      "outcome": "allowed_by_rule"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t1",
+      "tool": "shell",
+      "status": "ok",
+      "digest": "sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t1"
+      ]
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:0366de073e636f66546247401d04bef5ddd9b924645caf572b6236310fa54457"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:04f68e19238fc783370f34e064356735bc7d74445170f05f45bbcf49d7e32cf7",
+    "changed": []
+  },
+  "session": {
+    "messages": 4,
+    "state": "idle"
+  }
+}

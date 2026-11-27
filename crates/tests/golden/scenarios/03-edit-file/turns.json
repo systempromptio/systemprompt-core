@@ -1,0 +1,46 @@
+{
+  "turns": [
+    {
+      "expect": {
+        "tools_include": [
+          "edit"
+        ]
+      },
+      "respond": [
+        {
+          "tool_call": {
+            "id": "t1",
+            "name": "edit",
+            "input": {
+              "path": "greeting.txt",
+              "old_string": "wurld",
+              "new_string": "world"
+            }
+          }
+        }
+      ],
+      "stop": "tool_use",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    },
+    {
+      "expect": {
+        "tool_results": [
+          "t1"
+        ]
+      },
+      "respond": [
+        {
+          "text": "Fixed the spelling in greeting.txt."
+        }
+      ],
+      "stop": "end",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    }
+  ]
+}

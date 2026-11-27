@@ -1,0 +1,8 @@
+2 matches in 2 files
+
+src/a.txt
+  2: find the needle here
+
+src/b.txt
+  1: needle at the start
+

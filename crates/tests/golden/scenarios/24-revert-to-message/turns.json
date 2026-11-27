@@ -1,0 +1,99 @@
+{
+  "turns": [
+    {
+      "expect": {
+        "tools_include": [
+          "write"
+        ]
+      },
+      "respond": [
+        {
+          "tool_call": {
+            "id": "t1",
+            "name": "write",
+            "input": {
+              "path": "notes.txt",
+              "content": "first line\n"
+            }
+          }
+        }
+      ],
+      "stop": "tool_use",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    },
+    {
+      "expect": {
+        "tool_results": [
+          "t1"
+        ]
+      },
+      "respond": [
+        {
+          "text": "Created notes.txt."
+        }
+      ],
+      "stop": "end",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    },
+    {
+      "expect": {
+        "tools_include": [
+          "edit",
+          "write"
+        ]
+      },
+      "respond": [
+        {
+          "tool_call": {
+            "id": "t2",
+            "name": "edit",
+            "input": {
+              "path": "notes.txt",
+              "old_string": "first line",
+              "new_string": "changed line"
+            }
+          }
+        },
+        {
+          "tool_call": {
+            "id": "t3",
+            "name": "write",
+            "input": {
+              "path": "extra.txt",
+              "content": "added later\n"
+            }
+          }
+        }
+      ],
+      "stop": "tool_use",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    },
+    {
+      "expect": {
+        "tool_results": [
+          "t2",
+          "t3"
+        ]
+      },
+      "respond": [
+        {
+          "text": "Changed notes.txt and added extra.txt."
+        }
+      ],
+      "stop": "end",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    }
+  ]
+}

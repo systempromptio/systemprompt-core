@@ -1,0 +1,33 @@
+id = "24-revert-to-message"
+number = 24
+title = "Revert to a message"
+proves = "Files return to the snapshot; later messages removed"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 24"
+products = ["harness", "reference"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[title_call]
+text = "Creating notes"
+
+[[action]]
+on = "idle"
+index = 1
+do = "prompt"
+message = 2
+
+[[action]]
+on = "idle"
+index = 2
+do = "revert"
+message = 2
+
+[end]
+exit = "ok"
+
+[harness]
+title = "Creating notes"
+verdicts = ["write", "edit", "write"]
+patch_files = ["notes.txt"]

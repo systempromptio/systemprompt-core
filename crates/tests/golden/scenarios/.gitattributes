@@ -1,0 +1,2 @@
+# Fixtures are LF on every system, so one expected trace serves Windows and macOS.
+* text=auto eol=lf

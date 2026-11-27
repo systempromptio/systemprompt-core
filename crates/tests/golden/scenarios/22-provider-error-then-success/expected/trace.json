@@ -1,0 +1,43 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [],
+      "status": 429
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [],
+      "status": 500
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [],
+      "status": 401
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:afae5e89876ae78b6c18eed58937e3ad4f8cdc632309f4b08b9231afa2277e00"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:04f68e19238fc783370f34e064356735bc7d74445170f05f45bbcf49d7e32cf7",
+    "changed": []
+  },
+  "session": {
+    "messages": 2,
+    "state": "idle"
+  }
+}

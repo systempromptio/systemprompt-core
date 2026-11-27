@@ -1,0 +1,55 @@
+{
+  "turns": [
+    {
+      "expect": {
+        "tools_include": [
+          "glob",
+          "grep"
+        ]
+      },
+      "respond": [
+        {
+          "tool_call": {
+            "id": "t1",
+            "name": "glob",
+            "input": {
+              "pattern": "many/*.txt"
+            }
+          }
+        },
+        {
+          "tool_call": {
+            "id": "t2",
+            "name": "grep",
+            "input": {
+              "pattern": "needle"
+            }
+          }
+        }
+      ],
+      "stop": "tool_use",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    },
+    {
+      "expect": {
+        "tool_results": [
+          "t1",
+          "t2"
+        ]
+      },
+      "respond": [
+        {
+          "text": "There are 105 files under many, and the needle is in src/a.txt and src/b.txt."
+        }
+      ],
+      "stop": "end",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    }
+  ]
+}

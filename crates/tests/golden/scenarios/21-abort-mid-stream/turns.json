@@ -1,0 +1,15 @@
+{
+  "turns": [
+    {
+      "expect": {},
+      "respond": [
+        {
+          "text": "Here is the first part of a long answer"
+        }
+      ],
+      "fault": {
+        "stall_ms": 600000
+      }
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "turns": [
+    {
+      "expect": {},
+      "respond": [
+        {
+          "text": "The project has a single fixture file, README.txt."
+        }
+      ],
+      "stop": "end",
+      "usage": {
+        "input": 2000000000,
+        "output": 12
+      }
+    },
+    {
+      "expect": {},
+      "respond": [
+        {
+          "text": "## Goal\nDescribe the fixture project.\n\n## Constraints and preferences\nNone\n\n## Progress\n### Done\nListed the project's one file, README.txt.\n### In progress\nNone\n### Blocked\nNone\n\n## Key decisions\nNone\n\n## Relevant files\nREADME.txt: the only fixture file; not changed.\n\n## Next steps\nAnswer the follow-up question."
+        }
+      ],
+      "stop": "end",
+      "usage": {
+        "input": 900,
+        "output": 120
+      }
+    },
+    {
+      "expect": {},
+      "respond": [
+        {
+          "text": "README.txt says it is the fixture project for the golden scenarios."
+        }
+      ],
+      "stop": "end",
+      "usage": {
+        "input": 400,
+        "output": 16
+      }
+    }
+  ]
+}

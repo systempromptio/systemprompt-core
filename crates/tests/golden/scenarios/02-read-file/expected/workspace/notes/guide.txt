@@ -1,0 +1,3 @@
+Guide
+Keep entries short.
+One fact per line.

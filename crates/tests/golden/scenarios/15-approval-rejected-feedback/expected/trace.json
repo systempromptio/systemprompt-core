@@ -1,0 +1,54 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "tool_call",
+      "call": "t1",
+      "tool": "shell",
+      "input": {
+        "command": "echo should-not-run",
+        "description": "Print a marker"
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t1",
+      "tool": "shell",
+      "outcome": "rejected"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t1",
+      "tool": "shell",
+      "status": "rejected",
+      "digest": "sha256:c51e072293b46dd3cac66db25b4d2935bdac48ca7e14dd21bfde0278a9a5fcb6"
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t1"
+      ]
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:d40b2e7398e54b955a10a152d1aa8e98787f278ad67888bd316afa8b40ee9924"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:04f68e19238fc783370f34e064356735bc7d74445170f05f45bbcf49d7e32cf7",
+    "changed": []
+  },
+  "session": {
+    "messages": 4,
+    "state": "idle"
+  }
+}

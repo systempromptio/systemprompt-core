@@ -1,0 +1,45 @@
+{
+  "turns": [
+    {
+      "expect": {
+        "tools_include": [
+          "write"
+        ]
+      },
+      "respond": [
+        {
+          "tool_call": {
+            "id": "t1",
+            "name": "write",
+            "input": {
+              "path": "secrets/token.txt",
+              "content": "not allowed\n"
+            }
+          }
+        }
+      ],
+      "stop": "tool_use",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    },
+    {
+      "expect": {
+        "tool_results": [
+          "t1"
+        ]
+      },
+      "respond": [
+        {
+          "text": "A permission rule blocks writing under secrets, so I left it alone."
+        }
+      ],
+      "stop": "end",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    }
+  ]
+}

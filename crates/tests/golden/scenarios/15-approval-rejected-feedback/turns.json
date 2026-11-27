@@ -1,0 +1,45 @@
+{
+  "turns": [
+    {
+      "expect": {
+        "tools_include": [
+          "shell"
+        ]
+      },
+      "respond": [
+        {
+          "tool_call": {
+            "id": "t1",
+            "name": "shell",
+            "input": {
+              "command": "echo should-not-run",
+              "description": "Print a marker"
+            }
+          }
+        }
+      ],
+      "stop": "tool_use",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    },
+    {
+      "expect": {
+        "tool_results": [
+          "t1"
+        ]
+      },
+      "respond": [
+        {
+          "text": "Understood. I will explain instead of running anything."
+        }
+      ],
+      "stop": "end",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    }
+  ]
+}

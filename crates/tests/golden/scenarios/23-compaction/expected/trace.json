@@ -1,0 +1,54 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:1fbde3aaaded8b83963ee775ade8bfbe5be0a27463ce90a625e290969c729af5"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    },
+    {
+      "kind": "user_message",
+      "delivery": "prompt",
+      "message": 2
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [],
+      "purpose": "compaction"
+    },
+    {
+      "kind": "compaction",
+      "auto": true,
+      "digest": "sha256:9e21bbd4bf4c1df072d72e2de430e00ff4c2a3bb4dd371c607239a4570270b8b"
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:2f31d60c6be3952301e9a1f80550c01c7ddb930716ea68a7cf51e921b544dff7"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:04f68e19238fc783370f34e064356735bc7d74445170f05f45bbcf49d7e32cf7",
+    "changed": []
+  },
+  "session": {
+    "messages": 4,
+    "state": "idle"
+  }
+}

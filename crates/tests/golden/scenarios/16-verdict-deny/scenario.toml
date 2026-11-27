@@ -1,0 +1,24 @@
+id = "16-verdict-deny"
+number = 16
+title = "Tool denied by the instance verdict"
+proves = "No execution; the verdict's reason returned. Harness only"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 16"
+products = ["harness"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[title_call]
+text = "Creating a blocked file"
+
+[end]
+exit = "ok"
+
+[harness]
+title = "Creating a blocked file"
+verdicts = ["write"]
+
+[[harness.denial]]
+call = "t1"
+by = "policy"

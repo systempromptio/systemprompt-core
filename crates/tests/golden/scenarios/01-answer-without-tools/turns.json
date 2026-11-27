@@ -1,0 +1,17 @@
+{
+  "turns": [
+    {
+      "expect": {},
+      "respond": [
+        {
+          "text": "Hello! Ready when you are."
+        }
+      ],
+      "stop": "end",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    }
+  ]
+}

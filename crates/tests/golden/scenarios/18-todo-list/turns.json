@@ -1,0 +1,85 @@
+{
+  "turns": [
+    {
+      "expect": {
+        "tools_include": [
+          "todo"
+        ]
+      },
+      "respond": [
+        {
+          "tool_call": {
+            "id": "t1",
+            "name": "todo",
+            "input": {
+              "todos": [
+                {
+                  "content": "Draft the outline",
+                  "status": "pending"
+                },
+                {
+                  "content": "Write the body",
+                  "status": "pending"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "stop": "tool_use",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    },
+    {
+      "expect": {
+        "tool_results": [
+          "t1"
+        ]
+      },
+      "respond": [
+        {
+          "tool_call": {
+            "id": "t2",
+            "name": "todo",
+            "input": {
+              "todos": [
+                {
+                  "content": "Draft the outline",
+                  "status": "completed"
+                },
+                {
+                  "content": "Write the body",
+                  "status": "in_progress"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "stop": "tool_use",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    },
+    {
+      "expect": {
+        "tool_results": [
+          "t2"
+        ]
+      },
+      "respond": [
+        {
+          "text": "The outline is done and the body is in progress."
+        }
+      ],
+      "stop": "end",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    }
+  ]
+}

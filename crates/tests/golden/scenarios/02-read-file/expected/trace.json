@@ -1,0 +1,81 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:8c174601e08a6562178e07ca34532f40ec0a05efae5794bafc3d868aa50ea286"
+    },
+    {
+      "kind": "tool_call",
+      "call": "t1",
+      "tool": "read",
+      "input": {
+        "path": "notes/guide.txt"
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t1",
+      "tool": "read",
+      "outcome": "allowed_by_rule"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t1",
+      "tool": "read",
+      "status": "ok",
+      "digest": "sha256:f80f6b0d720d350d4f590a7e4b02ac939613aa67e56240bd472b049f03f1dbd0"
+    },
+    {
+      "kind": "tool_call",
+      "call": "t2",
+      "tool": "read",
+      "input": {
+        "path": "data/rows.txt",
+        "offset": 10,
+        "limit": 5
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t2",
+      "tool": "read",
+      "outcome": "allowed_by_rule"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t2",
+      "tool": "read",
+      "status": "ok",
+      "digest": "sha256:a839b15abba77d3bf82cfccb04c8bec7d3120dce8520839b24c0ad16a236f2c3"
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t1",
+        "t2"
+      ]
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:b1e43213e4a8b3df5fea5a67138d852e2e16762dff6a2dbf08c91a791432299e"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:122a40dbe7b776a8f705d72df21ddf77d69c16f709a2e1b799a3a9745732e729",
+    "changed": []
+  },
+  "session": {
+    "messages": 4,
+    "state": "idle"
+  }
+}

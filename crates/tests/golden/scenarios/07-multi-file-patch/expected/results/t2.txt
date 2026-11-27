@@ -1,0 +1,4 @@
+Applied patch:
+A src/gamma.txt
+M src/alpha.txt
+D old/remove.txt

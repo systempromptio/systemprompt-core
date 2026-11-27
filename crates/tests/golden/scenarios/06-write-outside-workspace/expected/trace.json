@@ -1,0 +1,54 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "tool_call",
+      "call": "t1",
+      "tool": "write",
+      "input": {
+        "path": "../outside.txt",
+        "content": "must not be written\n"
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t1",
+      "tool": "write",
+      "outcome": "rejected"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t1",
+      "tool": "write",
+      "status": "rejected",
+      "digest": "sha256:ca54f4093595470d1f13d8f0943489e2ceaae24b15058901c46ee100eccfbf02"
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t1"
+      ]
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:f90f8a491cd851cf5a251fd067611360b201e192420eaa72eaab449667f36723"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:04f68e19238fc783370f34e064356735bc7d74445170f05f45bbcf49d7e32cf7",
+    "changed": []
+  },
+  "session": {
+    "messages": 4,
+    "state": "idle"
+  }
+}

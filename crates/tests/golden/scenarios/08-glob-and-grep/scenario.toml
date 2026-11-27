@@ -1,0 +1,20 @@
+id = "08-glob-and-grep"
+number = 8
+title = "Glob and grep"
+proves = "Search limits; ignore rules honoured"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 8"
+products = ["harness", "reference"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[title_call]
+text = "Searching the project"
+
+[end]
+exit = "ok"
+
+[harness]
+title = "Searching the project"
+verdicts = ["glob", "grep"]

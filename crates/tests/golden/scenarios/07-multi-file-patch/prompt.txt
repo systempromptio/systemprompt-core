@@ -1,0 +1,1 @@
+Add src/gamma.txt, change two to 2 in src/alpha.txt and delete the obsolete file, in one patch.

@@ -1,0 +1,67 @@
+{
+  "turns": [
+    {
+      "expect": {
+        "tools_include": [
+          "patch"
+        ]
+      },
+      "respond": [
+        {
+          "tool_call": {
+            "id": "t1",
+            "name": "patch",
+            "input": {
+              "patch": "%% begin patch\n%% add src/gamma.txt\n+new file\n%% delete src/missing.txt\n%% end patch"
+            }
+          }
+        }
+      ],
+      "stop": "tool_use",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    },
+    {
+      "expect": {
+        "tool_results": [
+          "t1"
+        ]
+      },
+      "respond": [
+        {
+          "tool_call": {
+            "id": "t2",
+            "name": "patch",
+            "input": {
+              "patch": "%% begin patch\n%% add src/gamma.txt\n+new file\n%% update src/alpha.txt\n@@\n one\n-two\n+2\n three\n%% delete old/remove.txt\n%% end patch"
+            }
+          }
+        }
+      ],
+      "stop": "tool_use",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    },
+    {
+      "expect": {
+        "tool_results": [
+          "t2"
+        ]
+      },
+      "respond": [
+        {
+          "text": "Applied the patch: added src/gamma.txt, updated src/alpha.txt and deleted old/remove.txt."
+        }
+      ],
+      "stop": "end",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    }
+  ]
+}

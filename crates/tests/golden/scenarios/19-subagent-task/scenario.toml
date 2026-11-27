@@ -1,0 +1,20 @@
+id = "19-subagent-task"
+number = 19
+title = "Subagent task"
+proves = "A child session runs with its own tools and reports back"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 19"
+products = ["harness", "reference"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[title_call]
+text = "Counting the inventory"
+
+[end]
+exit = "ok"
+
+[harness]
+title = "Counting the inventory"
+verdicts = ["task", "read"]

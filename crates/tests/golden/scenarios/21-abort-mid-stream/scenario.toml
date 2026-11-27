@@ -1,0 +1,25 @@
+id = "21-abort-mid-stream"
+number = 21
+title = "Abort mid-stream"
+proves = "The run stops; the partial message is stored as aborted"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 21"
+products = ["harness", "reference"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[title_call]
+text = "A long answer"
+
+[[action]]
+on = "text"
+index = 1
+do = "abort"
+
+[end]
+exit = "aborted"
+
+[harness]
+title = "A long answer"
+verdicts = []

@@ -1,0 +1,25 @@
+id = "11-shell-long-output"
+number = 11
+title = "Shell command, long output"
+proves = "Truncation with head and tail kept"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 11"
+products = ["harness", "reference"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[title_call]
+text = "Printing many lines"
+
+[command.long_output]
+posix = 'i=1; while [ $i -le 3000 ]; do echo "line $i"; i=$((i+1)); done'
+powershell = '1..3000 | ForEach-Object { "line $_" }'
+cmd = "for /L %i in (1,1,3000) do @echo line %i"
+
+[end]
+exit = "ok"
+
+[harness]
+title = "Printing many lines"
+verdicts = ["shell"]

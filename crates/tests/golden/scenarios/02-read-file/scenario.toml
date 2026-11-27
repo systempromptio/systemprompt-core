@@ -1,0 +1,20 @@
+id = "02-read-file"
+number = 2
+title = "Read a file"
+proves = "Tool call assembly, read limits, result returned to the model"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 2"
+products = ["harness", "reference"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[title_call]
+text = "Reading the guide and rows"
+
+[end]
+exit = "ok"
+
+[harness]
+title = "Reading the guide and rows"
+verdicts = ["read", "read"]

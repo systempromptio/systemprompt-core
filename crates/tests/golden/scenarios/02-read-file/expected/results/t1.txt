@@ -1,0 +1,5 @@
+     1	Guide
+     2	Keep entries short.
+     3	One fact per line.
+
+(End of file: 3 lines.)

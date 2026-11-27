@@ -1,0 +1,56 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "tool_call",
+      "call": "t1",
+      "tool": "write",
+      "input": {
+        "path": "approved.txt",
+        "content": "ok\n"
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t1",
+      "tool": "write",
+      "outcome": "approved"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t1",
+      "tool": "write",
+      "status": "ok",
+      "digest": "sha256:b22fb2390fc84de44338669169e4cfbffc494e474ed77af98f846041b5955419"
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t1"
+      ]
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:2c2c03b053bcaabf550212fbb975711734d79746a05a13b60c8433a2d6f767e2"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:bc27031073d6a4a6629c6fcf9a3091eb731694ea7b55cbf9644ac6245c9dddbf",
+    "changed": [
+      "approved.txt"
+    ]
+  },
+  "session": {
+    "messages": 4,
+    "state": "idle"
+  }
+}

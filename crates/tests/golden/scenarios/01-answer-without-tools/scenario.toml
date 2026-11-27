@@ -1,0 +1,20 @@
+id = "01-answer-without-tools"
+number = 1
+title = "Answer without tools"
+proves = "Request assembly, streaming text, session persisted, title generated"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 1"
+products = ["harness", "reference"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[title_call]
+text = "A short greeting"
+
+[end]
+exit = "ok"
+
+[harness]
+title = "A short greeting"
+verdicts = []

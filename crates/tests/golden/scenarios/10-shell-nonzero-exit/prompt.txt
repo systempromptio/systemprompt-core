@@ -1,0 +1,1 @@
+Run the failing command and tell me what happened.

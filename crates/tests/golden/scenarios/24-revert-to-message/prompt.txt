@@ -1,0 +1,3 @@
+Create notes.txt with one line.
+---
+Change the line in notes.txt and add extra.txt.

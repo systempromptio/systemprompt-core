@@ -1,0 +1,26 @@
+id = "23-compaction"
+number = 23
+title = "Compaction"
+proves = "Crossing the headroom triggers a summary with the fixed sections and a verbatim tail"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 23"
+products = ["harness", "reference"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[title_call]
+text = "Listing the project files"
+
+[[action]]
+on = "idle"
+index = 1
+do = "prompt"
+message = 2
+
+[end]
+exit = "ok"
+
+[harness]
+title = "Listing the project files"
+verdicts = []

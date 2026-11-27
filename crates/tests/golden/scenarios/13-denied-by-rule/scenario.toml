@@ -1,0 +1,29 @@
+id = "13-denied-by-rule"
+number = 13
+title = "Tool denied by a permission rule"
+proves = "No execution; typed denial stored; reason returned"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 13"
+products = ["harness", "reference"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[[permission.rule]]
+permission = "edit"
+pattern = "secrets/*"
+action = "deny"
+
+[title_call]
+text = "Writing a token file"
+
+[end]
+exit = "ok"
+
+[harness]
+title = "Writing a token file"
+verdicts = []
+
+[[harness.denial]]
+call = "t1"
+by = "rule"

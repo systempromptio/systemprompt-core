@@ -1,0 +1,21 @@
+id = "22-provider-error-then-success"
+number = 22
+title = "Provider error then success"
+proves = "429 and 5xx retried with backoff; 401 refreshes the session once"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 22"
+products = ["harness", "reference"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[title_call]
+text = "Waiting for the provider"
+
+[end]
+exit = "ok"
+
+[harness]
+title = "Waiting for the provider"
+verdicts = []
+session_refreshes = 1

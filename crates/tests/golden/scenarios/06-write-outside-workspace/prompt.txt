@@ -1,0 +1,1 @@
+Write a note to ../outside.txt.

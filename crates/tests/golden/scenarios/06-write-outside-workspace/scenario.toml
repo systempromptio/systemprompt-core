@@ -1,0 +1,31 @@
+id = "06-write-outside-workspace"
+number = 6
+title = "Write outside the workspace"
+proves = "Refused by the path guard"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 6"
+products = ["harness", "reference"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[title_call]
+text = "Writing outside the project"
+
+[[ask]]
+tool = "write"
+permission = "external_directory"
+reply = "reject"
+feedback = "Stay inside the project."
+
+[end]
+exit = "ok"
+absent_outside = ["../outside.txt"]
+
+[harness]
+title = "Writing outside the project"
+verdicts = []
+
+[[harness.denial]]
+call = "t1"
+by = "rejected"

@@ -1,0 +1,35 @@
+{
+  "turns": [
+    {
+      "expect": {},
+      "fault": {
+        "status": 429
+      }
+    },
+    {
+      "expect": {},
+      "fault": {
+        "status": 500
+      }
+    },
+    {
+      "expect": {},
+      "fault": {
+        "status": 401
+      }
+    },
+    {
+      "expect": {},
+      "respond": [
+        {
+          "text": "Recovered after three failed attempts."
+        }
+      ],
+      "stop": "end",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    }
+  ]
+}

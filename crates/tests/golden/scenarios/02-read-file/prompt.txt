@@ -1,0 +1,1 @@
+Read notes/guide.txt, then show me rows 10 to 14 of data/rows.txt.

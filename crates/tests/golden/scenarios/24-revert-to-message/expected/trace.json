@@ -1,0 +1,131 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "tool_call",
+      "call": "t1",
+      "tool": "write",
+      "input": {
+        "path": "notes.txt",
+        "content": "first line\n"
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t1",
+      "tool": "write",
+      "outcome": "allowed_by_rule"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t1",
+      "tool": "write",
+      "status": "ok",
+      "digest": "sha256:fb96a0ada68bd863128ef0116940ec701e13412c317e4d4a152b853fdcb3ebe6"
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t1"
+      ]
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:80511857b986759d66f5e051567475cb72f0041f4b045aa742d493090af5e394"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    },
+    {
+      "kind": "user_message",
+      "delivery": "prompt",
+      "message": 2
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "tool_call",
+      "call": "t2",
+      "tool": "edit",
+      "input": {
+        "path": "notes.txt",
+        "old_string": "first line",
+        "new_string": "changed line"
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t2",
+      "tool": "edit",
+      "outcome": "allowed_by_rule"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t2",
+      "tool": "edit",
+      "status": "ok",
+      "digest": "sha256:6403c261d1b3e7b90b6c7066e919f0ae4030c3ad43e68315337cf21eb007484e"
+    },
+    {
+      "kind": "tool_call",
+      "call": "t3",
+      "tool": "write",
+      "input": {
+        "path": "extra.txt",
+        "content": "added later\n"
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t3",
+      "tool": "write",
+      "outcome": "allowed_by_rule"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t3",
+      "tool": "write",
+      "status": "ok",
+      "digest": "sha256:58af00ae8cf7bda618a4fff46f5f6d6686c9aa3d1d39b0cce148b1390ae46516"
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t2",
+        "t3"
+      ]
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:ad450a5ea8c2c5d5cfa335c8da87e0ad0a1256d3449508453108ffa6b558b727"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    },
+    {
+      "kind": "revert",
+      "message": 2
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:9cfb5c5b451c1412cfb7aa2b7a8dbb49c78a6024dd65c9d7d458c5c080308033",
+    "changed": [
+      "notes.txt"
+    ]
+  },
+  "session": {
+    "messages": 4,
+    "state": "idle"
+  }
+}

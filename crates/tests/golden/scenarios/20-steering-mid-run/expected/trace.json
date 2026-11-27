@@ -1,0 +1,61 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "tool_call",
+      "call": "t1",
+      "tool": "write",
+      "input": {
+        "path": "note.txt",
+        "content": "first draft\n"
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t1",
+      "tool": "write",
+      "outcome": "approved"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t1",
+      "tool": "write",
+      "status": "ok",
+      "digest": "sha256:404a7c51ab90787d7bd5dc21e69102cfe2cf8628afc6728d3fa311efb80c1d86"
+    },
+    {
+      "kind": "user_message",
+      "delivery": "steer",
+      "message": 2
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t1"
+      ]
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:d984093dd0e7f56be00df393c002a81c67bdeda34ef18faff0c0788a6de15fe2"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:417d976839b58bc1f115f3331f1fa3c023c97c94caa2ff5da133683ff1db8b3f",
+    "changed": [
+      "note.txt"
+    ]
+  },
+  "session": {
+    "messages": 5,
+    "state": "idle"
+  }
+}

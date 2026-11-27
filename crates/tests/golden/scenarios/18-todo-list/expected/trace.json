@@ -1,0 +1,109 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "tool_call",
+      "call": "t1",
+      "tool": "todo",
+      "input": {
+        "todos": [
+          {
+            "content": "Draft the outline",
+            "status": "pending"
+          },
+          {
+            "content": "Write the body",
+            "status": "pending"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t1",
+      "tool": "todo",
+      "outcome": "allowed_by_rule"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t1",
+      "tool": "todo",
+      "status": "ok",
+      "digest": "sha256:720a224d9f83d7cbc69123cda84e7a67b196f381a9d1fc1f56b00ab28d949ed9"
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t1"
+      ]
+    },
+    {
+      "kind": "tool_call",
+      "call": "t2",
+      "tool": "todo",
+      "input": {
+        "todos": [
+          {
+            "content": "Draft the outline",
+            "status": "completed"
+          },
+          {
+            "content": "Write the body",
+            "status": "in_progress"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t2",
+      "tool": "todo",
+      "outcome": "allowed_by_rule"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t2",
+      "tool": "todo",
+      "status": "ok",
+      "digest": "sha256:be80ea70533e1920882a098618c7fa35d5f66259a90543ad15f8a9d651daa66b"
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t2"
+      ]
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:82a9b5b2c9b2790249afeb578289572a24210189447e0bc78cc2ee93e2e76c7d"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:04f68e19238fc783370f34e064356735bc7d74445170f05f45bbcf49d7e32cf7",
+    "changed": []
+  },
+  "session": {
+    "messages": 6,
+    "state": "idle",
+    "todos": [
+      {
+        "content": "Draft the outline",
+        "status": "completed"
+      },
+      {
+        "content": "Write the body",
+        "status": "in_progress"
+      }
+    ]
+  }
+}

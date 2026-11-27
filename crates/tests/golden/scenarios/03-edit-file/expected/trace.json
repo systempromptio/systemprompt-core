@@ -1,0 +1,57 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "tool_call",
+      "call": "t1",
+      "tool": "edit",
+      "input": {
+        "path": "greeting.txt",
+        "old_string": "wurld",
+        "new_string": "world"
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t1",
+      "tool": "edit",
+      "outcome": "allowed_by_rule"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t1",
+      "tool": "edit",
+      "status": "ok",
+      "digest": "sha256:9b687acdfe9ac126c5308a43ce6c6b4c6737767f6917b086d03333745e318c6d"
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t1"
+      ]
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:def2230ee25875cfb770f2c62ec32ca5f2829fddbaecae54ba90b71d9c0b091e"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:478b73311152ffc12435f5acbd809b7e633e47beca389b97bc7e0455a8873912",
+    "changed": [
+      "greeting.txt"
+    ]
+  },
+  "session": {
+    "messages": 4,
+    "state": "idle"
+  }
+}

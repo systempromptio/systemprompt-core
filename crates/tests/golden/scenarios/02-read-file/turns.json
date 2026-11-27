@@ -1,0 +1,64 @@
+{
+  "turns": [
+    {
+      "expect": {
+        "tools_include": [
+          "read"
+        ]
+      },
+      "respond": [
+        {
+          "text": "I will read both files."
+        },
+        {
+          "tool_call": {
+            "id": "t1",
+            "name": "read",
+            "input": {
+              "path": "notes/guide.txt"
+            },
+            "argument_chunks": [
+              "{\"path\":",
+              "\"notes/gui",
+              "de.txt\"}"
+            ]
+          }
+        },
+        {
+          "tool_call": {
+            "id": "t2",
+            "name": "read",
+            "input": {
+              "path": "data/rows.txt",
+              "offset": 10,
+              "limit": 5
+            }
+          }
+        }
+      ],
+      "stop": "tool_use",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    },
+    {
+      "expect": {
+        "tool_results": [
+          "t1",
+          "t2"
+        ]
+      },
+      "respond": [
+        {
+          "text": "The guide has three lines, and rows 10 to 14 run from row 010 to row 014."
+        }
+      ],
+      "stop": "end",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    }
+  ]
+}

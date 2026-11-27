@@ -1,0 +1,45 @@
+{
+  "turns": [
+    {
+      "expect": {
+        "tools_include": [
+          "write"
+        ]
+      },
+      "respond": [
+        {
+          "tool_call": {
+            "id": "t1",
+            "name": "write",
+            "input": {
+              "path": "blocked.txt",
+              "content": "never written\n"
+            }
+          }
+        }
+      ],
+      "stop": "tool_use",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    },
+    {
+      "expect": {
+        "tool_results": [
+          "t1"
+        ]
+      },
+      "respond": [
+        {
+          "text": "Your organisation's policy blocked the write, so blocked.txt was not created."
+        }
+      ],
+      "stop": "end",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    }
+  ]
+}

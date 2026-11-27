@@ -1,0 +1,5 @@
+The user declined the shell call, so it did not run. They said:
+
+Do not run commands; just explain.
+
+Follow their direction before going further.

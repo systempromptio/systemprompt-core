@@ -1,0 +1,349 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "scenario.toml",
+  "description": "One golden scenario: what it proves, who runs it, how permissions are set, what the runner does during the run and how the run must end. Read after TOML parsing.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "number",
+    "title",
+    "proves",
+    "spec",
+    "products",
+    "protocols",
+    "permission",
+    "title_call",
+    "end"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9]{2}-[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "number": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "proves": {
+      "type": "string",
+      "minLength": 1
+    },
+    "spec": {
+      "type": "string",
+      "minLength": 1
+    },
+    "products": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "enum": [
+          "harness",
+          "reference"
+        ]
+      }
+    },
+    "protocols": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "enum": [
+          "messages",
+          "chat"
+        ]
+      }
+    },
+    "agent": {
+      "enum": [
+        "build",
+        "plan"
+      ]
+    },
+    "permission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "ask",
+            "allow",
+            "deny"
+          ]
+        },
+        "rule": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "permission",
+              "pattern",
+              "action"
+            ],
+            "properties": {
+              "permission": {
+                "enum": [
+                  "read",
+                  "edit",
+                  "shell",
+                  "glob",
+                  "grep",
+                  "fetch",
+                  "todo",
+                  "task",
+                  "external_directory"
+                ]
+              },
+              "pattern": {
+                "type": "string",
+                "minLength": 1
+              },
+              "action": {
+                "enum": [
+                  "allow",
+                  "ask",
+                  "deny"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "title_call": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ask": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tool",
+          "permission",
+          "reply"
+        ],
+        "properties": {
+          "tool": {
+            "enum": [
+              "shell",
+              "read",
+              "write",
+              "edit",
+              "patch",
+              "glob",
+              "grep",
+              "fetch",
+              "todo",
+              "task"
+            ]
+          },
+          "permission": {
+            "enum": [
+              "read",
+              "edit",
+              "shell",
+              "glob",
+              "grep",
+              "fetch",
+              "todo",
+              "task",
+              "external_directory"
+            ]
+          },
+          "reply": {
+            "enum": [
+              "once",
+              "always",
+              "reject"
+            ]
+          },
+          "feedback": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "action": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "on",
+          "index",
+          "do"
+        ],
+        "properties": {
+          "on": {
+            "enum": [
+              "ask",
+              "text",
+              "idle"
+            ]
+          },
+          "index": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "do": {
+            "enum": [
+              "steer",
+              "prompt",
+              "abort",
+              "revert"
+            ]
+          },
+          "message": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "posix",
+          "powershell",
+          "cmd"
+        ],
+        "properties": {
+          "posix": {
+            "type": "string",
+            "minLength": 1
+          },
+          "powershell": {
+            "type": "string",
+            "minLength": 1
+          },
+          "cmd": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "end": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exit"
+      ],
+      "properties": {
+        "exit": {
+          "enum": [
+            "ok",
+            "aborted",
+            "failed"
+          ]
+        },
+        "absent_outside": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "harness": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verdicts": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "shell",
+              "read",
+              "write",
+              "edit",
+              "patch",
+              "glob",
+              "grep",
+              "fetch",
+              "todo",
+              "task"
+            ]
+          }
+        },
+        "verdict_timeouts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "denial": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "call",
+              "by"
+            ],
+            "properties": {
+              "call": {
+                "type": "string",
+                "minLength": 1
+              },
+              "by": {
+                "enum": [
+                  "policy",
+                  "rule",
+                  "rejected",
+                  "aborted"
+                ]
+              }
+            }
+          }
+        },
+        "patch_files": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "session_refreshes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

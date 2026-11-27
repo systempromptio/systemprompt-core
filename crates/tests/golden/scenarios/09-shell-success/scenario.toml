@@ -1,0 +1,20 @@
+id = "09-shell-success"
+number = 9
+title = "Shell command, success"
+proves = "Shell selection; output captured and decoded"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 9"
+products = ["harness", "reference"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[title_call]
+text = "Running echo"
+
+[end]
+exit = "ok"
+
+[harness]
+title = "Running echo"
+verdicts = ["shell"]

@@ -1,0 +1,46 @@
+{
+  "turns": [
+    {
+      "expect": {
+        "tools_include": [
+          "edit"
+        ]
+      },
+      "respond": [
+        {
+          "tool_call": {
+            "id": "t1",
+            "name": "edit",
+            "input": {
+              "path": "list.txt",
+              "old_string": "item: ",
+              "new_string": "entry: "
+            }
+          }
+        }
+      ],
+      "stop": "tool_use",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    },
+    {
+      "expect": {
+        "tool_results": [
+          "t1"
+        ]
+      },
+      "respond": [
+        {
+          "text": "The text appears twice in list.txt, so nothing was changed. Tell me which line to change."
+        }
+      ],
+      "stop": "end",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    }
+  ]
+}

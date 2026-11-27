@@ -1,0 +1,44 @@
+{
+  "turns": [
+    {
+      "expect": {
+        "tools_include": [
+          "shell"
+        ]
+      },
+      "respond": [
+        {
+          "tool_call": {
+            "id": "t1",
+            "name": "shell",
+            "input": {
+              "command": "{{command.sleep}}",
+              "description": "Wait in the background",
+              "background": true
+            }
+          }
+        }
+      ],
+      "stop": "tool_use",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    },
+    {
+      "expect": {
+        "tool_results": [
+          "t1"
+        ]
+      },
+      "respond": [
+        {
+          "text": "The job is running in the background."
+        }
+      ],
+      "fault": {
+        "stall_ms": 600000
+      }
+    }
+  ]
+}

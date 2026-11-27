@@ -1,0 +1,209 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "turns.json",
+  "description": "The model script, in the shape the scripted instance loads (ModelScript). Unknown keys are refused there and here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "turns"
+  ],
+  "properties": {
+    "turns": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/turn"
+      }
+    }
+  },
+  "definitions": {
+    "turn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expect"
+      ],
+      "properties": {
+        "expect": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tools_include": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "shell",
+                  "read",
+                  "write",
+                  "edit",
+                  "patch",
+                  "glob",
+                  "grep",
+                  "fetch",
+                  "todo",
+                  "task"
+                ]
+              }
+            },
+            "tool_results": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "respond": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/respond"
+          }
+        },
+        "stop": {
+          "enum": [
+            "end",
+            "tool_use"
+          ]
+        },
+        "usage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "input",
+            "output"
+          ],
+          "properties": {
+            "input": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "output": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "fault": {
+          "$ref": "#/definitions/fault"
+        }
+      }
+    },
+    "respond": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "text"
+          ],
+          "properties": {
+            "text": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tool_call"
+          ],
+          "properties": {
+            "tool_call": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "name",
+                "input"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9]*$"
+                },
+                "name": {
+                  "enum": [
+                    "shell",
+                    "read",
+                    "write",
+                    "edit",
+                    "patch",
+                    "glob",
+                    "grep",
+                    "fetch",
+                    "todo",
+                    "task"
+                  ]
+                },
+                "input": {
+                  "type": "object"
+                },
+                "argument_chunks": {
+                  "type": "array",
+                  "minItems": 2,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "fault": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                401,
+                429,
+                500,
+                529
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "close_after_events"
+          ],
+          "properties": {
+            "close_after_events": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stall_ms"
+          ],
+          "properties": {
+            "stall_ms": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "const": "malformed_event"
+        }
+      ]
+    }
+  }
+}

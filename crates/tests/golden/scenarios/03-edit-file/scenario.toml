@@ -1,0 +1,21 @@
+id = "03-edit-file"
+number = 3
+title = "Edit a file"
+proves = "Exact-match edit; file changed; snapshot taken"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 3"
+products = ["harness", "reference"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[title_call]
+text = "Fixing a spelling mistake"
+
+[end]
+exit = "ok"
+
+[harness]
+title = "Fixing a spelling mistake"
+verdicts = ["edit"]
+patch_files = ["greeting.txt"]

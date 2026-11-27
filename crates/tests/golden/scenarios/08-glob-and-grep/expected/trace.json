@@ -1,0 +1,75 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "tool_call",
+      "call": "t1",
+      "tool": "glob",
+      "input": {
+        "pattern": "many/*.txt"
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t1",
+      "tool": "glob",
+      "outcome": "allowed_by_rule"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t1",
+      "tool": "glob",
+      "status": "ok",
+      "digest": "sha256:666cee670c7d22af9031ce341c5d5d752e9efeaa9a91d74dbb587e65fc56e389"
+    },
+    {
+      "kind": "tool_call",
+      "call": "t2",
+      "tool": "grep",
+      "input": {
+        "pattern": "needle"
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t2",
+      "tool": "grep",
+      "outcome": "allowed_by_rule"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t2",
+      "tool": "grep",
+      "status": "ok",
+      "digest": "sha256:831bf02f59f06849d9a939d7e1e0f45aa45fde2040c11436d60d7976d0695abc"
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t1",
+        "t2"
+      ]
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:2990d55ebb56ba8218ddd1e039d0982a82feb371a5eb1c6e69fe3b2e911f9768"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:d23d8d3cd0bfc13022b2faa8eb520d7ef815c6a52af32e37ea2fbf7a00873468",
+    "changed": []
+  },
+  "session": {
+    "messages": 4,
+    "state": "idle"
+  }
+}

@@ -1,0 +1,30 @@
+id = "12-background-job-abort"
+number = 12
+title = "Background job, then abort"
+proves = "The process tree is killed"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 12"
+products = ["harness", "reference"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[title_call]
+text = "Starting a background wait"
+
+[[action]]
+on = "text"
+index = 2
+do = "abort"
+
+[command.sleep]
+posix = "sleep 300"
+powershell = "Start-Sleep -Seconds 300"
+cmd = "ping -n 300 127.0.0.1 > nul"
+
+[end]
+exit = "aborted"
+
+[harness]
+title = "Starting a background wait"
+verdicts = ["shell"]

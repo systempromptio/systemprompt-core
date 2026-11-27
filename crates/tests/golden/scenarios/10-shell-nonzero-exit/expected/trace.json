@@ -1,0 +1,54 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "tool_call",
+      "call": "t1",
+      "tool": "shell",
+      "input": {
+        "command": "{{command.fail}}",
+        "description": "Fail with a message"
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t1",
+      "tool": "shell",
+      "outcome": "allowed_by_rule"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t1",
+      "tool": "shell",
+      "status": "ok",
+      "digest": "sha256:a6ecdd110b14c3f7bfa91f562b04fa8ba41c2743a5f4c3b757015af4f0f01b4b"
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t1"
+      ]
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:25571c42bccda0d7957bc013d5097d271d2372eb0553b6402872ac7b36766ec4"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:04f68e19238fc783370f34e064356735bc7d74445170f05f45bbcf49d7e32cf7",
+    "changed": []
+  },
+  "session": {
+    "messages": 4,
+    "state": "idle"
+  }
+}

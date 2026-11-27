@@ -1,0 +1,28 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:307d976d334ea201e7371452309a65d298b1db324c7b2064bf9cc58dfcfd956f"
+    },
+    {
+      "kind": "abort"
+    },
+    {
+      "kind": "finish",
+      "reason": "aborted"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:04f68e19238fc783370f34e064356735bc7d74445170f05f45bbcf49d7e32cf7",
+    "changed": []
+  },
+  "session": {
+    "messages": 2,
+    "state": "idle"
+  }
+}

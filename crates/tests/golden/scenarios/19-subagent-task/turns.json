@@ -1,0 +1,86 @@
+{
+  "turns": [
+    {
+      "expect": {
+        "tools_include": [
+          "task"
+        ]
+      },
+      "respond": [
+        {
+          "tool_call": {
+            "id": "t1",
+            "name": "task",
+            "input": {
+              "description": "Count the inventory",
+              "prompt": "Read inventory.txt in the working directory and report how many entries it has. Do not change any file.",
+              "agent": "general"
+            }
+          }
+        }
+      ],
+      "stop": "tool_use",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    },
+    {
+      "expect": {
+        "tools_include": [
+          "read"
+        ]
+      },
+      "respond": [
+        {
+          "tool_call": {
+            "id": "c1",
+            "name": "read",
+            "input": {
+              "path": "inventory.txt"
+            }
+          }
+        }
+      ],
+      "stop": "tool_use",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    },
+    {
+      "expect": {
+        "tool_results": [
+          "c1"
+        ]
+      },
+      "respond": [
+        {
+          "text": "inventory.txt has 3 entries: bolt, nut and washer."
+        }
+      ],
+      "stop": "end",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    },
+    {
+      "expect": {
+        "tool_results": [
+          "t1"
+        ]
+      },
+      "respond": [
+        {
+          "text": "The subagent counted 3 entries in inventory.txt."
+        }
+      ],
+      "stop": "end",
+      "usage": {
+        "input": 120,
+        "output": 18
+      }
+    }
+  ]
+}

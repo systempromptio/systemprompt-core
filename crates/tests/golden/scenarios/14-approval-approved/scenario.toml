@@ -1,0 +1,31 @@
+id = "14-approval-approved"
+number = 14
+title = "Tool needing approval, approved"
+proves = "The ask is raised; approval runs the tool"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 14"
+products = ["harness", "reference"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[[permission.rule]]
+permission = "edit"
+pattern = "*"
+action = "ask"
+
+[title_call]
+text = "Creating an approved file"
+
+[[ask]]
+tool = "write"
+permission = "edit"
+reply = "once"
+
+[end]
+exit = "ok"
+
+[harness]
+title = "Creating an approved file"
+verdicts = ["write"]
+patch_files = ["approved.txt"]

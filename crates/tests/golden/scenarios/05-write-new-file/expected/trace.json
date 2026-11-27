@@ -1,0 +1,56 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "tool_call",
+      "call": "t1",
+      "tool": "write",
+      "input": {
+        "path": "journal/changes.txt",
+        "content": "First entry.\nSecond entry.\n"
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t1",
+      "tool": "write",
+      "outcome": "allowed_by_rule"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t1",
+      "tool": "write",
+      "status": "ok",
+      "digest": "sha256:d2d6095508025a27acbd9a8f7bd07f690ec2feff4febf974bdd78fa11f2fab7c"
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t1"
+      ]
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:d9c00bb21aa3456e83df9e783698e55872bc60905e472a2f85a3a8d37e4b9067"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:52fec49d9f898e5ffb748ac4ffe79d619dfbae180b5388e0f159064a31260f9e",
+    "changed": [
+      "journal/changes.txt"
+    ]
+  },
+  "session": {
+    "messages": 4,
+    "state": "idle"
+  }
+}

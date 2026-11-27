@@ -1,0 +1,5 @@
+     1	bolt
+     2	nut
+     3	washer
+
+(End of file: 3 lines.)

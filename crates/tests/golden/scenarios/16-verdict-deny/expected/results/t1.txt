@@ -1,0 +1,2 @@
+Denied by policy: the write call was blocked by your organisation's policy and did not run. Reason: Writes are blocked by policy in this scenario.
+Do not repeat this call, and do not try to reach the same result another way that gets around the policy. Tell the user in a sentence what was blocked and why, then continue with an approach the policy allows, or ask the user how to proceed if there is none.

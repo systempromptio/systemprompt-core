@@ -1,0 +1,61 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "tool_call",
+      "call": "t1",
+      "tool": "shell",
+      "input": {
+        "command": "{{command.sleep}}",
+        "description": "Wait in the background",
+        "background": true
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t1",
+      "tool": "shell",
+      "outcome": "allowed_by_rule"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t1",
+      "tool": "shell",
+      "status": "ok",
+      "digest": null
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t1"
+      ]
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:2630e505fcae5eac104c23efbb990a3f046ee2350b068d3d8a9c8a984ff869ce"
+    },
+    {
+      "kind": "abort"
+    },
+    {
+      "kind": "finish",
+      "reason": "aborted"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:04f68e19238fc783370f34e064356735bc7d74445170f05f45bbcf49d7e32cf7",
+    "changed": []
+  },
+  "session": {
+    "messages": 4,
+    "state": "idle",
+    "jobs": [
+      "killed"
+    ]
+  }
+}

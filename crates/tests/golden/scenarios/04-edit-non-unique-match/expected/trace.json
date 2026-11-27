@@ -1,0 +1,55 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "tool_call",
+      "call": "t1",
+      "tool": "edit",
+      "input": {
+        "path": "list.txt",
+        "old_string": "item: ",
+        "new_string": "entry: "
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t1",
+      "tool": "edit",
+      "outcome": "allowed_by_rule"
+    },
+    {
+      "kind": "tool_result",
+      "call": "t1",
+      "tool": "edit",
+      "status": "error",
+      "digest": "sha256:30993377659493e7093169c5624a2fba0ec3df467cb8edf7d5b90ba7a93e38da"
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t1"
+      ]
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:0d36e10e078a7d2728a8769d3fdea3ed763a9f2ca5674434437157f21caad12b"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:6d5a9fb6d1dc6ee1dfd0db93c517684982c60b42e7ead60fd1739f750143494d",
+    "changed": []
+  },
+  "session": {
+    "messages": 4,
+    "state": "idle"
+  }
+}

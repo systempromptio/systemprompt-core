@@ -1,0 +1,25 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:10b7a7815371d6e6e8e1c6cc5ad6c428fa51741cfdd9d053a5352209a83956e8"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:04f68e19238fc783370f34e064356735bc7d74445170f05f45bbcf49d7e32cf7",
+    "changed": []
+  },
+  "session": {
+    "messages": 2,
+    "state": "idle"
+  }
+}

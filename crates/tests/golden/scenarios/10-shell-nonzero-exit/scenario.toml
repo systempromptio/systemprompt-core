@@ -1,0 +1,25 @@
+id = "10-shell-nonzero-exit"
+number = 10
+title = "Shell command, non-zero exit"
+proves = "Exit status and stderr reach the model"
+spec = "documentation/future/harness/testing/03-golden-scenarios.md section 2, row 10"
+products = ["harness", "reference"]
+protocols = ["messages", "chat"]
+
+[permission]
+mode = "ask"
+
+[title_call]
+text = "Running a failing command"
+
+[command.fail]
+posix = "echo oops >&2; exit 3"
+powershell = "[Console]::Error.WriteLine('oops'); exit 3"
+cmd = "echo oops 1>&2 & exit /b 3"
+
+[end]
+exit = "ok"
+
+[harness]
+title = "Running a failing command"
+verdicts = ["shell"]

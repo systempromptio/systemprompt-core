@@ -1,0 +1,102 @@
+{
+  "steps": [
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": []
+    },
+    {
+      "kind": "tool_call",
+      "call": "t1",
+      "tool": "task",
+      "input": {
+        "description": "Count the inventory",
+        "prompt": "Read inventory.txt in the working directory and report how many entries it has. Do not change any file.",
+        "agent": "general"
+      }
+    },
+    {
+      "kind": "permission",
+      "call": "t1",
+      "tool": "task",
+      "outcome": "allowed_by_rule"
+    },
+    {
+      "kind": "subagent",
+      "agent": "general",
+      "steps": [
+        {
+          "kind": "model_request",
+          "protocol": "{{protocol}}",
+          "tool_results": []
+        },
+        {
+          "kind": "tool_call",
+          "call": "c1",
+          "tool": "read",
+          "input": {
+            "path": "inventory.txt"
+          }
+        },
+        {
+          "kind": "permission",
+          "call": "c1",
+          "tool": "read",
+          "outcome": "allowed_by_rule"
+        },
+        {
+          "kind": "tool_result",
+          "call": "c1",
+          "tool": "read",
+          "status": "ok",
+          "digest": "sha256:a4d53e4542ed75c6309278fc8662acbc8d51c3460671fa2c990765911425c476"
+        },
+        {
+          "kind": "model_request",
+          "protocol": "{{protocol}}",
+          "tool_results": [
+            "c1"
+          ]
+        },
+        {
+          "kind": "assistant_text",
+          "digest": "sha256:3fb94ba6309c390f78be9b9acb9251d3a8b9de57e34421b33da09c524e7222e8"
+        },
+        {
+          "kind": "finish",
+          "reason": "end"
+        }
+      ]
+    },
+    {
+      "kind": "tool_result",
+      "call": "t1",
+      "tool": "task",
+      "status": "ok",
+      "digest": "sha256:3fb94ba6309c390f78be9b9acb9251d3a8b9de57e34421b33da09c524e7222e8"
+    },
+    {
+      "kind": "model_request",
+      "protocol": "{{protocol}}",
+      "tool_results": [
+        "t1"
+      ]
+    },
+    {
+      "kind": "assistant_text",
+      "digest": "sha256:9515c8eefb9393b710a24e5c8bcff76dbb1e7e56c26280e9b410e2bc1bf9c866"
+    },
+    {
+      "kind": "finish",
+      "reason": "end"
+    }
+  ],
+  "workspace": {
+    "tree_digest": "sha256:cc9cfab829cb613853220b354f35d8e4e2a0b9a81a7096a859924a1024166f16",
+    "changed": []
+  },
+  "session": {
+    "messages": 4,
+    "state": "idle"
+  }
+}

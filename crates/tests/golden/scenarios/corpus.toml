@@ -1,0 +1,3 @@
+# The first set (documentation/future/harness/testing/03-golden-scenarios.md, section 2).
+# validate.py refuses a corpus whose scenario count differs.
+scenarios = 24
