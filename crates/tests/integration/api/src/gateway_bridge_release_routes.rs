@@ -501,6 +501,59 @@ async fn a_phone_with_no_credential_downloads_the_apk_as_an_android_package() ->
     Ok(())
 }
 
+// Why: the detailed 404 names the private repository, the tag prefix and the
+// version window. A caller with no credential learns only that there is
+// nothing to download; a bridge caller, who is the operator's own client,
+// still reads which release is missing.
+#[tokio::test]
+async fn an_anonymous_caller_reads_one_fixed_not_found_naming_no_repository() -> anyhow::Result<()>
+{
+    let base = server().await.uri();
+    mount_releases(serde_json::json!([
+        release(&base, "v0.41.0", false, false),
+        release(&base, "bridge-v0.33.0", true, false),
+    ]))
+    .await;
+
+    let (app, token) = app().await?;
+    let mut anonymous = Vec::new();
+    for uri in [
+        "/bridge/latest?platform=android",
+        "/bridge/download/android",
+    ] {
+        let (status, body) = body_to_string(app.clone().oneshot(get(uri, None)).await?).await?;
+        assert_eq!(status.as_u16(), 404, "{uri}: {body}");
+        for withheld in ["systempromptio", "systemprompt-core", "bridge-v", "window"] {
+            assert!(!body.contains(withheld), "{uri} names {withheld}: {body}");
+        }
+        let error: serde_json::Value = serde_json::from_str(&body)?;
+        anonymous.push(error);
+    }
+    assert_eq!(
+        anonymous[0], anonymous[1],
+        "the feed and the download answer an anonymous caller alike"
+    );
+    assert!(
+        anonymous[0]
+            .to_string()
+            .contains("app_download_unavailable"),
+        "{}",
+        anonymous[0]
+    );
+
+    let (status, body) = body_to_string(
+        app.oneshot(get("/bridge/latest?platform=darwin-arm64", Some(&token)))
+            .await?,
+    )
+    .await?;
+    assert_eq!(status.as_u16(), 404, "{body}");
+    assert!(
+        body.contains("systempromptio/systemprompt-core"),
+        "a bridge caller still reads which repository has no release: {body}"
+    );
+    Ok(())
+}
+
 fn secrets() -> systemprompt_gateway::surface::views::BridgeReleaseSource {
     systemprompt_gateway::surface::views::BridgeReleaseSource::new(
         systemprompt_test_fixtures::ensure_test_secrets_bootstrap(),

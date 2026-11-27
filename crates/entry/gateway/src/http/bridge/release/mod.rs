@@ -21,7 +21,10 @@
 //! that has no app yet holds no credential, so the one platform the discovery
 //! document offers for download (`bridge_instance.clients.android`) is served
 //! to an anonymous caller; every other platform requires the bridge
-//! credential. An anonymous caller cannot force a refresh.
+//! credential. An anonymous caller cannot force a refresh, and a release that
+//! does not resolve answers it one fixed 404: the detailed text names the
+//! private repository, the tag prefix and the version window, which only a
+//! bridge caller reads.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -72,11 +75,11 @@ pub async fn latest(
     let Admitted { spec, caller } = admit(&state, &headers, &query.platform).await?;
     let secrets = &*state.releases;
     let resolved = if query.refresh && caller == Caller::Bridge {
-        feed.resolve_fresh(&spec, secrets, &query.platform).await?
+        feed.resolve_fresh(&spec, secrets, &query.platform).await
     } else {
-        feed.resolve(&spec, secrets, &query.platform).await?
+        feed.resolve(&spec, secrets, &query.platform).await
     };
-    Ok(Json(resolved.manifest))
+    Ok(Json(resolved.map_err(|err| caller.told(err))?.manifest))
 }
 
 pub async fn download(
@@ -85,9 +88,12 @@ pub async fn download(
     headers: HeaderMap,
     Path(platform): Path<String>,
 ) -> Result<Response, ReleaseError> {
-    let Admitted { spec, .. } = admit(&state, &headers, &platform).await?;
+    let Admitted { spec, caller } = admit(&state, &headers, &platform).await?;
     let secrets = &*state.releases;
-    let asset = feed.resolve_asset(&spec, secrets, &platform).await?;
+    let asset = feed
+        .resolve_asset(&spec, secrets, &platform)
+        .await
+        .map_err(|err| caller.told(err))?;
 
     // Why: GitHub's asset API returns JSON metadata unless Accept is
     // application/octet-stream.
@@ -130,6 +136,15 @@ pub async fn download(
 enum Caller {
     Bridge,
     Anonymous,
+}
+
+impl Caller {
+    fn told(self, err: ReleaseError) -> ReleaseError {
+        match self {
+            Self::Bridge => err,
+            Self::Anonymous => err.for_anonymous(),
+        }
+    }
 }
 
 struct Admitted {

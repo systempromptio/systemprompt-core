@@ -4,7 +4,8 @@
 //! keeps failing is a fleet-wide update outage: an upstream failure answers
 //! 502/503 through `ApiError`, which logs it at error with its full cause
 //! chain while the body carries only the fixed public text. A configuration
-//! answer (no build for the platform, no release, no asset) stays a 404.
+//! answer (no build for the platform, no release, no asset) stays a 404, and
+//! a caller with no credential reads one fixed 404 for all of them.
 //! GitHub refusing the configured token (401, or a 403 that is not a rate
 //! limit) is [`ReleaseError::TokenRejected`], a 503 naming the secret to
 //! rotate, so it is not mistaken for a GitHub outage.
@@ -43,6 +44,8 @@ pub enum ReleaseError {
     PinnedOutsideWindow { pinned: String, window: String },
     #[error("release {tag} has no asset {asset}")]
     MissingAsset { tag: String, asset: String },
+    #[error("no app download is available from this instance")]
+    Unavailable,
     #[error("release {version} publishes no SHA256SUMS")]
     NoChecksums { version: String },
     #[error("SHA256SUMS has no entry for {asset}")]
@@ -95,6 +98,27 @@ impl ReleaseError {
         }
     }
 
+    /// The answer a caller with no credential reads. Which release is
+    /// missing, and from which repository and window, is logged for the
+    /// operator and replaced by [`Self::Unavailable`].
+    #[must_use]
+    pub fn for_anonymous(self) -> Self {
+        match self {
+            Self::NoRelease { .. }
+            | Self::NoCompatibleRelease { .. }
+            | Self::PinnedOutsideWindow { .. }
+            | Self::MissingAsset { .. } => {
+                tracing::warn!(
+                    error_key = self.error_key(),
+                    error = %self,
+                    "anonymous app download has no release to serve"
+                );
+                Self::Unavailable
+            },
+            other => other,
+        }
+    }
+
     #[must_use]
     pub const fn status(&self) -> StatusCode {
         match self {
@@ -104,7 +128,8 @@ impl ReleaseError {
             | Self::NoRelease { .. }
             | Self::NoCompatibleRelease { .. }
             | Self::PinnedOutsideWindow { .. }
-            | Self::MissingAsset { .. } => StatusCode::NOT_FOUND,
+            | Self::MissingAsset { .. }
+            | Self::Unavailable => StatusCode::NOT_FOUND,
             Self::NoChecksums { .. }
             | Self::ChecksumMissing { .. }
             | Self::Request { .. }
@@ -146,6 +171,7 @@ impl ReleaseError {
             Self::NoCompatibleRelease { .. } => "compatible_release_not_found",
             Self::PinnedOutsideWindow { .. } => "pinned_release_outside_window",
             Self::MissingAsset { .. } => "release_asset_not_found",
+            Self::Unavailable => "app_download_unavailable",
             Self::NoChecksums { .. } | Self::ChecksumMissing { .. } => {
                 "release_checksum_unavailable"
             },
