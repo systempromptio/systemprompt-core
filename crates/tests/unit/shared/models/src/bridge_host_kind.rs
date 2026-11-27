@@ -196,24 +196,33 @@ fn the_opencode_alias_is_gone_from_the_evaluator_wire() {
 fn hook_host_execution_source_follows_the_product() {
     assert_eq!(
         ExecutionSource::from_hook_host(HostKind::OpenCode),
-        ExecutionSource::HookOpenCode
+        Some(ExecutionSource::HookOpenCode)
     );
     assert_eq!(
         ExecutionSource::from_hook_host(HostKind::OpenCodeCli),
-        ExecutionSource::HookOpenCode
+        Some(ExecutionSource::HookOpenCode)
     );
     assert_eq!(
         ExecutionSource::from_hook_host(HostKind::ClaudeCode),
-        ExecutionSource::HookClaudeCode
+        Some(ExecutionSource::HookClaudeCode)
     );
     assert_eq!(
         ExecutionSource::from_hook_host(HostKind::CodexCli),
-        ExecutionSource::HookClaudeCode
+        Some(ExecutionSource::HookClaudeCode)
     );
-    assert_eq!(
-        ExecutionSource::from_hook_host(HostKind::Harness),
-        ExecutionSource::HookClaudeCode
-    );
+}
+
+#[test]
+fn a_host_with_no_hook_vantage_point_borrows_no_other_hosts_source() {
+    assert_eq!(ExecutionSource::from_hook_host(HostKind::Harness), None);
+    for host in HostKind::ALL {
+        if host.config_owner() == ConfigOwner::Bridge {
+            assert!(
+                ExecutionSource::from_hook_host(host).is_some(),
+                "{host} reports tool results through a hook the platform records"
+            );
+        }
+    }
 }
 
 #[test]
