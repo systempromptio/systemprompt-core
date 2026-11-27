@@ -5,8 +5,10 @@
 //! `systemprompt_identifiers` type. What remains here is protocol-scoped:
 //! [`Sha256Digest`] enforces 64 lowercase hex characters at deserialise time,
 //! [`ManifestSignature`] is a passthrough wrapper for the base64-encoded
-//! detached ed25519 signature carried alongside every manifest, and
-//! [`ToolPolicy`] is the per-tool permission a managed MCP server declares.
+//! detached ed25519 signature carried alongside every manifest,
+//! [`HostExtensionId`] enforces kebab-case on the extension ids a manifest
+//! enables for a host, and [`ToolPolicy`] is the per-tool permission a managed
+//! MCP server declares.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -141,6 +143,63 @@ impl std::str::FromStr for Sha256Digest {
 }
 
 impl<'de> Deserialize<'de> for Sha256Digest {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Self::try_new(s).map_err(serde::de::Error::custom)
+    }
+}
+
+/// The id of one optional feature extension a host may turn on.
+///
+/// Kebab-case: 1 to 64 characters, lowercase letters and digits in segments
+/// joined by single hyphens, starting with a letter. Validated where the
+/// services tree is loaded and again where a manifest is read, so neither side
+/// ever holds an id the other would refuse. An extension only ever adds
+/// capability: a host for which an id is absent runs without it.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[serde(transparent)]
+pub struct HostExtensionId(String);
+
+impl HostExtensionId {
+    pub const MAX_CHARS: usize = 64;
+
+    pub fn try_new(value: impl Into<String>) -> Result<Self, IdValidationError> {
+        let value = value.into();
+        let kebab = value.len() <= Self::MAX_CHARS
+            && value.starts_with(|c: char| c.is_ascii_lowercase())
+            && value.split('-').all(|segment| {
+                !segment.is_empty()
+                    && segment
+                        .bytes()
+                        .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
+            });
+        if !kebab {
+            return Err(IdValidationError::invalid(
+                "HostExtensionId",
+                format!(
+                    "expected 1 to {} kebab-case characters starting with a letter",
+                    Self::MAX_CHARS
+                ),
+            ));
+        }
+        Ok(Self(value))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for HostExtensionId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl<'de> Deserialize<'de> for HostExtensionId {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,

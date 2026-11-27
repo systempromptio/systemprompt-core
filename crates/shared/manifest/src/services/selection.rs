@@ -1,7 +1,13 @@
 //! Marketplace membership selection over a resolved [`ServicesConfig`].
 //!
 //! Resolves which enabled plugins a marketplace carries and which skills those
-//! plugins (and the agents they select) contribute.
+//! plugins (and the agents they select) contribute, and which hosts the
+//! instance serves.
+//!
+//! A host the bridge configures ([`ConfigOwner::Bridge`]) is served unless
+//! its `external_agents` entry says `enabled: false`. A host that configures
+//! itself ([`ConfigOwner::Host`]) is served only when the instance declares it
+//! with `enabled: true`; with no entry it is withheld.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -10,7 +16,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::external_agent::external_agent_host;
 use super::{ExternalAgentConfig, MarketplaceConfig, PluginConfig, ServicesConfig};
-use systemprompt_models::bridge::host::{HostKind, InstanceHosts};
+use systemprompt_models::bridge::host::{ConfigOwner, HostKind, InstanceHosts};
+use systemprompt_models::bridge::ids::HostExtensionId;
 use systemprompt_models::plugin::ComponentSource;
 
 impl ServicesConfig {
@@ -25,7 +32,13 @@ impl ServicesConfig {
     pub fn instance_enabled_hosts(&self) -> Vec<HostKind> {
         HostKind::ALL
             .into_iter()
-            .filter(|host| self.external_agent(*host).is_none_or(|agent| agent.enabled))
+            .filter(|host| {
+                let declared = self.external_agent(*host).map(|agent| agent.enabled);
+                match host.config_owner() {
+                    ConfigOwner::Bridge => declared.unwrap_or(true),
+                    ConfigOwner::Host => declared.unwrap_or(false),
+                }
+            })
             .collect()
     }
 
@@ -44,9 +57,10 @@ impl ServicesConfig {
     }
 
     #[must_use]
-    pub fn instance_host_extensions(&self) -> BTreeMap<HostKind, Vec<String>> {
+    pub fn instance_host_extensions(&self) -> BTreeMap<HostKind, Vec<HostExtensionId>> {
         self.instance_enabled_hosts()
             .into_iter()
+            .filter(|host| host.config_owner() == ConfigOwner::Host)
             .filter_map(|host| {
                 self.external_agent(host)
                     .filter(|agent| !agent.extensions.is_empty())

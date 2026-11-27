@@ -2,7 +2,9 @@
 //!
 //! A shared bridge binary reads it to find this instance's sign-in and
 //! identity routes, its branding and the hosts it serves. It carries no trust
-//! material.
+//! material. The bridge is its only reader and manages no host that configures
+//! itself, so `enabled_hosts` lists the [`ConfigOwner::Bridge`] hosts only: a
+//! bridge of any version parses the document whatever the instance enables.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,6 +16,7 @@ use axum::{Json, Router};
 use systemprompt_loader::ServicesState;
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::api::ApiError;
+use systemprompt_models::bridge::host::ConfigOwner;
 use systemprompt_models::bridge::instance::{BridgeDiscovery, DISCOVERY_CONTRACT};
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
@@ -51,6 +54,10 @@ pub fn discovery_document(services: &ServicesConfig) -> Option<BridgeDiscovery> 
         device_link_path: instance.device_link_path.clone(),
         identity_path: instance.identity_path.clone(),
         branding: instance.branding.to_branding(),
-        enabled_hosts: services.instance_enabled_hosts(),
+        enabled_hosts: services
+            .instance_enabled_hosts()
+            .into_iter()
+            .filter(|host| host.config_owner() == ConfigOwner::Bridge)
+            .collect(),
     })
 }
