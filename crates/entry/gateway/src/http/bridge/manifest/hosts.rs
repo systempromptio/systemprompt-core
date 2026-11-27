@@ -49,11 +49,11 @@ pub fn host_extensions_for(
         .collect()
 }
 
-pub fn named(
-    enabled_hosts: &[HostKind],
-    host_model_protocols: &BTreeMap<HostKind, Vec<String>>,
-    host_extensions: &BTreeMap<HostKind, Vec<HostExtensionId>>,
-) -> impl Iterator<Item = HostKind> {
+pub fn named<'a>(
+    enabled_hosts: &'a [HostKind],
+    host_model_protocols: &'a BTreeMap<HostKind, Vec<String>>,
+    host_extensions: &'a BTreeMap<HostKind, Vec<HostExtensionId>>,
+) -> impl Iterator<Item = HostKind> + 'a {
     enabled_hosts
         .iter()
         .chain(host_model_protocols.keys())

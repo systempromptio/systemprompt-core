@@ -8,6 +8,7 @@ use super::super::ManagedConsumerState;
 use super::error::ConsumerHttpError;
 use axum::http::{HeaderMap, StatusCode, header};
 use systemprompt_identifiers::ManagedResourceId;
+use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_marketplace::managed::ManagedError;
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::feedback::EvaluatorClient;
@@ -39,6 +40,14 @@ pub(super) async fn authenticate_device(
     }
 }
 
+#[must_use]
+pub fn instance_serves(services: &ServicesConfig, host: EvaluatorClient) -> bool {
+    services
+        .instance_enabled_hosts()
+        .iter()
+        .any(|served| host.accepts(*served))
+}
+
 pub(super) async fn resource(
     state: &ManagedConsumerState,
     credential: &str,
@@ -46,13 +55,7 @@ pub(super) async fn resource(
     host: EvaluatorClient,
 ) -> Result<(), ConsumerHttpError> {
     let identity = authenticate_device(state, credential).await?;
-    if !state
-        .services
-        .config()
-        .instance_enabled_hosts()
-        .iter()
-        .any(|value| host.accepts(*value))
-    {
+    if !instance_serves(&state.services.config(), host) {
         return Err(ConsumerHttpError(StatusCode::FORBIDDEN));
     }
     let skills = state
