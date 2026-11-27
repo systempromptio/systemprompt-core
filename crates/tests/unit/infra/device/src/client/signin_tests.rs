@@ -68,6 +68,7 @@ async fn discovery_documents_are_checked() {
             &json!({
                 "contract": "1",
                 "device_link_path": "/bridge-auth/device-link",
+                "identity_path": "/api/public/bridge/whoami",
                 "branding": { "display_name": "Alpha" },
                 "enabled_hosts": ["harness"]
             }),
@@ -83,7 +84,11 @@ async fn discovery_documents_are_checked() {
     let foreign = FakeInstance::start(|_| {
         FakeResponse::json(
             200,
-            &json!({ "contract": "1", "device_link_path": "//evil.example/link" }),
+            &json!({
+                "contract": "1",
+                "device_link_path": "//evil.example/link",
+                "identity_path": "/api/public/bridge/whoami"
+            }),
         )
     })
     .await;
@@ -93,7 +98,10 @@ async fn discovery_documents_are_checked() {
     ));
 
     let newer = FakeInstance::start(|_| {
-        FakeResponse::json(200, &json!({ "contract": "2", "device_link_path": "/x" }))
+        FakeResponse::json(
+            200,
+            &json!({ "contract": "2", "device_link_path": "/x", "identity_path": "/whoami" }),
+        )
     })
     .await;
     let error = newer.client().discover().await.unwrap_err();

@@ -14,8 +14,7 @@ use systemprompt_models::bridge::host::HostKind;
 ///
 /// It fails closed. A manifest that does not enable the host, or has no
 /// `host_extensions` entry for it, enables nothing (`None`), so only required
-/// extensions run; an entry that is not a well-formed extension id enables
-/// nothing and is logged.
+/// extensions run.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ExtensionPolicy;
 
@@ -29,17 +28,9 @@ impl ExtensionPolicy {
             return None;
         }
         let listed = manifest.extensions_for(host)?;
-        Some(
-            listed
-                .iter()
-                .filter_map(|raw| match ExtensionId::parse(raw.as_str()) {
-                    Ok(id) => Some(id),
-                    Err(error) => {
-                        tracing::warn!(%host, error = %error, "manifest names a malformed extension id; not enabled");
-                        None
-                    },
-                })
-                .collect(),
-        )
+        listed
+            .iter()
+            .map(|raw| ExtensionId::parse(raw.as_str()).ok())
+            .collect()
     }
 }

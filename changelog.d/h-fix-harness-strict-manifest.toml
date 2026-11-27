@@ -1,0 +1,9 @@
+[root]
+section = "Breaking"
+area = "Harness"
+text = "`Refusal::Version` is removed: a manifest without a version never decodes, so acceptance cannot see one. Enablement is all-or-nothing per host: `ExtensionPolicy::enabled_for` yields `None` if any listed id is not an extension id."
+
+[[crate]]
+name = "systemprompt-harness"
+section = "Breaking"
+text = "`sync::acceptance::Refusal` loses its `Version` variant; `ExtensionPolicy::enabled_for` no longer skips a malformed id, it withholds the host's whole entry."

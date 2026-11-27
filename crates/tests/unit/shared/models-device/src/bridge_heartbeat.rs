@@ -40,9 +40,16 @@ fn answers_decode_and_tell_when_unsupported() {
     let old: HeartbeatResponse =
         serde_json::from_str(r#"{"min_bridge_version":"9.0.0","compatible":false}"#).unwrap();
     assert!(old.unsupported());
-    let future: HeartbeatResponse = serde_json::from_str(
-        r#"{"min_bridge_version":"0.28.0","compatible":true,"window_status":"sideways"}"#,
+    let unknown: HeartbeatResponse = serde_json::from_str(
+        r#"{"min_bridge_version":"0.28.0","compatible":true,"window_status":"unknown"}"#,
     )
     .unwrap();
-    assert_eq!(future.window_status, Some(WindowStatus::Unknown));
+    assert_eq!(unknown.window_status, Some(WindowStatus::Unknown));
+    assert!(!unknown.unsupported());
+    assert!(
+        serde_json::from_str::<HeartbeatResponse>(
+            r#"{"min_bridge_version":"0.28.0","compatible":true,"window_status":"sideways"}"#,
+        )
+        .is_err()
+    );
 }

@@ -219,14 +219,18 @@ fn reads_the_host_settings_block() {
 }
 
 #[test]
-fn absent_lists_default_and_unknown_hosts_do_not_fail() {
-    let manifest = parse(&serde_json::json!({
+fn absent_lists_default_and_an_unknown_host_fails_the_manifest() {
+    let mut value = serde_json::json!({
         "user_id": "u-1",
+        "manifest_version": "2026-11-01T09:12:31Z-000001a19661c117",
+        "issued_at": "2026-11-01T09:12:31Z",
+        "not_before": "2026-11-01T09:11:31Z",
+        "revocations": [],
         "managed_mcp_servers": [{ "name": "docs", "url": "https://sp.example.com/mcp" }],
         "plugins": [],
-        "enabled_hosts": ["some-future-host"]
-    }))
-    .unwrap();
+        "enabled_hosts": ["claude-code"]
+    });
+    let manifest = parse(&value).unwrap();
     assert!(
         manifest.rules.is_empty() && manifest.skills.is_empty() && manifest.marketplaces.is_empty()
     );
@@ -234,6 +238,8 @@ fn absent_lists_default_and_unknown_hosts_do_not_fail() {
     assert!(!enables_host(&manifest.enabled_hosts, HostKind::Harness));
     assert!(manifest.host_settings().is_none());
     assert!(manifest.governance_plugin().is_none());
+    value["enabled_hosts"] = serde_json::json!(["some-future-host"]);
+    assert!(parse(&value).is_err());
 }
 
 #[test]

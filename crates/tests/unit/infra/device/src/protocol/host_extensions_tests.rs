@@ -29,13 +29,24 @@ fn extensions(manifest: &Manifest, host: HostKind) -> Option<Vec<String>> {
 #[test]
 fn host_extensions_are_read_per_host() {
     let manifest = minimal(&serde_json::json!({
-        "host_extensions": { "harness": ["drive", "brain"], "other-host": ["slack"] }
+        "host_extensions": { "harness": ["drive", "brain"], "claude-code": ["slack"] }
     }));
     assert_eq!(
         extensions(&manifest, HostKind::Harness),
         Some(vec!["drive".to_owned(), "brain".to_owned()])
     );
+    assert_eq!(
+        extensions(&manifest, HostKind::ClaudeCode),
+        Some(vec!["slack".to_owned()])
+    );
     assert_eq!(extensions(&manifest, HostKind::Hermes), None);
+}
+
+#[test]
+fn an_unknown_host_key_fails_the_manifest() {
+    let mut body = serde_json::to_value(minimal(&serde_json::json!({})).signed()).unwrap();
+    body["host_extensions"] = serde_json::json!({ "other-host": ["slack"] });
+    assert!(Manifest::parse(&body.to_string()).is_err());
 }
 
 #[test]

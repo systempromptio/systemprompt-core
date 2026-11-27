@@ -19,9 +19,7 @@ use systemprompt_models::bridge::manifest_version::ManifestVersion;
 pub enum Refusal {
     #[error("the manifest names another user than the account's")]
     User,
-    #[error("the manifest carries no manifest version")]
-    Version,
-    #[error("the manifest carries no not_before, or one outside the clock-skew window")]
+    #[error("the manifest's not_before lies outside the clock-skew window")]
     Skew,
     #[error("the manifest is not newer than the last one applied")]
     Replay,

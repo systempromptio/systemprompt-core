@@ -17,8 +17,10 @@ fn decodes_the_document_and_ignores_unknown_keys() {
 
 #[test]
 fn another_contract_is_incompatible() {
-    let doc: BridgeDiscovery =
-        serde_json::from_str(r#"{"contract":"2","device_link_path":"/x"}"#).unwrap();
+    let doc: BridgeDiscovery = serde_json::from_str(
+        r#"{"contract":"2","device_link_path":"/x","identity_path":"/api/public/bridge/whoami"}"#,
+    )
+    .unwrap();
     assert_ne!(doc.contract, DISCOVERY_CONTRACT);
     assert_eq!(doc.enabled_hosts, Vec::<HostKind>::new());
 }

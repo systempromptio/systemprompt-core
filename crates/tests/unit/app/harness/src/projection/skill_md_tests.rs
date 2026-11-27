@@ -64,8 +64,8 @@ fn descriptions_are_quoted_only_when_yaml_would_misread_them() {
         "description: Route Odoo questions - DynBrain for how-to"
     );
     assert_eq!(line(""), "description: \"\"");
-    let missing = rendered(&json!({ "id": "x", "name": "x", "instructions": "b" }));
-    assert!(missing.starts_with("---\nname: x\ndescription: \"\"\n---\n"));
+    let missing = json!({ "id": "x", "name": "x", "instructions": "b" });
+    assert!(fixtures::try_manifest(json!({ "skills": [missing] })).is_err());
 }
 
 #[test]

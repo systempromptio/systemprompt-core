@@ -145,7 +145,7 @@ fn decodes_acknowledgements_and_bindings() {
     .unwrap();
     assert_eq!(ack.acknowledgement, ReceiptAcknowledgement::IdenticalRetry);
     let unknown = serde_json::from_str::<ReceiptAcknowledgement>("\"superseded\"");
-    assert!(unknown.is_ok(), "an unknown acknowledgement: {unknown:?}");
+    assert!(unknown.is_err(), "an unknown acknowledgement: {unknown:?}");
     let binding: SessionBinding =
         serde_json::from_str(r#"{"id":"b-1","bound_at":"2026-11-01T19:22:02Z"}"#).unwrap();
     assert_eq!(binding.id.as_str(), "b-1");

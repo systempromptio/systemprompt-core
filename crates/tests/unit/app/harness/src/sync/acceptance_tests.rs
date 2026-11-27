@@ -5,7 +5,7 @@ use systemprompt_models::bridge::manifest_version::ManifestVersion;
 
 use systemprompt_harness::sync::acceptance::{Refusal, accept};
 
-use crate::sync::fakes::{at, manifest, version};
+use crate::sync::fakes::{at, manifest, try_manifest, version};
 
 fn parsed(seconds: i64, suffix: &str) -> ManifestVersion {
     ManifestVersion::try_new(version(seconds, suffix)).unwrap()
@@ -54,17 +54,7 @@ fn not_before_beyond_five_minutes_is_refused_either_way_before_anything_was_appl
 
 #[test]
 fn a_manifest_without_version_or_not_before_is_refused() {
-    assert_eq!(
-        accept(
-            &manifest(json!({ "manifest_version": null })),
-            None,
-            None,
-            at(0)
-        ),
-        Err(Refusal::Version)
-    );
-    assert_eq!(
-        accept(&manifest(json!({ "not_before": null })), None, None, at(0)),
-        Err(Refusal::Skew)
-    );
+    assert!(try_manifest(json!({ "manifest_version": null })).is_err());
+    assert!(try_manifest(json!({ "not_before": null })).is_err());
+    assert!(try_manifest(json!({})).is_ok());
 }

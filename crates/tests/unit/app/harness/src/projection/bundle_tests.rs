@@ -69,7 +69,7 @@ fn wanted_lists_agents_and_pinned_themes_by_plugin_id() {
                     (theme_path.as_str(), THEME),
                 ],
             ),
-            plugin("../escape", &[("agents/evil.md", "x")]),
+            plugin(".escape", &[("agents/evil.md", "x")]),
         ],
         Some(json!({ "themes": [{ "name": "astound", "sha": sha256_hex(THEME.as_bytes()) }] })),
     );

@@ -245,7 +245,7 @@ async fn governance_hears_the_extensions_the_manifest_enables_for_this_host() {
     assert_eq!(rig.poll(Trigger::Start).await, Outcome::Synced);
     let listed = manifest(json!({
         "manifest_version": version(0, "0000000000000002"),
-        "host_extensions": { "harness": ["drive", "Not An Id"], "other-host": ["brain"] },
+        "host_extensions": { "harness": ["drive"], "claude-code": ["brain"] },
     }));
     rig.serve(Ok(fetched(listed, "e2")));
     assert_eq!(rig.poll(Trigger::Timer).await, Outcome::Synced);
