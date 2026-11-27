@@ -1,5 +1,6 @@
 //! Mount-level contracts on the full `setup_api_server` router: the gateway
-//! group is rate-limited like every other route group, and an unissued bearer
+//! group is rate-limited like every other route group, the bridge release
+//! routes draw a rate of their own, and an unissued bearer
 //! presented to the nested MCP proxy is unauthorized on every server.
 
 use std::net::SocketAddr;
@@ -85,6 +86,48 @@ async fn gateway_mount_is_rate_limited_per_client_ip() -> anyhow::Result<()> {
             .all(|s| *s == StatusCode::TOO_MANY_REQUESTS || *s == StatusCode::UNAUTHORIZED),
         "no request may be admitted without a credential, got {statuses:?}"
     );
+    Ok(())
+}
+
+// Why: one platform of the release feed is served to a caller with no
+// credential and each uncached call is an upstream fetch on the operator's
+// token, so the feed and the download draw a small fixed rate of their own.
+// The gateway budget here is far above the burst, so a refusal can only come
+// from that rate.
+#[tokio::test]
+async fn the_bridge_release_routes_draw_their_own_small_budget() -> anyhow::Result<()> {
+    let app = full_router(RateLimitsConfig {
+        burst_multiplier: 1,
+        disabled: false,
+        ..RateLimitsConfig::testing()
+    })
+    .await?;
+
+    for (uri, peer) in [
+        ("/v1/bridge/latest?platform=android", "203.0.113.80:41000"),
+        ("/v1/bridge/download/android", "203.0.113.81:41000"),
+    ] {
+        let mut statuses = Vec::new();
+        for _ in 0..12 {
+            let mut request = Request::builder()
+                .uri(uri)
+                .header(header::HOST, "127.0.0.1")
+                .body(Body::empty())?;
+            request
+                .extensions_mut()
+                .insert(ConnectInfo(peer.parse::<SocketAddr>()?));
+            statuses.push(app.clone().oneshot(request).await?.status());
+        }
+        assert!(
+            statuses.contains(&StatusCode::TOO_MANY_REQUESTS),
+            "a burst on {uri} above the release rate must be throttled, got {statuses:?}"
+        );
+        assert_ne!(
+            statuses[0],
+            StatusCode::TOO_MANY_REQUESTS,
+            "the first request on {uri} is inside the rate"
+        );
+    }
     Ok(())
 }
 

@@ -6,7 +6,8 @@
 //!
 //! The inference surface authenticates inside its handlers (its own
 //! credential extraction accepts `x-api-key`), so each of its parts —
-//! inference traffic and the bridge credential exchange — is protected as
+//! inference traffic, the bridge credential exchange and the bridge release
+//! feed — is protected as
 //! handler-verified by the gateway credential with its own rate limit and
 //! bearer window, and every admitted gateway route (the bridge inbox) carries
 //! the protection its admission resolved. The parts are merged under the
@@ -27,6 +28,11 @@ use super::protocol::{MountCtx, declare};
 use crate::routes::gateway::{GatewayMountParts, gateway_mount_parts};
 use crate::services::middleware::{gateway_protection, place};
 
+/// Release checks and downloads per second from one caller. A bridge reads
+/// the feed on a timer and a phone downloads its app once, so the rate is
+/// fixed and small rather than a profile budget.
+const BRIDGE_RELEASE_PER_SECOND: u64 = 5;
+
 fn mount_gateway(
     mut router: Router,
     mount: &MountCtx<'_>,
@@ -38,6 +44,7 @@ fn mount_gateway(
     let GatewayMountParts {
         traffic,
         bridge_auth,
+        bridge_release,
         public_sessions,
         consumer_catalog,
         registered,
@@ -58,7 +65,15 @@ fn mount_gateway(
         &gateway_protection("bridge_auth", RateBudget::BridgeAuth),
         base,
     )?;
-    let mut surface = traffic.merge(bridge_auth);
+    let bridge_release = mount.protect(
+        bridge_release,
+        &gateway_protection(
+            "bridge_release",
+            RateBudget::PerSecond(BRIDGE_RELEASE_PER_SECOND),
+        ),
+        base,
+    )?;
+    let mut surface = traffic.merge(bridge_auth).merge(bridge_release);
     for group in registered {
         surface = surface.merge(mount.protect(group.router, &group.protection, base)?);
     }

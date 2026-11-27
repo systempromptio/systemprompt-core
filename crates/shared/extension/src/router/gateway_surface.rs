@@ -56,15 +56,19 @@ pub struct GatewayRouteState<'a> {
 /// `traffic` verifies its own callers; the API mount places `principal_bound`
 /// behind the kernel's gateway verifier, which attaches the caller's
 /// [`GatewayPrincipal`](super::GatewayPrincipal) before a handler runs.
-/// `public_sessions` is the API-key session mint the mount places under the
-/// public gateway base with its own rate scope. `consumer_catalog` is the
-/// bridge manifest's granted-skill resolution the `marketplace-http`
-/// consumer routes read; absent when no bridge route is built, and those
-/// routes are then not mounted.
+/// `bridge_release` is the bridge release feed and download, which answer
+/// one platform to a caller with no credential; the mount gives them a rate
+/// scope of their own so an anonymous download never draws on inference
+/// traffic's budget. `public_sessions` is the API-key session mint the mount
+/// places under the public gateway base with its own rate scope.
+/// `consumer_catalog` is the bridge manifest's granted-skill resolution the
+/// `marketplace-http` consumer routes read; absent when no bridge route is
+/// built, and those routes are then not mounted.
 #[derive(Default)]
 pub struct GatewaySurfaceRoutes {
     pub traffic: Router,
     pub principal_bound: Router,
+    pub bridge_release: Router,
     pub public_sessions: Router,
     pub consumer_catalog: Option<DynConsumerCatalog>,
 }

@@ -110,14 +110,11 @@ pub fn client_ip(
     )
 }
 
-pub fn routes(state: &BridgeRouteState) -> Result<Router, ReleaseError> {
-    let feed = Arc::new(ReleaseFeed::new()?);
+pub fn routes(state: &BridgeRouteState) -> Router {
     let signer = Arc::clone(&state.signer);
     let file_state = state.clone();
     let memo = ArchiveMemo::default();
-    let latest_state = (state.clone(), Arc::clone(&feed));
-    let download_state = (state.clone(), feed);
-    Ok(Router::new()
+    Router::new()
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_PUBKEY),
             get(move || {
@@ -165,6 +162,17 @@ pub fn routes(state: &BridgeRouteState) -> Result<Router, ReleaseError> {
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_STREAM),
             get(with_headers(state, stream::handle)),
         )
+}
+
+/// The release feed and download. Built apart from [`routes`] because the
+/// mount charges them to their own rate scope: one platform is served to a
+/// caller with no credential, and each uncached call is an upstream fetch on
+/// the operator's token.
+pub fn release_routes(state: &BridgeRouteState) -> Result<Router, ReleaseError> {
+    let feed = Arc::new(ReleaseFeed::new()?);
+    let latest_state = (state.clone(), Arc::clone(&feed));
+    let download_state = (state.clone(), feed);
+    Ok(Router::new()
         .route(
             ApiPaths::gateway_relative(ApiPaths::BRIDGE_LATEST),
             get(move |headers, query| {

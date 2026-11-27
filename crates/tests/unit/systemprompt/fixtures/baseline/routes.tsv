@@ -258,7 +258,7 @@ POST	/v1/auth/bridge/pat	handler_verified(GatewayCredential)	HandlerResolved	bri
 POST	/v1/auth/bridge/session	handler_verified(GatewayCredential)	HandlerResolved	bridge_auth/BridgeAuth+bearer	Default	Gateway	kernel	-
 POST	/v1/auth/bridge/session-pat	handler_verified(GatewayCredential)	HandlerResolved	bridge_auth/BridgeAuth+bearer	Default	Gateway	kernel	-
 POST	/v1/bridge/device	handler_verified(GatewayCredential)	HandlerResolved	gateway/Gateway+bearer	Default	Gateway	kernel	-
-GET	/v1/bridge/download/{platform}	handler_verified(GatewayCredential)	HandlerResolved	gateway/Gateway+bearer	Default	Gateway	kernel	-
+GET	/v1/bridge/download/{platform}	handler_verified(GatewayCredential)	HandlerResolved	bridge_release/PerSecond(5)+bearer	Default	Gateway	kernel	-
 GET	/v1/bridge/drive/blob/{sha256}	handler_verified(GatewayCredential)	HandlerResolved	gateway/Gateway+bearer	documents::body_limit(max_upload_bytes+64KiB)	Gateway	kernel	files.documents.enabled
 GET	/v1/bridge/drive/changes	handler_verified(GatewayCredential)	HandlerResolved	gateway/Gateway+bearer	documents::body_limit(max_upload_bytes+64KiB)	Gateway	kernel	files.documents.enabled
 POST	/v1/bridge/drive/commit	handler_verified(GatewayCredential)	HandlerResolved	gateway/Gateway+bearer	documents::body_limit(max_upload_bytes+64KiB)	Gateway	kernel	files.documents.enabled
@@ -269,7 +269,7 @@ GET	/v1/bridge/drive/proposals	handler_verified(GatewayCredential)	HandlerResolv
 POST	/v1/bridge/drive/token	handler_verified(GatewayCredential)	HandlerResolved	gateway/Gateway+bearer	documents::body_limit(max_upload_bytes+64KiB)	Gateway	kernel	files.documents.enabled
 POST	/v1/bridge/drive/trash	handler_verified(GatewayCredential)	HandlerResolved	gateway/Gateway+bearer	documents::body_limit(max_upload_bytes+64KiB)	Gateway	kernel	files.documents.enabled
 POST	/v1/bridge/heartbeat	handler_verified(GatewayCredential)	HandlerResolved	gateway/Gateway+bearer	Default	Gateway	kernel	-
-GET	/v1/bridge/latest	handler_verified(GatewayCredential)	HandlerResolved	gateway/Gateway+bearer	Default	Gateway	kernel	-
+GET	/v1/bridge/latest	handler_verified(GatewayCredential)	HandlerResolved	bridge_release/PerSecond(5)+bearer	Default	Gateway	kernel	-
 GET	/v1/bridge/manifest	handler_verified(GatewayCredential)	HandlerResolved	gateway/Gateway+bearer	Default	Gateway	kernel	-
 GET	/v1/bridge/notifications	handler_verified(GatewayCredential)	HandlerResolved	bridge_notifications/Notifications+bearer	Default	Gateway	notifications-http	register_gateway_route!
 POST	/v1/bridge/notifications/read	handler_verified(GatewayCredential)	HandlerResolved	bridge_notifications/Notifications+bearer	Default	Gateway	notifications-http	register_gateway_route!

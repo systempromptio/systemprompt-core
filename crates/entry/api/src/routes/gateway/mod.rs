@@ -20,7 +20,11 @@
 //! budget lets a saturated gateway refuse every credential exchange, which
 //! presents to the user as a rejected token rather than as the rate limit it
 //! is. An admitted capability route (the bridge inbox) carries its own budget,
-//! so its polling and inference never starve each other.
+//! so its polling and inference never starve each other. The bridge release
+//! feed and download are budgeted apart for a third reason: the Android
+//! package is served to a caller with no credential, each uncached call is an
+//! upstream fetch on the operator's token, and a small fixed per-address rate
+//! bounds what an anonymous address can spend.
 //!
 //! The bridge Drive routes are the `files-http` member's
 //! [`DriveSurface`](systemprompt_extension::router::DriveSurface), built
@@ -121,6 +125,7 @@ pub(crate) fn gateway_mount_parts(
     Ok(GatewayMountParts {
         traffic: confined(traffic),
         bridge_auth: confined(bridge_auth),
+        bridge_release: confined(routes.bridge_release),
         public_sessions: routes.public_sessions,
         consumer_catalog: routes.consumer_catalog,
         registered,
@@ -142,18 +147,21 @@ pub fn gateway_router(
     let bridge_auth = crate::services::server::routes::identity_bridge_auth(ctx, admitted, kernel)?
         .unwrap_or_default();
     let parts = gateway_mount_parts(ctx, admitted, kernel, bridge_auth)?;
+    let builtin = parts
+        .traffic
+        .merge(parts.bridge_auth)
+        .merge(parts.bridge_release);
     let routes = parts
         .registered
         .into_iter()
-        .fold(parts.traffic.merge(parts.bridge_auth), |routes, group| {
-            routes.merge(group.router)
-        });
+        .fold(builtin, |routes, group| routes.merge(group.router));
     Ok(gateway.access_log(&ctx.kernel().resolved(), routes)?)
 }
 
 pub(crate) struct GatewayMountParts {
     pub(crate) traffic: Router,
     pub(crate) bridge_auth: Router,
+    pub(crate) bridge_release: Router,
     pub(crate) public_sessions: Router,
     pub(crate) consumer_catalog: Option<DynConsumerCatalog>,
     pub(crate) registered: Vec<registered::RegisteredGatewayRoutes>,

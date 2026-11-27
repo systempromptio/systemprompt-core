@@ -97,10 +97,10 @@ impl GatewaySurface for GatewayHttpSurface {
             host,
             db,
         };
-        let bridge_routes = match &bridge {
-            Some(bridge) => {
-                bridge::routes(bridge).map_err(|e| GatewaySurfaceError::ReleaseFeed(Box::new(e)))?
-            },
+        let bridge_routes = bridge.as_ref().map_or_else(Router::new, bridge::routes);
+        let bridge_release = match &bridge {
+            Some(bridge) => bridge::release_routes(bridge)
+                .map_err(|e| GatewaySurfaceError::ReleaseFeed(Box::new(e)))?,
             None => Router::new(),
         };
         let models_state = models::ModelsState {
@@ -131,6 +131,7 @@ impl GatewaySurface for GatewayHttpSurface {
         Ok(GatewaySurfaceRoutes {
             traffic,
             principal_bound: credential_routes,
+            bridge_release,
             consumer_catalog: bridge.as_ref().map(bridge::consumer_catalog),
             public_sessions: sessions::public_router(sessions::SessionsState {
                 mint: session_mint,
