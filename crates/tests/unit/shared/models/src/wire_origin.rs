@@ -297,6 +297,51 @@ fn a_host_token_never_attests_a_client_whose_host_configures_itself() {
 }
 
 #[test]
+fn a_host_token_never_attests_a_client_the_bridge_configures_no_host_for() {
+    let mut i = input(b"{}");
+    i.principal_is_bridge = true;
+    i.declared_attestation = Some("host-token");
+    for client in ClientKind::DECLARABLE {
+        i.declared_client = Some(client.as_str());
+        let outcome = classify(&i);
+        if client.hosts().next().is_none() {
+            let rejection = outcome.expect_err("no host token exists for a client with no host");
+            assert!(
+                matches!(
+                    rejection,
+                    ClassificationRejection::HostTokenForClientWithoutHost { .. }
+                ),
+                "{client:?}: {rejection}"
+            );
+            assert_eq!(rejection.evidence().attested_host, None);
+            assert_eq!(
+                rejection.evidence().declared_client.as_deref(),
+                Some(client.as_str())
+            );
+        } else if client
+            .hosts()
+            .all(|host| host.config_owner() == ConfigOwner::Bridge)
+        {
+            assert_eq!(
+                outcome.expect("attested").evidence.attested_host,
+                Some(client)
+            );
+        } else {
+            assert!(matches!(
+                outcome,
+                Err(ClassificationRejection::HostTokenForHostOwnedClient { .. })
+            ));
+        }
+    }
+
+    i.declared_client = Some("pi");
+    i.declared_attestation = Some("bridge-secret");
+    let classified = classify(&i).expect("the secret channel attests no host");
+    assert_eq!(classified.client, ClientKind::Pi);
+    assert_eq!(classified.evidence.attested_host, None);
+}
+
+#[test]
 fn harness_is_still_declared_and_passed_through_on_the_secret_channel() {
     let mut i = input(b"{}");
     i.declared_client = Some("harness");
