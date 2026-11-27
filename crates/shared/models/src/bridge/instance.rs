@@ -7,12 +7,15 @@
 //! carries no trust material: the manifest signing key still arrives through
 //! managed policy or an operator pin. Branding from discovery is presentation
 //! only and yields to the branding inside the signed manifest once one exists.
+//! Its `clients` section lists the native apps the instance offers; it is
+//! absent when none is configured, and a bridge ignores it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use serde::{Deserialize, Serialize};
 
+use crate::bridge::clients::DiscoveryClients;
 use crate::bridge::host::HostKind;
 
 pub const DISCOVERY_CONTRACT: &str = "1";
@@ -27,6 +30,8 @@ pub struct BridgeDiscovery {
     pub branding: InstanceBranding,
     #[serde(default)]
     pub enabled_hosts: Vec<HostKind>,
+    #[serde(default, skip_serializing_if = "DiscoveryClients::is_empty")]
+    pub clients: DiscoveryClients,
 }
 
 /// What a bridge shows for an instance: window, tray and sign-in copy.

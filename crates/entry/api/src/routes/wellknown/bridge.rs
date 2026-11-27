@@ -16,6 +16,7 @@ use axum::{Json, Router};
 use systemprompt_loader::ServicesState;
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_models::api::ApiError;
+use systemprompt_models::bridge::clients::DiscoveryClients;
 use systemprompt_models::bridge::host::ConfigOwner;
 use systemprompt_models::bridge::instance::{BridgeDiscovery, DISCOVERY_CONTRACT};
 use systemprompt_models::modules::ApiPaths;
@@ -59,5 +60,6 @@ pub fn discovery_document(services: &ServicesConfig) -> Option<BridgeDiscovery> 
             .into_iter()
             .filter(|host| host.config_owner() == ConfigOwner::Bridge)
             .collect(),
+        clients: DiscoveryClients::default(),
     })
 }

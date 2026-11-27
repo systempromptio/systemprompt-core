@@ -1,0 +1,19 @@
+[root]
+section = "Added"
+area = "Mobile"
+text = "The wire contract for phones: device platform and app fields, push tokens and the push payload, the two app association documents with the declaration of the apps an instance vouches for, and a `clients` section in the bridge discovery document. Types and route constants only; no route serves them yet."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "**Breaking:** `bridge::instance::BridgeDiscovery` gains the field `clients: bridge::clients::DiscoveryClients`, omitted from the serialised document when no client is configured. Migrate by adding `clients: DiscoveryClients::default()` to a struct literal."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Added"
+text = "`devices` (`DevicePlatform`, `AppIdentifier`, `DeviceClientInfo`, `AdminDeviceRow`); `notifications::push` (`PushProvider`, `PushToken`, `PushCategory`, `CollapseKey`, `PushPayload`, `RegisterPushTokenRequest`, `PushTokenRegistration`, `PushTokenRevocation`); `association` (`AppleAppSiteAssociation`, `AssetLinks`, `VouchedApps` and its validation); `bridge::clients` (`DiscoveryClients`, `IosClient`, `AndroidClient`, `ClientVersionFloors`). `ApiPaths` gains `WELLKNOWN_APPLE_APP_SITE_ASSOCIATION`, `WELLKNOWN_ASSETLINKS`, `NOTIFICATIONS_PUSH_TOKEN`, `ADMIN_NOTIFICATIONS_DEVICES`, `notifications_relative` and `admin_notifications_relative`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "The bridge discovery document is built with an empty `clients` section."

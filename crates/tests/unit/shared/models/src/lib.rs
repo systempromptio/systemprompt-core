@@ -48,6 +48,16 @@ mod api;
 #[cfg(test)]
 mod api_paths_bridge;
 #[cfg(test)]
+mod api_paths_mobile;
+#[cfg(test)]
+mod association_documents;
+#[cfg(test)]
+mod bridge_discovery_clients;
+#[cfg(test)]
+mod device_contract;
+#[cfg(test)]
+mod push_contract;
+#[cfg(test)]
 mod api_responses_specialized;
 
 #[cfg(test)]
