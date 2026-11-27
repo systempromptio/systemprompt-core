@@ -24,6 +24,7 @@ workspace = true
 systemprompt-extension = { workspace = true }
 
 [dependencies]
+systemprompt-client = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-events = { workspace = true }
 systemprompt-extension = { workspace = true, features = ["sqlx"] }
@@ -31,11 +32,15 @@ systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
 systemprompt-manifest = { workspace = true }
 systemprompt-models = { workspace = true, features = ["sqlx"] }
 systemprompt-provider-contracts = { workspace = true }
+systemprompt-security = { workspace = true }
 systemprompt-traits = { workspace = true, features = ["sqlx"] }
 async-trait = { workspace = true }
 chrono = { workspace = true }
 globset = { workspace = true }
+jsonwebtoken = { workspace = true }
 metrics = { workspace = true }
+# Apple's push service speaks only HTTP/2.
+reqwest = { workspace = true, features = ["http2"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }

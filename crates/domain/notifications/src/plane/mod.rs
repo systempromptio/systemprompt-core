@@ -35,6 +35,7 @@ use systemprompt_models::notifications::{
 };
 
 mod errors;
+pub mod push;
 
 use errors::{backend, decode, invalid, unreadable};
 

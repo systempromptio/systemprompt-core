@@ -1,0 +1,14 @@
+[root]
+section = "Added"
+area = "Mobile"
+text = "An instance pushes to phones through Apple's and Google's push services with its own credentials. `services/notifications/push.yaml` declares the providers and names the custom secrets holding the Apple signing key and the Google service-account key; an instance with no declaration or no credential sends no push and is otherwise unchanged. A push carries only the notification id, a category and a collapse key, is sent only at human attention, is suppressed while the recipient has a live event stream, and a token a provider reports as unregistered is revoked in the same delivery."
+
+[[crate]]
+name = "systemprompt-extension"
+section = "Added"
+text = "`notifications::{PushTokenDirectory, DynPushTokenDirectory, DevicePushToken, PushTokenDirectoryError}`: the seam through which the push channels read and revoke the push tokens of a user's devices. The member that owns device records provides a `DynPushTokenDirectory`."
+
+[[crate]]
+name = "systemprompt-notifications"
+section = "Added"
+text = "`channels::apns::ApnsChannel` and `channels::fcm::FcmChannel`, appended to the built notification seams after the AG-UI channel when `services/notifications/push.yaml` declares the provider, its secret is set and a `DynPushTokenDirectory` is provided. `channels::push` holds what they share: `PushChannel`, `PushSender`, `PushError`, the `ProviderHttp` and `ProviderCredential` call seams, `ForegroundPresence` and `push_channels`. `plane::push` holds `PushDeclaration` and `PushSecretReferences`; the member contributes the declared secret names as secret references. The crate enables the `http2` feature of `reqwest`."

@@ -4,7 +4,11 @@
 //! After the contributed seams, the slot build appends the core defaults:
 //! the [`DefaultRouter`], the document and issue visibilities the `files`
 //! member provides, the [`AguiChannel`] over the kernel's event router and the
-//! [`DefaultPublishPolicy`] over every audience resolver. The audience
+//! [`DefaultPublishPolicy`] over every audience resolver. After the AG-UI
+//! channel come the push channels `services/notifications/push.yaml`
+//! declares and the secret store holds a credential for; they need the
+//! push token directory the device-owning member provides, and an instance
+//! with no declaration, no credential or no directory gets none. The audience
 //! resolvers are the kernel-built [`AudienceResolvers`] set, shared with
 //! brain recall; without it the build is refused. A default whose
 //! owner is not admitted is absent, never replaced. The
@@ -22,18 +26,22 @@ use std::time::Duration;
 
 use systemprompt_database::DbPool;
 use systemprompt_events::EventRouter;
+use systemprompt_extension::notifications::DynPushTokenDirectory;
 use systemprompt_extension::{
     AudienceResolvers, DynNotificationSink, Resolved, ResourceVisibility, SlotError,
 };
 use systemprompt_manifest::profile::NotificationsProfile;
-use systemprompt_traits::CoreSeam;
+use systemprompt_manifest::services::root::ActiveServicesRoot;
 use systemprompt_traits::core_seam::{DocumentVisibility, IssueVisibility};
+use systemprompt_traits::{CoreSeam, SecretStore};
 
 use crate::channels::AguiChannel;
+use crate::channels::push::{PushParts, ReqwestProviderHttp, StreamPresence, push_channels};
 use crate::consumer::NotificationsConsumer;
 use crate::contract::NotificationSeams;
 use crate::defaults::{DefaultPublishPolicy, DefaultRouter};
 use crate::pipeline::{NotificationPipeline, PipelineParts};
+use crate::plane::push::PushDeclaration;
 use crate::repository::NotificationRepositories;
 use crate::service::{NotificationsService, NotificationsServiceParts, NotificationsServiceSlot};
 use systemprompt_traits::EscalationDelivery;
@@ -55,6 +63,7 @@ pub(crate) fn append_core_defaults(
     seams
         .channels
         .push(Arc::new(AguiChannel::new(r.get::<Arc<EventRouter>>()?)));
+    append_push_channels(seams, r)?;
     let profile = r.get::<Arc<NotificationsProfile>>()?;
     seams
         .publish_policies
@@ -62,6 +71,38 @@ pub(crate) fn append_core_defaults(
             seams.audiences.clone(),
             Duration::from_millis(profile.consumer.resolver_timeout_ms),
         )));
+    Ok(())
+}
+
+fn append_push_channels(seams: &mut NotificationSeams, r: &Resolved<'_>) -> Result<(), SlotError> {
+    let Some(root) = r.optional::<ActiveServicesRoot>() else {
+        return Ok(());
+    };
+    let Some(declaration) = PushDeclaration::load(&root.path).map_err(refused)? else {
+        return Ok(());
+    };
+    if declaration.is_empty() {
+        return Ok(());
+    }
+    let (Some(secrets), Some(directory)) = (
+        r.optional::<Arc<dyn SecretStore>>(),
+        r.optional::<DynPushTokenDirectory>(),
+    ) else {
+        tracing::warn!(
+            "Push is declared but this host has no secret store or push token directory; no push \
+             channel is contributed"
+        );
+        return Ok(());
+    };
+    let parts = PushParts {
+        secrets,
+        directory,
+        presence: Arc::new(StreamPresence::new(r.get::<Arc<EventRouter>>()?)),
+        http: Arc::new(ReqwestProviderHttp::build().map_err(refused)?),
+    };
+    seams
+        .channels
+        .extend(push_channels(&declaration, &parts).map_err(refused)?);
     Ok(())
 }
 
@@ -101,7 +142,7 @@ pub(crate) fn bind_service(
     Ok(slot)
 }
 
-fn refused(error: systemprompt_models::AlreadyBound) -> SlotError {
+fn refused(error: impl std::error::Error + Send + Sync + 'static) -> SlotError {
     SlotError::Refused {
         slot: SLOT,
         source: Box::new(error),

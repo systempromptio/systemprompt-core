@@ -1,6 +1,7 @@
 //! Unit tests for the pure parts of `systemprompt_notifications`: the rule
 //! evaluator, stream bands, coalescing and digest windows, the default router
-//! and publish policy, action prompts, and the member's contributions.
+//! and publish policy, action prompts, the member's contributions, and the push
+//! channels driven through stub providers.
 
 #[cfg(test)]
 mod action;
@@ -12,6 +13,12 @@ mod defaults;
 mod failure_stage;
 #[cfg(test)]
 mod fixtures;
+#[cfg(test)]
+mod push_channel;
+#[cfg(test)]
+mod push_declaration;
+#[cfg(test)]
+mod push_support;
 #[cfg(test)]
 mod quiet_hours;
 #[cfg(test)]

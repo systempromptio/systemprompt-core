@@ -1,6 +1,7 @@
 //! [`NotificationsExtension`]: contributes the notifications tables and
-//! migrations, the `notifications` config plane, the retention job and the
-//! user-purge rows of its tables.
+//! migrations, the `notifications` config plane, the retention job, the
+//! user-purge rows of its tables and, as secret references, the secret names
+//! the push declaration reads its credentials from.
 //!
 //! It provides the producer sink (`DynNotificationSink`, the outbox sink over
 //! the write pool, stamped with the kernel's instance id) that members
@@ -31,13 +32,15 @@ use systemprompt_extension::{
     DiagnosticProbe, DynNotificationInbox, DynNotificationSink, MetricDescriptor, MetricKind,
 };
 use systemprompt_identifiers::InstanceId;
-use systemprompt_traits::RunnerService;
+use systemprompt_manifest::services::root::ActiveServicesRoot;
+use systemprompt_traits::{RunnerService, SecretReferences};
 
 use crate::consumer::{BacklogDiagnostic, BoundConsumerRunner};
 use crate::contract::NotificationsSlot;
 use crate::jobs::NotificationRetentionJob;
 use crate::pipeline::metrics::{BACKLOG_OLDEST_SECONDS, BACKLOG_PENDING};
 use crate::plane::NotificationsPlane;
+use crate::plane::push::PushSecretReferences;
 use crate::schema::NOTIFICATION_SCHEMAS;
 use crate::service::{NotificationsServiceSlot, SlotInbox};
 use crate::sink::OutboxNotificationSink;
@@ -64,6 +67,16 @@ impl Extension for NotificationsExtension {
         c.cross_table("users")
             .migrations(extension_migrations!())
             .config_plane(Arc::new(NotificationsPlane))
+            .secret_references(
+                |r: &Resolved<'_>| -> Result<Arc<dyn SecretReferences>, FactoryError> {
+                    Ok(Arc::new(
+                        r.optional::<ActiveServicesRoot>()
+                            .map_or_else(PushSecretReferences::none, |root| {
+                                PushSecretReferences::over(root.path)
+                            }),
+                    ))
+                },
+            )
             .provide(
                 |r: &Resolved<'_>| -> Result<DynNotificationSink, ProvideError> {
                     let db = r.get::<DbPool>()?;
