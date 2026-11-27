@@ -758,6 +758,75 @@ fn a_manifest_enabling_only_harness_writes_no_host_file() {
     );
 }
 
+fn last_sync_record(dirs: &HostSandbox) -> serde_json::Value {
+    let mut pending = vec![dirs._temp.path().to_path_buf()];
+    while let Some(dir) = pending.pop() {
+        for entry in fs::read_dir(&dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                pending.push(path);
+            } else if path
+                .file_name()
+                .is_some_and(|name| name == "last-sync.json")
+            {
+                return serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+            }
+        }
+    }
+    panic!("the sync wrote no last-sync record");
+}
+
+// Why: the bridge released before harness reads the record's host list
+// against a vocabulary without it and fails the whole read, so install and
+// uninstall stop after a rollback unless the record names only hosts the
+// bridge configures.
+#[test]
+fn the_last_sync_record_names_only_hosts_the_bridge_configures() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(1)
+        .enable_all()
+        .build()
+        .unwrap();
+
+    let (dirs, summary) = sync_fresh_sandbox(
+        &rt,
+        vec![HostKind::ClaudeCode, HostKind::Harness],
+        "eeee0003",
+    );
+    assert!(
+        summary.host_failures.is_empty(),
+        "{:?}",
+        summary.host_failures
+    );
+    let record = last_sync_record(&dirs);
+    assert_eq!(
+        record["enabled_hosts"],
+        serde_json::json!(["claude-code"]),
+        "the manifest enabled harness too; the record keeps the host the bridge configures"
+    );
+    assert!(
+        record["manifest_version"].is_string(),
+        "the manifest was applied in full: {record}"
+    );
+    let known_before_harness: Vec<&str> = HostKind::ALL
+        .iter()
+        .filter(|host| host.min_bridge_version().is_none())
+        .map(|host| host.as_str())
+        .collect();
+    for host in record["enabled_hosts"].as_array().unwrap() {
+        assert!(
+            known_before_harness.contains(&host.as_str().unwrap()),
+            "a strict reader of an earlier release cannot parse {host}"
+        );
+    }
+
+    let (harness_only, _) = sync_fresh_sandbox(&rt, vec![HostKind::Harness], "eeee0004");
+    assert_eq!(
+        last_sync_record(&harness_only)["enabled_hosts"],
+        serde_json::json!([])
+    );
+}
+
 fn bridge() -> std::sync::Arc<BridgeContext> {
     BridgeContext::start(ProxyMode::Attach, std::sync::Arc::new(|| None)).expect("runtime builds")
 }
