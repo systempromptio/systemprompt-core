@@ -3,9 +3,12 @@
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
+use std::time::Duration;
 
+use chrono::Utc;
+use systemprompt_models::bridge::heartbeat::HEARTBEAT_INTERVAL_SECS;
 use tokio::net::TcpListener;
-use tokio::sync::oneshot;
+use tokio::sync::{oneshot, watch};
 use tokio::task::JoinHandle;
 
 use crate::error::ScriptedInstanceError;
@@ -16,8 +19,11 @@ use crate::record::RequestRecord;
 use crate::router;
 use crate::script::ModelScript;
 use crate::state::InstanceState;
+use crate::token::Keys;
 use crate::user::{TestPat, TestUser};
 use crate::verdict::VerdictScript;
+
+const WAIT_TIMEOUT: Duration = Duration::from_secs(HEARTBEAT_INTERVAL_SECS + 5);
 
 #[derive(Debug, Clone, Default)]
 pub struct ScriptedInstanceBuilder {
@@ -75,7 +81,15 @@ impl ScriptedInstanceBuilder {
             .local_addr()
             .map_err(|source| ScriptedInstanceError::Bind { port, source })?;
 
+        let base_url = format!("http://{addr}");
         let state = Arc::new(InstanceState {
+            base_url: base_url.clone(),
+            keys: Keys::generate(),
+            hook_secret: format!("{:032x}", rand::random::<u128>()),
+            arrivals: watch::Sender::new(0),
+            codes: Mutex::new(Vec::new()),
+            manifests_served: AtomicUsize::new(0),
+            manifest_dated: Mutex::new(Utc::now()),
             user: self.user,
             pat: self.pat.unwrap_or_else(TestPat::fixture),
             manifest: self.manifest,
@@ -101,7 +115,7 @@ impl ScriptedInstanceBuilder {
         tracing::info!(%addr, "scripted instance listening");
         Ok(ScriptedInstance {
             addr,
-            base_url: format!("http://{addr}"),
+            base_url,
             state,
             server,
             shutdown,
@@ -175,11 +189,26 @@ impl ScriptedInstance {
     }
 
     pub async fn wait_for(&self, event: Event) -> Result<RequestRecord, ScriptedInstanceError> {
-        self.requests()
-            .into_iter()
-            .find(|record| event.matches(record))
-            .ok_or(ScriptedInstanceError::NotImplemented {
-                what: "ScriptedInstance::wait_for",
+        let mut arrivals = self.state.arrivals.subscribe();
+        let arrived = async {
+            loop {
+                let recorded = self
+                    .requests()
+                    .into_iter()
+                    .find(|record| event.matches(record));
+                if let Some(record) = recorded {
+                    return record;
+                }
+                if arrivals.changed().await.is_err() {
+                    std::future::pending::<()>().await;
+                }
+            }
+        };
+        tokio::time::timeout(WAIT_TIMEOUT, arrived)
+            .await
+            .map_err(|_elapsed| ScriptedInstanceError::WaitTimedOut {
+                event,
+                waited: WAIT_TIMEOUT,
             })
     }
 

@@ -6,25 +6,30 @@
 //! afterwards asserts on `requests()`. The same crate ships a binary so a
 //! product outside the test process can be pointed at it.
 //!
-//! This revision fixes the public interface only. The router serves the
-//! health route and nothing else; no route records a request, signs a
-//! manifest or encodes a stream. Operations that need that behaviour return
-//! `ScriptedInstanceError::NotImplemented`.
+//! It serves discovery and health, the sign-in exchanges, identity, the
+//! signed manifest and its key, the model list and profile, both model
+//! protocols as scripted streams, the hook client, hook token, telemetry
+//! and verdict routes, and the heartbeat. Every request is recorded, the
+//! ones no route answers included.
 //!
 //! Routes and header names are taken from the linked core crates
 //! (`systemprompt_models::ApiPaths`, `systemprompt_identifiers::headers`)
 //! and are never spelled in this crate.
 
+mod encode;
 mod error;
 mod event;
 mod file;
+mod guard;
 mod instance;
 mod manifest;
 mod model;
 mod record;
 mod router;
+mod routes;
 mod script;
 mod state;
+mod token;
 mod user;
 mod verdict;
 
