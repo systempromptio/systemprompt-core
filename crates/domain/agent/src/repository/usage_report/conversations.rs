@@ -202,6 +202,8 @@ impl AgentActivityReportRepository {
             LEFT JOIN LATERAL (
                 SELECT model, agent_name FROM report_agent_ai_context_hourly
                 WHERE context_id = ctx.context_id
+                  AND user_id = $1
+                  AND traffic = 'production'
                 ORDER BY last_activity DESC NULLS LAST
                 LIMIT 1
             ) last_row ON TRUE
@@ -215,8 +217,9 @@ impl AgentActivityReportRepository {
         .await?;
         let ids: Vec<String> = rows.iter().map(|row| row.context_id.to_string()).collect();
         let names: HashMap<String, Option<String>> = sqlx::query!(
-            "SELECT context_id, name FROM report_user_contexts WHERE context_id = ANY($1)",
-            &ids
+            "SELECT context_id, name FROM report_user_contexts WHERE context_id = ANY($1) AND user_id = $2",
+            &ids,
+            user_id as _
         )
         .fetch_all(&*self.pool)
         .await?

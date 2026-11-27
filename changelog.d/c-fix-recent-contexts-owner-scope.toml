@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Profile usage"
+text = "The recent conversations of `/v1/bridge/profile/usage` take each context's latest model, agent and name only from the caller's own rows, so a caller sharing another user's context id sees none of that user's values."
