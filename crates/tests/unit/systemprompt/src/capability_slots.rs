@@ -289,10 +289,10 @@ fn notifications_http_holds_its_two_route_sets() {
     };
     let user = at(BasePath::Api(ApiBase::Notifications));
     assert_eq!(user.set.group(), RouteGroup::ContentAndMisc);
-    assert_eq!(user.set.defs().len(), 12);
+    assert_eq!(user.set.defs().len(), 14);
     let admin = at(BasePath::Api(ApiBase::AdminNotifications));
     assert_eq!(admin.set.group(), RouteGroup::ContentAndMisc);
-    assert_eq!(admin.set.defs().len(), 1);
+    assert_eq!(admin.set.defs().len(), 2);
     assert!(user.handles.is_empty() && admin.handles.is_empty());
 }
 

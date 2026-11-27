@@ -163,8 +163,23 @@ fn directory_error(error: UserError) -> PushTokenDirectoryError {
     }
 }
 
+/// The push token directory the delivery pipeline reads, apart from
+/// [`DevicePushService`] so the sealed directory and the service the device
+/// routes hold are different values.
+#[derive(Debug, Clone)]
+pub struct UsersPushTokenDirectory {
+    repository: Arc<UserRepository>,
+}
+
+impl UsersPushTokenDirectory {
+    #[must_use]
+    pub const fn new(repository: Arc<UserRepository>) -> Self {
+        Self { repository }
+    }
+}
+
 #[async_trait]
-impl PushTokenDirectory for DevicePushService {
+impl PushTokenDirectory for UsersPushTokenDirectory {
     async fn tokens_for(
         &self,
         user: &UserId,

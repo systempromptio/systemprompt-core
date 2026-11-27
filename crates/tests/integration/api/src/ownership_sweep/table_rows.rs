@@ -165,6 +165,8 @@ pub(super) const OWNED: &[Row] = &[
     owned(NOTIFY, "GET", r#""/streams""#, Notifications, CallerScoped, Empty),
     owned(NOTIFY, "GET", r#""/rules""#, Notifications, CallerScoped, Empty),
     owned(NOTIFY, "PUT", r#""/rules""#, Notifications, CallerScoped, Json(r#"{"rules":[]}"#)),
+    owned_at(NOTIFY, "PUT", "devices::PUSH_TOKEN_ROUTE", "/push-token", (Notifications, CallerScoped, Json(r#"{"provider":"fcm","token":"sweep-push-token","client":{"platform":"android","os_version":"16","app_version":"1.0.0","app_id":"io.example.app"}}"#))),
+    owned_at(NOTIFY, "DELETE", "devices::PUSH_TOKEN_ROUTE", "/push-token", (Notifications, CallerScoped, Empty)),
     owned(NOTIFY, "GET", r#""/subscriptions""#, Subscriptions, Listing, Empty),
     owned(NOTIFY, "POST", r#""/subscriptions""#, Subscriptions, Create, Json("{}")),
     owned(NOTIFY, "DELETE", r#""/subscriptions/{id}""#, Subscriptions, NotFound, Empty),

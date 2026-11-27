@@ -302,6 +302,10 @@ async fn no_open_value_carries_a_member_sealed_capability() {
             carrier::<systemprompt_gateway::client::GatewayClient>(),
         ),
         (
+            type_name::<systemprompt_extension::notifications::DynPushTokenDirectory>(),
+            carrier::<systemprompt_users::UsersPushTokenDirectory>(),
+        ),
+        (
             type_name::<systemprompt_extension::profile_usage::DynProfileUsageSource>(),
             carrier::<systemprompt_ai::ProfileUsageService>(),
         ),

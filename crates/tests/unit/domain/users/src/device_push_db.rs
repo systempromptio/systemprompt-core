@@ -15,13 +15,14 @@ use systemprompt_test_fixtures::{
 };
 use systemprompt_users::{
     DeviceCertService, DevicePushError, DevicePushService, EnrollDeviceCertServiceParams,
-    UserDeviceCert, UserRepository,
+    UserDeviceCert, UserRepository, UsersPushTokenDirectory,
 };
 
 const APP_ID: &str = "io.example.app";
 
 struct Ctx {
     push: DevicePushService,
+    directory: UsersPushTokenDirectory,
     certs: DeviceCertService,
     repo: UserRepository,
     owner: UserId,
@@ -42,6 +43,7 @@ async fn setup(prefix: &str) -> Ctx {
     }
     Ctx {
         push: DevicePushService::new(Arc::clone(&shared)),
+        directory: UsersPushTokenDirectory::new(Arc::clone(&shared)),
         certs: DeviceCertService::new(shared),
         repo,
         owner,
@@ -95,7 +97,7 @@ fn ios(token: &str) -> RegisterPushTokenRequest {
 }
 
 async fn live_tokens(ctx: &Ctx, user: &UserId) -> Vec<String> {
-    ctx.push
+    ctx.directory
         .tokens_for(user)
         .await
         .expect("directory answers")
@@ -119,7 +121,7 @@ async fn a_device_registers_its_own_token() {
     assert_eq!(registration.device_id.as_str(), device.id.as_str());
     assert_eq!(registration.provider, PushProvider::Apns);
 
-    let tokens = ctx.push.tokens_for(&ctx.owner).await.expect("tokens");
+    let tokens = ctx.directory.tokens_for(&ctx.owner).await.expect("tokens");
     assert_eq!(tokens.len(), 1);
     assert_eq!(tokens[0].device_id.as_str(), device.id.as_str());
     assert_eq!(tokens[0].provider, PushProvider::Apns);
@@ -329,9 +331,9 @@ async fn the_directory_returns_only_live_tokens_of_the_users_devices() {
         .revoke(&revoked_device.id, &ctx.owner)
         .await
         .expect("revoke device");
-    let directory: &dyn PushTokenDirectory = &ctx.push;
+    let directory: &dyn PushTokenDirectory = &ctx.directory;
     let unregistered = ctx
-        .push
+        .directory
         .tokens_for(&ctx.owner)
         .await
         .expect("tokens")
@@ -370,7 +372,7 @@ async fn a_refreshed_token_survives_the_revocation_of_the_one_it_replaced() {
         .await
         .expect("register");
     let stale = ctx
-        .push
+        .directory
         .tokens_for(&ctx.owner)
         .await
         .expect("tokens")
@@ -382,7 +384,7 @@ async fn a_refreshed_token_survives_the_revocation_of_the_one_it_replaced() {
         .await
         .expect("refresh");
 
-    let directory: &dyn PushTokenDirectory = &ctx.push;
+    let directory: &dyn PushTokenDirectory = &ctx.directory;
     directory
         .revoke(&stale)
         .await

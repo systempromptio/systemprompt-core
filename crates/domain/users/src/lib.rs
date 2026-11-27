@@ -66,7 +66,7 @@ pub use services::{
     EnrollDeviceCertServiceParams, EnsuredApiKey, IssueApiKeyParams, MAX_OS_VERSION_LEN,
     OUTCOME_REFUSED, OUTCOME_SUCCESS, PostgresAuthEventSink, PromoteResult, PurgedArchive,
     UpdateUserParams, UserAdminService, UserRoleAudienceResolver, UserService,
-    UsersServiceAccounts,
+    UsersPushTokenDirectory, UsersServiceAccounts,
 };
 
 pub use systemprompt_traits::auth::{RoleProvider, UserProvider};

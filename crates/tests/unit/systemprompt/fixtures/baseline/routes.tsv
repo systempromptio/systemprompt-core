@@ -26,6 +26,7 @@ POST	/api/v1/admin/api-keys	admin	User	admin/PerSecond(10)	Default	ContentAndMis
 DELETE	/api/v1/admin/api-keys/{key_id}	admin	User	admin/PerSecond(10)	Default	ContentAndMisc	kernel	-
 POST	/api/v1/admin/brain/simulate	admin	User	brain/Brain	Default	ContentAndMisc	brain-http	-
 POST	/api/v1/admin/cli	admin	User	admin/PerSecond(10)	Default	ContentAndMisc	kernel	-
+GET	/api/v1/admin/notifications/devices	admin	User	notifications/Notifications	Default	ContentAndMisc	notifications-http	-
 POST	/api/v1/admin/notifications/simulate	admin	User	notifications/Notifications	Default	ContentAndMisc	notifications-http	-
 POST	/api/v1/admin/services/refresh	admin	User	admin/PerSecond(10)	Default	ContentAndMisc	kernel	-
 GET	/api/v1/admin/services/status	admin	User	admin/PerSecond(10)	Default	ContentAndMisc	kernel	-
@@ -211,6 +212,8 @@ GET	/api/v1/mcp/{service_name}/mcp/.well-known/oauth-authorization-server	deferr
 GET	/api/v1/mcp/{service_name}/mcp/.well-known/oauth-protected-resource	deferred_to_handler	Mcp	mcp/Mcp	Default	McpAndStream	kernel	-
 ANY	/api/v1/mcp/{service_name}/{*path}	deferred_to_handler	Mcp	mcp/Mcp	Default	McpAndStream	kernel	-
 GET	/api/v1/notifications	user	User	notifications/Notifications	Default	ContentAndMisc	notifications-http	-
+DELETE	/api/v1/notifications/push-token	user	User	notifications/Notifications	Default	ContentAndMisc	notifications-http	-
+PUT	/api/v1/notifications/push-token	user	User	notifications/Notifications	Default	ContentAndMisc	notifications-http	-
 POST	/api/v1/notifications/read	user	User	notifications/Notifications	Default	ContentAndMisc	notifications-http	-
 GET	/api/v1/notifications/rules	user	User	notifications/Notifications	Default	ContentAndMisc	notifications-http	-
 PUT	/api/v1/notifications/rules	user	User	notifications/Notifications	Default	ContentAndMisc	notifications-http	-

@@ -54,7 +54,7 @@ use crate::repository::{
     BannedIpRepository, SessionRepository, UserRepository, UsersRoleDirectory,
     UsersRoleSubjectProvider,
 };
-use crate::services::{DevicePushService, UserRoleAudienceResolver};
+use crate::services::{DevicePushService, UserRoleAudienceResolver, UsersPushTokenDirectory};
 
 type RoleAudienceSeam = CoreSeam<dyn NotificationAudienceResolver, RoleAudience>;
 
@@ -167,7 +167,10 @@ fn device_push_service(r: &Resolved<'_>) -> Result<Arc<DevicePushService>, Provi
 }
 
 fn push_token_directory(r: &Resolved<'_>) -> Result<DynPushTokenDirectory, ProvideError> {
-    let directory: DynPushTokenDirectory = device_push_service(r)?;
+    let db = r.get::<DbPool>()?;
+    let directory: DynPushTokenDirectory = Arc::new(UsersPushTokenDirectory::new(Arc::new(
+        UserRepository::new(&db),
+    )));
     Ok(directory)
 }
 
