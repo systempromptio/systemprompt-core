@@ -5,8 +5,8 @@
 
 use std::time::Duration;
 
-use sp_client::ClientError;
-use sp_protocol::view::SyncErrorKind;
+use systemprompt_device::client::ClientError;
+use systemprompt_device::view::SyncErrorKind;
 
 /// A failure of the notifications feed or of one of the reader's actions.
 ///

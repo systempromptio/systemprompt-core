@@ -9,7 +9,7 @@ use std::path::Path;
 use std::process::Stdio;
 use std::time::Duration;
 
-use harness_tasks::OwnedTask;
+use systemprompt_traits::OwnedTask;
 use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::process::{Child, Command};
 use tokio::sync::mpsc;
@@ -19,7 +19,7 @@ use tokio_util::sync::CancellationToken;
 use super::decode::Decoder;
 use super::select::{ShellKind, ShellSpec};
 use super::tree::ProcessTree;
-use crate::error::ToolError;
+use crate::tools::error::ToolError;
 
 const PS_PRELUDE: &str = "$ProgressPreference = 'SilentlyContinue'; try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}; $OutputEncoding = [System.Text.Encoding]::UTF8; ";
 const DRAIN_GRACE: Duration = Duration::from_millis(750);

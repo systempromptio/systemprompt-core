@@ -1,5 +1,5 @@
-//! What [`crate::plan`] reads: the verified manifest and what was fetched with
-//! it.
+//! What [`crate::projection::plan`] reads: the verified manifest and what was
+//! fetched with it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -7,9 +7,12 @@
 use std::collections::BTreeMap;
 use std::fmt;
 
-use sp_protocol::ids::{InstanceKey, PluginId};
-use sp_protocol::wire::catalog::{ModelCatalog, Profile};
-use sp_protocol::wire::manifest::Manifest;
+use systemprompt_device::protocol::ids::InstanceKey;
+use systemprompt_device::protocol::manifest::Manifest;
+use systemprompt_identifiers::PluginId;
+use systemprompt_models::bridge::catalog::ModelCatalog;
+use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::profile::BridgeProfileResponse as Profile;
 
 /// Plugin bundle file bytes as delivered, keyed by plugin id and the file's
 /// path inside the bundle.
@@ -67,7 +70,7 @@ impl fmt::Debug for BundleFiles {
 /// Everything a projection is computed from.
 ///
 /// `manifest` must already be verified and accepted;
-/// `host` is the host id the harness presents (`sp_protocol::HOST_ID`);
+/// `host` is the host id the harness presents (`HostKind::Harness`);
 /// `instance_key` is the slug of the account label.
 #[derive(Debug, Clone, Copy)]
 pub struct ProjectionInput<'a> {
@@ -76,6 +79,6 @@ pub struct ProjectionInput<'a> {
     pub catalog: Option<&'a ModelCatalog>,
     pub instance_url: &'a str,
     pub instance_key: &'a InstanceKey,
-    pub host: &'a str,
+    pub host: HostKind,
     pub bundle_files: &'a BundleFiles,
 }

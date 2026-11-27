@@ -120,7 +120,7 @@ impl Default for LspTimeouts {
     }
 }
 
-/// Everything an [`crate::LspManager`] is built from.
+/// Everything an [`crate::lsp::LspManager`] is built from.
 ///
 /// `search_path` is the `PATH` value the shell read at startup; without it only
 /// absolute or worktree-relative commands resolve and no built-in is offered.

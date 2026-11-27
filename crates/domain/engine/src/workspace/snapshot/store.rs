@@ -16,8 +16,8 @@ use super::fsops::{Written, remove_file, write_file};
 use super::layout::{FileEntry, Layout, MANIFEST_VERSION, Manifest, hash_bytes};
 use super::tree::{Hashed, hash_tree};
 use super::{DiffTarget, SnapshotError, SnapshotId, SnapshotInfo, SnapshotOptions, io_at};
-use crate::diff::{FileDiff, file_diff};
-use crate::paths::{fold, path_for_key, relative_key};
+use crate::workspace::diff::{FileDiff, file_diff};
+use crate::workspace::paths::{fold, path_for_key, relative_key};
 
 const STORE_KEY_CHARS: usize = 16;
 

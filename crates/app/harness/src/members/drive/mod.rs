@@ -11,6 +11,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod agent;
 mod engine;
 mod follow;
 mod handle;
@@ -21,12 +22,11 @@ mod tools;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use sp_client::HttpClient;
-use sp_extension::{
+use crate::extension::{
     AppliedInstance, ApplyError, BackgroundService, EngineExtension, ExtensionId,
     ExtensionMetadata, ManifestApplier, SpContext, SpExtension, extension_id,
-    register_sp_extension,
 };
+use systemprompt_device::client::HttpClient;
 
 pub use engine::DriveEngine;
 pub use follow::DriveFollower;
@@ -35,8 +35,8 @@ pub use kind::DocumentKind;
 pub use settings::DriveSettings;
 pub use tools::{PERMISSION, TOOL_NAMES};
 
-use crate::client::DriveClient;
-use crate::sync::default_drive_root;
+use systemprompt_drive::client::DriveClient;
+use systemprompt_drive::sync::default_drive_root;
 
 /// The Drive as an instance-side extension.
 ///
@@ -100,7 +100,6 @@ impl SpExtension for DriveExtension {
     }
 }
 
-register_sp_extension!(DriveExtension);
 
 struct FollowInstance {
     handle: DriveHandle,

@@ -1,5 +1,5 @@
 //! The persisted account store: one JSON file, written owner-only and
-//! atomically with `sp_secure::write_private`.
+//! atomically with `crate::secure::write_private`.
 //!
 //! The file is versioned and tolerant: fields this build does not know are kept
 //! on every rewrite, so a newer build's additions survive an older one. A file
@@ -15,15 +15,16 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::protocol::ids::{AccountId, InstallId, InstanceKey};
+use crate::secure::SealedString;
+use crate::view::KeyFingerprint;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sp_protocol::ManifestVersion;
-use sp_protocol::ids::{AccountId, DeviceId, InstallId, InstanceKey, UserId};
-use sp_protocol::view::KeyFingerprint;
-use sp_secure::SealedString;
+use systemprompt_identifiers::{DeviceId, UserId};
+use systemprompt_models::bridge::manifest_version::ManifestVersion;
 
-use crate::error::AccountsError;
-use crate::slug::unique_slug;
+use crate::accounts::error::AccountsError;
+use crate::accounts::slug::unique_slug;
 
 pub(crate) const STORE_VERSION: u32 = 1;
 
@@ -161,7 +162,7 @@ pub(crate) struct DeviceRecord {
 }
 
 pub(crate) fn load(path: &Path) -> Result<Option<StoreFile>, AccountsError> {
-    let bytes = sp_secure::read_optional(path).map_err(|source| AccountsError::StoreRead {
+    let bytes = crate::secure::read_optional(path).map_err(|source| AccountsError::StoreRead {
         path: path.to_owned(),
         source,
     })?;
@@ -192,7 +193,7 @@ pub(crate) fn encode(store: &StoreFile) -> Result<Vec<u8>, AccountsError> {
 }
 
 pub(crate) fn save(path: &Path, bytes: &[u8]) -> Result<(), AccountsError> {
-    sp_secure::write_private(path, bytes).map_err(|source| AccountsError::StoreWrite {
+    crate::secure::write_private(path, bytes).map_err(|source| AccountsError::StoreWrite {
         path: path.to_owned(),
         source,
     })

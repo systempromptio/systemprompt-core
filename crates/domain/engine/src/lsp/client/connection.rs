@@ -10,16 +10,16 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering};
 use std::time::Duration;
 
-use harness_tasks::CancellationToken;
+use systemprompt_traits::CancellationToken;
 use parking_lot::Mutex;
 use serde_json::{Map, Value, json};
 use tokio::sync::{mpsc, oneshot, watch};
 use tracing::{debug, warn};
 
-use crate::error::LspError;
-use crate::framing::encode_frame;
-use crate::spec::ServerId;
-use crate::types::Diagnostic;
+use crate::lsp::error::LspError;
+use crate::lsp::framing::encode_frame;
+use crate::lsp::spec::ServerId;
+use crate::lsp::types::Diagnostic;
 
 #[derive(Debug)]
 pub(super) struct RemoteError {

@@ -4,11 +4,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_client::{CredentialSource, with_jwt};
+use systemprompt_device::client::{CredentialSource, with_jwt};
 
 use super::Poller;
-use crate::ports::{Instance, Store};
-use crate::target::Target;
+use crate::sync::ports::{Instance, Store};
+use crate::sync::target::Target;
 
 impl<S: Store, T: Target> Poller<S, T> {
     pub(super) async fn offer_served_key(&self) {

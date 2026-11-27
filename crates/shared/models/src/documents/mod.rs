@@ -16,6 +16,7 @@
 pub mod access;
 pub mod awareness;
 pub mod cells;
+pub mod client;
 pub mod collab_events;
 pub mod comment_events;
 pub mod drive;

@@ -7,13 +7,13 @@
 use std::fmt;
 use std::sync::Arc;
 
-use sp_extension::{
+use crate::extension::{
     AppliedInstance, ApplyError, ExtensionId, ExtensionMetadata, ManifestApplier, SpContext,
-    SpExtension, extension_id, register_sp_extension,
+    SpExtension, extension_id,
 };
-use sp_notifications::{NotificationsExtension, NotificationsHandle};
+use crate::members::notifications::{NotificationsExtension, NotificationsHandle};
 
-use crate::handle::{Shared, SlackHandle};
+use crate::members::slack::handle::{Shared, SlackHandle};
 
 /// Slack as an instance-side extension, depending on `notifications`.
 ///
@@ -84,7 +84,6 @@ impl SpExtension for SlackExtension {
     }
 }
 
-register_sp_extension!(SlackExtension);
 
 struct Admission {
     shared: Arc<Shared>,

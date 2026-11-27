@@ -1,10 +1,9 @@
 //! The Brain: an organisation's revisioned facts under `/api/v1/brain`, the
 //! proposals its analyses draft, and the memory headers of a gateway call.
 //!
-//! Facts, revisions, proposals, scopes, statuses and subjects are
-//! `systemprompt-models`' own types and the ids are
-//! `systemprompt-identifiers`', both re-exported here. This module adds the
-//! route bodies those crates lack, field for field as the instance writes
+//! Facts, revisions, proposals, scopes, statuses and subjects are the types of
+//! [`crate::brain`] and the ids are `systemprompt-identifiers`'. This module
+//! adds the route bodies a device client exchanges beside them, field for field as the instance writes
 //! them: answers tolerate unknown fields, requests carry exactly the fields the
 //! instance accepts.
 //!
@@ -15,15 +14,11 @@ use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-pub use systemprompt_identifiers::{
-    BrainDisputeId, BrainFactId, BrainFactRevisionId, BrainProposalId, EventOutboxId, FactKindId,
-    PipelineVersion, TopicId,
+use systemprompt_identifiers::{
+    BrainDisputeId, BrainFactId, EventOutboxId, FactKindId, PipelineVersion,
 };
-pub use systemprompt_models::brain::{
-    BrainFact, BrainProposal, EnteredFact, EnteredStatus, FactRef, FactRevision, FactScope,
-    FactStatus, ProposalKind, ProposalStatus, RevisionChange, ScopeLevel, SubjectKey,
-    SubjectKeyError, WithheldReason,
-};
+
+use super::{BrainFact, FactRef, WithheldReason};
 
 pub const MEMORY_OFF: &str = "off";
 

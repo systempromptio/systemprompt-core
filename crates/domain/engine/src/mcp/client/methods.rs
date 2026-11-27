@@ -11,9 +11,9 @@ use serde_json::{Map, Value, json};
 
 use super::McpClient;
 use super::options::RequestOptions;
-use crate::error::McpError;
-use crate::jsonrpc::METHOD_NOT_FOUND;
-use crate::types::{CallResult, Prompt, PromptResult, Resource, ResourceContent, ToolInfo};
+use crate::mcp::error::McpError;
+use crate::mcp::jsonrpc::METHOD_NOT_FOUND;
+use crate::mcp::types::{CallResult, Prompt, PromptResult, Resource, ResourceContent, ToolInfo};
 
 const MAX_PAGES: usize = 64;
 

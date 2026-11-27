@@ -14,15 +14,15 @@
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
+use crate::client::{CredentialError, JwtSession};
+use crate::protocol::ids::AccountId;
 use chrono::{DateTime, Utc};
-use harness_tasks::OwnedTask;
-use sp_client::{CredentialError, JwtSession};
-use sp_protocol::ids::AccountId;
+use systemprompt_traits::OwnedTask;
 use tokio::runtime::Handle;
 use tokio_util::sync::CancellationToken;
 
-use crate::accounts::{Accounts, Inner};
-use crate::schedule::{renewal_delay, retry_delay};
+use crate::accounts::accounts::{Accounts, Inner};
+use crate::accounts::schedule::{renewal_delay, retry_delay};
 
 const RENEWAL_TASK: &str = "session-renewal";
 

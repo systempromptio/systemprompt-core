@@ -9,10 +9,10 @@
 use std::sync::Arc;
 
 use futures_util::future::join_all;
-use harness_prompt::{notices, tool_names};
-use harness_store::{JsonMap, MessageId, ToolState, now_ms};
-use harness_tasks::CancellationToken;
-use harness_tools::{PermissionGate, PermissionRequest, ToolContext};
+use crate::prompt::{notices, tool_names};
+use crate::store::{JsonMap, MessageId, ToolState, now_ms};
+use systemprompt_traits::CancellationToken;
+use crate::tools::{PermissionGate, PermissionRequest, ToolContext};
 use serde_json::Value;
 
 use super::gate::Gate;
@@ -20,9 +20,9 @@ use super::hooks::Observer;
 use super::outcome::{self, Finished};
 use super::progress::{CallRecord, PartProgress};
 use super::registry::ToolBox;
-use crate::governor::ToolCall;
-use crate::session::run::StepContext;
-use crate::session::stream::PendingCall;
+use crate::run::governor::ToolCall;
+use crate::run::session::run::StepContext;
+use crate::run::session::stream::PendingCall;
 
 const MALFORMED_EXCERPT: usize = 500;
 
@@ -96,7 +96,7 @@ impl Invocation<'_> {
             return Finished::failed(self.call.input.clone(), error, self.started);
         }
         let mut input = self.call.input.clone();
-        if let Err(error) = harness_tools::validate(&tool.schema(), &mut input) {
+        if let Err(error) = crate::tools::validate(&tool.schema(), &mut input) {
             let error = notices::invalid_tool_input(name, &error.to_string());
             return Finished::failed(input, error, self.started);
         }

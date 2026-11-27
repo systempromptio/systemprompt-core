@@ -8,12 +8,12 @@ use std::collections::HashMap;
 
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::change::Change;
-use crate::error::{Result, not_found};
-use crate::id::{MessageId, PartId, SessionId, column, now_ms, optional_param, param};
-use crate::model::{DiffSummary, Message, Session};
-use crate::rows::{insert_session, load_session, query_messages, write_message};
-use crate::store::Store;
+use crate::store::change::Change;
+use crate::store::error::{Result, not_found};
+use crate::store::id::{MessageId, PartId, SessionId, column, now_ms, optional_param, param};
+use crate::store::model::{DiffSummary, Message, Session};
+use crate::store::rows::{insert_session, load_session, query_messages, write_message};
+use crate::store::store::Store;
 
 const PART_COPIES: &str = "SELECT ordinal, kind, payload, created_at, updated_at FROM part \
      WHERE message_id = ?1 ORDER BY ordinal, id";

@@ -6,8 +6,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use bytes::Bytes;
-use sp_protocol::ids::{ContextId, DocumentFolderId};
-use sp_protocol::wire::drive::{
+use systemprompt_identifiers::{ContextId, DocumentFolderId};
+use systemprompt_models::documents::client::{
     DriveLanded, DriveProposal, DriveProposed, DriveRevision, DriveScope,
 };
 

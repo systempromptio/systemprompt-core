@@ -17,6 +17,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod candidate;
+pub mod client;
 pub mod declarations;
 pub mod enter;
 pub mod envelope;

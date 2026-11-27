@@ -7,14 +7,14 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use harness_prompt::engine_tools::{TASK_DESCRIPTION, task_schema};
-use harness_prompt::tool_names::TASK;
-use harness_tools::{PermissionRequest, Tool, ToolContext, ToolError, ToolOutput};
+use crate::prompt::engine_tools::{TASK_DESCRIPTION, task_schema};
+use crate::prompt::tool_names::TASK;
+use crate::tools::{PermissionRequest, Tool, ToolContext, ToolError, ToolOutput};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use crate::inner::Inner;
-use crate::session::subtask::{self, SubtaskRequest};
+use crate::run::inner::Inner;
+use crate::run::session::subtask::{self, SubtaskRequest};
 
 pub(crate) struct TaskTool {
     inner: Arc<Inner>,

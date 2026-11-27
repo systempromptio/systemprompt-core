@@ -28,13 +28,13 @@ pub use registry::BackgroundJobs;
 pub use select::{ShellKind, ShellSpec};
 pub use tokenize::{Dialect, Segment, split_commands};
 
-use crate::config::ShellConfig;
-use crate::contract::{Tool, ToolContext, ToolOutput};
-use crate::error::ToolError;
-use crate::path::{resolve, slash};
-use crate::repair::parse_input;
-use crate::text::title_line;
-use crate::truncate::OutputLimits;
+use crate::tools::config::ShellConfig;
+use crate::tools::contract::{Tool, ToolContext, ToolOutput};
+use crate::tools::error::ToolError;
+use crate::tools::path::{resolve, slash};
+use crate::tools::repair::parse_input;
+use crate::tools::text::title_line;
+use crate::tools::truncate::OutputLimits;
 
 /// Runs shell commands.
 #[derive(Debug, Clone)]
@@ -98,7 +98,7 @@ impl ShellTool {
 #[async_trait]
 impl Tool for ShellTool {
     fn name(&self) -> &str {
-        crate::names::SHELL
+        crate::tools::names::SHELL
     }
 
     fn description(&self) -> String {

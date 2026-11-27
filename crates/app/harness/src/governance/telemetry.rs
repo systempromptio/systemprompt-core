@@ -13,18 +13,18 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use harness_engine::Verdict;
-use harness_ids::SessionId;
-use harness_tasks::{CancellationToken, OwnedTask};
-use sp_protocol::ids::PluginId;
-use sp_protocol::names::native_session_id;
-use sp_protocol::wire::hooks::{HOOK_TIMEOUT_MS, HookEvent, VERDICT_TIMEOUT_MS};
+use systemprompt_traits::{CancellationToken, OwnedTask};
+use systemprompt_device::protocol::names::native_session_id;
+use systemprompt_engine::run::Verdict;
+use systemprompt_identifiers::PluginId;
+use systemprompt_identifiers::engine::SessionId;
+use systemprompt_models::bridge::hook_events::{HOOK_TIMEOUT_MS, HookEvent, VERDICT_TIMEOUT_MS};
 use tokio::sync::mpsc;
 
-use crate::error::GovernanceError;
-use crate::governance::{SessionBinding, Shared};
-use crate::hooks::hook_token;
-use crate::instance::Instance;
+use crate::governance::error::GovernanceError;
+use crate::governance::governance::{SessionBinding, Shared};
+use crate::governance::hooks::hook_token;
+use crate::governance::instance::Instance;
 
 const QUEUE: usize = 256;
 

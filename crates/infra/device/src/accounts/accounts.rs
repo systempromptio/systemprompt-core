@@ -18,21 +18,21 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::client::HttpClient;
+use crate::protocol::ids::{AccountId, InstallId};
+use crate::secure::Sealer;
+use crate::view::AccountView;
 use parking_lot::Mutex;
-use sp_client::HttpClient;
-use sp_protocol::ids::{AccountId, InstallId};
-use sp_protocol::view::AccountView;
-use sp_secure::Sealer;
 use tokio::runtime::Handle;
 use tokio::sync::{broadcast, watch};
 use tokio_util::sync::CancellationToken;
 
-use crate::browser::Browser;
-use crate::error::AccountsError;
-use crate::session::Renewed;
-use crate::snapshot::{AccountsSnapshot, view};
-use crate::state::State;
-use crate::store::{self, AccountRecord, StoreFile};
+use crate::accounts::browser::Browser;
+use crate::accounts::error::AccountsError;
+use crate::accounts::session::Renewed;
+use crate::accounts::snapshot::{AccountsSnapshot, view};
+use crate::accounts::state::State;
+use crate::accounts::store::{self, AccountRecord, StoreFile};
 
 const RENEWED_CAPACITY: usize = 32;
 

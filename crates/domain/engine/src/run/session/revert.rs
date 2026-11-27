@@ -10,16 +10,16 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use harness_store::{
+use crate::store::{
     DiffSummary, MessageId, MessagePage, MessageWithParts, PartBody, RevertMarker, Session,
     SessionId,
 };
-use harness_workspace::{DiffTarget, FileDiff, SnapshotId};
+use crate::workspace::{DiffTarget, FileDiff, SnapshotId};
 
 use super::attachments::slash;
-use crate::directory::DirState;
-use crate::error::EngineError;
-use crate::inner::Inner;
+use crate::run::directory::DirState;
+use crate::run::error::EngineError;
+use crate::run::inner::Inner;
 
 pub(crate) async fn commit_pending(inner: &Inner, session: &Session) -> Result<(), EngineError> {
     let Some(marker) = &session.revert else {
@@ -176,7 +176,7 @@ pub(crate) async fn refresh_summary(inner: &Inner, session_id: &SessionId, dir: 
             return;
         },
     };
-    let totals = harness_workspace::DiffSummary::from_diffs(&diffs);
+    let totals = crate::workspace::DiffSummary::from_diffs(&diffs);
     let summary = DiffSummary {
         additions: u64::try_from(totals.additions).unwrap_or(u64::MAX),
         deletions: u64::try_from(totals.deletions).unwrap_or(u64::MAX),

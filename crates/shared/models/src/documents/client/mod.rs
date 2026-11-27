@@ -5,7 +5,9 @@
 //! under `/v1/bridge/drive` takes a short sync token traded for the device
 //! token. A key the instance omits and one it sends as `null` mean the same.
 //! Timestamps on the user routes are kept as the instance's strings: the Drive
-//! only displays and compares them.
+//! only displays and compares them. These are a device client's readings of
+//! the routes; [`crate::documents::drive`] holds the sync feed as the instance
+//! writes it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -23,7 +25,7 @@ pub use access::{
     InheritedFrom, ShareRequest,
 };
 pub use comments::{
-    Attention, CommentRequest, DriveAnchor, DriveComment, DriveComments, DriveOutline, DrivePeople,
+    CommentRequest, DriveAnchor, DriveComment, DriveComments, DriveOutline, DrivePeople,
     DrivePerson, MentionOption, OutlineLine, parse_outline_line,
 };
 pub use documents::{
@@ -31,11 +33,11 @@ pub use documents::{
     DriveDetail, DriveDocument, DriveFolder, DriveListing, DriveRevision, DriveRevisions,
     DriveScope,
 };
-pub use edits::{DriveLanded, DriveProposal, DriveProposals, DriveProposed, EditMode, EditRequest};
+pub use edits::{DriveLanded, DriveProposal, DriveProposals, DriveProposed, EditRequest};
 pub use errors::{DriveConflictDetail, DriveErrorBody};
 pub use feed::{
     ChangeKind, CommitMeta, CommitOutcome, FeedChange, FeedChanges, FeedEntry, FeedManifest,
-    MoveRequest, SyncTokenAnswer, TrashOutcome, TrashRequest,
+    MoveRequest, TrashOutcome, TrashRequest,
 };
 pub use uploads::{
     DriveBlob, DriveUpload, DriveUploadPart, INLINE_UPLOAD_LIMIT, ImportBlobRequest,

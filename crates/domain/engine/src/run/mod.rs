@@ -51,8 +51,8 @@ pub use governor::{
     GovernError, Governor, McpSpec, ModelCall, NullGovernor, Purpose, ResponseAction, SessionEvent,
     ToolCall, ToolOutcome, UserPrompt, Verdict,
 };
-pub use harness_ids::{CallId, ExtensionId, PermissionId, QuestionId};
-pub use harness_llm::{Endpoint, ModelSpec, Protocol, Usage};
+pub use systemprompt_identifiers::engine::{CallId, ExtensionId, PermissionId, QuestionId};
+pub use crate::llm::{Endpoint, ModelSpec, Protocol, Usage};
 pub use options::EngineOptions;
 pub use session::{
     Admitted, AttachmentInput, CommandInfo, CommandInput, CommandOutcome, Delivery, PromptInput,

@@ -17,11 +17,11 @@ use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sp_protocol::ids::{DeviceId, InstallationReceiptId, NativeSessionId};
-use sp_protocol::wire::consumer::ReceiptRequest;
-use sp_protocol::wire::manifest::Publication;
+use systemprompt_identifiers::{DeviceId, InstallationReceiptId, NativeSessionId};
+use systemprompt_models::bridge::manifest::ManagedPublicationRef;
+use systemprompt_models::feedback::receipts::ConsumerReceiptRequest;
 
-use crate::cadence::{after, outbox_delay};
+use crate::sync::cadence::{after, outbox_delay};
 
 pub use file::{OutboxError, file_name, load, outbox_path, save};
 
@@ -52,7 +52,7 @@ pub enum Binding {
 /// it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Entry {
-    pub receipt: ReceiptRequest,
+    pub receipt: ConsumerReceiptRequest,
     pub delivery: Delivery,
     pub attempts: u32,
     pub next_at: DateTime<Utc>,
@@ -102,20 +102,20 @@ impl Outbox {
         }
     }
 
-    pub fn holds(&self, publication: &Publication) -> bool {
+    pub fn holds(&self, publication: &ManagedPublicationRef) -> bool {
         self.entries
             .iter()
             .any(|entry| same_publication(&entry.receipt, publication))
     }
 
-    pub fn enqueue(&mut self, receipt: ReceiptRequest, now: DateTime<Utc>) {
+    pub fn enqueue(&mut self, receipt: ConsumerReceiptRequest, now: DateTime<Utc>) {
         let existing = self
             .entries
             .iter()
             .position(|entry| same_installation(&entry.receipt, &receipt));
         if let Some(index) = existing {
             let held = &self.entries[index].receipt;
-            let unchanged = ReceiptRequest {
+            let unchanged = ConsumerReceiptRequest {
                 observed_at: held.observed_at,
                 ..receipt.clone()
             };
@@ -202,15 +202,15 @@ fn defer(entry: &mut Entry, now: DateTime<Utc>) {
     entry.next_at = after(now, outbox_delay(entry.attempts));
 }
 
-fn same_publication(receipt: &ReceiptRequest, publication: &Publication) -> bool {
+fn same_publication(receipt: &ConsumerReceiptRequest, publication: &ManagedPublicationRef) -> bool {
     receipt.publication_id == publication.publication_id
         && receipt.resource_id == publication.resource_id
         && receipt.revision_id == publication.revision_id
         && receipt.generation == publication.generation
-        && receipt.bundle_digest == publication.bundle_digest
+        && receipt.bundle_digest.as_str() == publication.bundle_digest.as_str()
 }
 
-fn same_installation(held: &ReceiptRequest, incoming: &ReceiptRequest) -> bool {
+fn same_installation(held: &ConsumerReceiptRequest, incoming: &ConsumerReceiptRequest) -> bool {
     held.installation_id == incoming.installation_id
         && held.resource_id == incoming.resource_id
         && held.publication_id == incoming.publication_id

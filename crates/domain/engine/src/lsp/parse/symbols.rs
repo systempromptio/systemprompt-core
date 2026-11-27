@@ -9,7 +9,7 @@ use std::path::Path;
 use serde_json::Value;
 
 use super::{number, path_of, range};
-use crate::types::{Symbol, SymbolKind};
+use crate::lsp::types::{Symbol, SymbolKind};
 
 // JSON: the result of `textDocument/documentSymbol`: `DocumentSymbol[]` or
 // `SymbolInformation[]`.

@@ -7,7 +7,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use harness_config::{AgentDef, Command, Paths};
+use crate::config::{AgentDef, Command, Paths};
 
 use super::contribution::{Contributed, ExtensionTool, PromptContext, PromptSection};
 use super::enabled::EnabledExtensions;
@@ -15,7 +15,7 @@ use super::engine::EngineExtension;
 use super::error::ResolveError;
 use super::hooks::{CallAugmenter, GovernorObserver, ToolReviewer};
 use super::resolve::{Resolved, admitted, resolve};
-use crate::governor::McpSpec;
+use crate::run::governor::McpSpec;
 
 type Entry = Resolved<Arc<dyn EngineExtension>>;
 

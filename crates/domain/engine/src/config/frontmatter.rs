@@ -8,7 +8,7 @@ use std::path::Path;
 use serde_json::{Map, Number, Value};
 use serde_yaml::Value as Yaml;
 
-use crate::error::ConfigError;
+use crate::config::error::ConfigError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Document {

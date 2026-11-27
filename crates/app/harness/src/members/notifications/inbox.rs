@@ -7,9 +7,10 @@
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use sp_protocol::ids::NotificationId;
-use sp_protocol::view::SyncErrorKind;
-use sp_protocol::wire::notifications::{KeysetCursor, Notification, NotificationPage};
+use systemprompt_device::view::SyncErrorKind;
+use systemprompt_identifiers::NotificationId;
+use systemprompt_models::api::KeysetCursor;
+use systemprompt_models::notifications::{Notification, NotificationPage};
 
 pub const INBOX_CAPACITY: usize = 200;
 

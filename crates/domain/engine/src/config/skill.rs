@@ -9,9 +9,9 @@ use std::path::{Path, PathBuf};
 use indexmap::IndexMap;
 use serde_json::{Map, Value};
 
-use crate::error::{ConfigError, FieldError};
-use crate::frontmatter;
-use crate::fsio::Probe;
+use crate::config::error::{ConfigError, FieldError};
+use crate::config::frontmatter;
+use crate::config::fsio::Probe;
 
 pub(crate) const SKILL_FILE: &str = "SKILL.md";
 

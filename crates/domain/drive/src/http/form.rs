@@ -6,7 +6,7 @@
 
 use bytes::Bytes;
 use reqwest::multipart::{Form, Part};
-use sp_client::ClientError;
+use systemprompt_device::client::ClientError;
 
 #[derive(Debug, Clone)]
 pub(crate) enum Payload {

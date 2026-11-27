@@ -6,14 +6,14 @@
 
 use serde::Deserialize;
 use serde_json::{Value, json};
-use sp_protocol::ids::{DocumentFolderId, DocumentId, DocumentRevisionId};
-use sp_protocol::wire::drive::DriveAnchor;
+use systemprompt_identifiers::{DocumentFolderId, DocumentId, DocumentRevisionId};
+use systemprompt_models::documents::client::DriveAnchor;
 
 use super::DriveOperation;
-use crate::agent;
-use crate::client::DriveClient;
-use crate::error::DriveError;
-use crate::extension::kind::DocumentKind;
+use crate::members::drive::agent;
+use crate::members::drive::kind::DocumentKind;
+use systemprompt_drive::client::DriveClient;
+use systemprompt_drive::error::DriveError;
 
 #[derive(Deserialize)]
 pub(super) struct ProposeInput {

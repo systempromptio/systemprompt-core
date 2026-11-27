@@ -3,9 +3,9 @@
 //!
 //! Every write checks the content against the digest it was fetched by,
 //! re-checks the target's path for links just before it lands, and goes through
-//! [`sp_secure::write_atomic`] (staged beside the target, renamed over it, read
-//! back). A remote deletion moves the synced copy into `.trash/<UTC
-//! time>/<path>`, kept for [`TRASH_RETENTION_DAYS`] days.
+//! [`systemprompt_device::secure::write_atomic`] (staged beside the target,
+//! renamed over it, read back). A remote deletion moves the synced copy into
+//! `.trash/<UTC time>/<path>`, kept for [`TRASH_RETENTION_DAYS`] days.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,8 +13,8 @@
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, NaiveDateTime, Utc};
-use sp_protocol::ids::{DocumentId, DocumentRevisionId};
-use sp_secure::{Access, write_atomic};
+use systemprompt_device::secure::{Access, write_atomic};
+use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 
 use super::error::SyncError;
 use super::index::IndexEntry;

@@ -7,13 +7,13 @@ use std::fmt;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use harness_ids::SessionId;
+use systemprompt_identifiers::engine::SessionId;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::contract::{Tool, ToolContext, ToolOutput};
-use crate::error::ToolError;
-use crate::repair::parse_input;
+use crate::tools::contract::{Tool, ToolContext, ToolOutput};
+use crate::tools::error::ToolError;
+use crate::tools::repair::parse_input;
 
 /// One entry of a session's todo list.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -99,7 +99,7 @@ fn render(todos: &[TodoItem]) -> String {
 #[async_trait]
 impl Tool for TodoTool {
     fn name(&self) -> &str {
-        crate::names::TODO
+        crate::tools::names::TODO
     }
 
     fn description(&self) -> String {

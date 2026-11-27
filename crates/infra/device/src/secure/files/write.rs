@@ -13,7 +13,7 @@ use super::platform::{create_temp, refuse_link, replace, verify_access};
 #[cfg(unix)]
 use super::platform::{sync_directory, verify_mode};
 use super::{Access, WriteOutcome};
-use crate::error::SecureError;
+use crate::secure::error::SecureError;
 
 pub fn write_private(path: &Path, bytes: &[u8]) -> Result<(), SecureError> {
     write_atomic(path, bytes, Access::Private)
@@ -95,7 +95,7 @@ pub fn ensure_private_dir(path: &Path) -> Result<(), SecureError> {
     fs::create_dir_all(path).map_err(|source| SecureError::io("create directory", path, source))?;
     refuse_link(path)?;
     #[cfg(windows)]
-    crate::win::protect_directory(path).map_err(|source| SecureError::Acl {
+    crate::secure::win::protect_directory(path).map_err(|source| SecureError::Acl {
         path: path.to_path_buf(),
         source,
     })?;

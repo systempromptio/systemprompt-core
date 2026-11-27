@@ -14,7 +14,7 @@ use std::hash::BuildHasher;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::error::IdError;
+use crate::engine::error::IdError;
 
 const COUNTER_BITS: u32 = 12;
 const TIME_DIGITS: usize = 16;

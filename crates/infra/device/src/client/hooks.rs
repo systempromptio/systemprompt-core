@@ -13,22 +13,24 @@
 
 use std::time::Duration;
 
+use crate::protocol::origin::{align_token_endpoint, bearer_allowed};
+use crate::protocol::wire::{HookTokenResponse, OAuthClientResponse};
+use crate::protocol::{ClientSecret, DeviceCredential, HookToken, Jwt, OriginError, paths};
 use chrono::{DateTime, TimeDelta, Utc};
 use reqwest::header::CONTENT_TYPE;
-use sp_protocol::ids::{ClientId, PluginId};
-use sp_protocol::origin::{align_token_endpoint, bearer_allowed};
-use sp_protocol::wire::auth::{HookTokenRequest, HookTokenResponse, OAuthClientResponse};
-use sp_protocol::wire::hooks::{
+use systemprompt_identifiers::{ClientId, PluginId, headers};
+use systemprompt_models::ApiPaths;
+use systemprompt_models::bridge::hook_events::{
     GovernAnswer, HOOK_TIMEOUT_MS, HOOK_TOKEN_REFRESH_SECS, HookEvent, VERDICT_TIMEOUT_MS,
 };
-use sp_protocol::wire::{headers, paths};
-use sp_protocol::{ClientSecret, DeviceCredential, HOST_HEADER_VALUE, HookToken, Jwt, OriginError};
+use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::session::HookTokenRequest;
 use url::Url;
 use uuid::Uuid;
 
-use crate::client::SpClient;
-use crate::error::ClientError;
-use crate::http::{SMALL_BODY, decode, exchange, failure, protocol};
+use crate::client::client::SpClient;
+use crate::client::error::ClientError;
+use crate::client::http::{SMALL_BODY, decode, exchange, failure, protocol};
 
 const OAUTH_CLIENT_ENDPOINT: &str = "POST /v1/auth/bridge/oauth-client";
 const HOOK_TOKEN_ENDPOINT: &str = "POST {token endpoint}";
@@ -68,7 +70,7 @@ impl HookGrant {
 impl SpClient {
     pub async fn provision_hook_client(&self, jwt: &Jwt) -> Result<HookClient, ClientError> {
         let request = self
-            .post(self.at(paths::OAUTH_CLIENT)?)
+            .post(self.at(ApiPaths::BRIDGE_AUTH_OAUTH_CLIENT)?)
             .bearer_auth(jwt.expose())
             .header(CONTENT_TYPE, "application/json")
             .body("{}");
@@ -137,9 +139,9 @@ impl SpClient {
             _ => Uuid::new_v4().hyphenated().to_string(),
         };
         let mut request = self
-            .post(self.hook_url(paths::HOOKS_TRACK, plugin_id)?)
+            .post(self.hook_url(ApiPaths::PUBLIC_HOOKS_TRACK, plugin_id)?)
             .bearer_auth(token.expose())
-            .header(headers::HOST, HOST_HEADER_VALUE)
+            .header(headers::HOST, HostKind::Harness.as_str())
             .header(headers::INGESTION_EVENT_ID, ingestion)
             .json(event);
         if let Some(device) = device {
@@ -161,7 +163,7 @@ impl SpClient {
         let request = self
             .post(self.hook_url(paths::HOOKS_GOVERN, plugin_id)?)
             .bearer_auth(token.expose())
-            .header(headers::HOST, HOST_HEADER_VALUE)
+            .header(headers::HOST, HostKind::Harness.as_str())
             .json(event);
         let answer = exchange(GOVERN_ENDPOINT, request, VERDICT_TIMEOUT, SMALL_BODY).await?;
         if answer.status.as_u16() != 200 {

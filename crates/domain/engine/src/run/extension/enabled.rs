@@ -5,7 +5,7 @@
 
 use std::collections::BTreeSet;
 
-use harness_ids::ExtensionId;
+use systemprompt_identifiers::engine::ExtensionId;
 
 /// The ids an instance enabled for this host.
 ///

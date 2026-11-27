@@ -15,7 +15,7 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 use zeroize::Zeroizing;
 
-use crate::error::SecureError;
+use crate::secure::error::SecureError;
 
 /// A credential store addressed by `(service, account)`. The caller derives the
 /// service from the build's identity, so brands and channels never share an
@@ -68,7 +68,7 @@ impl Keystore {
         }
         #[cfg(target_os = "macos")]
         {
-            crate::mac::default_keychain()?;
+            crate::secure::mac::default_keychain()?;
             Ok(Self {
                 backend: Backend::Keychain,
             })
@@ -100,7 +100,7 @@ impl Keystore {
                 .set_secret(secret)
                 .map_err(map_keyring),
             #[cfg(target_os = "macos")]
-            Backend::Keychain => crate::mac::store_password(service, account, secret),
+            Backend::Keychain => crate::secure::mac::store_password(service, account, secret),
             Backend::Memory(map) => {
                 map.lock().insert(
                     (service.to_owned(), account.to_owned()),
@@ -131,7 +131,7 @@ impl Keystore {
                 Err(e) => Err(map_keyring(e)),
             },
             #[cfg(target_os = "macos")]
-            Backend::Keychain => crate::mac::load_password(service, account),
+            Backend::Keychain => crate::secure::mac::load_password(service, account),
             Backend::Memory(map) => Ok(map
                 .lock()
                 .get(&(service.to_owned(), account.to_owned()))
@@ -154,7 +154,7 @@ impl Keystore {
                 Err(e) => Err(map_keyring(e)),
             },
             #[cfg(target_os = "macos")]
-            Backend::Keychain => crate::mac::delete_password(service, account),
+            Backend::Keychain => crate::secure::mac::delete_password(service, account),
             Backend::Memory(map) => {
                 map.lock().remove(&(service.to_owned(), account.to_owned()));
                 Ok(())

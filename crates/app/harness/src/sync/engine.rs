@@ -9,24 +9,24 @@ use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use harness_tasks::OwnedTask;
+use crate::extension::ManifestAppliers;
+use crate::governance::Governance;
+use crate::projection::Applier;
+use systemprompt_traits::OwnedTask;
 use parking_lot::Mutex;
-use sp_accounts::{Accounts, AccountsSnapshot};
-use sp_extension::ManifestAppliers;
-use sp_governance::Governance;
-use sp_projection::Applier;
-use sp_protocol::view::SyncStatus;
+use systemprompt_device::accounts::{Accounts, AccountsSnapshot};
+use systemprompt_device::view::SyncStatus;
 use tokio::runtime::Handle;
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
-use crate::account_loop::LoopContext;
-use crate::cadence::{Clock, SystemClock};
-use crate::error::SyncError;
-use crate::heartbeat::{Heartbeat, HeartbeatState, Reporter};
-use crate::ports::Store;
-use crate::supervisor::Supervisor;
-use crate::target::{LiveTarget, Target};
+use crate::sync::account_loop::LoopContext;
+use crate::sync::cadence::{Clock, SystemClock};
+use crate::sync::error::SyncError;
+use crate::sync::heartbeat::{Heartbeat, HeartbeatState, Reporter};
+use crate::sync::ports::Store;
+use crate::sync::supervisor::Supervisor;
+use crate::sync::target::{LiveTarget, Target};
 
 /// What the sync engine is built from.
 ///
@@ -219,7 +219,7 @@ impl SyncEngine {
         self.shared.cancel.cancel();
         let tasks = std::mem::take(&mut *self.shared.tasks.lock());
         for task in tasks {
-            if let Err(error) = task.join().await {
+            if let Err(error) = task.join_named().await {
                 tracing::warn!(error = %error, "a sync task ended abnormally");
             }
         }

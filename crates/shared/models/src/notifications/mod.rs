@@ -17,6 +17,7 @@ pub mod action;
 pub mod attention;
 pub mod declarations;
 pub mod event;
+pub mod feed;
 pub mod kind;
 pub mod notification;
 pub mod push;

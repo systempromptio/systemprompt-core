@@ -7,7 +7,7 @@
 use base64::Engine as _;
 use serde_json::{Map, Value, json};
 
-use crate::model::{Attachment, Content};
+use crate::llm::model::{Attachment, Content};
 
 // JSON: a Messages content block, or none for content the protocol drops.
 pub(super) fn block(content: &Content, images: bool) -> Option<Value> {

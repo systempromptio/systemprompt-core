@@ -13,21 +13,20 @@
 
 use std::time::Duration;
 
+use crate::protocol::origin::{is_device_link_redirect, resolve_instance_path};
+use crate::protocol::wire::{PatSession, SessionPatResponse};
+use crate::protocol::{Jwt, OneTimeCode, Pat, paths};
 use chrono::{DateTime, TimeDelta, Utc};
 use reqwest::header::CONTENT_TYPE;
-use sp_protocol::ids::SessionId;
-use sp_protocol::origin::{is_device_link_redirect, resolve_instance_path};
-use sp_protocol::wire::auth::{
-    Capabilities, Health, PatSession, SessionPatRequest, SessionPatResponse,
-};
-use sp_protocol::wire::discovery::Discovery;
-use sp_protocol::wire::{headers, paths};
-use sp_protocol::{Jwt, OneTimeCode, Pat};
+use systemprompt_identifiers::{SessionId, headers};
+use systemprompt_models::ApiPaths;
+use systemprompt_models::bridge::instance::{BridgeDiscovery, DISCOVERY_CONTRACT};
+use systemprompt_models::bridge::session::{Capabilities, Health, SessionPatRequest};
 use url::Url;
 
-use crate::client::SpClient;
-use crate::error::{ClientError, Incompatibility, excerpt};
-use crate::http::{DEFAULT_TIMEOUT, SMALL_BODY, decode, exchange, failure, protocol};
+use crate::client::client::SpClient;
+use crate::client::error::{ClientError, Incompatibility, excerpt};
+use crate::client::http::{DEFAULT_TIMEOUT, SMALL_BODY, decode, exchange, failure, protocol};
 
 const DISCOVERY_ENDPOINT: &str = "GET /.well-known/systemprompt-bridge";
 const CAPABILITIES_ENDPOINT: &str = "GET /v1/auth/bridge/capabilities";
@@ -141,7 +140,9 @@ impl SpClient {
             code: code.expose(),
             device_name,
         };
-        let request = self.post(self.at(paths::SESSION_PAT)?).json(&body);
+        let request = self
+            .post(self.at(ApiPaths::BRIDGE_AUTH_SESSION_PAT)?)
+            .json(&body);
         let answer = exchange(SESSION_PAT_ENDPOINT, request, DEFAULT_TIMEOUT, SMALL_BODY).await?;
         if answer.status.as_u16() != 200 {
             return Err(failure(SESSION_PAT_ENDPOINT, &answer));
@@ -156,7 +157,7 @@ impl SpClient {
         session_id: Option<&SessionId>,
     ) -> Result<JwtSession, ClientError> {
         let mut request = self
-            .post(self.at(paths::PAT)?)
+            .post(self.at(ApiPaths::BRIDGE_AUTH_PAT)?)
             .bearer_auth(pat.expose())
             .header(CONTENT_TYPE, "application/json")
             .body("{}");
@@ -186,14 +187,14 @@ impl SpClient {
         })
     }
 
-    async fn discovery_document(&self) -> Result<Option<Discovery>, ClientError> {
-        let request = self.get(self.at(paths::DISCOVERY)?);
+    async fn discovery_document(&self) -> Result<Option<BridgeDiscovery>, ClientError> {
+        let request = self.get(self.at(ApiPaths::WELLKNOWN_BRIDGE)?);
         let answer = exchange(DISCOVERY_ENDPOINT, request, DEFAULT_TIMEOUT, SMALL_BODY).await?;
         match answer.status.as_u16() {
             404 => Ok(None),
             200 => {
-                let document: Discovery = decode(DISCOVERY_ENDPOINT, &answer)?;
-                if !document.is_compatible() {
+                let document: BridgeDiscovery = decode(DISCOVERY_ENDPOINT, &answer)?;
+                if document.contract != DISCOVERY_CONTRACT {
                     return Err(ClientError::Incompatible {
                         endpoint: DISCOVERY_ENDPOINT,
                         what: Incompatibility::DiscoveryContract {
@@ -208,7 +209,7 @@ impl SpClient {
     }
 
     async fn capabilities_answer(&self) -> Result<Option<Capabilities>, ClientError> {
-        let request = self.get(self.at(paths::CAPABILITIES)?);
+        let request = self.get(self.at(ApiPaths::BRIDGE_AUTH_CAPABILITIES)?);
         let answer = exchange(CAPABILITIES_ENDPOINT, request, DEFAULT_TIMEOUT, SMALL_BODY).await?;
         match answer.status.as_u16() {
             404 => Ok(None),
@@ -218,7 +219,7 @@ impl SpClient {
     }
 
     async fn health(&self) -> Option<Health> {
-        let request = self.get(self.at(paths::HEALTH).ok()?);
+        let request = self.get(self.at(ApiPaths::HEALTH).ok()?);
         let answer = exchange(HEALTH_ENDPOINT, request, HEALTH_TIMEOUT, SMALL_BODY)
             .await
             .ok()?;
@@ -228,7 +229,7 @@ impl SpClient {
         decode(HEALTH_ENDPOINT, &answer).ok()
     }
 
-    fn discovered(&self, document: Discovery) -> Result<InstanceDiscovery, ClientError> {
+    fn discovered(&self, document: BridgeDiscovery) -> Result<InstanceDiscovery, ClientError> {
         let device_link =
             resolve_instance_path(self.base(), &document.device_link_path).map_err(|_foreign| {
                 protocol(
@@ -237,13 +238,17 @@ impl SpClient {
                     "the device-link path leaves the instance",
                 )
             })?;
-        let branding = document.branding.unwrap_or_default();
+        let branding = document.branding;
         Ok(InstanceDiscovery {
             discovered: true,
             device_link,
             display_name: branding.display_name,
             sign_in_hint: branding.sign_in_hint,
-            enabled_hosts: document.enabled_hosts,
+            enabled_hosts: document
+                .enabled_hosts
+                .into_iter()
+                .map(|host| host.as_str().to_owned())
+                .collect(),
         })
     }
 

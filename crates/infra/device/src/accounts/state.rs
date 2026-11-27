@@ -7,14 +7,14 @@
 
 use std::collections::HashMap;
 
-use sp_protocol::ids::AccountId;
-use sp_protocol::view::InstanceSummary;
-use sp_secure::SealedString;
+use crate::protocol::ids::AccountId;
+use crate::secure::SealedString;
+use crate::view::InstanceSummary;
 use tokio_util::sync::CancellationToken;
 
-use crate::session::SessionSlot;
-use crate::snapshot::{AccountsSnapshot, pending_offers, view};
-use crate::store::{AccountRecord, StoreFile};
+use crate::accounts::session::SessionSlot;
+use crate::accounts::snapshot::{AccountsSnapshot, pending_offers, view};
+use crate::accounts::store::{AccountRecord, StoreFile};
 
 #[derive(Debug, Default)]
 pub(crate) struct State {

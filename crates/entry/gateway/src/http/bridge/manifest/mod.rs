@@ -63,17 +63,6 @@ pub async fn manifest(
     )
     .await?;
     let resolved_at = Instant::now();
-    let ManifestEntries {
-        plugins,
-        skills,
-        rules,
-        agents,
-        hooks,
-        managed_mcp_servers,
-        artifacts,
-        marketplaces,
-        diagnostics,
-    } = entries;
 
     let PerUserContext {
         user,
@@ -83,7 +72,7 @@ pub async fn manifest(
     } = load_per_user_context(&state, &claims.user_id, services.instance_hosts()).await?;
     let host_extensions = hosts::host_extensions_for(&services, &enabled_hosts);
     let min_bridge_version = manifest_min_bridge_version(
-        &marketplaces,
+        &entries.marketplaces,
         hosts::named(&enabled_hosts, &host_model_protocols, &host_extensions),
     );
     let per_user_at = Instant::now();
@@ -97,25 +86,25 @@ pub async fn manifest(
         user_id: claims.user_id,
         tenant_id: tenant_of(&state),
         user,
-        plugins,
-        skills,
-        rules,
-        agents,
-        hooks,
-        managed_mcp_servers,
+        plugins: entries.plugins,
+        skills: entries.skills,
+        rules: entries.rules,
+        agents: entries.agents,
+        hooks: entries.hooks,
+        managed_mcp_servers: entries.managed_mcp_servers,
         revocations,
         enabled_hosts,
         host_model_protocols,
         host_extensions,
-        artifacts,
+        artifacts: entries.artifacts,
         allow_claude_ai_connectors: bridge_policy.allow_claude_ai_connectors,
         desktop_policy,
         auto_update: bridge_policy.auto_update,
         allow_user_disable: bridge_policy.allow_user_disable,
         branding,
         bridge_versions,
-        diagnostics,
-        marketplaces,
+        diagnostics: entries.diagnostics,
+        marketplaces: entries.marketplaces,
     };
 
     Ok(respond(

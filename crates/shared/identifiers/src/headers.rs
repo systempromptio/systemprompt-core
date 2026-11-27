@@ -47,6 +47,8 @@ pub const OPENCODE_SESSION: &str = "x-opencode-session";
 pub const AUTHORIZATION: &str = "authorization";
 pub const SYSTEMPROMPT_AUTHORIZATION: &str = "x-systemprompt-authorization";
 pub const CLIENT_KIND: &str = "x-systemprompt-client";
+pub const HOST: &str = "x-systemprompt-host";
+pub const DEVICE_CREDENTIAL: &str = "x-systemprompt-device-credential";
 pub const OWNER_HOP: &str = "x-systemprompt-owner-hop";
 pub const CLIENT_ATTESTATION: &str = "x-systemprompt-client-attestation";
 pub const PLATFORM_PREFIX: &str = "x-systemprompt-";
@@ -89,6 +91,8 @@ pub const ALL: &[&str] = &[
     AUTHORIZATION,
     SYSTEMPROMPT_AUTHORIZATION,
     CLIENT_KIND,
+    HOST,
+    DEVICE_CREDENTIAL,
     OWNER_HOP,
     CLIENT_ATTESTATION,
     CALLER_PURPOSE,

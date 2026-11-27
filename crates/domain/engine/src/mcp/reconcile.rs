@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::manager::ServerConfig;
+use crate::mcp::manager::ServerConfig;
 
 pub(crate) struct Existing<'a> {
     pub(crate) config: &'a ServerConfig,

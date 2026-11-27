@@ -4,9 +4,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_protocol::wire::brain::{BrainFact, FactPage, FactScope, FactWhy, TopicId};
+use systemprompt_identifiers::TopicId;
+use systemprompt_models::brain::client::{FactPage, FactWhy};
+use systemprompt_models::brain::{BrainFact, FactScope};
 
-use crate::error::BrainError;
+use crate::members::brain::error::BrainError;
 
 pub(super) fn fact_line(fact: &BrainFact) -> String {
     let mut line = format!(

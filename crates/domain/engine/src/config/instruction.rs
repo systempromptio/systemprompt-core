@@ -10,9 +10,9 @@ use std::path::{Path, PathBuf};
 
 use globset::{GlobBuilder, GlobMatcher};
 
-use crate::error::ConfigError;
-use crate::fsio::Probe;
-use crate::paths::{Layout, Paths, expand_home};
+use crate::config::error::ConfigError;
+use crate::config::fsio::Probe;
+use crate::config::paths::{Layout, Paths, expand_home};
 
 const PRIMARY: &str = "AGENTS.md";
 const FALLBACK: &str = "CLAUDE.md";

@@ -5,17 +5,17 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use harness_prompt::system::{
+use crate::prompt::system::{
     self, Environment, ExtensionSection, InstructionFile, NamedEntry, ShellInUse, SystemInput,
 };
-use harness_prompt::{agents, notices, tool_names};
-use harness_store::MessageWithParts;
+use crate::prompt::{agents, notices, tool_names};
+use crate::store::MessageWithParts;
 
 use super::attachments::slash;
 use super::run::StepContext;
-use crate::directory::prompt_shell;
-use crate::extension::PromptContext;
-use crate::tools::registry::ToolBox;
+use crate::run::directory::prompt_shell;
+use crate::run::extension::PromptContext;
+use crate::run::tools::registry::ToolBox;
 
 pub(crate) fn prompt(
     ctx: &StepContext,

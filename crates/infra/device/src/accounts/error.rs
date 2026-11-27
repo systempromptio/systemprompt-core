@@ -6,9 +6,9 @@
 
 use std::path::PathBuf;
 
-use sp_client::{ClientError, CredentialError};
-use sp_protocol::ids::AccountId;
-use sp_secure::SecureError;
+use crate::client::{ClientError, CredentialError};
+use crate::protocol::ids::AccountId;
+use crate::secure::SecureError;
 
 /// Why an accounts call failed.
 #[derive(Debug, thiserror::Error)]

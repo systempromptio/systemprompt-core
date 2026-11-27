@@ -7,13 +7,13 @@
 
 use reqwest::Method;
 use serde::Serialize;
-use sp_protocol::ids::{ContextId, DocumentCommentId, DocumentFolderId, DocumentId};
-use sp_protocol::wire::drive::{
+use systemprompt_identifiers::{ContextId, DocumentCommentId, DocumentFolderId, DocumentId};
+use systemprompt_models::ApiPaths;
+use systemprompt_models::documents::client::{
     CommentRequest, CreateDocumentRequest, DriveAccess, DriveAgentCap, DriveComment, DriveComments,
     DriveContext, DriveCreated, DriveGrantMade, DriveLanded, DriveProposal, DriveProposals,
     DriveProposed, EditRequest, ShareRequest,
 };
-use sp_protocol::wire::paths;
 
 use super::types::EditOutcome;
 use super::{DriveClient, EmptyBody, READ_BODY, decode};
@@ -116,7 +116,7 @@ impl DriveClient {
         let folder = id.to_string();
         let call = Call::new(
             Method::GET,
-            self.url(paths::DOCUMENT_FOLDERS, &[folder.as_str(), "agent-cap"])?,
+            self.url(ApiPaths::DOCUMENT_FOLDERS, &[folder.as_str(), "agent-cap"])?,
             FOLDER_CAP,
         );
         self.json(call, &[200]).await
@@ -180,7 +180,7 @@ impl DriveClient {
         request: &CreateDocumentRequest,
         context_id: Option<&ContextId>,
     ) -> Result<DriveCreated, DriveError> {
-        let call = Call::new(Method::POST, self.url(paths::DOCUMENTS, &[])?, CREATE)
+        let call = Call::new(Method::POST, self.url(ApiPaths::DOCUMENTS, &[])?, CREATE)
             .json(request)?
             .context(context_id);
         self.json(call, &[201]).await
@@ -189,7 +189,7 @@ impl DriveClient {
     pub async fn create_context(&self, name: &str) -> Result<ContextId, DriveError> {
         let call = Call::new(
             Method::POST,
-            self.url(paths::CONTEXTS, &[])?,
+            self.url(ApiPaths::CORE_CONTEXTS, &[])?,
             CREATE_CONTEXT,
         )
         .json(&ContextName { name })?;
@@ -202,7 +202,7 @@ impl DriveClient {
         context_id: &ContextId,
         name: &str,
     ) -> Result<(), DriveError> {
-        let url = self.url(paths::CONTEXTS, &[context_id.as_str()])?;
+        let url = self.url(ApiPaths::CORE_CONTEXTS, &[context_id.as_str()])?;
         let call = Call::new(Method::PUT, url, RENAME_CONTEXT).json(&ContextName { name })?;
         self.answer(call, &[200]).await.map(|_| ())
     }

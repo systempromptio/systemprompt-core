@@ -14,6 +14,51 @@ description = "The native agent engine of systemprompt.io devices: agent loop, t
 readme = "README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md"]
 
+[dependencies]
+async-trait.workspace = true
+base64.workspace = true
+bytes.workspace = true
+chrono.workspace = true
+dunce.workspace = true
+futures-util.workspace = true
+globset.workspace = true
+httpdate.workspace = true
+ignore.workspace = true
+indexmap.workspace = true
+jsonc-parser = { workspace = true, features = ["cst"] }
+notify-debouncer-mini.workspace = true
+parking_lot.workspace = true
+regex.workspace = true
+reqwest.workspace = true
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+sha2.workspace = true
+similar.workspace = true
+systemprompt-identifiers.workspace = true
+systemprompt-traits.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["fs", "process"] }
+tokio-util.workspace = true
+tracing.workspace = true
+url.workspace = true
+uuid.workspace = true
+which.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_Globalization",
+    "Win32_Security",
+    "Win32_System_Console",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+] }
+
 [lints]
 workspace = true
 

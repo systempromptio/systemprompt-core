@@ -13,7 +13,7 @@ use tokio::sync::mpsc;
 use tracing::{trace, warn};
 
 use super::connection::Shared;
-use crate::framing::{FrameDecoder, FrameError};
+use crate::lsp::framing::{FrameDecoder, FrameError};
 
 const READ_CHUNK: usize = 16 * 1024;
 const STDERR_TAIL_LINES: usize = 20;

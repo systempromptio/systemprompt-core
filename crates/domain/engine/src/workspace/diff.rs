@@ -103,7 +103,7 @@ pub fn file_diff(path: &str, old: Option<&[u8]>, new: Option<&[u8]>) -> FileDiff
     } else {
         "/dev/null".to_owned()
     };
-    let relative = crate::paths::relative_path(path);
+    let relative = crate::workspace::paths::relative_path(path);
 
     let texts = (text_of(old_bytes), text_of(new_bytes));
     let (Some(old_text), Some(new_text)) = texts else {

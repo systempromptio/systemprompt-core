@@ -7,15 +7,15 @@
 
 use std::sync::Arc;
 
-use sp_client::HttpClient;
-use sp_extension::{
+use crate::extension::{
     AppliedInstance, ApplyError, BackgroundService, ExtensionId, ExtensionMetadata,
-    ManifestApplier, SpContext, SpExtension, extension_id, register_sp_extension,
+    ManifestApplier, SpContext, SpExtension, extension_id,
 };
+use systemprompt_device::client::HttpClient;
 
-use crate::client::NotificationsClient;
-use crate::handle::NotificationsHandle;
-use crate::service::{NotificationsService, PollCadence};
+use crate::members::notifications::client::NotificationsClient;
+use crate::members::notifications::handle::NotificationsHandle;
+use crate::members::notifications::service::{NotificationsService, PollCadence};
 
 /// The reader's notifications as an instance-side extension.
 ///
@@ -60,7 +60,6 @@ impl SpExtension for NotificationsExtension {
     }
 }
 
-register_sp_extension!(NotificationsExtension);
 
 struct FollowInstance {
     handle: NotificationsHandle,

@@ -6,11 +6,11 @@
 
 use std::sync::Arc;
 
-use harness_store::{MessageId, MessagePage, SessionId};
+use crate::store::{MessageId, MessagePage, SessionId};
 
 use super::{CommandInfo, CommandInput, CommandOutcome, PromptInput, admit, revert};
-use crate::error::EngineError;
-use crate::inner::Inner;
+use crate::run::error::EngineError;
+use crate::run::inner::Inner;
 
 const COMPACT: &str = "compact";
 const UNDO: &str = "undo";

@@ -6,15 +6,15 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use futures_util::StreamExt;
-use harness_ids::CallId;
-use harness_llm::{Event, FinishReason, Request, Usage};
-use harness_store::{MessageId, Part, PartBody, PartId, StoreError, ToolState};
+use systemprompt_identifiers::engine::CallId;
+use crate::llm::{Event, FinishReason, Request, Usage};
+use crate::store::{MessageId, Part, PartBody, PartId, StoreError, ToolState};
 use serde_json::{Map, Value, json};
 
 use super::model_call::{self, Attempts};
 use super::run::StepContext;
-use crate::error::EngineError;
-use crate::governor::ModelCall;
+use crate::run::error::EngineError;
+use crate::run::governor::ModelCall;
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct PendingCall {

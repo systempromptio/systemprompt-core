@@ -7,14 +7,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_client::ConsumerOutcome;
-use sp_protocol::wire::consumer::SessionBindingRequest;
-use sp_protocol::{DeviceCredential, HOST_ID};
+use systemprompt_device::client::ConsumerOutcome;
+use systemprompt_device::protocol::DeviceCredential;
+use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::feedback::receipts::SessionBindingRequest;
 use tokio::time::{Duration, Instant, timeout};
 
-use crate::cadence::{Clock, DELIVERY_BUDGET};
-use crate::outbox::{BindingAnswer, Outbox, ReceiptAnswer};
-use crate::ports::Instance;
+use crate::sync::cadence::{Clock, DELIVERY_BUDGET};
+use crate::sync::outbox::{BindingAnswer, Outbox, ReceiptAnswer};
+use crate::sync::ports::Instance;
 
 const CONFLICT: u16 = 409;
 
@@ -74,7 +75,7 @@ async fn deliver_bindings<I: Instance>(
             };
             let request = SessionBindingRequest {
                 receipt_id: receipt_id.clone(),
-                host: HOST_ID.to_owned(),
+                host: HostKind::Harness.into(),
                 session_id: session.clone(),
             };
             let answer = match timeout(left, instance.post_session_binding(device, &request)).await

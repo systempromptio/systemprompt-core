@@ -10,8 +10,8 @@ use serde_json::{Map, Value};
 
 use super::tools::names;
 use super::{AgentMode, AgentOverride, ToolFilter};
-use crate::error::FieldError;
-use crate::permission::Ruleset;
+use crate::config::error::FieldError;
+use crate::config::permission::Ruleset;
 
 type Refused = (String, FieldError);
 

@@ -7,7 +7,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::documents::DriveRevision;
-use crate::ids::{DocumentId, DocumentProposalId, DocumentRevisionId};
+use crate::documents::access::EditMode;
+use systemprompt_identifiers::{DocumentId, DocumentProposalId, DocumentRevisionId};
 
 /// An edit proposal waiting for a person.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -55,14 +56,6 @@ pub struct DriveProposed {
     pub revision: DriveRevision,
     #[serde(default)]
     pub superseded: Vec<String>,
-}
-
-/// Whether an edit writes now or leaves a proposal for a person.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum EditMode {
-    Land,
-    Propose,
 }
 
 /// Body of `POST /api/v1/documents/{id}/edits`.

@@ -4,22 +4,22 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use harness_llm::retry::{self, Retry};
-use harness_llm::{LlmError, Request};
-use harness_store::{
+use crate::llm::retry::{self, Retry};
+use crate::llm::{LlmError, Request};
+use crate::store::{
     AssistantMessage, FinishReason, Message, MessageError, MessageErrorKind, MessageId, Part,
     PartBody, Usage, now_ms,
 };
-use harness_workspace::SnapshotId;
+use crate::workspace::SnapshotId;
 
 use super::attachments::slash;
 use super::run::StepContext;
 use super::{revert, stream};
-use crate::error::{EngineError, ErrorKind};
-use crate::governor::{ModelCall, Purpose};
-use crate::inner::Inner;
-use crate::tools::exec;
-use crate::tools::registry::ToolBox;
+use crate::run::error::{EngineError, ErrorKind};
+use crate::run::governor::{ModelCall, Purpose};
+use crate::run::inner::Inner;
+use crate::run::tools::exec;
+use crate::run::tools::registry::ToolBox;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct StepOutcome {
@@ -103,7 +103,7 @@ async fn complete(
     ctx: &StepContext,
     message: &mut AssistantMessage,
     call: &ModelCall,
-    usage: &harness_llm::Usage,
+    usage: &crate::llm::Usage,
     reason: FinishReason,
 ) -> Result<(), EngineError> {
     let aborted = ctx.cancel.is_cancelled();
@@ -198,17 +198,17 @@ pub(crate) fn message_error(error: &EngineError) -> MessageError {
     }
 }
 
-const fn finish_reason(reason: Option<&harness_llm::FinishReason>) -> FinishReason {
+const fn finish_reason(reason: Option<&crate::llm::FinishReason>) -> FinishReason {
     match reason {
-        Some(harness_llm::FinishReason::Stop) => FinishReason::Stop,
-        Some(harness_llm::FinishReason::ToolCalls) => FinishReason::ToolCalls,
-        Some(harness_llm::FinishReason::Length) => FinishReason::Length,
-        Some(harness_llm::FinishReason::ContentFilter) => FinishReason::ContentFilter,
-        Some(harness_llm::FinishReason::Other(_)) | None => FinishReason::Unknown,
+        Some(crate::llm::FinishReason::Stop) => FinishReason::Stop,
+        Some(crate::llm::FinishReason::ToolCalls) => FinishReason::ToolCalls,
+        Some(crate::llm::FinishReason::Length) => FinishReason::Length,
+        Some(crate::llm::FinishReason::ContentFilter) => FinishReason::ContentFilter,
+        Some(crate::llm::FinishReason::Other(_)) | None => FinishReason::Unknown,
     }
 }
 
-pub(crate) const fn store_usage(usage: &harness_llm::Usage) -> Usage {
+pub(crate) const fn store_usage(usage: &crate::llm::Usage) -> Usage {
     Usage {
         input: usage.input,
         output: usage.output,

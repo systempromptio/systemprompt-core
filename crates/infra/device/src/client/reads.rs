@@ -6,15 +6,17 @@
 
 use std::time::Duration;
 
-use sp_protocol::Jwt;
-use sp_protocol::ids::PluginId;
-use sp_protocol::names::{is_plain_relative_path, is_safe_plugin_segment};
-use sp_protocol::wire::catalog::{ModelCatalog, Profile, WhoamiResponse};
-use sp_protocol::wire::paths;
+use crate::protocol::names::{is_plain_relative_path, is_safe_plugin_segment};
+use crate::protocol::{Jwt, paths};
+use systemprompt_identifiers::PluginId;
+use systemprompt_models::ApiPaths;
+use systemprompt_models::bridge::catalog::ModelCatalog;
+use systemprompt_models::bridge::gateway::WhoamiResponse;
+use systemprompt_models::bridge::profile::BridgeProfileResponse as Profile;
 
-use crate::client::{SpClient, push_segments};
-use crate::error::ClientError;
-use crate::http::{DEFAULT_TIMEOUT, SMALL_BODY, decode, exchange, failure};
+use crate::client::client::{SpClient, push_segments};
+use crate::client::error::ClientError;
+use crate::client::http::{DEFAULT_TIMEOUT, SMALL_BODY, decode, exchange, failure};
 
 const PROFILE_ENDPOINT: &str = "GET /v1/bridge/profile";
 const MODELS_ENDPOINT: &str = "GET /v1/models";
@@ -27,7 +29,9 @@ const PLUGIN_FILE_TIMEOUT: Duration = Duration::from_secs(60);
 
 impl SpClient {
     pub async fn profile(&self, jwt: &Jwt) -> Result<Profile, ClientError> {
-        let request = self.get(self.at(paths::PROFILE)?).bearer_auth(jwt.expose());
+        let request = self
+            .get(self.at(ApiPaths::BRIDGE_PROFILE)?)
+            .bearer_auth(jwt.expose());
         let answer = exchange(PROFILE_ENDPOINT, request, DEFAULT_TIMEOUT, CATALOG_BODY).await?;
         if answer.status.as_u16() != 200 {
             return Err(failure(PROFILE_ENDPOINT, &answer));
@@ -45,7 +49,9 @@ impl SpClient {
     }
 
     pub async fn whoami(&self, jwt: &Jwt) -> Result<WhoamiResponse, ClientError> {
-        let request = self.get(self.at(paths::WHOAMI)?).bearer_auth(jwt.expose());
+        let request = self
+            .get(self.at(ApiPaths::BRIDGE_WHOAMI)?)
+            .bearer_auth(jwt.expose());
         let answer = exchange(WHOAMI_ENDPOINT, request, DEFAULT_TIMEOUT, SMALL_BODY).await?;
         if answer.status.as_u16() != 200 {
             return Err(failure(WHOAMI_ENDPOINT, &answer));
@@ -69,7 +75,7 @@ impl SpClient {
                 what: "the bundle file path is not a plain relative path",
             });
         }
-        let mut url = self.at(paths::PLUGIN_FILES)?;
+        let mut url = self.at(ApiPaths::BRIDGE_PLUGINS)?;
         push_segments(
             &mut url,
             std::iter::once(plugin.as_str()).chain(path.split('/')),

@@ -18,9 +18,9 @@ use url::Url;
 
 use super::sse::{self, SseParser};
 use super::{InboundSink, Transport};
-use crate::error::McpError;
-use crate::headers::{self, HeaderCell};
-use crate::jsonrpc;
+use crate::mcp::error::McpError;
+use crate::mcp::headers::{self, HeaderCell};
+use crate::mcp::jsonrpc;
 
 const SESSION_HEADER: &str = "mcp-session-id";
 const PROTOCOL_HEADER: &str = "mcp-protocol-version";

@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::permission::Ruleset;
+use crate::config::permission::Ruleset;
 
 pub(crate) use load::{AgentInputs, AgentSource, load};
 pub use tools::ToolFilter;

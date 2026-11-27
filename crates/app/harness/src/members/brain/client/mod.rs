@@ -2,8 +2,8 @@
 //! routes.
 //!
 //! Every call takes a fresh enough JWT from the account's
-//! [`CredentialSource`](sp_client::CredentialSource)
-//! through [`with_jwt`](sp_client::with_jwt), which mints once more and retries
+//! [`CredentialSource`](systemprompt_device::client::CredentialSource)
+//! through [`with_jwt`](systemprompt_device::client::with_jwt), which mints once more and retries
 //! when the instance refuses the token. Ids go into the path as single
 //! segments; queries are built from typed values.
 //!
@@ -18,13 +18,13 @@ use std::fmt;
 use std::sync::Arc;
 
 use serde::de::DeserializeOwned;
-use sp_client::{CredentialSource, HttpClient, SpClient, with_jwt};
+use systemprompt_device::client::{CredentialSource, HttpClient, SpClient, with_jwt};
 use url::Url;
 
 pub use query::FactQuery;
 
-use crate::error::{BrainError, classify, decode_failure};
-use crate::http::{Answer, Call, route, send_once};
+use crate::members::brain::error::{BrainError, classify, decode_failure};
+use crate::members::brain::http::{Answer, Call, route, send_once};
 
 /// One account's brain. Cheap to clone; the credential stays with the
 /// [`CredentialSource`].

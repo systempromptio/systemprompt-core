@@ -1,11 +1,11 @@
 //! The retry policy as pure functions. The loop that waits and resends belongs
 //! to the caller.
 //!
-//! [`delay`](crate::retry::delay) takes a 1-based attempt: the server's wait
-//! when given (capped at [`MAX_RETRY_AFTER`](crate::retry::MAX_RETRY_AFTER)),
-//! else [`BASE_DELAY`](crate::retry::BASE_DELAY) doubled per attempt up to
-//! [`MAX_DELAY`](crate::retry::MAX_DELAY), without jitter.
-//! [`retry_after`](crate::retry::retry_after) reads `retry-after-ms`
+//! [`delay`](crate::llm::retry::delay) takes a 1-based attempt: the server's wait
+//! when given (capped at [`MAX_RETRY_AFTER`](crate::llm::retry::MAX_RETRY_AFTER)),
+//! else [`BASE_DELAY`](crate::llm::retry::BASE_DELAY) doubled per attempt up to
+//! [`MAX_DELAY`](crate::llm::retry::MAX_DELAY), without jitter.
+//! [`retry_after`](crate::llm::retry::retry_after) reads `retry-after-ms`
 //! (milliseconds) or `retry-after` (seconds or an HTTP date).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -13,7 +13,7 @@
 
 use std::time::{Duration, SystemTime};
 
-use crate::error::{LlmError, TransportError};
+use crate::llm::error::{LlmError, TransportError};
 
 pub const BASE_DELAY: Duration = Duration::from_secs(2);
 pub const MAX_DELAY: Duration = Duration::from_secs(30);

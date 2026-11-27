@@ -11,8 +11,8 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use crate::paths;
-use crate::types::{Diagnostic, Severity};
+use crate::lsp::paths;
+use crate::lsp::types::{Diagnostic, Severity};
 
 /// Limits and presentation of [`format_diagnostics`].
 #[derive(Debug, Clone, PartialEq, Eq)]

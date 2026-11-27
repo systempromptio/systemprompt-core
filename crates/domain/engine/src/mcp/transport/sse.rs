@@ -16,8 +16,8 @@ use tokio_util::sync::CancellationToken;
 use url::Url;
 
 use super::{InboundSink, Transport};
-use crate::error::McpError;
-use crate::headers::{self, HeaderCell};
+use crate::mcp::error::McpError;
+use crate::mcp::headers::{self, HeaderCell};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct SseEvent {

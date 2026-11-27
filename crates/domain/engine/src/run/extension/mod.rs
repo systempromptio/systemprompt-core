@@ -24,8 +24,8 @@ pub use contribution::{Contributed, ExtensionTool, PromptContext, PromptSection}
 pub use enabled::EnabledExtensions;
 pub use engine::EngineExtension;
 pub use error::ResolveError;
-pub use harness_ids::ExtensionId;
-pub use harness_llm::ResponseHead;
+pub use systemprompt_identifiers::engine::ExtensionId;
+pub use crate::llm::ResponseHead;
 pub use hooks::{CallAugmenter, GovernorObserver, Review, ToolReviewer, add_headers};
 pub use metadata::ExtensionMetadata;
 pub use resolve::{Resolved, admitted, resolve};

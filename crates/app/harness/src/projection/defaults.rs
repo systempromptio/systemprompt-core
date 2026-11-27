@@ -11,24 +11,20 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use harness_config::{ConfigError, Layout, Paths, update_global_setting};
 use serde_json::{Map, Value};
-use sp_protocol::wire::manifest::Manifest;
-use sp_secure::read_optional;
+use systemprompt_device::protocol::manifest::Manifest;
+use systemprompt_device::secure::read_optional;
+use systemprompt_engine::config::{ConfigError, Layout, Paths, update_global_setting};
 
-use crate::error::ProjectionError;
-use crate::model::{BundleFile, DefaultTheme};
+use crate::projection::error::ProjectionError;
+use crate::projection::model::{BundleFile, DefaultTheme};
 
 const MODEL_KEY: &str = "model";
 
 // JSON: marketplace defaults are settings-file values, written verbatim by key.
 pub(crate) fn project(manifest: &Manifest) -> Map<String, Value> {
     let mut out = Map::new();
-    let offered = manifest
-        .marketplaces
-        .iter()
-        .filter_map(|marketplace| marketplace.harness.as_ref());
-    for settings in offered {
+    for settings in manifest.marketplace_settings() {
         for (key, value) in &settings.defaults {
             if out.contains_key(key) {
                 continue;
@@ -46,9 +42,8 @@ pub(crate) fn project(manifest: &Manifest) -> Map<String, Value> {
 
 pub(crate) fn theme(manifest: &Manifest, files: &[BundleFile]) -> Option<DefaultTheme> {
     let settings = manifest
-        .marketplaces
+        .marketplace_settings()
         .iter()
-        .filter_map(|marketplace| marketplace.harness.as_ref())
         .find(|settings| settings.default_theme_ref().is_some())?;
     let theme = settings.default_theme_ref()?;
     let path = format!("themes/{}.json", theme.name);

@@ -7,12 +7,12 @@
 
 use std::path::PathBuf;
 
-use harness_ids::{CallId, PermissionId, QuestionId, SessionId};
+use systemprompt_identifiers::engine::{CallId, PermissionId, QuestionId, SessionId};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::broadcast;
 
-use crate::error::{EngineError, ErrorKind};
+use crate::run::error::{EngineError, ErrorKind};
 
 /// Where a session's run stands.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

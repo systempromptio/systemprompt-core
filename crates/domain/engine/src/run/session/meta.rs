@@ -6,12 +6,12 @@
 
 use std::collections::HashSet;
 
-use harness_store::{MessageId, Session, SessionId, StoreError};
+use crate::store::{MessageId, Session, SessionId, StoreError};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::db::Db;
-use crate::error::EngineError;
+use crate::run::db::Db;
+use crate::run::error::EngineError;
 
 const STEERED: &str = "steered";
 const COMPACTION: &str = "compaction";

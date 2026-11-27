@@ -5,7 +5,7 @@
 
 use serde_json::{Map, Value};
 
-use crate::error::McpError;
+use crate::mcp::error::McpError;
 
 pub(crate) const METHOD_NOT_FOUND: i64 = -32601;
 const INTERNAL_ERROR: i64 = -32603;

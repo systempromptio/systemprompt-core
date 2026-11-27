@@ -18,14 +18,18 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use sp_protocol::names::is_plain_relative_path;
-use sp_protocol::wire::consumer::{Check, InstallationPlan, RuntimeReadback};
-use sp_secure::{Access, contained_path, read_optional, remove_if_exists, write_if_changed};
+use systemprompt_device::protocol::names::is_plain_relative_path;
+use systemprompt_device::secure::{
+    Access, contained_path, read_optional, remove_if_exists, write_if_changed,
+};
+use systemprompt_models::feedback::receipts::{
+    ConsumerInstallationPlan, ReadbackStatus, RuntimeFileReadback,
+};
 
-use crate::apply::Applier;
-use crate::error::MaterializeError;
-use crate::ledger::{self, RUNTIME_LEDGER, SKILL_FILE, SKILLS_DIR, SKILLS_LEDGER};
-use crate::readback::read_back;
+use crate::projection::apply::Applier;
+use crate::projection::error::MaterializeError;
+use crate::projection::ledger::{self, RUNTIME_LEDGER, SKILL_FILE, SKILLS_DIR, SKILLS_LEDGER};
+use crate::projection::readback::read_back;
 
 const PLAN_FILES_MAX: usize = 8192;
 const PLAN_BYTES_MAX: usize = 24 * 1024 * 1024;
@@ -36,8 +40,8 @@ impl Applier {
     pub fn materialize(
         &self,
         skill_dir: &str,
-        plan: &InstallationPlan,
-    ) -> Result<Vec<RuntimeReadback>, MaterializeError> {
+        plan: &ConsumerInstallationPlan,
+    ) -> Result<Vec<RuntimeFileReadback>, MaterializeError> {
         let root = self.managed_skill_root(skill_dir)?;
         validate_plan(plan)?;
         let sidecar = root.join(RUNTIME_LEDGER);
@@ -62,7 +66,7 @@ impl Applier {
             let outcome = write_if_changed(path, &file.bytes, Access::Shared)
                 .map_err(MaterializeError::secure("write a runtime file"))?;
             #[cfg(unix)]
-            crate::readback::set_mode(path, file.executable)?;
+            crate::projection::readback::set_mode(path, file.executable)?;
             tracing::debug!(skill = skill_dir, file = %file.path, ?outcome, "runtime file");
         }
         for path in &stale {
@@ -94,7 +98,7 @@ impl Applier {
     }
 
     #[must_use]
-    pub fn inspect(&self, skill_dir: &str, plan: &InstallationPlan) -> bool {
+    pub fn inspect(&self, skill_dir: &str, plan: &ConsumerInstallationPlan) -> bool {
         let Ok(root) = self.managed_skill_root(skill_dir) else {
             return false;
         };
@@ -106,7 +110,8 @@ impl Applier {
                     return false;
                 };
                 read_back(&path, file).is_ok_and(|read| {
-                    read.content_check == Check::Verified && read.mode_check != Check::Mismatch
+                    read.content_check == ReadbackStatus::Verified
+                        && read.mode_check != ReadbackStatus::Mismatch
                 })
             })
     }
@@ -132,7 +137,7 @@ impl Applier {
     }
 }
 
-fn validate_plan(plan: &InstallationPlan) -> Result<(), MaterializeError> {
+fn validate_plan(plan: &ConsumerInstallationPlan) -> Result<(), MaterializeError> {
     let invalid = |reason: &'static str| MaterializeError::InvalidPlan { reason };
     let files = &plan.runtime_files;
     if files.is_empty() || files.len() > PLAN_FILES_MAX {

@@ -8,13 +8,13 @@
 
 use std::collections::HashSet;
 
-use harness_llm::tokens::{estimate_message, estimate_request};
-use harness_llm::{Message, Request};
-use harness_prompt::agents::COMPACTION;
-use harness_prompt::compaction::{
+use crate::llm::tokens::{estimate_message, estimate_request};
+use crate::llm::{Message, Request};
+use crate::prompt::agents::COMPACTION;
+use crate::prompt::compaction::{
     COMPACTION_PROMPT, CONTINUE_AFTER_COMPACTION, request as compaction_request,
 };
-use harness_store::{
+use crate::store::{
     AssistantMessage, FinishReason, MessageId, MessagePage, MessageWithParts, Part, PartBody,
     UserMessage, now_ms,
 };
@@ -24,8 +24,8 @@ use super::meta::{self, CompactionMark};
 use super::model_call::{self, Collected};
 use super::run::StepContext;
 use super::step::{put_message, put_part, store_usage};
-use crate::error::EngineError;
-use crate::governor::{ModelCall, Purpose};
+use crate::run::error::EngineError;
+use crate::run::governor::{ModelCall, Purpose};
 
 const MIN_HEADROOM: u64 = 16_000;
 const HEADROOM_PERCENT: u64 = 15;
@@ -117,7 +117,7 @@ async fn write_boundary(ctx: &StepContext, auto: bool) -> Result<MessageId, Engi
     let mut boundary = UserMessage::new(session_id.clone(), COMPACTION.name, &ctx.model.id);
     boundary.system = true;
     let boundary_id = boundary.id.clone();
-    let stored = harness_store::Message::User(boundary);
+    let stored = crate::store::Message::User(boundary);
     ctx.inner
         .db
         .run(move |store| store.upsert_message(&stored))
@@ -195,7 +195,7 @@ async fn write_resume(ctx: &StepContext) -> Result<(), EngineError> {
     let mut resume = UserMessage::new(session_id.clone(), &ctx.agent.name, &ctx.model.id);
     resume.system = true;
     let resume_id = resume.id.clone();
-    let stored = harness_store::Message::User(resume);
+    let stored = crate::store::Message::User(resume);
     ctx.inner
         .db
         .run(move |store| store.upsert_message(&stored))

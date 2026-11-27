@@ -12,10 +12,10 @@ use serde_json::{Value, json};
 use tracing::debug;
 
 use super::LspManager;
-use crate::client::{Capability, Client};
-use crate::error::{LspError, chain};
-use crate::types::{Hover, Location, Position, Symbol};
-use crate::{parse, uri};
+use crate::lsp::client::{Capability, Client};
+use crate::lsp::error::{LspError, chain};
+use crate::lsp::types::{Hover, Location, Position, Symbol};
+use crate::lsp::{parse, uri};
 
 impl LspManager {
     pub async fn hover(&self, path: &Path, position: Position) -> Result<Option<Hover>, LspError> {

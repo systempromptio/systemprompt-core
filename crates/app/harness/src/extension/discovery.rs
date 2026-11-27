@@ -1,5 +1,5 @@
-//! Finding every linked instance-side extension and reading its contributions
-//! in resolved order.
+//! Building every registered instance-side extension and reading its
+//! contributions in resolved order.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -7,16 +7,16 @@
 use std::fmt;
 use std::sync::Arc;
 
-use harness_engine::extension::{
+use systemprompt_engine::run::extension::{
     Contributed, EnabledExtensions, EngineExtension, ExtensionSet, Resolved, admitted, resolve,
 };
 
-use crate::applier::ManifestAppliers;
-use crate::context::SpContext;
-use crate::error::ExtensionError;
-use crate::extension::SpExtension;
-use crate::register::SpExtensionRegistration;
-use crate::service::BackgroundService;
+use crate::extension::applier::ManifestAppliers;
+use crate::extension::context::SpContext;
+use crate::extension::error::ExtensionError;
+use crate::extension::extension::SpExtension;
+use crate::extension::register::{REGISTERED, SpExtensionRegistration};
+use crate::extension::service::BackgroundService;
 
 type Entry = Resolved<Arc<dyn SpExtension>>;
 
@@ -31,14 +31,20 @@ pub struct SpExtensions {
 }
 
 impl SpExtensions {
-    pub fn discover() -> Result<Self, ExtensionError> {
-        let found = inventory::iter::<SpExtensionRegistration>
-            .into_iter()
+    pub fn registered() -> Result<Self, ExtensionError> {
+        Self::from_registrations(&REGISTERED)
+    }
+
+    pub fn from_registrations(
+        registrations: &[SpExtensionRegistration],
+    ) -> Result<Self, ExtensionError> {
+        let built = registrations
+            .iter()
             .map(|registration| (registration.factory)());
-        let extensions = Self::from_extensions(found)?;
+        let extensions = Self::from_extensions(built)?;
         tracing::info!(
             count = extensions.entries.len(),
-            "instance-side extensions discovered"
+            "instance-side extensions registered"
         );
         Ok(extensions)
     }

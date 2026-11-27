@@ -10,11 +10,11 @@ use std::io;
 use std::path::Path;
 
 use super::Access;
-use crate::error::SecureError;
+use crate::secure::error::SecureError;
 
 pub(super) fn is_link(metadata: &fs::Metadata) -> bool {
     #[cfg(windows)]
-    if crate::win::is_reparse_point(metadata) {
+    if crate::secure::win::is_reparse_point(metadata) {
         return true;
     }
     metadata.file_type().is_symlink()
@@ -35,11 +35,11 @@ pub(super) fn refuse_link(path: &Path) -> Result<(), SecureError> {
 pub(super) fn create_temp(temp: &Path, access: Access) -> Result<File, SecureError> {
     match access {
         Access::Private => {
-            let owner = crate::win::current_sid().map_err(|source| SecureError::Acl {
+            let owner = crate::secure::win::current_sid().map_err(|source| SecureError::Acl {
                 path: temp.to_path_buf(),
                 source,
             })?;
-            crate::win::create_private(temp, &owner)
+            crate::secure::win::create_private(temp, &owner)
                 .map_err(|source| SecureError::io("create private temporary file", temp, source))
         },
         Access::Shared => fs::OpenOptions::new()
@@ -78,9 +78,9 @@ pub(super) fn create_temp(temp: &Path, access: Access) -> Result<File, SecureErr
 pub(super) fn replace(temp: &Path, path: &Path) -> Result<(), SecureError> {
     const BACKOFF_MS: [u64; 5] = [50, 80, 120, 160, 200];
     for delay in BACKOFF_MS {
-        match crate::win::move_replace(temp, path) {
+        match crate::secure::win::move_replace(temp, path) {
             Ok(()) => return Ok(()),
-            Err(e) if crate::win::is_transient_replace_error(&e) => {
+            Err(e) if crate::secure::win::is_transient_replace_error(&e) => {
                 tracing::debug!(
                     error = %e,
                     path = %path.display(),
@@ -92,7 +92,7 @@ pub(super) fn replace(temp: &Path, path: &Path) -> Result<(), SecureError> {
             Err(source) => return Err(SecureError::io("replace", path, source)),
         }
     }
-    crate::win::move_replace(temp, path)
+    crate::secure::win::move_replace(temp, path)
         .map_err(|source| SecureError::io("replace after retries", path, source))
 }
 
@@ -111,9 +111,9 @@ pub(super) fn verify_access(path: &Path, access: Access) -> Result<(), SecureErr
             path: path.to_path_buf(),
             source,
         };
-        let owner = crate::win::current_sid().map_err(acl_error)?;
+        let owner = crate::secure::win::current_sid().map_err(acl_error)?;
         let file = File::open(path).map_err(|source| SecureError::io("open", path, source))?;
-        crate::win::verify_private(&file, &owner).map_err(acl_error)?;
+        crate::secure::win::verify_private(&file, &owner).map_err(acl_error)?;
     }
     #[cfg(unix)]
     verify_mode(path, 0o600)?;

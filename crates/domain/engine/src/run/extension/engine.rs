@@ -5,12 +5,12 @@
 
 use std::sync::Arc;
 
-use harness_config::{AgentDef, Command, Paths};
+use crate::config::{AgentDef, Command, Paths};
 
 use super::contribution::{ExtensionTool, PromptContext, PromptSection};
 use super::hooks::{CallAugmenter, GovernorObserver, ToolReviewer};
 use super::metadata::ExtensionMetadata;
-use crate::governor::McpSpec;
+use crate::run::governor::McpSpec;
 
 /// What an extension adds to the engine.
 ///

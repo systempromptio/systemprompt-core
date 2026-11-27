@@ -9,8 +9,8 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::id::{MessageId, PartId, ProjectId, SessionId};
-use crate::model::JsonMap;
+use crate::store::id::{MessageId, PartId, ProjectId, SessionId};
+use crate::store::model::JsonMap;
 
 /// A worktree the user works in; sessions belong to one.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

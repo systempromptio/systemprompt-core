@@ -16,12 +16,12 @@ use serde_json::{Value, json};
 
 use self::listing::{list_dir, media_type, missing_message};
 use self::window::window;
-use crate::config::ReadLimits;
-use crate::contract::{Attachment, PermissionRequest, Tool, ToolContext, ToolOutput};
-use crate::error::ToolError;
-use crate::path::{display_path, guard_external, resolve};
-use crate::repair::parse_input;
-use crate::text::{decode_utf16, looks_binary};
+use crate::tools::config::ReadLimits;
+use crate::tools::contract::{Attachment, PermissionRequest, Tool, ToolContext, ToolOutput};
+use crate::tools::error::ToolError;
+use crate::tools::path::{display_path, guard_external, resolve};
+use crate::tools::repair::parse_input;
+use crate::tools::text::{decode_utf16, looks_binary};
 
 const MAX_FILE_BYTES: u64 = 64 * 1024 * 1024;
 
@@ -47,7 +47,7 @@ struct Input {
 #[async_trait]
 impl Tool for ReadTool {
     fn name(&self) -> &str {
-        crate::names::READ
+        crate::tools::names::READ
     }
 
     fn description(&self) -> String {

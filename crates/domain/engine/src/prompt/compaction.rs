@@ -2,12 +2,12 @@
 //! replaces its history.
 //!
 //! The compaction agent runs with
-//! [`COMPACTION_PROMPT`](crate::compaction::COMPACTION_PROMPT) as its system
-//! prompt, the session's messages, and [`request`](crate::compaction::request)
+//! [`COMPACTION_PROMPT`](crate::prompt::compaction::COMPACTION_PROMPT) as its system
+//! prompt, the session's messages, and [`request`](crate::prompt::compaction::request)
 //! as the final user message. Its reply becomes the summary;
-//! [`summary_message`](crate::compaction::summary_message) frames it at the
+//! [`summary_message`](crate::prompt::compaction::summary_message) frames it at the
 //! start of the new history and
-//! [`CONTINUE_AFTER_COMPACTION`](crate::compaction::CONTINUE_AFTER_COMPACTION)
+//! [`CONTINUE_AFTER_COMPACTION`](crate::prompt::compaction::CONTINUE_AFTER_COMPACTION)
 //! follows an automatic compaction.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

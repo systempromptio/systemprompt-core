@@ -13,7 +13,7 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 use zeroize::Zeroizing;
 
-use crate::error::SecureError;
+use crate::secure::error::SecureError;
 
 /// Seals secrets so that only the current user, through this app, can open
 /// them.
@@ -43,7 +43,7 @@ pub fn platform_sealer(app_id: &str) -> Arc<dyn Sealer> {
     }
     #[cfg(target_os = "macos")]
     {
-        Arc::new(crate::mac::KeychainSealer::new(app_id))
+        Arc::new(crate::secure::mac::KeychainSealer::new(app_id))
     }
     #[cfg(not(any(windows, target_os = "macos")))]
     {
@@ -74,7 +74,7 @@ impl DpapiSealer {
 #[cfg(windows)]
 impl Sealer for DpapiSealer {
     fn seal(&self, plaintext: &[u8]) -> Result<Vec<u8>, SecureError> {
-        crate::win::dpapi_protect(plaintext, &self.entropy)
+        crate::secure::win::dpapi_protect(plaintext, &self.entropy)
             .map_err(|source| SecureError::Unavailable { source })
     }
 
@@ -82,8 +82,8 @@ impl Sealer for DpapiSealer {
         if ciphertext.is_empty() {
             return Err(SecureError::Empty);
         }
-        crate::win::dpapi_unprotect(ciphertext, &self.entropy).map_err(|source| {
-            if crate::win::is_foreign_ciphertext(&source) {
+        crate::secure::win::dpapi_unprotect(ciphertext, &self.entropy).map_err(|source| {
+            if crate::secure::win::is_foreign_ciphertext(&source) {
                 SecureError::Rejected { source }
             } else {
                 SecureError::Unavailable { source }

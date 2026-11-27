@@ -7,7 +7,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use harness_ids::ExtensionId;
+use systemprompt_identifiers::engine::ExtensionId;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value};

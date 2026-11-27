@@ -10,17 +10,17 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock, Weak};
 use std::time::Duration;
 
-use harness_tasks::BackgroundTasks;
+use systemprompt_traits::BackgroundTasks;
 use parking_lot::Mutex;
 use serde_json::{Map, Value, json};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 
 use super::options::{DEFAULT_REQUEST_TIMEOUT, RequestOptions, ServerNotification};
-use crate::error::McpError;
-use crate::jsonrpc::{self, Incoming, METHOD_NOT_FOUND};
-use crate::transport::{InboundSink, Transport};
-use crate::types::ServerInfo;
+use crate::mcp::error::McpError;
+use crate::mcp::jsonrpc::{self, Incoming, METHOD_NOT_FOUND};
+use crate::mcp::transport::{InboundSink, Transport};
+use crate::mcp::types::ServerInfo;
 
 const NOTIFICATION_BUFFER: usize = 64;
 const TASK_DRAIN: Duration = Duration::from_secs(2);
@@ -128,7 +128,7 @@ impl Session {
     }
 
     pub(super) async fn drain_tasks(&self) {
-        if !self.tasks.shutdown(TASK_DRAIN).await.is_drained() {
+        if !self.tasks.shutdown_or_abort(TASK_DRAIN).await.is_drained() {
             tracing::debug!("session tasks outlived the shutdown and were aborted");
         }
     }

@@ -5,7 +5,7 @@
 //! Both calls take a hook token as bearer, the governance plugin's id as
 //! `?plugin_id=`, and `x-systemprompt-host`; a track call also carries
 //! `x-ingestion-event-id`
-//! ([`HookEvent::ingestion_id`](crate::wire::hooks::HookEvent::ingestion_id))
+//! ([`HookEvent::ingestion_id`])
 //! and, once enrolled, the device credential.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -14,7 +14,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::ids::NativeSessionId;
+use systemprompt_identifiers::{NativeSessionId, ToolUseId};
 
 /// What every hook event says about where it happened: `session_id` is the v5
 /// UUID the instance knows the session by, `native_session_id` the harness's
@@ -22,7 +22,7 @@ use crate::ids::NativeSessionId;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HookContext {
     pub session_id: NativeSessionId,
-    pub native_session_id: String,
+    pub native_session_id: NativeSessionId,
     pub cwd: String,
     pub native_host: String,
 }
@@ -70,7 +70,7 @@ pub enum HookEvent {
         tool_name: String,
         // JSON: tool input is the tool's own argument object.
         tool_input: serde_json::Value,
-        tool_use_id: String,
+        tool_use_id: ToolUseId,
     },
     PostToolUse {
         #[serde(flatten)]
@@ -78,7 +78,7 @@ pub enum HookEvent {
         tool_name: String,
         // JSON: tool input is the tool's own argument object.
         tool_input: serde_json::Value,
-        tool_use_id: String,
+        tool_use_id: ToolUseId,
         tool_response: ToolResponse,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         skill_ref: Option<String>,
@@ -106,7 +106,7 @@ impl HookEvent {
             | Self::Stop { event_id, .. } => event_id,
             Self::UserPromptSubmit { prompt_id, .. } => prompt_id,
             Self::PreToolUse { tool_use_id, .. } | Self::PostToolUse { tool_use_id, .. } => {
-                tool_use_id
+                tool_use_id.as_str()
             },
         }
     }

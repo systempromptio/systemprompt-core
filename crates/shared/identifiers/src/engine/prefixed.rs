@@ -16,8 +16,8 @@
 use std::fmt;
 use std::str::FromStr;
 
-use crate::clock::{created_ms, mint, validate};
-use crate::error::IdError;
+use crate::engine::clock::{created_ms, mint, validate};
+use crate::engine::error::IdError;
 
 macro_rules! define_id {
     ($name:ident, $prefix:literal, $kind:literal) => {

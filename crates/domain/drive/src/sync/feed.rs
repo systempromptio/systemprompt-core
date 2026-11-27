@@ -18,14 +18,14 @@ use bytes::Bytes;
 use chrono::Utc;
 use reqwest::Method;
 use serde::Deserialize;
-use sp_client::{ClientError, HttpClient, TransportFailure};
-use sp_protocol::Jwt;
-use sp_protocol::ids::{DocumentId, DocumentRevisionId};
-use sp_protocol::wire::drive::{
-    CommitMeta, CommitOutcome, FeedChanges, FeedManifest, MoveRequest, SyncTokenAnswer,
-    TrashOutcome, TrashRequest,
+use systemprompt_device::client::{ClientError, HttpClient, TransportFailure};
+use systemprompt_device::protocol::Jwt;
+use systemprompt_device::protocol::wire::SyncTokenAnswer;
+use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
+use systemprompt_models::ApiPaths;
+use systemprompt_models::documents::client::{
+    CommitMeta, CommitOutcome, FeedChanges, FeedManifest, MoveRequest, TrashOutcome, TrashRequest,
 };
-use sp_protocol::wire::paths;
 
 use super::error::SyncError;
 use crate::error::{decode_failure, plain_key, retry_after};
@@ -61,7 +61,7 @@ impl FeedClient {
     pub(crate) async fn sync_token(&self, device: &Jwt) -> Result<SyncTokenAnswer, SyncError> {
         let call = Call::new(
             Method::POST,
-            route(&self.base, paths::DRIVE_TOKEN, &[])?,
+            route(&self.base, ApiPaths::BRIDGE_DRIVE_TOKEN, &[])?,
             TOKEN,
         );
         let answer = self.send(&call, device).await?;
@@ -74,7 +74,7 @@ impl FeedClient {
     pub(crate) async fn manifest(&self, token: &Jwt) -> Result<FeedManifest, SyncError> {
         let call = Call::new(
             Method::GET,
-            route(&self.base, paths::DRIVE_MANIFEST, &[])?,
+            route(&self.base, ApiPaths::BRIDGE_DRIVE_MANIFEST, &[])?,
             MANIFEST,
         )
         .limits(DEFAULT_TIMEOUT, FEED_BODY);
@@ -86,7 +86,7 @@ impl FeedClient {
     }
 
     pub(crate) async fn changes(&self, token: &Jwt, since: &str) -> Result<FeedChanges, SyncError> {
-        let mut url = route(&self.base, paths::DRIVE_CHANGES, &[])?;
+        let mut url = route(&self.base, ApiPaths::BRIDGE_DRIVE_CHANGES, &[])?;
         url.query_pairs_mut().append_pair("since", since);
         let call = Call::new(Method::GET, url, CHANGES).limits(DEFAULT_TIMEOUT, FEED_BODY);
         let answer = self.send(&call, token).await?;
@@ -105,7 +105,7 @@ impl FeedClient {
         }
         let call = Call::new(
             Method::GET,
-            route(&self.base, paths::DRIVE_BLOB, &[sha256])?,
+            route(&self.base, ApiPaths::BRIDGE_DRIVE_BLOB, &[sha256])?,
             BLOB,
         )
         .accept("application/octet-stream")
@@ -143,7 +143,7 @@ impl FeedClient {
         ];
         let mut call = Call::new(
             Method::POST,
-            route(&self.base, paths::DRIVE_COMMIT, &[])?,
+            route(&self.base, ApiPaths::BRIDGE_DRIVE_COMMIT, &[])?,
             COMMIT,
         )
         .payload(Payload::Multipart(parts))
@@ -166,7 +166,7 @@ impl FeedClient {
     ) -> Result<TrashOutcome, SyncError> {
         let call = Call::new(
             Method::POST,
-            route(&self.base, paths::DRIVE_TRASH, &[])?,
+            route(&self.base, ApiPaths::BRIDGE_DRIVE_TRASH, &[])?,
             TRASH,
         )
         .json(&TrashRequest { document_id })?
@@ -184,7 +184,7 @@ impl FeedClient {
         document_id: &DocumentId,
         path: &str,
     ) -> Result<(), SyncError> {
-        let url = route(&self.base, paths::DRIVE_MOVE, &[])?;
+        let url = route(&self.base, ApiPaths::BRIDGE_DRIVE_MOVE, &[])?;
         let call = Call::new(Method::POST, url, MOVE).json(&MoveRequest { document_id, path })?;
         accept(MOVE, self.send(&call, token).await?).map(|_| ())
     }

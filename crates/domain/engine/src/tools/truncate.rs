@@ -6,8 +6,8 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::path::slash;
-use crate::text::{ceil_boundary, floor_boundary};
+use crate::tools::path::slash;
+use crate::tools::text::{ceil_boundary, floor_boundary};
 
 /// The most a tool returns inline.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

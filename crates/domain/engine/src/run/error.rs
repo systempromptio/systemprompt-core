@@ -7,11 +7,11 @@
 use std::error::Error as StdError;
 use std::path::PathBuf;
 
-use harness_llm::LlmError;
-use harness_store::{MessageId, SessionId, StoreError};
+use crate::llm::LlmError;
+use crate::store::{MessageId, SessionId, StoreError};
 use serde::{Deserialize, Serialize};
 
-use crate::governor::GovernError;
+use crate::run::governor::GovernError;
 
 /// What class of problem an [`EngineError`] is.
 ///
@@ -76,12 +76,12 @@ pub enum EngineError {
     Config {
         dir: PathBuf,
         #[source]
-        source: Box<harness_config::ConfigError>,
+        source: Box<crate::config::ConfigError>,
     },
     #[error("workspace snapshots failed")]
-    Snapshot(#[from] harness_workspace::SnapshotError),
+    Snapshot(#[from] crate::workspace::SnapshotError),
     #[error("the MCP client failed")]
-    Mcp(#[from] harness_mcp::McpError),
+    Mcp(#[from] crate::mcp::McpError),
     #[error("the model call was not authorised")]
     Governance(#[source] GovernError),
     #[error("the instance refused the model response: {reason}")]

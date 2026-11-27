@@ -4,10 +4,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use harness_engine::extension::ResolveError;
-use harness_ids::ExtensionId;
+use systemprompt_engine::run::extension::ResolveError;
+use systemprompt_identifiers::engine::ExtensionId;
 
-use crate::applier::ApplyError;
+use crate::extension::applier::ApplyError;
 
 /// A failure of the instance-side extensions.
 #[derive(Debug, thiserror::Error)]

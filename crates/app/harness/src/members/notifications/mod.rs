@@ -27,7 +27,8 @@ pub use extension::NotificationsExtension;
 pub use handle::NotificationsHandle;
 pub use inbox::{FeedStatus, INBOX_CAPACITY, Inbox, UnreadCount};
 pub use service::{NotificationsService, PollCadence};
-pub use sp_protocol::ids::NotificationId;
-pub use sp_protocol::wire::notifications::{
-    Attention, KeysetCursor, Notification, NotificationKind, SubjectRef,
+pub use systemprompt_identifiers::NotificationId;
+pub use systemprompt_models::api::KeysetCursor;
+pub use systemprompt_models::notifications::{
+    Attention, Notification, NotificationKind, SubjectRef,
 };

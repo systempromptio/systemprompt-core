@@ -9,7 +9,7 @@ use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader
 use tokio::sync::Mutex;
 
 use super::{InboundSink, Transport};
-use crate::error::McpError;
+use crate::mcp::error::McpError;
 
 pub(crate) struct LineWriter<W> {
     inner: Mutex<Option<W>>,

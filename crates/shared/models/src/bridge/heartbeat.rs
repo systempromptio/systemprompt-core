@@ -10,7 +10,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::ids::SessionId;
+use systemprompt_identifiers::SessionId;
+
+use crate::bridge::instance::WindowStatus;
 
 pub const HEARTBEAT_INTERVAL_SECS: u64 = 30;
 
@@ -35,17 +37,6 @@ pub struct HeartbeatRequest {
     pub tokens_out_total: i64,
     pub release_version: String,
     pub state: ClientState,
-}
-
-/// Where this client's release sits in the window the instance admits.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum WindowStatus {
-    Below,
-    Within,
-    Above,
-    #[serde(other)]
-    Unknown,
 }
 
 /// The heartbeat answer.

@@ -11,14 +11,17 @@
 
 use std::collections::BTreeMap;
 
-use sp_protocol::host::{enables_host, entry_targets_host};
-use sp_protocol::ids::{PluginId, SkillId};
-use sp_protocol::names::{is_plain_id, skill_dir_name};
-use sp_protocol::wire::manifest::{Manifest, Sha256Digest, SkillEntry};
+use systemprompt_device::protocol::manifest::Manifest;
+use systemprompt_device::protocol::names::{is_plain_id, skill_dir_name};
+use systemprompt_device::protocol::targets::{enables_host, entry_targets_host};
+use systemprompt_identifiers::{PluginId, SkillId};
+use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::ids::Sha256Digest;
+use systemprompt_models::bridge::manifest::SkillEntry;
 
-use crate::input::ProjectionInput;
-use crate::model::{Counts, Projection, SkillFile, SkillPublication, SkillSet};
-use crate::{bundle, defaults, gateway, mcp, rules, skill_md};
+use crate::projection::input::ProjectionInput;
+use crate::projection::model::{Counts, Projection, SkillFile, SkillPublication, SkillSet};
+use crate::projection::{bundle, defaults, gateway, mcp, rules, skill_md};
 
 #[must_use]
 pub fn plan(input: &ProjectionInput<'_>) -> Projection {
@@ -26,7 +29,7 @@ pub fn plan(input: &ProjectionInput<'_>) -> Projection {
     let manifest = input.manifest;
     if !enables_host(&manifest.enabled_hosts, input.host) {
         tracing::info!(
-            host = input.host,
+            host = %input.host,
             "the manifest does not enable this host; nothing is projected"
         );
         return projection;
@@ -78,7 +81,7 @@ pub fn plan(input: &ProjectionInput<'_>) -> Projection {
 #[must_use]
 pub fn wanted_bundle_files(
     manifest: &Manifest,
-    host: &str,
+    host: HostKind,
 ) -> Vec<(PluginId, String, Sha256Digest)> {
     if !enables_host(&manifest.enabled_hosts, host) {
         return Vec::new();
@@ -110,7 +113,7 @@ pub(crate) fn unique_plain<'m, T>(
 
 fn select_skills<'m>(
     manifest: &'m Manifest,
-    host: &str,
+    host: HostKind,
     warnings: &mut Vec<String>,
 ) -> Vec<&'m SkillEntry> {
     unique_plain(
@@ -215,9 +218,7 @@ fn owner(skill: &SkillEntry) -> Option<PluginId> {
     skill
         .source
         .as_ref()
-        .and_then(|source| source.plugin.as_deref())
-        .filter(|plugin| !plugin.is_empty())
-        .map(PluginId::new)
+        .map(|source| source.plugin_id.clone())
         .or_else(|| skill.plugins.first().cloned())
 }
 

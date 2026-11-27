@@ -6,7 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::ids::{DocumentFolderId, DocumentUploadId};
+use systemprompt_identifiers::{DocumentFolderId, DocumentUploadId};
 
 pub const INLINE_UPLOAD_LIMIT: usize = 8 * 1024 * 1024;
 

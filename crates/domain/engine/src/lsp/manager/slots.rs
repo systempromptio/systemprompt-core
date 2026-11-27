@@ -13,9 +13,9 @@ use tokio::sync::OnceCell;
 use tracing::{debug, info, warn};
 
 use super::LspManager;
-use crate::client::Client;
-use crate::error::{LspError, chain};
-use crate::spec::{self, MissingCommand, Resolved, ServerId};
+use crate::lsp::client::Client;
+use crate::lsp::error::{LspError, chain};
+use crate::lsp::spec::{self, MissingCommand, Resolved, ServerId};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(super) struct SlotKey {

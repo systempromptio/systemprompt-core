@@ -7,7 +7,7 @@
 use std::ffi::OsStr;
 use std::path::{Component, Path, PathBuf};
 
-use crate::uri;
+use crate::lsp::uri;
 
 const DEFAULT_PATH_EXT: &str = ".COM;.EXE;.BAT;.CMD";
 

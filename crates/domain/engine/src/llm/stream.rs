@@ -15,15 +15,15 @@ use futures_util::{Stream, StreamExt};
 use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 
-use crate::endpoint::Endpoint;
-use crate::error::{LlmError, excerpt};
-use crate::event::Event;
-use crate::model::Request;
-use crate::overflow::is_context_overflow;
-use crate::prepare::prepare;
-use crate::response::{ModelResponse, ResponseHead};
-use crate::transport::{ByteStream, HttpResponse, Transport};
-use crate::{driver, retry};
+use crate::llm::endpoint::Endpoint;
+use crate::llm::error::{LlmError, excerpt};
+use crate::llm::event::Event;
+use crate::llm::model::Request;
+use crate::llm::overflow::is_context_overflow;
+use crate::llm::prepare::prepare;
+use crate::llm::response::{ModelResponse, ResponseHead};
+use crate::llm::transport::{ByteStream, HttpResponse, Transport};
+use crate::llm::{driver, retry};
 
 /// The unified events of one model answer; it ends after `Finish` or after the
 /// first error.

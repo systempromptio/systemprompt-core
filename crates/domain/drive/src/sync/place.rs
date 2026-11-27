@@ -14,7 +14,7 @@
 use std::path::Path;
 
 use chrono::Utc;
-use sp_protocol::ids::{DocumentId, DocumentRevisionId};
+use systemprompt_identifiers::{DocumentId, DocumentRevisionId};
 
 use super::cycle::{Cycle, Report};
 use super::disk::{

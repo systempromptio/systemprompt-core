@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 
 use super::layout::FileEntry;
 use super::tree::Hashed;
-use crate::paths::fold;
+use crate::workspace::paths::fold;
 
 pub(crate) type Side<'a> = (&'a str, &'a FileEntry);
 

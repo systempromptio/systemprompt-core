@@ -10,7 +10,7 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 
-use crate::error::{BoxError, McpError};
+use crate::mcp::error::{BoxError, McpError};
 
 /// Supplies the headers for a remote server.
 ///

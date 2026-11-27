@@ -8,12 +8,12 @@
 use std::fmt;
 use std::sync::Arc;
 
-use sp_client::SpClient;
-use sp_protocol::ids::AccountId;
+use systemprompt_device::client::SpClient;
+use systemprompt_device::protocol::ids::AccountId;
 use tokio::sync::watch;
 
-use crate::client::DriveClient;
-use crate::sync::DriveSync;
+use systemprompt_drive::client::DriveClient;
+use systemprompt_drive::sync::DriveSync;
 
 /// The Drive is withheld: no applied instance enables it for this host.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]

@@ -13,13 +13,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_protocol::ids::McpServerId;
-use sp_protocol::names::{is_plain_id, mcp_server_slug};
-use sp_protocol::origin::{bearer_allowed, is_transport_secure, rehome_instance_mcp_url};
-use sp_protocol::wire::manifest::{ManagedMcpServer, Manifest};
+use systemprompt_device::protocol::manifest::Manifest;
+use systemprompt_device::protocol::names::{is_plain_id, mcp_server_slug};
+use systemprompt_device::protocol::origin::{
+    bearer_allowed, is_transport_secure, rehome_instance_mcp_url,
+};
+use systemprompt_models::bridge::manifest::ManagedMcpServer;
 use url::Url;
 
-use crate::model::ManagedMcp;
+use crate::projection::model::ManagedMcp;
 
 const AUTHORIZATION: &str = "authorization";
 
@@ -31,10 +33,10 @@ pub(crate) fn project(
     let instance = Url::parse(instance_url).ok().filter(is_transport_secure);
     let mut out: Vec<ManagedMcp> = Vec::with_capacity(manifest.managed_mcp_servers.len());
     for server in &manifest.managed_mcp_servers {
-        if server.id.as_deref().is_some_and(|id| !is_plain_id(id)) {
+        if server.id != server.name && !is_plain_id(server.id.as_str()) {
             warnings.push(format!(
                 "MCP server {:?} skipped: its id is not a plain id",
-                server.id()
+                server.id.as_str()
             ));
             continue;
         }
@@ -55,17 +57,11 @@ fn remote(
     instance: Option<&Url>,
     warnings: &mut Vec<String>,
 ) -> Option<ManagedMcp> {
-    let Ok(id) = McpServerId::try_new(server.id()) else {
-        warnings.push(format!(
-            "MCP server at {:?} skipped: it has neither an id nor a name",
-            server.url
-        ));
-        return None;
-    };
-    let Ok(announced) = Url::parse(&server.url) else {
+    let id = server.id.clone();
+    let Ok(announced) = Url::parse(server.url.as_str()) else {
         warnings.push(format!(
             "MCP server {:?} skipped: its URL does not parse",
-            server.id()
+            server.id.as_str()
         ));
         return None;
     };
@@ -76,7 +72,7 @@ fn remote(
     if !is_transport_secure(&url) {
         warnings.push(format!(
             "MCP server {:?} skipped: plain HTTP is only allowed on loopback",
-            server.id()
+            server.id.as_str()
         ));
         return None;
     }
@@ -84,15 +80,21 @@ fn remote(
     let headers = server
         .headers
         .iter()
+        .flatten()
         .filter(|(name, _)| !name.eq_ignore_ascii_case(AUTHORIZATION))
         .map(|(name, value)| (name.clone(), value.clone()))
         .collect();
     Some(ManagedMcp {
         id,
-        name: mcp_server_slug(&server.name),
+        name: mcp_server_slug(server.name.as_str()),
         url: url.as_str().to_owned(),
         bearer,
         headers,
-        tool_policy: server.tool_policy.clone(),
+        tool_policy: server
+            .tool_policy
+            .iter()
+            .flatten()
+            .map(|(tool, policy)| (tool.as_str().to_owned(), *policy))
+            .collect(),
     })
 }

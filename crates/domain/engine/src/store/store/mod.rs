@@ -19,9 +19,9 @@ use parking_lot::Mutex;
 use rusqlite::{Connection, Transaction, TransactionBehavior};
 use tokio::sync::broadcast;
 
-use crate::change::Change;
-use crate::error::{Result, StoreError};
-use crate::schema;
+use crate::store::change::Change;
+use crate::store::error::{Result, StoreError};
+use crate::store::schema;
 
 const CHANGE_CAPACITY: usize = 1024;
 

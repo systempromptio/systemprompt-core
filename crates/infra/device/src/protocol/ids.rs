@@ -1,10 +1,9 @@
-//! Typed identifiers.
+//! The device's own typed identifiers.
 //!
-//! Identities the platform already names are the `systemprompt-identifiers`
-//! types, re-exported here so every harness crate takes them from one place.
-//! The harness's own identities (an account entry, an instance key that
-//! namespaces managed content as `<key>-<id>`, and the installation id that
-//! feeds the device fingerprint) are small local newtypes.
+//! An account entry, an instance key that namespaces managed content as
+//! `<key>-<id>`, and the installation id that feeds the device fingerprint are
+//! small local newtypes. Identities the platform already names are the
+//! `systemprompt-identifiers` types.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -12,14 +11,6 @@
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
-pub use systemprompt_identifiers::{
-    AgentId, ClientId, ConsumerInstallationId, ContextId, DeviceId, DocumentCommentId,
-    DocumentFolderId, DocumentId, DocumentProposalId, DocumentRevisionId, DocumentUploadId,
-    DriveDeviceId, InstallationReceiptId, InstallationSessionBindingId, ManagedResourceId,
-    MarketplaceId, MarketplaceRuleId, McpServerId, NativeSessionId, NotificationId,
-    NotificationStreamId, PluginId, PublicationId, ResourceRevisionId, SessionId, SkillId,
-    TenantId, UserId,
-};
 
 macro_rules! local_id {
     ($name:ident) => {

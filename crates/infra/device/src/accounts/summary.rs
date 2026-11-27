@@ -5,14 +5,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_client::ManifestFetch;
-use sp_protocol::ids::AccountId;
-use sp_protocol::view::InstanceSummary;
-use sp_protocol::wire::manifest::Manifest;
+use crate::client::ManifestFetch;
+use crate::protocol::ids::AccountId;
+use crate::protocol::manifest::Manifest;
+use crate::view::InstanceSummary;
 
-use crate::accounts::Accounts;
-use crate::error::AccountsError;
-use crate::keys;
+use crate::accounts::accounts::Accounts;
+use crate::accounts::error::AccountsError;
+use crate::accounts::keys;
 
 impl Accounts {
     #[must_use]
@@ -31,7 +31,7 @@ impl Accounts {
             })?;
         let client = self.client(id)?;
         let source = self.credentials(id);
-        let fetched = sp_client::with_jwt(&*source, |jwt| {
+        let fetched = crate::client::with_jwt(&*source, |jwt| {
             let client = client.clone();
             let key = key.clone();
             async move { client.manifest(&jwt, &key, None, true).await }

@@ -8,7 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_notifications::Notification;
+use crate::members::notifications::Notification;
 
 const SLACK: &str = "slack";
 

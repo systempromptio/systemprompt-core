@@ -17,9 +17,9 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use reqwest::header::{HeaderMap, RETRY_AFTER};
-use sp_client::{ClientError, TransportFailure};
-use sp_protocol::ids::DocumentRevisionId;
-use sp_protocol::wire::drive::DriveErrorBody;
+use systemprompt_device::client::{ClientError, TransportFailure};
+use systemprompt_identifiers::DocumentRevisionId;
+use systemprompt_models::documents::client::DriveErrorBody;
 
 const ERROR_KEY_MAX: usize = 64;
 const SESSION_MISMATCH_KEY: &str = "session_mismatch";

@@ -2,8 +2,8 @@
 //!
 //! On top of the client's own mapping (`401`, `429`, `5xx`, an undecodable
 //! body, an answer over its size limit, all carried as
-//! [`ClientError`](sp_client::ClientError)): a `404` with `error_key`
-//! `brain_disabled`, or with none (the routes are not mounted), is
+//! [`ClientError`](systemprompt_device::client::ClientError)): a `404` with
+//! `error_key` `brain_disabled`, or with none (the routes are not mounted), is
 //! [`BrainError::Disabled`]; any other `404` is [`BrainError::NotFound`]; `403`
 //! is [`BrainError::Forbidden`]; `409` `fact_tombstoned` is
 //! [`BrainError::Tombstoned`] and any other `409` [`BrainError::Conflict`];
@@ -17,8 +17,8 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 use reqwest::header::{HeaderMap, RETRY_AFTER};
-use sp_client::{ClientError, TransportFailure};
-use sp_protocol::wire::envelope::ErrorEnvelope;
+use systemprompt_device::client::{ClientError, TransportFailure};
+use systemprompt_models::bridge::envelope::ErrorEnvelope;
 
 const ERROR_KEY_MAX: usize = 64;
 const SESSION_MISMATCH_KEY: &str = "session_mismatch";

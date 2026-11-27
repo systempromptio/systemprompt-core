@@ -11,28 +11,33 @@ use std::fmt;
 use std::sync::Arc;
 use std::time::Instant;
 
-use sp_client::{ClientError, CredentialSource, ManifestFetch, ManifestKey, with_jwt};
-use sp_extension::ExtensionPolicy;
-use sp_projection::{
+use crate::extension::ExtensionPolicy;
+use crate::projection::{
     ContentDigest, ProjectionInput, SkillPublication, digest, plan, wanted_bundle_files,
 };
-use sp_protocol::ids::{AccountId, UserId};
-use sp_protocol::view::{SyncCounts, SyncStatus};
-use sp_protocol::wire::catalog::{ModelCatalog, Profile};
-use sp_protocol::wire::manifest::Manifest;
-use sp_protocol::{HOST_ID, ManifestVersion};
+use systemprompt_device::client::{
+    ClientError, CredentialSource, ManifestFetch, ManifestKey, with_jwt,
+};
+use systemprompt_device::protocol::ids::AccountId;
+use systemprompt_device::protocol::manifest::Manifest;
+use systemprompt_device::view::{SyncCounts, SyncStatus};
+use systemprompt_identifiers::UserId;
+use systemprompt_models::bridge::catalog::ModelCatalog;
+use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::manifest_version::ManifestVersion;
+use systemprompt_models::bridge::profile::BridgeProfileResponse as Profile;
 use tokio::sync::watch;
 
 mod catalog;
 
-use crate::acceptance::accept;
-use crate::bundles::BundleCache;
-use crate::cadence::Clock;
-use crate::error::PollError;
-use crate::planner::{Outcome, Planner, Request};
-use crate::ports::{Instance, Store};
-use crate::runtime::RuntimeFiles;
-use crate::target::Target;
+use crate::sync::acceptance::accept;
+use crate::sync::bundles::BundleCache;
+use crate::sync::cadence::Clock;
+use crate::sync::error::PollError;
+use crate::sync::planner::{Outcome, Planner, Request};
+use crate::sync::ports::{Instance, Store};
+use crate::sync::runtime::RuntimeFiles;
+use crate::sync::target::Target;
 
 /// What one account's poll works over: its id, the store and target, its
 /// instance, the clock and the status it publishes.
@@ -215,7 +220,7 @@ impl<S: Store, T: Target> Poller<S, T> {
         source: &dyn CredentialSource,
         manifest: &Manifest,
     ) -> Result<(), PollError> {
-        let wanted = wanted_bundle_files(manifest, HOST_ID);
+        let wanted = wanted_bundle_files(manifest, HostKind::Harness);
         let files = self
             .bundles
             .fetch(&self.scope.instance, source, &wanted)
@@ -228,7 +233,7 @@ impl<S: Store, T: Target> Poller<S, T> {
             catalog: self.catalog.as_ref(),
             instance_url: self.scope.instance.base(),
             instance_key: &instance_key,
-            host: HOST_ID,
+            host: HostKind::Harness,
             bundle_files: &files,
         };
         let content = digest(&input);

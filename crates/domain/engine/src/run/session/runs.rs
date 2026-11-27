@@ -6,14 +6,14 @@
 
 use std::collections::HashMap;
 
-use harness_store::SessionId;
-use harness_tasks::CancellationToken;
+use crate::store::SessionId;
+use systemprompt_traits::CancellationToken;
 use parking_lot::Mutex;
 use tokio::sync::broadcast;
 
 use super::inbox::Inbox;
 use super::{Admission, Delivery};
-use crate::events::{EngineEvent, RunStatus, publish};
+use crate::run::events::{EngineEvent, RunStatus, publish};
 
 #[expect(
     variant_size_differences,

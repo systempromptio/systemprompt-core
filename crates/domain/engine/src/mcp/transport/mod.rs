@@ -13,7 +13,7 @@ mod lines;
 mod sse;
 mod stdio;
 
-use harness_tasks::BackgroundTasks;
+use systemprompt_traits::BackgroundTasks;
 use serde_json::Value;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
@@ -23,7 +23,7 @@ pub(crate) use lines::{StreamTransport, spawn_line_reader};
 pub(crate) use sse::LegacySse;
 pub(crate) use stdio::{LocalCommand, StdioTransport};
 
-use crate::error::McpError;
+use crate::mcp::error::McpError;
 
 #[async_trait::async_trait]
 pub(crate) trait Transport: Send + Sync {

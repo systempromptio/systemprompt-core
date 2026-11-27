@@ -12,11 +12,11 @@ use tokio::time::Instant;
 use tracing::debug;
 
 use super::Client;
-use crate::error::LspError;
-use crate::language::language_id;
-use crate::parse::SaveMode;
-use crate::types::Diagnostic;
-use crate::uri;
+use crate::lsp::error::LspError;
+use crate::lsp::language::language_id;
+use crate::lsp::parse::SaveMode;
+use crate::lsp::types::Diagnostic;
+use crate::lsp::uri;
 
 #[derive(Debug)]
 pub(super) struct Document {

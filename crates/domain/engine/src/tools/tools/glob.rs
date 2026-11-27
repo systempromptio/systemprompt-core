@@ -13,11 +13,11 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio_util::sync::CancellationToken;
 
-use crate::config::SearchLimits;
-use crate::contract::{PermissionRequest, Tool, ToolContext, ToolOutput};
-use crate::error::ToolError;
-use crate::path::{display_path, guard_external, resolve, slash};
-use crate::repair::parse_input;
+use crate::tools::config::SearchLimits;
+use crate::tools::contract::{PermissionRequest, Tool, ToolContext, ToolOutput};
+use crate::tools::error::ToolError;
+use crate::tools::path::{display_path, guard_external, resolve, slash};
+use crate::tools::repair::parse_input;
 
 /// Finds files by glob pattern.
 #[derive(Debug, Clone, Copy)]
@@ -40,7 +40,7 @@ struct Input {
 #[async_trait]
 impl Tool for GlobTool {
     fn name(&self) -> &str {
-        crate::names::GLOB
+        crate::tools::names::GLOB
     }
 
     fn description(&self) -> String {

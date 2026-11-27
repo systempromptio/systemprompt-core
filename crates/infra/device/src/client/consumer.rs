@@ -13,19 +13,24 @@
 
 use std::time::Duration;
 
+use crate::protocol::receipts::plan_matches;
+use crate::protocol::wire::DeviceEnrolment;
+use crate::protocol::{DeviceCredential, Jwt, paths};
 use reqwest::header::CONTENT_TYPE;
-use sp_protocol::wire::consumer::{
-    DeviceEnrolRequest, DeviceEnrolment, InstallationPlan, ReceiptRequest, ReceiptResponse,
-    SessionBinding, SessionBindingRequest,
+use systemprompt_models::ApiPaths;
+use systemprompt_models::bridge::consumer::SessionBinding;
+use systemprompt_models::bridge::gateway::SelfEnrollRequest as DeviceEnrolRequest;
+use systemprompt_models::bridge::heartbeat::{HeartbeatRequest, HeartbeatResponse};
+use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::manifest::ManagedPublicationRef;
+use systemprompt_models::feedback::receipts::{
+    ConsumerInstallationPlan, ConsumerReceiptRequest, ConsumerReceiptResponse,
+    SessionBindingRequest,
 };
-use sp_protocol::wire::heartbeat::{HeartbeatRequest, HeartbeatResponse};
-use sp_protocol::wire::manifest::Publication;
-use sp_protocol::wire::paths;
-use sp_protocol::{DeviceCredential, HOST_ID, Jwt};
 
-use crate::client::{SpClient, push_segments};
-use crate::error::ClientError;
-use crate::http::{SMALL_BODY, decode, exchange, failure, protocol};
+use crate::client::client::{SpClient, push_segments};
+use crate::client::error::ClientError;
+use crate::client::http::{SMALL_BODY, decode, exchange, failure, protocol};
 
 const ENROL_ENDPOINT: &str = "POST /v1/bridge/device";
 const PLAN_ENDPOINT: &str =
@@ -92,7 +97,7 @@ impl SpClient {
         request: &DeviceEnrolRequest,
     ) -> Result<DeviceEnrolment, ClientError> {
         let builder = self
-            .post(self.at(paths::DEVICE)?)
+            .post(self.at(ApiPaths::BRIDGE_DEVICE)?)
             .bearer_auth(jwt.expose())
             .json(request);
         let answer = exchange(ENROL_ENDPOINT, builder, CONSUMER_TIMEOUT, SMALL_BODY).await?;
@@ -105,19 +110,24 @@ impl SpClient {
     pub async fn installation_plan(
         &self,
         device: &DeviceCredential,
-        publication: &Publication,
-    ) -> ConsumerOutcome<InstallationPlan> {
+        publication: &ManagedPublicationRef,
+    ) -> ConsumerOutcome<ConsumerInstallationPlan> {
         ConsumerOutcome::classify(self.fetch_plan(device, publication).await)
     }
 
     pub async fn post_receipt(
         &self,
         device: &DeviceCredential,
-        receipt: &ReceiptRequest,
-    ) -> ConsumerOutcome<ReceiptResponse> {
+        receipt: &ConsumerReceiptRequest,
+    ) -> ConsumerOutcome<ConsumerReceiptResponse> {
         ConsumerOutcome::classify(
-            self.consumer_post(RECEIPT_ENDPOINT, paths::CONSUMER_RECEIPTS, device, receipt)
-                .await,
+            self.consumer_post(
+                RECEIPT_ENDPOINT,
+                ApiPaths::CONSUMER_RECEIPTS,
+                device,
+                receipt,
+            )
+            .await,
         )
     }
 
@@ -129,7 +139,7 @@ impl SpClient {
         ConsumerOutcome::classify(
             self.consumer_post(
                 BINDING_ENDPOINT,
-                paths::CONSUMER_SESSION_BINDINGS,
+                ApiPaths::CONSUMER_SESSION_BINDINGS,
                 device,
                 binding,
             )
@@ -143,7 +153,7 @@ impl SpClient {
         request: &HeartbeatRequest,
     ) -> Result<HeartbeatResponse, ClientError> {
         let builder = self
-            .post(self.at(paths::HEARTBEAT)?)
+            .post(self.at(ApiPaths::BRIDGE_HEARTBEAT)?)
             .bearer_auth(jwt.expose())
             .json(request);
         let answer = exchange(HEARTBEAT_ENDPOINT, builder, HEARTBEAT_TIMEOUT, SMALL_BODY).await?;
@@ -156,8 +166,8 @@ impl SpClient {
     async fn fetch_plan(
         &self,
         device: &DeviceCredential,
-        publication: &Publication,
-    ) -> Result<InstallationPlan, ClientError> {
+        publication: &ManagedPublicationRef,
+    ) -> Result<ConsumerInstallationPlan, ClientError> {
         let mut url = self.at_origin(paths::CONSUMER_RESOURCES)?;
         push_segments(
             &mut url,
@@ -168,14 +178,15 @@ impl SpClient {
                 "bundle",
             ],
         )?;
-        url.query_pairs_mut().append_pair("host", HOST_ID);
+        url.query_pairs_mut()
+            .append_pair("host", HostKind::Harness.as_str());
         let request = self.get(url).bearer_auth(device.expose());
         let answer = exchange(PLAN_ENDPOINT, request, CONSUMER_TIMEOUT, PLAN_BODY).await?;
         if answer.status.as_u16() != 200 {
             return Err(failure(PLAN_ENDPOINT, &answer));
         }
-        let plan: InstallationPlan = decode(PLAN_ENDPOINT, &answer)?;
-        if !plan.matches(publication, HOST_ID) {
+        let plan: ConsumerInstallationPlan = decode(PLAN_ENDPOINT, &answer)?;
+        if !plan_matches(&plan, publication, HostKind::Harness) {
             return Err(protocol(
                 PLAN_ENDPOINT,
                 Some(200),

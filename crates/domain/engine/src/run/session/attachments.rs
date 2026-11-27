@@ -8,10 +8,10 @@ use std::path::Path;
 
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
-use harness_store::PartBody;
+use crate::store::PartBody;
 
 use super::AttachmentInput;
-use crate::error::EngineError;
+use crate::run::error::EngineError;
 
 const OCTET_STREAM: &str = "application/octet-stream";
 

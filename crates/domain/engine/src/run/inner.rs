@@ -1,4 +1,4 @@
-//! The shared state behind every [`Engine`](crate::Engine) clone: options,
+//! The shared state behind every [`Engine`](crate::run::Engine) clone: options,
 //! caches, the running sessions, pending asks, background jobs and the one task
 //! set everything the engine starts belongs to.
 //!
@@ -12,25 +12,25 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
-use harness_config::{Layout, Loaded, Paths, Ruleset, Settings};
-use harness_llm::{ModelSpec, Transport};
-use harness_mcp::ClientInfo;
-use harness_store::{Session, SessionId, Store, StoreError};
-use harness_tasks::{BackgroundTasks, CancellationToken};
-use harness_tools::{BackgroundJobs, TodoSink};
-use harness_workspace::{PrunePolicy, PruneSchedule, Workspace, WorkspaceOptions};
+use crate::config::{Layout, Loaded, Paths, Ruleset, Settings};
+use crate::llm::{ModelSpec, Transport};
+use crate::mcp::ClientInfo;
+use crate::store::{Session, SessionId, Store, StoreError};
+use systemprompt_traits::{BackgroundTasks, CancellationToken};
+use crate::tools::{BackgroundJobs, TodoSink};
+use crate::workspace::{PrunePolicy, PruneSchedule, Workspace, WorkspaceOptions};
 use parking_lot::{Mutex, RwLock};
 use tokio::sync::broadcast;
 
-use crate::db::Db;
-use crate::directory::{DirState, formatter_config};
-use crate::error::EngineError;
-use crate::events::{EngineEvent, publish};
-use crate::governed::Governed;
-use crate::options::EngineOptions;
-use crate::session::Runs;
-use crate::tools::asks::Asks;
-use crate::tools::hooks::{JobNotices, StoreTodos};
+use crate::run::db::Db;
+use crate::run::directory::{DirState, formatter_config};
+use crate::run::error::EngineError;
+use crate::run::events::{EngineEvent, publish};
+use crate::run::governed::Governed;
+use crate::run::options::EngineOptions;
+use crate::run::session::Runs;
+use crate::run::tools::asks::Asks;
+use crate::run::tools::hooks::{JobNotices, StoreTodos};
 
 const EVENT_CAPACITY: usize = 512;
 const SNAPSHOT_PRUNE_EVERY: Duration = Duration::from_hours(1);

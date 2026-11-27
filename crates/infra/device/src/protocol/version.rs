@@ -1,6 +1,6 @@
 //! The manifest version and the acceptance rules that only need it and a clock.
 //!
-//! A [`ManifestVersion`] is `<RFC 3339 timestamp>-<hex suffix>` (at least 8 hex
+//! A `ManifestVersion` is `<RFC 3339 timestamp>-<hex suffix>` (at least 8 hex
 //! digits). Versions order by timestamp, then by suffix, so a manifest is
 //! accepted only when it is strictly newer than the last one accepted. The type
 //! is `systemprompt-models`' own, so the harness orders versions exactly as the
@@ -11,9 +11,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Duration, Utc};
-pub use systemprompt_models::bridge::manifest_version::{
-    ManifestVersion, ManifestVersionParseError,
-};
+use systemprompt_models::bridge::manifest_version::ManifestVersion;
 
 pub const SKEW_WINDOW_MINUTES: i64 = 5;
 

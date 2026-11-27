@@ -13,11 +13,11 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use self::search::{Found, Include, Query, search};
-use crate::config::SearchLimits;
-use crate::contract::{PermissionRequest, Tool, ToolContext, ToolOutput};
-use crate::error::ToolError;
-use crate::path::{display_path, guard_external, resolve, slash};
-use crate::repair::parse_input;
+use crate::tools::config::SearchLimits;
+use crate::tools::contract::{PermissionRequest, Tool, ToolContext, ToolOutput};
+use crate::tools::error::ToolError;
+use crate::tools::path::{display_path, guard_external, resolve, slash};
+use crate::tools::repair::parse_input;
 
 /// Searches file contents with a regular expression.
 #[derive(Debug, Clone, Copy)]
@@ -44,7 +44,7 @@ struct Input {
 #[async_trait]
 impl Tool for GrepTool {
     fn name(&self) -> &str {
-        crate::names::GREP
+        crate::tools::names::GREP
     }
 
     fn description(&self) -> String {

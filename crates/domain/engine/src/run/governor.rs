@@ -10,12 +10,12 @@ use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use harness_ids::{CallId, MessageId, SessionId};
-use harness_llm::{Endpoint, ModelSpec, Usage};
-use harness_mcp::HeaderSource;
+use systemprompt_identifiers::engine::{CallId, MessageId, SessionId};
+use crate::llm::{Endpoint, ModelSpec, Usage};
+use crate::mcp::HeaderSource;
 use serde_json::Value;
 
-use crate::extension::EnabledExtensions;
+use crate::run::extension::EnabledExtensions;
 
 /// Supplies models, MCP servers and the enabled extensions, authorises every
 /// model call and gives its verdict on every tool call.
@@ -37,7 +37,7 @@ use crate::extension::EnabledExtensions;
 /// re-reads both. `governed_by` names the organisation whose policy reviews
 /// tool calls in the system prompt. What the Governor only needs to hear (new
 /// user messages, finished tool calls, session lifecycle) reaches it as an
-/// extension's [`GovernorObserver`](crate::extension::GovernorObserver).
+/// extension's [`GovernorObserver`](crate::run::extension::GovernorObserver).
 #[async_trait::async_trait]
 pub trait Governor: Send + Sync {
     fn models(&self) -> Vec<ModelSpec>;
@@ -173,7 +173,7 @@ pub enum GovernError {
 
 /// A Governor that offers no models, enables no extension and allows every
 /// tool: an engine built with it refuses every prompt with
-/// [`crate::ErrorKind::NotSignedIn`].
+/// [`crate::run::ErrorKind::NotSignedIn`].
 #[derive(Debug, Clone, Copy, Default)]
 pub struct NullGovernor;
 

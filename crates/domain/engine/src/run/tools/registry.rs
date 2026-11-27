@@ -10,18 +10,18 @@
 
 use std::sync::Arc;
 
-use harness_config::permission;
-use harness_llm::ToolDef;
-use harness_prompt::tool_names;
-use harness_tools::{Tool, names};
+use crate::config::permission;
+use crate::llm::ToolDef;
+use crate::prompt::tool_names;
+use crate::tools::{Tool, names};
 
 use super::mcp::McpToolAdapter;
 use super::question::QuestionTool;
 use super::skill::SkillTool;
 use super::task::TaskTool;
-use crate::extension::ExtensionTool;
-use crate::session::run::StepContext;
-use crate::session::subtask::can_write;
+use crate::run::extension::ExtensionTool;
+use crate::run::session::run::StepContext;
+use crate::run::session::subtask::can_write;
 
 pub(crate) struct ToolBox {
     tools: Vec<Arc<dyn Tool>>,

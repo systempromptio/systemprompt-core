@@ -8,19 +8,20 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_client::ConsumerOutcome;
-use sp_projection::SkillPublication;
-use sp_protocol::HOST_ID;
-use sp_protocol::wire::consumer::{InstallationPlan, ReceiptRequest, build_receipt};
+use crate::projection::SkillPublication;
+use systemprompt_device::client::ConsumerOutcome;
+use systemprompt_device::protocol::receipts::{build_receipt, plan_matches};
+use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::feedback::receipts::{ConsumerInstallationPlan, ConsumerReceiptRequest};
 use tokio::time::Instant;
 
 use super::device::HeldDevice;
 use super::{RuntimeFiles, WaitKey};
-use crate::cadence::{INSTALL_BUDGET, INSTALL_MINIMUM, outbox_delay};
-use crate::outbox::Outbox;
-use crate::poll::Scope;
-use crate::ports::{Instance, Store};
-use crate::target::Target;
+use crate::sync::cadence::{INSTALL_BUDGET, INSTALL_MINIMUM, outbox_delay};
+use crate::sync::outbox::Outbox;
+use crate::sync::poll::Scope;
+use crate::sync::ports::{Instance, Store};
+use crate::sync::target::Target;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub(super) struct Installed {
@@ -30,8 +31,8 @@ pub(super) struct Installed {
 }
 
 enum Installation {
-    Receipt(Box<(ReceiptRequest, InstallationPlan)>),
-    Intact(Box<InstallationPlan>),
+    Receipt(Box<(ConsumerReceiptRequest, ConsumerInstallationPlan)>),
+    Intact(Box<ConsumerInstallationPlan>),
     DeviceRefused,
     Failed,
 }
@@ -95,7 +96,7 @@ impl RuntimeFiles {
         let Some(plan) = self
             .plans
             .get(&publication.publication.publication_id)
-            .filter(|plan| plan.matches(&publication.publication, HOST_ID))
+            .filter(|plan| plan_matches(plan, &publication.publication, HostKind::Harness))
         else {
             return false;
         };

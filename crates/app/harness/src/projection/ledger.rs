@@ -14,12 +14,12 @@
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
-use sp_secure::read_optional;
+use systemprompt_device::secure::read_optional;
 
-use crate::bundle::is_owned_path;
-use crate::error::ProjectionError;
-use crate::model::SkillSet;
-use crate::skill_md;
+use crate::projection::bundle::is_owned_path;
+use crate::projection::error::ProjectionError;
+use crate::projection::model::SkillSet;
+use crate::projection::skill_md;
 
 pub const SKILLS_DIR: &str = "skills";
 pub const SKILL_FILE: &str = "SKILL.md";

@@ -9,13 +9,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_client::{ClientError, CredentialError, JwtSession, SpClient};
-use sp_protocol::Pat;
-use sp_protocol::ids::{AccountId, SessionId};
-use sp_secure::SealedString;
+use crate::client::{ClientError, CredentialError, JwtSession, SpClient};
+use crate::protocol::Pat;
+use crate::protocol::ids::AccountId;
+use crate::secure::SealedString;
+use systemprompt_identifiers::SessionId;
 
-use crate::accounts::Accounts;
-use crate::state::State;
+use crate::accounts::accounts::Accounts;
+use crate::accounts::state::State;
 
 type MintInputs = (Option<(String, SealedString)>, Option<SessionId>);
 

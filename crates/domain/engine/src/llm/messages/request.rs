@@ -8,7 +8,7 @@
 use serde_json::{Map, Value, json};
 
 use super::content::block;
-use crate::model::{Params, Reasoning, Request, Role, ToolChoice};
+use crate::llm::model::{Params, Reasoning, Request, Role, ToolChoice};
 
 const DEFAULT_MAX_OUTPUT: u32 = 8_192;
 const MIN_THINKING_BUDGET: u32 = 1_024;

@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use rusqlite::{Connection, TransactionBehavior};
 
-use crate::error::{Result, StoreError};
+use crate::store::error::{Result, StoreError};
 
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 

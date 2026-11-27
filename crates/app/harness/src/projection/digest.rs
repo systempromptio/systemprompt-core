@@ -14,10 +14,10 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use sp_protocol::jcs::canonicalize;
-use sp_protocol::names::sha256_hex;
+use systemprompt_device::protocol::jcs::canonicalize;
+use systemprompt_device::protocol::names::sha256_hex;
 
-use crate::input::ProjectionInput;
+use crate::projection::input::ProjectionInput;
 
 const RESIGNED_FIELDS: [&str; 3] = ["manifest_version", "issued_at", "not_before"];
 
@@ -43,7 +43,7 @@ impl fmt::Display for ContentDigest {
 
 #[must_use]
 pub fn digest(input: &ProjectionInput<'_>) -> ContentDigest {
-    let mut manifest = serde_json::to_value(input.manifest).unwrap_or(Value::Null);
+    let mut manifest = serde_json::to_value(input.manifest.signed()).unwrap_or(Value::Null);
     if let Value::Object(map) = &mut manifest {
         for field in RESIGNED_FIELDS {
             map.remove(field);
@@ -67,6 +67,7 @@ pub fn digest(input: &ProjectionInput<'_>) -> ContentDigest {
         "host": input.host,
         "instance": { "url": input.instance_url, "key": input.instance_key.as_str() },
         "manifest": manifest,
+        "host_settings": input.manifest.marketplace_settings(),
         "profile": profile,
         "catalog": catalog,
         "bundle": delivered,

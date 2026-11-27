@@ -18,7 +18,7 @@ use std::{fs, io};
 
 use ignore::WalkBuilder;
 
-use crate::paths::{fold, path_for_key, rel_key_under};
+use crate::workspace::paths::{fold, path_for_key, rel_key_under};
 use index::{IndexEntry, MODE_GITLINK, MODE_SYMLINK};
 
 const MAX_SYMREF_DEPTH: usize = 5;

@@ -4,13 +4,13 @@
 //! denied, rejected or malformed calls.
 //!
 //! Text meant to be appended to a user message is wrapped by
-//! [`reminder`](crate::notices::reminder) so the model can tell it from what
+//! [`reminder`](crate::prompt::notices::reminder) so the model can tell it from what
 //! the user typed. Text meant to be a tool result is returned bare.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use harness_ids::JobId;
+use systemprompt_identifiers::engine::JobId;
 
 pub const REMINDER_OPEN: &str = "<system-reminder>";
 pub const REMINDER_CLOSE: &str = "</system-reminder>";

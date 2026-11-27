@@ -6,7 +6,9 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::ids::{ContextId, DocumentFolderId, DocumentId, DocumentRevisionId, UserId};
+use systemprompt_identifiers::{
+    ContextId, DocumentFolderId, DocumentId, DocumentRevisionId, UserId,
+};
 
 /// Which documents `GET /api/v1/documents` lists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

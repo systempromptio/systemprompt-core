@@ -6,9 +6,9 @@
 
 use std::collections::HashMap;
 
-use harness_ids::SessionId;
 use parking_lot::Mutex;
-use sp_protocol::wire::brain::FactRef;
+use systemprompt_identifiers::engine::SessionId;
+use systemprompt_models::brain::FactRef;
 
 #[derive(Debug, Default)]
 pub(crate) struct MemoryLedger {

@@ -9,14 +9,14 @@ use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use crate::contract::{Tool, ToolContext, ToolOutput};
-use crate::diff::{counts, unified};
-use crate::error::ToolError;
-use crate::files::{ask_edit, read_existing, with_notes, write_file};
-use crate::matching::{self, MatchError, Strategy};
-use crate::path::{display_path, guard_external, resolve};
-use crate::repair::parse_input;
-use crate::text::{TextFile, normalize_newlines};
+use crate::tools::contract::{Tool, ToolContext, ToolOutput};
+use crate::tools::diff::{counts, unified};
+use crate::tools::error::ToolError;
+use crate::tools::files::{ask_edit, read_existing, with_notes, write_file};
+use crate::tools::matching::{self, MatchError, Strategy};
+use crate::tools::path::{display_path, guard_external, resolve};
+use crate::tools::repair::parse_input;
+use crate::tools::text::{TextFile, normalize_newlines};
 
 /// Replaces text inside a file.
 #[derive(Debug, Clone, Copy, Default)]
@@ -43,7 +43,7 @@ struct Change {
 #[async_trait]
 impl Tool for EditTool {
     fn name(&self) -> &str {
-        crate::names::EDIT
+        crate::tools::names::EDIT
     }
 
     fn description(&self) -> String {

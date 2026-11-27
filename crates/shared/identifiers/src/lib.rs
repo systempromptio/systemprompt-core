@@ -57,6 +57,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod db_value;
+pub mod engine;
 
 pub use db_value::{DbValue, FromDbValue, JsonRow, ToDbValue, parse_database_datetime};
 

@@ -12,7 +12,7 @@ use bytes::Bytes;
 use futures_util::{Stream, TryStreamExt};
 use url::Url;
 
-use crate::error::TransportError;
+use crate::llm::error::TransportError;
 
 /// The body of a response, as chunks of bytes in arrival order.
 pub type ByteStream = Pin<Box<dyn Stream<Item = Result<Bytes, TransportError>> + Send>>;

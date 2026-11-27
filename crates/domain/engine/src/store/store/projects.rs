@@ -7,12 +7,12 @@ use std::path::Path;
 
 use rusqlite::{Connection, params};
 
-use crate::change::Change;
-use crate::error::{Result, not_found};
-use crate::id::{ProjectId, SessionId, column, now_ms, optional_column, param};
-use crate::model::Project;
-use crate::rows::{insert_project, load_project, query_projects};
-use crate::store::Store;
+use crate::store::change::Change;
+use crate::store::error::{Result, not_found};
+use crate::store::id::{ProjectId, SessionId, column, now_ms, optional_column, param};
+use crate::store::model::Project;
+use crate::store::rows::{insert_project, load_project, query_projects};
+use crate::store::store::Store;
 
 impl Store {
     pub fn ensure_project(&self, worktree: &Path, name: &str) -> Result<Project> {

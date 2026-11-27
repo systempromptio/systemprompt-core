@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use super::layout::{FileEntry, hash_bytes};
 use super::tree::{Candidate, Hashed, scan};
 use super::{SnapshotError, SnapshotId, SnapshotStore};
-use crate::paths::{fold, key_matches, relative_key};
+use crate::workspace::paths::{fold, key_matches, relative_key};
 
 impl SnapshotStore {
     pub fn restore(&self, id: &SnapshotId) -> Result<Vec<PathBuf>, SnapshotError> {

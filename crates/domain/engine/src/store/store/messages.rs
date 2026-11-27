@@ -7,12 +7,12 @@ use std::collections::HashMap;
 
 use rusqlite::{Connection, params};
 
-use crate::change::Change;
-use crate::error::Result;
-use crate::id::{MessageId, SessionId, column, now_ms, optional_param, param};
-use crate::model::{Message, MessagePage, MessageWithParts, Part};
-use crate::rows::{load_message, load_session, query_messages, query_parts, write_message};
-use crate::store::Store;
+use crate::store::change::Change;
+use crate::store::error::Result;
+use crate::store::id::{MessageId, SessionId, column, now_ms, optional_param, param};
+use crate::store::model::{Message, MessagePage, MessageWithParts, Part};
+use crate::store::rows::{load_message, load_session, query_messages, query_parts, write_message};
+use crate::store::store::Store;
 
 const PAGE_TAIL: &str =
     "WHERE session_id = ?1 AND (?2 IS NULL OR id < ?2) ORDER BY id DESC LIMIT ?3";

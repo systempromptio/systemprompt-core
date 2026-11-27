@@ -10,14 +10,14 @@
 use std::fmt;
 use std::sync::Arc;
 
-use harness_engine::extension::GovernorObserver;
-use harness_ids::extension_id;
-use sp_extension::{
+use crate::extension::{
     AppliedInstance, ApplyError, EngineExtension, ExtensionId, ExtensionMetadata, ManifestApplier,
-    SpContext, SpExtension, register_sp_extension,
+    SpContext, SpExtension,
 };
+use systemprompt_engine::run::extension::GovernorObserver;
+use systemprompt_identifiers::extension_id;
 
-use crate::governance::{Governance, GovernanceTelemetry};
+use crate::governance::governance::{Governance, GovernanceTelemetry};
 
 /// The governance extension, id `governance`, required.
 ///
@@ -35,7 +35,6 @@ const fn metadata() -> ExtensionMetadata {
     ExtensionMetadata::new(GovernanceExtension::ID, "Governance").mark_required()
 }
 
-register_sp_extension!(GovernanceExtension);
 
 impl SpExtension for GovernanceExtension {
     fn metadata(&self) -> ExtensionMetadata {

@@ -9,8 +9,8 @@ use std::path::Path;
 
 use serde_json::json;
 
-use crate::contract::ToolOutput;
-use crate::error::ToolError;
+use crate::tools::contract::ToolOutput;
+use crate::tools::error::ToolError;
 
 const DIR_ENTRIES: usize = 500;
 

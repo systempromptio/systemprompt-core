@@ -17,11 +17,11 @@ use futures_util::future::join_all;
 use parking_lot::Mutex;
 use tracing::{info, warn};
 
-use crate::client::{Client, ClientSettings};
-use crate::error::{LspError, chain};
-use crate::paths::{self, ProgramSearch};
-use crate::spec::{self, LspConfig, Resolved, ServerId};
-use crate::types::{Diagnostic, DiagnosticScope, ServerState, ServerStatus};
+use crate::lsp::client::{Client, ClientSettings};
+use crate::lsp::error::{LspError, chain};
+use crate::lsp::paths::{self, ProgramSearch};
+use crate::lsp::spec::{self, LspConfig, Resolved, ServerId};
+use crate::lsp::types::{Diagnostic, DiagnosticScope, ServerState, ServerStatus};
 
 use slots::{Slot, SlotKey};
 

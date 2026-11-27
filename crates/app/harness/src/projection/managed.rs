@@ -8,12 +8,12 @@
 use std::path::Path;
 use std::{fs, io};
 
-use sp_secure::{Access, contained_path, read_optional, remove_if_exists, write_if_changed};
+use systemprompt_device::secure::{Access, contained_path, read_optional, remove_if_exists, write_if_changed};
 
-use crate::error::ProjectionError;
-use crate::ledger::{self, SKILL_FILE};
-use crate::model::{BundleFile, SkillSet};
-use crate::rules;
+use crate::projection::error::ProjectionError;
+use crate::projection::ledger::{self, SKILL_FILE};
+use crate::projection::model::{BundleFile, SkillSet};
+use crate::projection::rules;
 
 pub(crate) fn write_skills(
     root: &Path,

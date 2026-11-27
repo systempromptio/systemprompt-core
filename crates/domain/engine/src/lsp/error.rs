@@ -5,8 +5,8 @@
 
 use std::path::PathBuf;
 
-use crate::framing::FrameError;
-use crate::spec::ServerId;
+use crate::lsp::framing::FrameError;
+use crate::lsp::spec::ServerId;
 
 /// Everything that can go wrong between the engine and a language server.
 #[derive(Debug, thiserror::Error)]

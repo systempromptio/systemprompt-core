@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::{fs, io};
 
 use super::platform::is_link;
-use crate::error::SecureError;
+use crate::secure::error::SecureError;
 
 pub fn contained_path(root: &Path, relative: &str) -> Result<PathBuf, SecureError> {
     let escapes = |reason: &'static str| SecureError::Escapes {

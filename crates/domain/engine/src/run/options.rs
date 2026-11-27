@@ -7,15 +7,15 @@ use std::ffi::OsString;
 use std::fmt;
 use std::sync::Arc;
 
-use harness_config::{Layout, Paths};
-use harness_llm::Transport;
-use harness_mcp::ClientInfo;
-use harness_store::Store;
+use crate::config::{Layout, Paths};
+use crate::llm::Transport;
+use crate::mcp::ClientInfo;
+use crate::store::Store;
 
-use crate::extension::ExtensionSet;
-use crate::governor::Governor;
+use crate::run::extension::ExtensionSet;
+use crate::run::governor::Governor;
 
-/// Everything an [`Engine`](crate::Engine) is built from.
+/// Everything an [`Engine`](crate::run::Engine) is built from.
 ///
 /// Nothing is read from the environment by the engine itself. `client_info` is
 /// how the app introduces itself to MCP servers, `search_path` is the program

@@ -9,8 +9,8 @@ use std::fmt;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use crate::headers::RemoteHeaders;
-use crate::types::ClientInfo;
+use crate::mcp::headers::RemoteHeaders;
+use crate::mcp::types::ClientInfo;
 
 /// Every server's status by name.
 pub type StatusMap = BTreeMap<String, ServerStatus>;

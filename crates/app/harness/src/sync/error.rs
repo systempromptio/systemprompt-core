@@ -7,13 +7,13 @@
 
 use std::time::Duration;
 
-use sp_accounts::AccountsError;
-use sp_client::ClientError;
-use sp_extension::ExtensionError;
-use sp_projection::{MaterializeError, ProjectionError};
-use sp_protocol::view::SyncErrorKind;
+use crate::extension::ExtensionError;
+use crate::projection::{MaterializeError, ProjectionError};
+use systemprompt_device::accounts::AccountsError;
+use systemprompt_device::client::ClientError;
+use systemprompt_device::view::SyncErrorKind;
 
-use crate::acceptance::Refusal;
+use crate::sync::acceptance::Refusal;
 
 /// Why the sync engine could not start.
 #[derive(Debug, thiserror::Error)]

@@ -13,22 +13,23 @@
 
 use std::fmt;
 
+use crate::protocol::manifest::{Manifest, SUPPORTED_SCHEMA_VERSION, probe_schema_version};
+use crate::protocol::names::decode_pubkey;
+use crate::protocol::{Jwt, PubkeyError};
+use crate::view::KeyFingerprint;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use ed25519_dalek::{Signature, VerifyingKey};
 use reqwest::header::{CACHE_CONTROL, ETAG, HeaderValue, IF_NONE_MATCH};
-use sp_protocol::names::decode_pubkey;
-use sp_protocol::view::KeyFingerprint;
-use sp_protocol::wire::auth::PubkeyResponse;
-use sp_protocol::wire::manifest::{
-    Manifest, SUPPORTED_SCHEMA_VERSION, SignedManifestEnvelope, probe_schema_version,
-};
-use sp_protocol::wire::paths;
-use sp_protocol::{Jwt, PubkeyError};
+use systemprompt_models::ApiPaths;
+use systemprompt_models::bridge::manifest::SignedManifestEnvelope;
+use systemprompt_models::bridge::session::PubkeyResponse;
 
-use crate::client::SpClient;
-use crate::error::{ClientError, Incompatibility};
-use crate::http::{DEFAULT_TIMEOUT, SMALL_BODY, decode, decode_error, exchange, failure, protocol};
+use crate::client::client::SpClient;
+use crate::client::error::{ClientError, Incompatibility};
+use crate::client::http::{
+    DEFAULT_TIMEOUT, SMALL_BODY, decode, decode_error, exchange, failure, protocol,
+};
 
 const MANIFEST_ENDPOINT: &str = "GET /v1/bridge/manifest";
 const PUBKEY_ENDPOINT: &str = "GET /v1/bridge/pubkey";
@@ -125,7 +126,7 @@ fn parse_verified(payload: &str) -> Result<Manifest, ClientError> {
     {
         return Err(too_new(found));
     }
-    let manifest: Manifest = serde_json::from_str(payload)
+    let manifest = Manifest::parse(payload)
         .map_err(|error| decode_error(MANIFEST_ENDPOINT, Some(200), &error))?;
     if manifest.schema_too_new() {
         return Err(too_new(manifest.min_schema_version));
@@ -135,7 +136,7 @@ fn parse_verified(payload: &str) -> Result<Manifest, ClientError> {
 
 impl SpClient {
     pub async fn pubkey(&self) -> Result<ManifestKey, ClientError> {
-        let request = self.get(self.at(paths::PUBKEY)?);
+        let request = self.get(self.at(ApiPaths::BRIDGE_PUBKEY)?);
         let answer = exchange(PUBKEY_ENDPOINT, request, DEFAULT_TIMEOUT, SMALL_BODY).await?;
         if answer.status.as_u16() != 200 {
             return Err(failure(PUBKEY_ENDPOINT, &answer));
@@ -158,7 +159,7 @@ impl SpClient {
         no_cache: bool,
     ) -> Result<ManifestFetch, ClientError> {
         let mut request = self
-            .get(self.at(paths::MANIFEST)?)
+            .get(self.at(ApiPaths::BRIDGE_MANIFEST)?)
             .bearer_auth(jwt.expose());
         if let Some(tag) = etag.and_then(|tag| HeaderValue::from_str(tag).ok()) {
             request = request.header(IF_NONE_MATCH, tag);

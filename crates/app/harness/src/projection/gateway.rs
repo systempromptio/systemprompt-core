@@ -18,12 +18,13 @@
 
 use std::collections::HashSet;
 
-use sp_protocol::names::is_plain_id;
-use sp_protocol::origin::normalize_instance_url;
-use sp_protocol::wire::catalog::{ModelCatalog, Profile, ProviderHealth, base_model_id};
+use systemprompt_device::protocol::names::is_plain_id;
+use systemprompt_device::protocol::origin::normalize_instance_url;
+use systemprompt_models::bridge::catalog::{ModelCatalog, base_model_id};
+use systemprompt_models::bridge::profile::{BridgeProfileResponse as Profile, ProviderHealth};
 
-use crate::input::ProjectionInput;
-use crate::model::{Gateway, GatewayModel, Protocol};
+use crate::projection::input::ProjectionInput;
+use crate::projection::model::{Gateway, GatewayModel, Protocol};
 
 pub const DEFAULT_MODEL_FAMILIES: [&str; 2] = [CLAUDE, OPENAI];
 

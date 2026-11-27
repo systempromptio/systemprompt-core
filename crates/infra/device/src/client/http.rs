@@ -1,7 +1,7 @@
 //! Transport shared by every route.
 //!
 //! One [`HttpClient`] (rustls, a neutral User-Agent the caller names, a connect
-//! timeout, redirects never followed) is shared by every [`crate::SpClient`].
+//! timeout, redirects never followed) is shared by every [`crate::client::SpClient`].
 //! Each route sets its own whole-answer timeout and body limit; an answer over
 //! its limit is refused before it is buffered. A 3xx is a protocol error:
 //! following it could carry a credential to another origin.
@@ -17,7 +17,7 @@ use reqwest::{RequestBuilder, StatusCode};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 
-use crate::error::{ClientError, TransportFailure, error_key, excerpt};
+use crate::client::error::{ClientError, TransportFailure, error_key, excerpt};
 
 pub(crate) const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 

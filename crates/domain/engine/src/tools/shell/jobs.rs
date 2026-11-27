@@ -7,12 +7,12 @@
 use std::path::PathBuf;
 use std::time::SystemTime;
 
-use harness_ids::{JobId, SessionId};
+use systemprompt_identifiers::engine::{JobId, SessionId};
 use serde::Serialize;
 
 /// Told when a background command ends on its own, times out or is killed by
-/// id. Commands removed with [`crate::BackgroundJobs::kill_all`] or
-/// [`crate::BackgroundJobs::shutdown`] end silently.
+/// id. Commands removed with [`crate::tools::BackgroundJobs::kill_all`] or
+/// [`crate::tools::BackgroundJobs::shutdown`] end silently.
 pub trait JobListener: Send + Sync {
     fn finished(&self, report: &JobReport);
 }

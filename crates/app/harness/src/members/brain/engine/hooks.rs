@@ -7,15 +7,15 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::extension::ExtensionSettings;
 use async_trait::async_trait;
-use harness_engine::extension::{CallAugmenter, GovernorObserver, ResponseHead};
-use harness_engine::{ModelCall, SessionEvent};
-use sp_extension::ExtensionSettings;
-use sp_protocol::wire::brain::{MEMORY_OFF, parse_memory_ids};
-use sp_protocol::wire::headers;
+use systemprompt_engine::run::extension::{CallAugmenter, GovernorObserver, ResponseHead};
+use systemprompt_engine::run::{ModelCall, SessionEvent};
+use systemprompt_identifiers::headers;
+use systemprompt_models::brain::client::{MEMORY_OFF, parse_memory_ids};
 
-use crate::service::BrainService;
-use crate::settings::BrainSettings;
+use crate::members::brain::service::BrainService;
+use crate::members::brain::settings::BrainSettings;
 
 pub(super) struct RecallSwitch {
     settings: ExtensionSettings,

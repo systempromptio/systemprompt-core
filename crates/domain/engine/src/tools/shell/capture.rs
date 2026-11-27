@@ -11,8 +11,8 @@ use std::time::Duration;
 use serde_json::json;
 use tokio::time::Instant;
 
-use crate::contract::Progress;
-use crate::text::{ceil_boundary, floor_boundary};
+use crate::tools::contract::Progress;
+use crate::tools::text::{ceil_boundary, floor_boundary};
 
 const LIVE_TAIL_BYTES: usize = 8 * 1024;
 const LIVE_INTERVAL: Duration = Duration::from_millis(250);

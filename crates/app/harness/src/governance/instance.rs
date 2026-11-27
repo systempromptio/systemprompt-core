@@ -12,23 +12,23 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+use crate::projection::Applied;
 use chrono::{DateTime, Utc};
-use harness_engine::extension::EnabledExtensions;
-use harness_engine::{McpSpec, Purpose};
-use harness_ids::SessionId;
-use harness_llm::ModelSpec;
 use parking_lot::Mutex;
-use sp_client::{CredentialSource, HookClient, HookGrant};
-use sp_projection::Applied;
-use sp_protocol::HookToken;
-use sp_protocol::ids::PluginId;
-use sp_protocol::origin::is_transport_secure;
+use systemprompt_device::client::{CredentialSource, HookClient, HookGrant};
+use systemprompt_device::protocol::HookToken;
+use systemprompt_device::protocol::origin::is_transport_secure;
+use systemprompt_engine::llm::ModelSpec;
+use systemprompt_engine::run::extension::EnabledExtensions;
+use systemprompt_engine::run::{McpSpec, Purpose};
+use systemprompt_identifiers::PluginId;
+use systemprompt_identifiers::engine::SessionId;
 use url::Url;
 
-use crate::error::GovernanceError;
-use crate::governance::InstanceParts;
-use crate::hooks::HookApi;
-use crate::{mcp, models};
+use crate::governance::error::GovernanceError;
+use crate::governance::governance::InstanceParts;
+use crate::governance::hooks::HookApi;
+use crate::governance::{mcp, models};
 
 pub(crate) const JWT_MIN_VALIDITY: Duration = Duration::from_secs(60);
 

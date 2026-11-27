@@ -13,15 +13,15 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
-use harness_ids::{JobId, SessionId};
-use harness_tasks::{BackgroundTasks, CancellationToken};
+use systemprompt_identifiers::engine::{JobId, SessionId};
+use systemprompt_traits::{BackgroundTasks, CancellationToken};
 use parking_lot::Mutex;
 
 use super::jobs::{JobInfo, JobListener, JobReport, JobState};
 use super::process::{self, Ending, Running};
 use super::select::ShellSpec;
-use crate::error::ToolError;
-use crate::text::ceil_boundary;
+use crate::tools::error::ToolError;
+use crate::tools::text::ceil_boundary;
 
 const TAIL_BYTES: usize = 16 * 1024;
 
@@ -193,7 +193,7 @@ impl BackgroundJobs {
             ToolError::io(format!("could not create {}", output_path.display()), err)
         })?;
         let running = process::start(request.spec, request.command, request.cwd)?;
-        let cancel = self.inner.tasks.child_token();
+        let cancel = self.inner.tasks.cancellation_token();
         let info = JobInfo {
             id: id.clone(),
             session_id: request.session_id.clone(),

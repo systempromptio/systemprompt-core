@@ -19,9 +19,9 @@
 use std::future::Future;
 use std::time::Duration;
 
-use sp_protocol::Jwt;
+use crate::protocol::Jwt;
 
-use crate::error::ClientError;
+use crate::client::error::ClientError;
 
 const REUSE_MARGIN: Duration = Duration::from_secs(60);
 

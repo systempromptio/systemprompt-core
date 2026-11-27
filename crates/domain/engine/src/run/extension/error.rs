@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use harness_ids::ExtensionId;
+use systemprompt_identifiers::engine::ExtensionId;
 
 /// A set of extensions that cannot run together.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]

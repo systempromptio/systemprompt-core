@@ -13,10 +13,10 @@ use super::capture::{Capture, Live};
 use super::process::{self, Ending};
 use super::registry::JobStart;
 use super::{Call, ShellKind, ShellTool};
-use crate::contract::{ToolContext, ToolOutput};
-use crate::error::ToolError;
-use crate::path::slash;
-use crate::truncate::{Keep, truncate_output};
+use crate::tools::contract::{ToolContext, ToolOutput};
+use crate::tools::error::ToolError;
+use crate::tools::path::slash;
+use crate::tools::truncate::{Keep, truncate_output};
 
 #[derive(Debug, Clone, Copy)]
 struct Outcome {

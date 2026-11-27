@@ -22,9 +22,9 @@
 
 use std::path::Path;
 
-use crate::base::CORE_PROMPT;
-use crate::notices::POLICY_DENIAL_PREFIX;
-use crate::shell::ShellKind;
+use crate::prompt::base::CORE_PROMPT;
+use crate::prompt::notices::POLICY_DENIAL_PREFIX;
+use crate::prompt::shell::ShellKind;
 
 /// Everything [`build`] needs to assemble the system prompt for one model call.
 ///

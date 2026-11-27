@@ -10,20 +10,20 @@ use std::ffi::OsString;
 use std::sync::Arc;
 use std::time::Duration;
 
-use harness_config::{
+use crate::config::{
     AgentDef, AgentMode as ConfigMode, Loaded, McpServer, Paths, Ruleset, Settings, ToolFilter,
 };
-use harness_lsp::{LspConfig, ServerId, ServerSpec as LspServerSpec};
-use harness_mcp::{RemoteHeaders, ServerConfig, ServerSpec};
-use harness_prompt::agents::{AgentMode as PromptMode, BUILTIN_AGENTS};
-use harness_tools::{
+use crate::lsp::{LspConfig, ServerId, ServerSpec as LspServerSpec};
+use crate::mcp::{RemoteHeaders, ServerConfig, ServerSpec};
+use crate::prompt::agents::{AgentMode as PromptMode, BUILTIN_AGENTS};
+use crate::tools::{
     BackgroundJobs, EditTool, FetchTool, GlobTool, GrepTool, PatchTool, ReadTool, ShellKind,
     ShellSpec, ShellTool, TodoSink, TodoTool, Tool, ToolsConfig, WriteTool,
 };
-use harness_workspace::{FormatterConfig, FormatterSpec};
+use crate::workspace::{FormatterConfig, FormatterSpec};
 
-use crate::governor::McpSpec;
-use crate::inner::Inner;
+use crate::run::governor::McpSpec;
+use crate::run::inner::Inner;
 
 pub(crate) fn builtin_agents(paths: &Paths) -> Vec<AgentDef> {
     BUILTIN_AGENTS
@@ -202,11 +202,11 @@ pub(crate) fn builtin_tools(
     ]
 }
 
-pub(crate) const fn prompt_shell(kind: ShellKind) -> harness_prompt::ShellKind {
+pub(crate) const fn prompt_shell(kind: ShellKind) -> crate::prompt::ShellKind {
     match kind {
-        ShellKind::Pwsh => harness_prompt::ShellKind::Pwsh,
-        ShellKind::WindowsPowerShell => harness_prompt::ShellKind::WindowsPowerShell,
-        ShellKind::Cmd => harness_prompt::ShellKind::Cmd,
-        ShellKind::GitBash | ShellKind::Posix => harness_prompt::ShellKind::Bash,
+        ShellKind::Pwsh => crate::prompt::ShellKind::Pwsh,
+        ShellKind::WindowsPowerShell => crate::prompt::ShellKind::WindowsPowerShell,
+        ShellKind::Cmd => crate::prompt::ShellKind::Cmd,
+        ShellKind::GitBash | ShellKind::Posix => crate::prompt::ShellKind::Bash,
     }
 }

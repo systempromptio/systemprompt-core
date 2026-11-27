@@ -18,21 +18,21 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use sp_accounts::{AccountsError, AccountsSnapshot};
-use sp_client::{ClientError, CredentialError, Freshness, JwtSession};
-use sp_governance::UsageTotals;
-use sp_protocol::ids::AccountId;
-use sp_protocol::wire::heartbeat::{
-    ClientState, HEARTBEAT_INTERVAL_SECS, HeartbeatRequest, HeartbeatResponse, WindowStatus,
-    saturating_total,
+use crate::governance::UsageTotals;
+use systemprompt_device::accounts::{AccountsError, AccountsSnapshot};
+use systemprompt_device::client::{ClientError, CredentialError, Freshness, JwtSession};
+use systemprompt_device::protocol::ids::AccountId;
+use systemprompt_models::bridge::heartbeat::{
+    ClientState, HEARTBEAT_INTERVAL_SECS, HeartbeatRequest, HeartbeatResponse, saturating_total,
 };
+use systemprompt_models::bridge::instance::WindowStatus;
 use tokio::sync::watch;
 use tokio::time::{Instant, MissedTickBehavior};
 use tokio_util::sync::CancellationToken;
 
-use crate::ports::{Instance, Store};
-use crate::supervisor::active_signed_in;
-use crate::target::Target;
+use crate::sync::ports::{Instance, Store};
+use crate::sync::supervisor::active_signed_in;
+use crate::sync::target::Target;
 
 pub const BRIDGE_PROTOCOL_VERSION: &str = "0.87.0";
 

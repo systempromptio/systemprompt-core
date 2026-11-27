@@ -12,9 +12,11 @@
 
 use std::time::{Duration, Instant};
 
-use sp_protocol::view::SyncErrorKind;
+use systemprompt_device::view::SyncErrorKind;
 
-use crate::cadence::{CATALOG_INTERVAL, Jitter, poll_interval, service_delay, transient_delay};
+use crate::sync::cadence::{
+    CATALOG_INTERVAL, Jitter, poll_interval, service_delay, transient_delay,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Trigger {

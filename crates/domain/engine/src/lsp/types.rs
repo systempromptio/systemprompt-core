@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::spec::ServerId;
+use crate::lsp::spec::ServerId;
 
 /// A zero-based line and UTF-16 column.
 #[derive(

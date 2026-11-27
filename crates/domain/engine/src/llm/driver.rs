@@ -10,14 +10,14 @@ use std::collections::VecDeque;
 use futures_util::StreamExt;
 use tokio_util::sync::CancellationToken;
 
-use crate::chat::ChatDecoder;
-use crate::error::LlmError;
-use crate::event::Event;
-use crate::messages::MessagesDecoder;
-use crate::model::Protocol;
-use crate::sse::{SseFrame, SseParser};
-use crate::stream::EventStream;
-use crate::transport::ByteStream;
+use crate::llm::chat::ChatDecoder;
+use crate::llm::error::LlmError;
+use crate::llm::event::Event;
+use crate::llm::messages::MessagesDecoder;
+use crate::llm::model::Protocol;
+use crate::llm::sse::{SseFrame, SseParser};
+use crate::llm::stream::EventStream;
+use crate::llm::transport::ByteStream;
 
 pub(crate) fn events(
     body: ByteStream,

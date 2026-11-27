@@ -7,8 +7,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use harness_llm::{ModelSpec, Protocol, Supports};
-use sp_projection::{GatewayModel, Protocol as Route};
+use systemprompt_engine::llm::{ModelSpec, Protocol, Supports};
+use crate::projection::{GatewayModel, Protocol as Route};
 
 const FALLBACK_CONTEXT: u32 = 128_000;
 

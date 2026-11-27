@@ -6,8 +6,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::error::FieldError;
-use crate::permission::wildcard;
+use crate::config::error::FieldError;
+use crate::config::permission::wildcard;
 
 /// Which tools an agent may see.
 ///

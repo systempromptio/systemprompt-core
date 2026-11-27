@@ -9,13 +9,13 @@ use std::error::Error as StdError;
 use std::fmt;
 use std::sync::Arc;
 
-use harness_engine::extension::{EnabledExtensions, Resolved, admitted};
-use sp_client::{CredentialSource, SpClient};
-use sp_projection::Applied;
-use sp_protocol::ids::AccountId;
+use crate::projection::Applied;
+use systemprompt_device::client::{CredentialSource, SpClient};
+use systemprompt_device::protocol::ids::AccountId;
+use systemprompt_engine::run::extension::{EnabledExtensions, Resolved, admitted};
 
-use crate::enablement::Enablement;
-use crate::error::ExtensionError;
+use crate::extension::enablement::Enablement;
+use crate::extension::error::ExtensionError;
 
 /// The instance the engine is governed by.
 ///

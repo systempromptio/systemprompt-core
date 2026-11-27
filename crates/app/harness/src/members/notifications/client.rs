@@ -14,16 +14,21 @@ use std::sync::Arc;
 use reqwest::Method;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use sp_client::{ClientError, CredentialSource, HttpClient, SpClient, TransportFailure, with_jwt};
-use sp_protocol::origin::resolve_instance_path;
-use sp_protocol::wire::notifications::{
-    FEED_PAGE_MAX, FEED_QUERY_LIMIT, FEED_QUERY_SINCE, FEED_QUERY_UNREAD, KeysetCursor, MarkRead,
-    MarkSeen, NotificationPage, NotificationReadPayload, SeenAnswer,
+use systemprompt_device::client::{
+    ClientError, CredentialSource, HttpClient, SpClient, TransportFailure, with_jwt,
 };
-use sp_protocol::wire::paths;
+use systemprompt_device::protocol::origin::resolve_instance_path;
+use systemprompt_models::ApiPaths;
+use systemprompt_models::api::KeysetCursor;
+use systemprompt_models::notifications::feed::{
+    FEED_PAGE_MAX, FEED_QUERY_LIMIT, FEED_QUERY_SINCE, FEED_QUERY_UNREAD, SeenAnswer,
+};
+use systemprompt_models::notifications::{
+    MarkRead, MarkSeen, NotificationPage, NotificationReadPayload,
+};
 
-use crate::error::NotificationsError;
-use crate::http::{Answer, Call, send_once};
+use crate::members::notifications::error::NotificationsError;
+use crate::members::notifications::http::{Answer, Call, send_once};
 
 const FEED_BODY: usize = 4 * 1024 * 1024;
 
@@ -116,7 +121,7 @@ impl NotificationsClient {
     }
 
     pub async fn feed(&self, query: &FeedQuery) -> Result<NotificationPage, NotificationsError> {
-        let mut url = self.url(paths::NOTIFICATIONS)?;
+        let mut url = self.url(ApiPaths::BRIDGE_NOTIFICATIONS)?;
         {
             let mut pairs = url.query_pairs_mut();
             if let Some(since) = &query.since {
@@ -141,12 +146,12 @@ impl NotificationsClient {
         &self,
         request: &MarkRead,
     ) -> Result<NotificationReadPayload, NotificationsError> {
-        let call = self.post(paths::NOTIFICATIONS_READ, READ_ENDPOINT, request)?;
+        let call = self.post(ApiPaths::BRIDGE_NOTIFICATIONS_READ, READ_ENDPOINT, request)?;
         self.exchange(&call).await
     }
 
     pub async fn mark_seen(&self, request: &MarkSeen) -> Result<SeenAnswer, NotificationsError> {
-        let call = self.post(paths::NOTIFICATIONS_SEEN, SEEN_ENDPOINT, request)?;
+        let call = self.post(ApiPaths::BRIDGE_NOTIFICATIONS_SEEN, SEEN_ENDPOINT, request)?;
         self.exchange(&call).await
     }
 

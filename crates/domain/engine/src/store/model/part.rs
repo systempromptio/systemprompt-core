@@ -7,8 +7,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::id::{CallId, MessageId, PartId, SessionId, now_ms};
-use crate::model::{FinishReason, JsonMap, Usage};
+use crate::store::id::{CallId, MessageId, PartId, SessionId, now_ms};
+use crate::store::model::{FinishReason, JsonMap, Usage};
 
 /// A file a tool produced alongside its output.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

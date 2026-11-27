@@ -8,11 +8,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::ids::{DocumentId, DocumentProposalId, DocumentRevisionId, DriveDeviceId};
-use crate::secret::Jwt;
+use systemprompt_identifiers::{DocumentId, DocumentProposalId, DocumentRevisionId, DriveDeviceId};
 
 /// One document of the feed manifest, at its head revision.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -131,11 +129,4 @@ pub struct TrashRequest<'a> {
 pub struct MoveRequest<'a> {
     pub document_id: &'a DocumentId,
     pub path: &'a str,
-}
-
-/// The sync token the device token was traded for, and when it expires.
-#[derive(Debug, Clone, Deserialize)]
-pub struct SyncTokenAnswer {
-    pub token: Jwt,
-    pub expires_at: DateTime<Utc>,
 }

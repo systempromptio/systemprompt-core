@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::model::{Content, Message, Request};
+use crate::llm::model::{Content, Message, Request};
 
 pub const CHARS_PER_TOKEN: u64 = 4;
 const IMAGE_TOKENS: u64 = 1_000;

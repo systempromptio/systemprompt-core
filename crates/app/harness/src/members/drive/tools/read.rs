@@ -5,13 +5,13 @@
 
 use serde::Deserialize;
 use serde_json::{Value, json};
-use sp_protocol::ids::{DocumentFolderId, DocumentId};
-use sp_protocol::wire::drive::DriveScope;
+use systemprompt_identifiers::{DocumentFolderId, DocumentId};
+use systemprompt_models::documents::client::DriveScope;
 
 use super::{DriveOperation, SCOPES};
-use crate::agent;
-use crate::client::DriveClient;
-use crate::error::DriveError;
+use crate::members::drive::agent;
+use systemprompt_drive::client::DriveClient;
+use systemprompt_drive::error::DriveError;
 
 #[derive(Deserialize)]
 pub(super) struct SearchInput {

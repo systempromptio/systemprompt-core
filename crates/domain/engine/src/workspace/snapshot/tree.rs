@@ -14,7 +14,7 @@ use ignore::{DirEntry, WalkBuilder};
 
 use super::layout::{CachedStat, FileEntry, Layout, StatCache, hash_bytes};
 use super::{SnapshotError, SnapshotOptions};
-use crate::paths::rel_key_under;
+use crate::workspace::paths::rel_key_under;
 
 const VCS_DIRS: &[&str] = &[".git", ".hg", ".svn", ".jj"];
 const RACY_WINDOW: Duration = Duration::from_secs(2);

@@ -8,16 +8,17 @@
 
 use reqwest::Method;
 use serde_json::{Map, Value};
-use sp_protocol::wire::brain::{
-    BrainDisputeId, BrainFactId, BrainProposalId, DisputeCreated, DisputeRequest, EnterAccepted,
-    EnteredFact, EventOutboxId, FactRevision, FieldsRequest, ReplayReport, ReplayRequest,
+use systemprompt_device::protocol::paths;
+use systemprompt_identifiers::{BrainDisputeId, BrainFactId, BrainProposalId, EventOutboxId};
+use systemprompt_models::brain::client::{
+    DisputeCreated, DisputeRequest, EnterAccepted, FieldsRequest, ReplayReport, ReplayRequest,
     ResolveRequest, RetractRequest,
 };
-use sp_protocol::wire::paths;
+use systemprompt_models::brain::{EnteredFact, FactRevision};
 
 use super::BrainClient;
-use crate::error::BrainError;
-use crate::http::Call;
+use crate::members::brain::error::BrainError;
+use crate::members::brain::http::Call;
 
 const ENTER: &str = "POST /api/v1/brain/facts";
 const CONFIRM: &str = "POST /api/v1/brain/facts/{id}/confirm";

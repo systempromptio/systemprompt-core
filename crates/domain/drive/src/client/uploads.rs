@@ -7,12 +7,12 @@
 
 use bytes::Bytes;
 use reqwest::Method;
-use sp_protocol::ids::{ContextId, DocumentUploadId};
-use sp_protocol::wire::drive::{
+use systemprompt_identifiers::{ContextId, DocumentUploadId};
+use systemprompt_models::ApiPaths;
+use systemprompt_models::documents::client::{
     DriveBlob, DriveCreated, DriveUpload, DriveUploadPart, INLINE_UPLOAD_LIMIT, ImportBlobRequest,
     OpenUploadRequest,
 };
-use sp_protocol::wire::paths;
 use tokio_util::sync::CancellationToken;
 
 use super::types::ImportFile;
@@ -37,7 +37,7 @@ impl DriveClient {
     ) -> Result<DriveCreated, DriveError> {
         let call = Call::new(
             Method::POST,
-            self.url(paths::DOCUMENTS, &["import"])?,
+            self.url(ApiPaths::DOCUMENTS, &["import"])?,
             IMPORT,
         )
         .json(request)?
@@ -96,7 +96,7 @@ impl DriveClient {
                 mime: None,
             });
         }
-        let call = Call::new(Method::POST, self.url(paths::DOCUMENTS, &[])?, CREATE)
+        let call = Call::new(Method::POST, self.url(ApiPaths::DOCUMENTS, &[])?, CREATE)
             .payload(Payload::Multipart(parts))
             .context(file.context_id.as_ref())
             .limits(TRANSFER_TIMEOUT, crate::http::SMALL_BODY);
@@ -125,8 +125,8 @@ impl DriveClient {
             size: u64::try_from(bytes.len()).unwrap_or(u64::MAX),
             sha256: sha256_hex(bytes),
         };
-        let call =
-            Call::new(Method::POST, self.url(paths::UPLOADS, &[])?, OPEN_UPLOAD).json(&request)?;
+        let call = Call::new(Method::POST, self.url(ApiPaths::UPLOADS, &[])?, OPEN_UPLOAD)
+            .json(&request)?;
         self.json(call, &[201]).await
     }
 
@@ -137,7 +137,7 @@ impl DriveClient {
         let id = upload.to_string();
         let call = Call::new(
             Method::GET,
-            self.url(paths::UPLOADS, &[id.as_str()])?,
+            self.url(ApiPaths::UPLOADS, &[id.as_str()])?,
             UPLOAD_STATUS,
         );
         self.json(call, &[200]).await
@@ -157,7 +157,7 @@ impl DriveClient {
         let id = upload.to_string();
         let part = number.to_string();
         let expected = sha256_hex(&bytes);
-        let url = self.url(paths::UPLOADS, &[id.as_str(), "parts", part.as_str()])?;
+        let url = self.url(ApiPaths::UPLOADS, &[id.as_str(), "parts", part.as_str()])?;
         let call = Call::new(Method::PUT, url, UPLOAD_PART)
             .payload(Payload::Raw(bytes))
             .limits(TRANSFER_TIMEOUT, crate::http::SMALL_BODY);
@@ -176,7 +176,7 @@ impl DriveClient {
         upload: &DocumentUploadId,
     ) -> Result<DriveBlob, DriveError> {
         let id = upload.to_string();
-        let url = self.url(paths::UPLOADS, &[id.as_str(), "complete"])?;
+        let url = self.url(ApiPaths::UPLOADS, &[id.as_str(), "complete"])?;
         let call = Call::new(Method::POST, url, UPLOAD_COMPLETE)
             .json(&EmptyBody {})?
             .limits(TRANSFER_TIMEOUT, crate::http::SMALL_BODY);

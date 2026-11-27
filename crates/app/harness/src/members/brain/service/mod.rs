@@ -2,8 +2,8 @@
 //! agent tools and the call hooks share it.
 //!
 //! The service follows the applied instance through the extension's
-//! [`ManifestApplier`](sp_extension::ManifestApplier): an instance that admits
-//! the extension attaches its client and the service reads
+//! [`ManifestApplier`](crate::extension::ManifestApplier): an instance that
+//! admits the extension attaches its client and the service reads
 //! [`BrainStatus::Checking`] until [`BrainProbe`] has asked the instance
 //! whether its brain is enabled. It fails closed: only
 //! [`BrainStatus::Enabled`] lets a call through; a detached, unconfirmed or
@@ -21,17 +21,17 @@ use std::fmt;
 use std::future::Future;
 use std::sync::Arc;
 
-use harness_ids::SessionId;
 use parking_lot::Mutex;
-use sp_client::HttpClient;
-use sp_protocol::wire::brain::FactRef;
+use systemprompt_device::client::HttpClient;
+use systemprompt_identifiers::engine::SessionId;
+use systemprompt_models::brain::FactRef;
 use tokio::sync::watch;
 
 pub use probe::BrainProbe;
 
-use crate::client::BrainClient;
-use crate::error::BrainError;
-use crate::memory::MemoryLedger;
+use crate::members::brain::client::BrainClient;
+use crate::members::brain::error::BrainError;
+use crate::members::brain::memory::MemoryLedger;
 
 /// Whether the brain of the applied instance can be used.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]

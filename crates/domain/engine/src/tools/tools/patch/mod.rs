@@ -31,12 +31,12 @@ use serde_json::{Value, json};
 
 use self::parse::parse;
 use self::plan::{Change, Planned, plan};
-use crate::contract::{Tool, ToolContext, ToolOutput};
-use crate::diff::{counts, unified};
-use crate::error::ToolError;
-use crate::files::{ask_edit, remove_file, with_notes, write_file};
-use crate::path::guard_external;
-use crate::repair::parse_input;
+use crate::tools::contract::{Tool, ToolContext, ToolOutput};
+use crate::tools::diff::{counts, unified};
+use crate::tools::error::ToolError;
+use crate::tools::files::{ask_edit, remove_file, with_notes, write_file};
+use crate::tools::path::guard_external;
+use crate::tools::repair::parse_input;
 
 /// Applies multi-file patches.
 #[derive(Debug, Clone, Copy, Default)]
@@ -50,7 +50,7 @@ struct Input {
 #[async_trait]
 impl Tool for PatchTool {
     fn name(&self) -> &str {
-        crate::names::PATCH
+        crate::tools::names::PATCH
     }
 
     fn description(&self) -> String {

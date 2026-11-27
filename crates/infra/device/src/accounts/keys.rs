@@ -10,10 +10,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_client::ManifestKey;
-use sp_protocol::view::{KeyFingerprint, KeyOffer};
+use crate::client::ManifestKey;
+use crate::view::{KeyFingerprint, KeyOffer};
 
-use crate::store::AccountRecord;
+use crate::accounts::store::AccountRecord;
 
 pub(crate) fn offer(record: &mut AccountRecord, key: &ManifestKey) -> bool {
     let already_pinned =

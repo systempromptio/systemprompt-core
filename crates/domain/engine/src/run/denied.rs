@@ -2,20 +2,20 @@
 //! part, so a reader need not parse the error text.
 //!
 //! A call refused before or while it ran ends as `ToolState::Error` whose
-//! `metadata` holds [`KEY`](crate::denied::KEY) naming who stopped it:
-//! [`POLICY`](crate::denied::POLICY) (the Governor's verdict, its text under
-//! [`REASON`](crate::denied::REASON)), [`RULE`](crate::denied::RULE) (a
+//! `metadata` holds [`KEY`](crate::run::denied::KEY) naming who stopped it:
+//! [`POLICY`](crate::run::denied::POLICY) (the Governor's verdict, its text under
+//! [`REASON`](crate::run::denied::REASON)), [`RULE`](crate::run::denied::RULE) (a
 //! permission rule that denies it, the rule's text under
-//! [`REASON`](crate::denied::REASON)), [`REJECTED`](crate::denied::REJECTED)
-//! (the user, with their words under [`FEEDBACK`](crate::denied::FEEDBACK) when
-//! they gave any) or [`ABORTED`](crate::denied::ABORTED) (the run was
+//! [`REASON`](crate::run::denied::REASON)), [`REJECTED`](crate::run::denied::REJECTED)
+//! (the user, with their words under [`FEEDBACK`](crate::run::denied::FEEDBACK) when
+//! they gave any) or [`ABORTED`](crate::run::denied::ABORTED) (the run was
 //! aborted while the call waited or ran). A call that failed for any other
 //! reason carries none of these keys.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use harness_store::JsonMap;
+use crate::store::JsonMap;
 use serde_json::Value;
 
 pub const KEY: &str = "denied";

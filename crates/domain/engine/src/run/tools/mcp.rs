@@ -4,8 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use harness_mcp::{McpError, McpManager, McpTool};
-use harness_tools::{
+use crate::mcp::{McpError, McpManager, McpTool};
+use crate::tools::{
     Attachment, Keep, OutputLimits, Tool, ToolContext, ToolError, ToolOutput, truncate_output,
 };
 use serde_json::{Value, json};

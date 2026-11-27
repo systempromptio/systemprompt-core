@@ -9,10 +9,10 @@ use std::path::Path;
 use serde_json::{Map, Value, json};
 
 use super::{Client, ClientSettings};
-use crate::error::LspError;
-use crate::parse::{self, ServerCapabilities};
-use crate::spec::ServerSpec;
-use crate::uri;
+use crate::lsp::error::LspError;
+use crate::lsp::parse::{self, ServerCapabilities};
+use crate::lsp::spec::ServerSpec;
+use crate::lsp::uri;
 
 // JSON: the protocol's `WorkspaceFolder`.
 pub(super) fn workspace_folder(root: &Path) -> Value {

@@ -14,12 +14,15 @@
 
 use std::collections::BTreeMap;
 
-use sp_protocol::ids::PluginId;
-use sp_protocol::names::{is_safe_plugin_segment, sha256_hex};
-use sp_protocol::wire::manifest::{Manifest, PluginEntry, Sha256Digest};
+use systemprompt_device::protocol::manifest::Manifest;
+use systemprompt_device::protocol::names::{is_safe_plugin_segment, sha256_hex};
+use systemprompt_identifiers::PluginId;
+use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::ids::Sha256Digest;
+use systemprompt_models::bridge::manifest::PluginEntry;
 
-use crate::input::BundleFiles;
-use crate::model::BundleFile;
+use crate::projection::input::BundleFiles;
+use crate::projection::model::BundleFile;
 
 const AGENTS_DIR: &str = "agents/";
 const THEMES_DIR: &str = "themes/";
@@ -38,7 +41,7 @@ pub(crate) fn is_agent(path: &str) -> bool {
     path.starts_with(AGENTS_DIR)
 }
 
-pub(crate) fn wanted(manifest: &Manifest, host: &str) -> Vec<(PluginId, String, Sha256Digest)> {
+pub(crate) fn wanted(manifest: &Manifest, host: HostKind) -> Vec<(PluginId, String, Sha256Digest)> {
     let pins = pins(manifest);
     let mut out = Vec::new();
     for plugin in plugins(manifest) {
@@ -53,7 +56,7 @@ pub(crate) fn wanted(manifest: &Manifest, host: &str) -> Vec<(PluginId, String, 
 
 pub(crate) fn project(
     manifest: &Manifest,
-    host: &str,
+    host: HostKind,
     delivered: &BundleFiles,
     warnings: &mut Vec<String>,
 ) -> Vec<BundleFile> {
@@ -127,11 +130,7 @@ fn plugins(manifest: &Manifest) -> Vec<&PluginEntry> {
 
 fn pins(manifest: &Manifest) -> BTreeMap<String, Sha256Digest> {
     let mut pins = BTreeMap::new();
-    let offered = manifest
-        .marketplaces
-        .iter()
-        .filter_map(|marketplace| marketplace.harness.as_ref());
-    for settings in offered {
+    for settings in manifest.marketplace_settings() {
         for theme in &settings.themes {
             pins.insert(theme.name.clone(), theme.sha.clone());
         }
@@ -140,7 +139,7 @@ fn pins(manifest: &Manifest) -> BTreeMap<String, Sha256Digest> {
 }
 
 fn target(
-    host: &str,
+    host: HostKind,
     path: &str,
     sha: &Sha256Digest,
     pins: &BTreeMap<String, Sha256Digest>,
