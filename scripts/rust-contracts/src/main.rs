@@ -190,13 +190,27 @@ fn write_cache(dir: &Path, key: &str, outcomes: &[Outcome]) -> std::io::Result<(
             if outcome.failed { "fail" } else { "pass" },
         )?;
     }
+    // Why: the gates run concurrently over one cache directory. Another run's
+    // staging directory (dot-prefixed) is left alone, and an entry another run
+    // removed or stored first is not an error.
     for entry in std::fs::read_dir(dir)? {
         let path = entry?.path();
-        if path != staging && path.is_dir() {
-            std::fs::remove_dir_all(&path)?;
+        let staged_by_another_run = path
+            .file_name()
+            .is_some_and(|name| name.to_string_lossy().starts_with('.'));
+        if path == staging || staged_by_another_run || !path.is_dir() {
+            continue;
+        }
+        match std::fs::remove_dir_all(&path) {
+            Err(error) if error.kind() != std::io::ErrorKind::NotFound => return Err(error),
+            Ok(()) | Err(_) => {},
         }
     }
-    std::fs::rename(&staging, dir.join(key))
+    let stored = dir.join(key);
+    match std::fs::rename(&staging, &stored) {
+        Err(_) if stored.is_dir() => std::fs::remove_dir_all(&staging),
+        result => result,
+    }
 }
 
 fn run(mode: &str, roots: &[String], cache_dir: Option<&Path>) -> Result<Outcome, BoxError> {
