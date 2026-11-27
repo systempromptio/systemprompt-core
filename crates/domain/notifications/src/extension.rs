@@ -1,7 +1,9 @@
-//! [`NotificationsExtension`]: contributes the notifications tables and
-//! migrations, the `notifications` config plane, the retention job, the
-//! user-purge rows of its tables and, as secret references, the secret names
-//! the push declaration reads its credentials from.
+//! [`NotificationsExtension`]: the notifications member.
+//!
+//! It contributes the notifications tables and migrations, the
+//! `notifications` config plane, the retention job, the user-purge rows of
+//! its tables and, as secret references, the secret names the push
+//! declaration reads its credentials from.
 //!
 //! It provides the producer sink (`DynNotificationSink`, the outbox sink over
 //! the write pool, stamped with the kernel's instance id) that members

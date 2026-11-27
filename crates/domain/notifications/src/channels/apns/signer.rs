@@ -25,7 +25,7 @@ use crate::plane::push::{ApnsDeclaration, ApnsKeyId, ApnsTeamId};
 
 // Why: Apple refuses a provider token older than 60 minutes and throttles a
 // provider that signs a new one more often than every 20.
-const REFRESH_AFTER: Duration = Duration::from_secs(45 * 60);
+const REFRESH_AFTER: Duration = Duration::from_mins(45);
 
 #[derive(Serialize)]
 struct Claims<'a> {

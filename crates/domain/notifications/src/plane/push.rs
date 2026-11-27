@@ -189,10 +189,11 @@ impl PushDeclaration {
     }
 }
 
-/// The custom-secret names the push declaration references, read from the
-/// services tree on every check. A file that cannot be read or parsed
-/// references every name, so an install's read is refused instead of served
-/// past a declaration the check could not see.
+/// The custom-secret names the push declaration references.
+///
+/// They are read from the services tree on every check. A file that cannot
+/// be read or parsed references every name, so an install's read is refused
+/// instead of served past a declaration the check could not see.
 #[derive(Debug, Clone)]
 pub struct PushSecretReferences {
     services_root: Option<PathBuf>,

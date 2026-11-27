@@ -95,7 +95,7 @@ impl fmt::Debug for ApnsSender {
     }
 }
 
-fn verdict(response: ProviderResponse) -> Result<PushVerdict, PushError> {
+fn verdict(response: &ProviderResponse) -> Result<PushVerdict, PushError> {
     let status = response.status;
     if status == 200 {
         return Ok(PushVerdict::Accepted);
@@ -151,6 +151,6 @@ impl PushSender for ApnsSender {
             ],
             body,
         };
-        verdict(self.http.post(request).await?)
+        verdict(&self.http.post(request).await?)
     }
 }

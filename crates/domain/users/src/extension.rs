@@ -74,17 +74,7 @@ impl Extension for UsersExtension {
         for schema in schemas() {
             c.schema(schema);
         }
-        for table in [
-            "user_rate_limit_buckets",
-            "sso_login_events",
-            "user_device_push_tokens",
-        ] {
-            c.user_purge(UserPurgeTable {
-                table,
-                column: "user_id",
-                predicate: None,
-            });
-        }
+        user_purges(c);
         c.migrations(extension_migrations!())
             .admin_bootstrap(crate::provides::admin_bootstrap)
             .late_cell::<crate::TokenRevocationsCell>()
@@ -118,18 +108,8 @@ impl Extension for UsersExtension {
                 ConferralRow::IdentitySignInSessions,
                 crate::provides::sign_in_sessions,
             )
-            .provide_sealed(|r: &Resolved<'_>| {
-                let db = r.get::<DbPool>()?;
-                let directory: DynPushTokenDirectory =
-                    Arc::new(DevicePushService::new(Arc::new(UserRepository::new(&db))));
-                Ok(directory)
-            })
-            .provide(|r: &Resolved<'_>| {
-                let db = r.get::<DbPool>()?;
-                Ok(Arc::new(DevicePushService::new(Arc::new(
-                    UserRepository::new(&db),
-                ))))
-            })
+            .provide_sealed(push_token_directory)
+            .provide(device_push_service)
             .provide(crate::provides::request_authenticator)
             .provide(crate::provides::rate_limit_buckets)
             .provide(|r: &Resolved<'_>| {
@@ -163,6 +143,58 @@ impl Extension for UsersExtension {
         });
         Ok(())
     }
+}
+
+fn user_purges(c: &mut Contributions<'_>) {
+    for table in [
+        "user_rate_limit_buckets",
+        "sso_login_events",
+        "user_device_push_tokens",
+    ] {
+        c.user_purge(UserPurgeTable {
+            table,
+            column: "user_id",
+            predicate: None,
+        });
+    }
+}
+
+fn device_push_service(r: &Resolved<'_>) -> Result<Arc<DevicePushService>, ProvideError> {
+    let db = r.get::<DbPool>()?;
+    Ok(Arc::new(DevicePushService::new(Arc::new(
+        UserRepository::new(&db),
+    ))))
+}
+
+fn push_token_directory(r: &Resolved<'_>) -> Result<DynPushTokenDirectory, ProvideError> {
+    let directory: DynPushTokenDirectory = device_push_service(r)?;
+    Ok(directory)
+}
+
+fn device_schemas() -> [SchemaDefinition; 2] {
+    [
+        SchemaDefinition::new(
+            "user_device_certs",
+            include_str!("../schema/user_device_certs.sql"),
+        )
+        .with_required_columns(vec![
+            "id".into(),
+            "user_id".into(),
+            "fingerprint".into(),
+            "label".into(),
+            "platform".into(),
+        ]),
+        SchemaDefinition::new(
+            "user_device_push_tokens",
+            include_str!("../schema/user_device_push_tokens.sql"),
+        )
+        .with_required_columns(vec![
+            "device_id".into(),
+            "user_id".into(),
+            "provider".into(),
+            "token".into(),
+        ]),
+    ]
 }
 
 fn schemas() -> Vec<SchemaDefinition> {
@@ -212,27 +244,6 @@ fn schemas() -> Vec<SchemaDefinition> {
         )
         .with_required_columns(vec!["key_id".into(), "dimension".into(), "value".into()]),
         SchemaDefinition::new(
-            "user_device_certs",
-            include_str!("../schema/user_device_certs.sql"),
-        )
-        .with_required_columns(vec![
-            "id".into(),
-            "user_id".into(),
-            "fingerprint".into(),
-            "label".into(),
-            "platform".into(),
-        ]),
-        SchemaDefinition::new(
-            "user_device_push_tokens",
-            include_str!("../schema/user_device_push_tokens.sql"),
-        )
-        .with_required_columns(vec![
-            "device_id".into(),
-            "user_id".into(),
-            "provider".into(),
-            "token".into(),
-        ]),
-        SchemaDefinition::new(
             "user_rate_limit_buckets",
             include_str!("../schema/user_rate_limit_buckets.sql"),
         )
@@ -244,6 +255,7 @@ fn schemas() -> Vec<SchemaDefinition> {
         ]),
     ]
     .into_iter()
+    .chain(device_schemas())
     .chain(std::iter::once(api_key_session_schema()))
     .chain(federation_schemas())
     .collect()
