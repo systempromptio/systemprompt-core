@@ -25,7 +25,8 @@ const HOST_EXTENSIONS: &str = "host_extensions";
 const PLUGINS: &str = "plugins";
 const MANAGED_MCP_SERVERS: &str = "managed_mcp_servers";
 
-// JSON: the verified payload is edited as a JSON tree before core's manifest type decodes it.
+// JSON: the verified payload is edited as a JSON tree before core's manifest
+// type decodes it.
 pub(super) fn drop_unreadable(body: &mut Value) {
     let Some(body) = body.as_object_mut() else {
         return;
@@ -57,17 +58,20 @@ pub(super) fn drop_unreadable(body: &mut Value) {
     }
 }
 
-// JSON: the verified payload is edited as a JSON tree before core's manifest type decodes it.
+// JSON: the verified payload is edited as a JSON tree before core's manifest
+// type decodes it.
 fn reads<T: DeserializeOwned>(value: &Value) -> bool {
     T::deserialize(value).is_ok()
 }
 
-// JSON: the verified payload is edited as a JSON tree before core's manifest type decodes it.
+// JSON: the verified payload is edited as a JSON tree before core's manifest
+// type decodes it.
 fn field_reads<T: DeserializeOwned>(entry: &Value, field: &str) -> bool {
     entry.get(field).is_none_or(reads::<T>)
 }
 
-// JSON: the verified payload is edited as a JSON tree before core's manifest type decodes it.
+// JSON: the verified payload is edited as a JSON tree before core's manifest
+// type decodes it.
 fn keep_readable<T: DeserializeOwned>(values: &mut Vec<Value>, field: &'static str) {
     values.retain(|value| {
         let readable = reads::<T>(value);
@@ -78,7 +82,8 @@ fn keep_readable<T: DeserializeOwned>(values: &mut Vec<Value>, field: &'static s
     });
 }
 
-// JSON: the verified payload is edited as a JSON tree before core's manifest type decodes it.
+// JSON: the verified payload is edited as a JSON tree before core's manifest
+// type decodes it.
 fn keep_known_hosts(by_host: &mut Map<String, Value>, field: &'static str) {
     by_host.retain(|host, _| {
         let known = host.parse::<HostKind>().is_ok();
@@ -89,7 +94,8 @@ fn keep_known_hosts(by_host: &mut Map<String, Value>, field: &'static str) {
     });
 }
 
-// JSON: the verified payload is edited as a JSON tree before core's manifest type decodes it.
+// JSON: the verified payload is edited as a JSON tree before core's manifest
+// type decodes it.
 fn keep_entries(entries: &mut Vec<Value>, field: &'static str, readable: impl Fn(&Value) -> bool) {
     entries.retain(|entry| {
         let keep = readable(entry);

@@ -63,7 +63,10 @@ fn a_malformed_id_is_not_enabled_and_the_rest_are() {
     let manifest = Manifest::parse(&malformed).unwrap();
     let enabled = ExtensionPolicy::enabled_for(&manifest, HostKind::Harness).unwrap();
     assert_eq!(
-        enabled.iter().map(|extension| extension.as_str()).collect::<Vec<_>>(),
+        enabled
+            .iter()
+            .map(|extension| extension.as_str())
+            .collect::<Vec<_>>(),
         ["brain"]
     );
 }
