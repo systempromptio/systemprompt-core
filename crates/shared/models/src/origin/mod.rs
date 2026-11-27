@@ -50,14 +50,15 @@ mod classify;
 mod evidence;
 mod harness;
 mod memory;
+mod signals;
 
 pub use attestation::{ClientAttestation, NativeMarker};
 pub use classify::{
     ClassificationInput, ClassificationRejection, Classified, StainlessHeaders, classify,
-    native_marker, ua_product,
 };
 pub use evidence::ClientEvidence;
 pub use memory::MemoryPreference;
+pub use signals::{native_marker, ua_product};
 
 use serde::{Deserialize, Serialize};
 
