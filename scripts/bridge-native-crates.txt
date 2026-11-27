@@ -28,3 +28,4 @@ systemprompt-bridge-ts-export-tests
 systemprompt-bridge-validate-tests
 systemprompt-bridge-verdicts-tests
 systemprompt-bridge-window-state-tests
+systemprompt-scripted-instance
