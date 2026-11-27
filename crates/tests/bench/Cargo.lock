@@ -723,6 +723,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
+name = "camino"
+version = "1.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbbad30e4b4c14a39e3cc8aed085a12a327257c316619c93581e017bc52be591"
+dependencies = [
+ "serde_core",
+]
+
+[[package]]
 name = "caseless"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1306,7 +1315,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d045de693cb712d0b22c6a64be5b953f67b3ce00ab5ad3dd5d8b441886ab8e1a"
 dependencies = [
  "quote",
- "syn 2.0.119",
+ "syn 3.0.9",
 ]
 
 [[package]]
@@ -4930,7 +4939,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c9a367f131d93b3395fc6207c11e67098493ab040def4ce3085adbf186687f7e"
 dependencies = [
  "anyhow",
- "itertools 0.14.0",
+ "itertools 0.15.0",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
@@ -5366,6 +5375,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-util",
+ "h2",
  "http",
  "http-body",
  "http-body-util",
@@ -8007,11 +8017,14 @@ dependencies = [
  "async-trait",
  "chrono",
  "globset",
+ "jsonwebtoken",
  "metrics",
+ "reqwest",
  "serde",
  "serde_json",
  "serde_yaml_ng",
  "sqlx",
+ "systemprompt-client",
  "systemprompt-database",
  "systemprompt-events",
  "systemprompt-extension",
@@ -8019,6 +8032,7 @@ dependencies = [
  "systemprompt-manifest",
  "systemprompt-models",
  "systemprompt-provider-contracts",
+ "systemprompt-security",
  "systemprompt-traits",
  "thiserror 2.0.21",
  "tokio",
@@ -8037,6 +8051,7 @@ dependencies = [
  "systemprompt-models",
  "systemprompt-notifications",
  "systemprompt-traits",
+ "systemprompt-users",
  "thiserror 2.0.21",
 ]
 
@@ -8434,6 +8449,7 @@ dependencies = [
  "bytemuck",
  "byteorder",
  "bytes",
+ "camino",
  "cc",
  "chacha20",
  "chrono",
