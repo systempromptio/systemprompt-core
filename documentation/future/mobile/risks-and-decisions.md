@@ -2,7 +2,9 @@
 
 ## 1. What was verified, and what was not
 
-Nothing in this set has been built or run.
+The core side of M0 and M1 (lanes A1, B1, B2, B4) has been built and its tests run; no app has run on a device against it yet.
+
+**Confirmed by building, 2026-11-27:** UniFFI 0.33 proc-macro mode compiles the first surface (an object with an async method, records, one error enum) for the three Android targets with cargo-ndk. The iOS targets and async listener callbacks are still unproven.
 
 **Read in core** (`future` at `2b7e8dd3d`): everything in `architecture/01-current-state.md`.
 
@@ -46,6 +48,7 @@ M0-A1 closes the unconfirmed and assumed items.
 | 14 | Dependence on harness stages | M2 needs the device crate in core; M3's assets need the brand and theme data | M1 needs nothing and starts first; M3-C7 can begin from the schema before harness S5 |
 | 15 | Three languages to maintain | More skills and tooling in the template and every install | Core stays Rust; the apps hold presentation only; structure and lint rules are the same shape on both |
 | 16 | Phones cannot take contributed screens | The desktop's mount-point model does not carry over | Stated plainly; forks edit their native code; three generic server-driven layouts are proposed (open decision O1) |
+| 18 | The Android TLS verifier needs the JVM | The HTTP client verifies certificates through the platform; on Android that fails at the first HTTPS request unless the library was initialised with the JVM and an application context, and its Kotlin component is packaged in the app | The extension's binding library exports one JNI initialiser that the application class calls before anything else; an instrumented test makes a request |
 | 17 | Signing secrets in release workflows | A leaked key lets someone ship as the publisher | Secrets only in release environments; push runs unsigned; each publisher holds its own |
 
 ## 3. Decisions taken
@@ -80,6 +83,11 @@ M0-A1 closes the unconfirmed and assumed items.
 |---|---|---|---|
 | O1 | Whether to include three generic server-driven layouts (list, detail, form) so a new instance capability can appear on phones without an app release | Yes, but after M5: it is new scope | After M5 |
 | O2 | The default approval timeout | Fifteen minutes, configurable per instance | M1 | A phone uses the `Remote` execution mode only: sessions it starts run in the instance's sandbox. It sees, steers and approves sessions in every mode, because the instance records them all | Running the runtime on a phone |
-| O3 | The reference app's name, icon, bundle identifier and package name | From the owner | M0 |
+| O3 | The reference app's name and icon. The bundle identifier and package name are taken as `io.systemprompt.mobile` | From the owner | M0 |
+| O10 | A push token belongs to its latest registrant: registering a token another device holds removes that row, across users too (a phone that changes hands). Review M1-C1 asked for a refusal across users instead; that would strand a shared phone whose previous user never signed out | Keep; a token is a secret only the device and its provider hold | Owner's word, before M3 |
+| O6 | `/v1/bridge/latest` and `/v1/bridge/download/android` answer without a credential when an Android client is declared, because a phone with no app has no credential. Implemented this way in M1-B4 | Keep, with two follow-ups review M1-C3 named: a small per-address budget on the anonymous download (today it shares the gateway budget, and each call is one upstream fetch on the operator's token), and a fixed 404 text for anonymous callers (the current text names the private repository and version window) | Owner's word, before M4 |
+| O7 | A phone names its device with the header `x-systemprompt-device-fingerprint`. It is a bearer value checked against the caller's own enrolled devices, not proof of possession; the principal carries no device identity today. Implemented this way in M1-B2 | Keep for M1; bind the device into the token when the principal gains a device identity | Owner's word, before M2 |
+| O8 | APNs sends a background push only (no alert), because the payload carries nothing else (M10). iOS may throttle background pushes, which would delay approval prompts | Measure on a device in M3; if throttled, send an alert with fixed local text and still no server content | Owner's word, before M3 |
+| O9 | Push is suppressed when the recipient has any live stream on that replica, including a web tab, so an open browser can silence the phone | Keep for M1; narrow to streams from the same device once streams carry a device identity | Owner's word, before M3 |
 | O4 | Who holds the developer accounts and signing secrets for the reference app | The maintainers; each install its own | M0 |
 | O5 | Whether tablets get an adapted layout | Not in these stages; the phone layout runs on them | After M5 |

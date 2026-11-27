@@ -168,7 +168,7 @@ async fn an_fcm_push_carries_only_the_three_payload_fields() {
 async fn an_unregistered_apns_token_is_revoked_in_the_delivery() {
     for (status, body) in [
         (410, r#"{"reason":"Unregistered"}"#),
-        (400, r#"{"reason":"BadDeviceToken"}"#),
+        (410, r#"{"reason":"ExpiredToken"}"#),
     ] {
         let http = StubHttp::answering(status, body);
         let directory = both_tokens();
@@ -180,6 +180,19 @@ async fn an_unregistered_apns_token_is_revoked_in_the_delivery() {
 
         assert_eq!(directory.revoked(), [(device("phone"), PushProvider::Apns)]);
     }
+}
+
+#[tokio::test]
+async fn a_bad_device_token_from_apns_is_a_refusal_that_revokes_nothing() {
+    let http = StubHttp::answering(400, r#"{"reason":"BadDeviceToken"}"#);
+    let directory = both_tokens();
+
+    apns_channel(&http, &directory, false)
+        .deliver(&notification(APPROVAL_KIND, Attention::Human), 0)
+        .await
+        .expect_err("a token the environment does not recognise is a refused delivery");
+
+    assert!(directory.revoked().is_empty());
 }
 
 #[tokio::test]
