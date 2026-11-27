@@ -21,6 +21,7 @@ bytecount = { version = "0.6", default-features = false, features = ["runtime-di
 bytemuck = { version = "1", default-features = false, features = ["derive", "min_const_generics", "must_cast"] }
 byteorder = { version = "1" }
 bytes = { version = "1" }
+camino = { version = "1", default-features = false, features = ["serde1"] }
 chacha20 = { version = "0.10", default-features = false, features = ["rng", "xchacha"] }
 chrono = { version = "0.4", features = ["serde"] }
 cipher = { version = "0.5", default-features = false, features = ["alloc", "block-padding", "stream-wrapper"] }
@@ -78,7 +79,7 @@ rand-c38e5c1d305a1b54 = { package = "rand", version = "0.8" }
 regex = { version = "1" }
 regex-automata = { version = "0.4", default-features = false, features = ["dfa", "hybrid", "meta", "nfa", "perf", "std", "unicode"] }
 regex-syntax = { version = "0.8" }
-reqwest = { version = "0.13", default-features = false, features = ["form", "json", "multipart", "query", "rustls", "rustls-no-provider", "stream"] }
+reqwest = { version = "0.13", default-features = false, features = ["form", "http2", "json", "multipart", "query", "rustls", "rustls-no-provider", "stream"] }
 rmcp = { version = "3", features = ["client", "elicitation", "request-state", "transport-streamable-http-client", "transport-streamable-http-server"] }
 rsa = { version = "0.9", features = ["sha2"] }
 rust_decimal = { version = "1", features = ["maths"] }
@@ -86,7 +87,7 @@ rustls = { version = "0.23", default-features = false, features = ["logging", "r
 semver = { version = "1", features = ["serde"] }
 serde = { version = "1", features = ["alloc", "derive", "rc"] }
 serde_core = { version = "1", features = ["alloc", "rc"] }
-serde_json = { version = "1", features = ["float_roundtrip", "preserve_order", "raw_value"] }
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order", "raw_value", "unbounded_depth"] }
 sha2-93f6ce9d446188ac = { package = "sha2", version = "0.10", features = ["oid"] }
 sha2-a6292c17cd707f01 = { package = "sha2", version = "0.11" }
 signature = { version = "3", default-features = false, features = ["alloc", "digest", "rand_core"] }
@@ -144,6 +145,7 @@ base64 = { version = "0.22" }
 bitflags = { version = "2", default-features = false, features = ["std"] }
 byteorder = { version = "1" }
 bytes = { version = "1" }
+camino = { version = "1", default-features = false, features = ["serde1"] }
 chacha20 = { version = "0.10", default-features = false, features = ["rng", "xchacha"] }
 chrono = { version = "0.4", features = ["serde"] }
 cipher = { version = "0.5", default-features = false, features = ["alloc", "block-padding", "stream-wrapper"] }
@@ -191,7 +193,7 @@ rustls = { version = "0.23", default-features = false, features = ["logging", "r
 semver = { version = "1", features = ["serde"] }
 serde = { version = "1", features = ["alloc", "derive", "rc"] }
 serde_core = { version = "1", features = ["alloc", "rc"] }
-serde_json = { version = "1", features = ["float_roundtrip", "preserve_order", "raw_value"] }
+serde_json = { version = "1", features = ["float_roundtrip", "preserve_order", "raw_value", "unbounded_depth"] }
 sha2-93f6ce9d446188ac = { package = "sha2", version = "0.10", features = ["oid"] }
 sha2-a6292c17cd707f01 = { package = "sha2", version = "0.11" }
 slab = { version = "0.4" }
@@ -231,7 +233,7 @@ zeroize = { version = "1", features = ["derive", "serde"] }
 ahash = { version = "0.8", features = ["serde"] }
 getrandom-9fbad63c4bcf4a8f = { package = "getrandom", version = "0.4", default-features = false, features = ["std", "sys_rng"] }
 hmac = { version = "0.12", default-features = false, features = ["reset"] }
-hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "tls12"] }
+hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "http2", "tls12"] }
 hyper-util = { version = "0.1", default-features = false, features = ["client-legacy", "client-proxy"] }
 linux-raw-sys = { version = "0.12", default-features = false, features = ["auxvec", "elf", "errno", "general", "if_ether", "ioctl", "net", "netlink", "no_std", "prctl", "xdp"] }
 mio = { version = "1", features = ["net", "os-ext"] }
