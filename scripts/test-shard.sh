@@ -37,7 +37,7 @@ group_prefixes() {
                              /tests/integration/oauth/ /tests/integration/runtime/ \
                              /tests/integration/security/ /tests/integration/scheduler/ \
                              /tests/integration/users/" ;;
-    edge)          echo "/tests/concurrency/ /tests/property/ /tests/contract/" ;;
+    edge)          echo "/tests/concurrency/ /tests/property/ /tests/contract/ /tests/scripted-instance/" ;;
     *) echo "unknown shard group: $1" >&2; exit 2 ;;
   esac
 }

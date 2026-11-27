@@ -24,7 +24,7 @@ Decided: eight new crates. Core's five layers hold, with device crates as peers 
 
 | Layer | Crate | Holds |
 |---|---|---|
-| shared | existing `models::bridge`, `identifiers`, `wire`, `client`, `traits` | Wire types, host identity, extension-host descriptors, typed ids, typed instance calls, owned tasks |
+| shared | existing `models::bridge`, `identifiers`, `wire`, `client`, `traits` | Wire types, host identity, extension-host descriptors, typed ids (the engine's, where a name is already taken, in an `identifiers::engine` submodule), typed instance calls, owned tasks (with the additions the lifted callers need) |
 | shared | existing `provider-contracts` | The composition machinery shared with the server: slots, standing, typed state, admission |
 | infra | `systemprompt-device` | Sign-in, keyrings, config and policy stores, manifest fetch, verification, acceptance, apply, ledgers, platform modules |
 | infra | `systemprompt-machine` | Install, device-management snippets, policy writer, elevation, scheduler, ACLs; `lockdown` as a feature |
@@ -32,7 +32,7 @@ Decided: eight new crates. Core's five layers hold, with device crates as peers 
 | domain | `systemprompt-proxy` | Loopback proxy, loopback secret, scoped tokens, heartbeat, usage |
 | domain | `systemprompt-hosts` | The host contract; one feature per product: `claude`, `codex`, `opencode`, `hermes` |
 | domain | `systemprompt-drive` | Folder sync |
-| domain | `systemprompt-runner` | Headless adapters, shared with the server's agent runs |
+| domain | `systemprompt-runner` | Headless adapters, shared with the server's agent runs (see "The runner and the server" below) |
 | app | `systemprompt-harness` | The device composition, the member contract and sink, the governor, projection, update, commands, shared client state machines |
 | entry | none in core | The binary is the extension's |
 
@@ -42,6 +42,30 @@ Constraints:
 - A closure gate: server kernel crates name no device crate, and device crates name no server crate above `shared`. The two closures meet only in `shared`.
 - Inside `systemprompt-engine`, a module-layer gate keeps the order `config`, `store`, `llm`, `tools`, `mcp`, `workspace`, `lsp`, `prompt`, `run`.
 - All eight are published with core.
+
+State at the end of S0: the eight crates exist, empty, as root-workspace members in one unit (`capability:device`), which is what lets `systemprompt-harness` depend on the other seven under the capability gate. The layer gate holds each at its layer and the closure gate (`lint-device-closure`) is in the gate list. The closure gate's four rules: no crate in the kernel closure names a device crate (the facade is excluded from the kernel side, since its features select the slices); no crate in the device closure names anything but a device crate or a `shared` crate; no device crate is a kernel unit; all eight are workspace members, so the gate cannot pass because its subjects were renamed away. The engine's module-order gate is written in S1 wave C. The facade gains no feature for these crates until S5.
+
+### Placement at the lift
+
+The table above is the target. S1 lands the harness repository's code before the bridge's, and some of it cannot sit where the target puts its successor (D46):
+
+| Lifted code | Lands in S1 | Why not the target crate |
+|---|---|---|
+| The harness's sync | `systemprompt-harness` | It depends on governance, projection and the extension contract, which are app-layer; `systemprompt-device` is infra. S6 replaces it with the bridge's sync, in `device` |
+| The extension contract and its registration | `systemprompt-harness`, with an explicit registration list | Core refuses link-time registration (`lint-no-inventory`); S5 replaces the list with the composition |
+| The Drive's engine half (its tools and agent) | `systemprompt-harness` | It depends on the engine; device-domain crates are peers |
+| Brain, notifications, Slack (device members) | `systemprompt-harness` | Members of the device composition, not server domain code |
+
+Numbers and the full tables are in `06-harness-repo-disposition.md` and `../stages/s1-lift.md`.
+
+### The runner and the server
+
+`systemprompt-runner` is to be linked by the device composition and by the server's `systemprompt-agent-runs`. As the graph stands at S0 two gates refuse that, and the skeleton stage found it before any code moved:
+
+1. **Closure.** `systemprompt-runtime` is a kernel crate and depends on `systemprompt-agent-runs`, for one type (the admitted run origins). An `agent-runs → runner` edge would therefore put a device crate in the kernel closure; the closure gate's own self-test pins that case as a failure. Decided (D49): the `runtime → agent-runs` edge goes. The type moves to the shared-layer contract through which the kernel already reaches members, and the kernel names no capability crate. The closure gate gets no exception.
+2. **Capability.** `agent-runs` is unit `capability:agents` and the runner is `capability:device`; `lint-capability-deps` refuses a dependency between two capabilities. Removing the kernel edge does not answer this. Open (O5 in `../risks-and-decisions.md`), needed by S9: a unit for the runner that both sides may link, with the rule that it depends on nothing above `shared`, or the crate moves to the shared layer.
+
+Both are entry work for S9-A3 (`../stages/s9-server-and-orchestration.md`). Until then `agent-runs` keeps its own adapters and names no device crate.
 
 ## 4. Slices
 

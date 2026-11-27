@@ -29,9 +29,12 @@
 //!
 //! A conflict between tiers (a host token naming `opencode` under a
 //! `claude-cli` User-Agent) is never rejected: the strongest tier wins and the
-//! evidence row records the rest. Two inputs are rejected with `400` instead:
-//! an `x-systemprompt-client` value outside the vocabulary, and an
-//! `x-systemprompt-client-attestation` header from anything but the bridge.
+//! evidence row records the rest. Three inputs are rejected with `400`
+//! instead: an `x-systemprompt-client` value outside the vocabulary, an
+//! `x-systemprompt-client-attestation` header from anything but the bridge,
+//! and a `host-token` attestation naming a client whose host configures itself
+//! ([`ConfigOwner::Host`](crate::bridge::host::ConfigOwner)): the bridge holds
+//! no loopback credential for such a host, so it has nothing to have verified.
 //!
 //! The one wire vocabulary is [`ClientKind::as_str`]. A bridge host
 //! ([`HostKind`]) names a packaging of a product; the wire cannot tell a

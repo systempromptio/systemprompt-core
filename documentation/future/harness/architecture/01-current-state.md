@@ -1,46 +1,56 @@
 # 01. Current state
 
-Everything here was read on 2026-11-26. Nothing was built or run.
+Everything here was read on 2026-11-26; the harness repository was read again on 2026-11-27 at the commit the lift pins. Nothing was built or run.
 
 | Source | Ref read |
 |---|---|
-| `systemprompt-harness` | `0839a31` (GitHub `systempromptio/systemprompt-harness`, `main` = `next`) |
+| `systemprompt-harness` | `a214511` (GitHub `systempromptio/systemprompt-harness`, `main` = `next`); the pin of the lift (`../stages/s1-lift.md`) |
 | core `future` | `d17b79b70` |
 | core `next` / `main` | `dd3ac508f` (0.87.0) |
 | template `future` | `f7e7c964` |
 
 ## 1. `systemprompt-harness`
 
-A native Windows desktop coding agent in Rust on GPUI (`gpui-kit =0.9.1`), governed by a systemprompt instance. 22 production crates, 81,661 lines; 22 test crates, 24,717 lines; version `0.1.0`; BUSL-1.1; not published.
+A native desktop coding agent for Windows and macOS in Rust on GPUI (`gpui-kit =0.9.1`), governed by a systemprompt instance. 30 production crates (11 engine, 12 sp, 7 app), 94,469 lines; 31 test packages, 32,316 lines, 1,154 test attributes; version `0.1.0`; BUSL-1.1; not published. Lines are newline counts of `.rs` files at `a214511`; test attributes are a static count of `#[test]` and `#[tokio::test]`.
 
 ### 1.1 Crates
 
 | Ring | Crate | Lines | Owns |
 |---|---|---|---|
-| engine | `harness-ids` | 277 | Typed identifiers |
+| engine | `harness-ids` | 411 | Typed identifiers, the extension id literal |
 | engine | `harness-tasks` | 489 | Owned background work |
-| engine | `harness-config` | 2,978 | Paths, settings, agents, skills, instructions, permission rules, commands |
+| engine | `harness-config` | 2,989 | Paths, settings, agents (with a step limit and an output limit each), skills, instructions, permission rules, commands |
 | engine | `harness-store` | 2,559 | SQLite store, session data model, change feed |
-| engine | `harness-llm` | 2,488 | Streaming clients for `/v1/messages` and `/v1/chat/completions` |
+| engine | `harness-llm` | 2,551 | Streaming clients for `/v1/messages` and `/v1/chat/completions` |
 | engine | `harness-tools` | 6,591 | `Tool` contract; shell, read, write, edit, patch, glob, grep, fetch, todo |
 | engine | `harness-mcp` | 3,249 | MCP client (streamable HTTP, stdio) |
 | engine | `harness-workspace` | 3,258 | Snapshots, revert, diffs, file watching, formatters |
 | engine | `harness-lsp` | 3,423 | Language server client |
-| engine | `harness-prompt` | 1,012 | System prompt assembly, built-in agents |
-| engine | `harness-engine` | 6,289 | Agent loop, `Governor` contract, asks, subagents |
-| sp | `sp-protocol` | 3,170 | Wire types, canonical JSON, manifest version order, view types |
-| sp | `sp-secure` | 1,643 | DPAPI sealing, owner-only ACLs, atomic verified writes (Windows real, others stub) |
-| sp | `sp-client` | 2,030 | HTTP client for an instance |
+| engine | `harness-prompt` | 1,033 | System prompt assembly, built-in agents |
+| engine | `harness-engine` | 7,319 | Agent loop, `Governor` contract, asks, subagents; the engine extension contract (`extension/`) and the fan-out that calls the governor and then the admitted extensions (`governed/`) |
+| sp | `sp-protocol` | 3,406 | Wire types, canonical JSON, manifest version order, view types |
+| sp | `sp-secure` | 2,111 | Sealing (DPAPI on Windows, a keychain-held key on macOS), owner-only ACLs, atomic verified writes |
+| sp | `sp-client` | 2,049 | HTTP client for an instance |
 | sp | `sp-projection` | 2,267 | Manifest to files in the harness config dir |
-| sp | `sp-drive` | 5,249 | Documents API and local folder sync |
-| sp | `sp-accounts` | 2,645 | Instances, sign-in flows, sealed PAT, JWT renewal, key trust |
-| sp | `sp-governance` | 1,483 | The real `Governor`: gateway calls, verdicts, telemetry, usage, model list |
-| sp | `sp-sync` | 3,185 | Poll loop, acceptance, apply, runtime files, receipts, heartbeat |
+| sp | `sp-accounts` | 2,644 | Instances, sign-in flows, sealed PAT, JWT renewal, key trust |
+| sp | `sp-extension` | 791 | The instance-side extension contract: registration, discovery, manifest appliers, background services, enablement, typed settings |
+| sp | `sp-governance` | 1,651 | The real `Governor`: gateway calls, verdicts, telemetry, usage, model list |
+| sp | `sp-drive` | 6,146 | Documents API and local folder sync (4,735); the Drive extension and its agent tools (`extension/`, `agent.rs`: 1,199); view types (`view.rs`: 212) |
+| sp | `sp-brain` | 2,118 | Client of the instance's Brain routes, a service with a change feed, four agent tools, a recall switch, a call augmenter that adds memory headers to a model call |
+| sp | `sp-notifications` | 1,116 | The reader's notification feed and inbox: poll, mark read, mark seen, load older |
+| sp | `sp-slack` | 338 | The Slack-originated items of the notification inbox and a status derived from them; holds no credential and makes no call |
+| sp | `sp-sync` | 3,227 | Poll loop, acceptance, apply, runtime files, receipts, heartbeat |
 | app | `sp-brand` | 346 | A two-variant `Brand` enum (the default and one install's) by cargo feature; channels |
-| app | `harness-ui` | 5,990 | Components, theme tokens, two palettes (the default and one install's), markdown, diff |
-| app | `harness-desktop` | 21,040 | Composition root, state, views, strings |
+| app | `harness-ui` | 5,994 | Components, theme tokens, two palettes (the default and one install's), markdown, diff |
+| app | `harness-shell` | 440 | The shell extension contract: registration, `ShellContext`, screens, settings panes, titlebar items, transcript adornments |
+| app | `harness-drive-ui` | 3,651 | The Drive's screens and settings pane |
+| app | `harness-brain-ui` | 2,706 | The Brain's screens |
+| app | `harness-notifications-ui` | 1,158 | The inbox screen, the titlebar bell, the Slack settings pane |
+| app | `harness-desktop` | 18,438 | Composition root, state, views, strings |
 
-`harness-desktop` by directory: `app/` 2,488 (services, startup, single instance, deep link), `state/` 1,821, `strings/` 1,211, `views/` 15,292 (composer 1,117; docks 860; drive 2,808; frame 329; governance 2,346; pickers 704; settings 2,349; signin 1,797; transcript 2,359).
+Ring totals: engine 33,872; sp 27,864; app 32,733.
+
+`harness-desktop` by directory: `app/` 2,297 (services, startup, linked extensions, single instance, deep link), `state/` 2,026, `strings/` 971, `views/` 12,892 (ten top-level files 805; composer 1,117; docks 860; frame 351; governance 2,345; pickers 704; settings 2,457; signin 1,797; transcript 2,456), crate root and build script 252.
 
 ### 1.2 What is good and must survive
 
@@ -50,30 +60,30 @@ A native Windows desktop coding agent in Rust on GPUI (`gpui-kit =0.9.1`), gover
 - A refused tool call is stored as `ToolState::Error` with a typed `denied` marker; the shell never parses text.
 - Semantic theme tokens: components paint from a `Palette`, never raw toolkit colours.
 - Core's clippy lint table copied unchanged; typed ids; owned tasks; separate test workspace.
+- Enablement fails closed: an extension the signed manifest does not list for this host is withheld, and only a required extension (governance) is exempt.
 
 ### 1.3 What blocks the vision
 
 | Area | Today |
 |---|---|
-| Composition | `Services::start` wires a fixed graph. An untyped `Extensions` map (`RwLock<HashMap<TypeId, _>>`) carries late handles. No member contract, no admission, no standing |
-| Brand | A two-variant enum in the kernel names an install. `packaging/windows/package.ps1` repeats the table |
+| Composition | `Services::start` wires the graph. A three-ring extension contract (`harness_engine::extension`, `sp-extension`, `harness-shell`) carries five members: governance, Drive, Brain, notifications, Slack. Each half registers at link time through `inventory`; members are resolved by priority, a higher one shadowing a lower; enablement comes from the signed manifest's `host_extensions` entry. A typed `Handles` map carries late handles. No standing, no reserved shapes, no admission phase, and `inventory` is refused in core |
+| Brand | A two-variant enum in the kernel names an install. `packaging/windows/package.ps1` and `packaging/macos/bundle.sh` each repeat the table |
 | Themes | Two palettes compiled in, keyed by `Brand` |
-| Tools | `harness_tools::builtin(config) -> Vec<Arc<dyn Tool>>`; Drive tools added by hand in the shell |
-| Views | Fixed modules under `views/` |
+| Tools | `harness_tools::builtin(config) -> Vec<Arc<dyn Tool>>` for the built-in tools; every other tool comes from an extension |
+| Views | Fixed modules under `views/`; the Drive, Brain and notification screens are three crates registered through the shell contract |
 | Core linkage | Only `systemprompt-models` and `systemprompt-identifiers` 0.87 |
-| Platforms | Windows x64 ships. macOS type-checks and runs tests. Linux is not built. 50 `cfg(windows)` sites with stubs beside them |
+| Platforms | Windows x64 (NSIS installer) and macOS arm64 and x64 (ad-hoc signed `.app` bundle) build and package. Linux is not built. Windows-only code sits behind `cfg(windows)` beside its macOS counterpart |
 | Process | Commit to `main`, fast-forward `next`; no pull requests; no changelog; no release |
-| Gates | 29 scripts forked from core's 54 |
-| Exercise | 942 tests pass on macOS. **Never launched on Windows. Never signed in**: no instance knows host `harness` |
+| Gates | 29 scripts forked from core's |
+| Exercise | 1,154 test attributes; its own plan records no pass total. 8 of them are an opt-in live package that needs a real instance and returns at once without one. **Never launched on Windows. Never signed in to an instance** |
 
 ### 1.4 Its own open work (from its handover, still open)
 
-1. Core: add host `harness`.
-2. First run on Windows.
-3. Live gate against a local instance.
-4. App icon artwork.
-5. Missing UI: delete a session, compact on request, choose the Drive folder.
-6. Repository settings (`next` default, `main` protected).
+1. Core: release host `harness` and the manifest's `host_extensions` field, both on core `future`.
+2. Live gate on macOS against a local instance built from core `future`. The programme replaces it with the scripted instance (`../testing/02-scripted-instance.md`): no stage runs real inference.
+3. First run on Windows.
+4. App icon artwork (Windows and macOS).
+5. Repository settings (`next` default, `main` protected).
 
 ## 2. `bin/bridge` (core)
 

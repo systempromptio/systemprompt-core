@@ -6,7 +6,7 @@ use systemprompt_bridge::gateway::model_view::{
     HostClients, HostModelView, catalog_models, claude_models, host_clients, host_model_view,
 };
 use systemprompt_bridge::gateway::types::ProviderHealth;
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{ConfigOwner, HostKind};
 use systemprompt_models::providers::ClientFamily;
 
 fn ph(name: &str, clients: &[ClientFamily], configured: bool, models: &[&str]) -> ProviderHealth {
@@ -57,22 +57,19 @@ fn each_host_maps_to_its_client_family() {
     assert_eq!(host_clients(HostKind::CodexCli), [ClientFamily::OpenAi]);
     assert_eq!(host_clients(HostKind::OpenCode), [ClientFamily::OpenAi]);
     assert_eq!(host_clients(HostKind::Hermes), [ClientFamily::OpenAi]);
-    assert_eq!(
-        host_clients(HostKind::Harness),
-        [ClientFamily::Claude, ClientFamily::OpenAi]
-    );
 }
 
 #[test]
-fn harness_lists_the_models_of_both_wires() {
-    let models = models_for(HostKind::Harness);
-    assert!(models.contains(&"claude-sonnet-5".to_owned()), "{models:?}");
-    assert!(
-        models_for(HostKind::CodexCli)
-            .iter()
-            .all(|model| models.contains(model)),
-        "{models:?}"
-    );
+fn the_bridge_lists_no_models_for_a_host_that_configures_itself() {
+    for host in HostKind::ALL {
+        match host.config_owner() {
+            ConfigOwner::Bridge => assert!(!host_clients(host).is_empty(), "{host}"),
+            ConfigOwner::Host => {
+                assert!(host_clients(host).is_empty(), "{host}");
+                assert!(models_for(host).is_empty(), "{host}");
+            },
+        }
+    }
 }
 
 #[test]

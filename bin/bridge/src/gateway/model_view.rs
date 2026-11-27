@@ -5,6 +5,10 @@
 //! from the catalog); the bridge only maps each host to its family and keeps
 //! the providers that advertise to it. `clients: []` is hidden everywhere.
 //!
+//! A host that configures itself has no family here: the bridge renders it no
+//! profile and lists it no models, and the protocols such a host speaks by
+//! default are its own manifest reader's to hold.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -25,7 +29,7 @@ pub const fn host_clients(host: HostKind) -> &'static [ClientFamily] {
         | HostKind::OpenCode
         | HostKind::OpenCodeCli
         | HostKind::Hermes => &[ClientFamily::OpenAi],
-        HostKind::Harness => &[ClientFamily::Claude, ClientFamily::OpenAi],
+        HostKind::Harness => &[],
     }
 }
 

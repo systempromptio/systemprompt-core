@@ -8,6 +8,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod hosts;
 mod per_user;
 pub mod shape;
 
@@ -33,17 +34,6 @@ use super::error::{BridgeError, authenticate_bridge};
 use super::{BridgeRouteState, resolved};
 use per_user::{PerUserContext, load_per_user_context, record_catalog_grants};
 use systemprompt_extension::router::ApiHttpError;
-
-fn enabled_host_extensions(
-    services: &systemprompt_manifest::services::ServicesConfig,
-    enabled_hosts: &[HostKind],
-) -> std::collections::BTreeMap<HostKind, Vec<String>> {
-    services
-        .instance_host_extensions()
-        .into_iter()
-        .filter(|(host, _)| enabled_hosts.contains(host))
-        .collect()
-}
 
 fn tenant_of(state: &BridgeRouteState) -> Option<TenantId> {
     state
@@ -92,12 +82,16 @@ pub async fn manifest(
         enabled_hosts,
         host_model_protocols,
     } = load_per_user_context(&state, &claims.user_id, services.instance_hosts()).await?;
-    let host_extensions = enabled_host_extensions(&services, &enabled_hosts);
+    let host_extensions = hosts::host_extensions_for(&services, &enabled_hosts);
+    let min_bridge_version = manifest_min_bridge_version(
+        &marketplaces,
+        hosts::named(&enabled_hosts, &host_model_protocols, &host_extensions),
+    );
     let per_user_at = Instant::now();
 
     let manifest = SignedManifest {
         min_schema_version: MANIFEST_INLINE_SCHEMA_VERSION,
-        min_bridge_version: Some(manifest_min_bridge_version(&marketplaces)),
+        min_bridge_version: Some(min_bridge_version),
         manifest_version: stamp.manifest_version,
         issued_at: stamp.issued_at,
         not_before: stamp.not_before,

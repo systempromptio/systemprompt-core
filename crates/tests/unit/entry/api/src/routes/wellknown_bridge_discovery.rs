@@ -1,6 +1,8 @@
 //! The `/.well-known/systemprompt-bridge` document: absent without a
 //! `gateway.bridge_instance` block, and otherwise the configured routes and
-//! branding with the instance-wide enabled hosts.
+//! branding with the instance-wide enabled hosts the bridge configures. A host
+//! that configures itself is never listed, declared or not: the bridge is the
+//! document's only reader and manages no such host.
 
 use systemprompt_api::routes::wellknown::bridge::discovery_document;
 use systemprompt_identifiers::ExternalAgentId;
@@ -9,7 +11,7 @@ use systemprompt_manifest::services::gateway::GatewayState;
 use systemprompt_manifest::services::{
     BridgeBrandingSpec, BridgeInstanceSpec, GatewayConfig, ServicesConfig,
 };
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{ConfigOwner, HostKind};
 use systemprompt_models::bridge::instance::DISCOVERY_CONTRACT;
 
 fn with_instance(instance: Option<BridgeInstanceSpec>) -> ServicesConfig {
@@ -56,7 +58,56 @@ fn the_document_carries_the_configured_routes_and_branding() {
         Some("https://docs.acme.test")
     );
     assert!(document.branding.logo_url.is_none());
-    assert_eq!(document.enabled_hosts, HostKind::ALL.to_vec());
+    assert_eq!(document.enabled_hosts, bridge_configured());
+}
+
+fn bridge_configured() -> Vec<HostKind> {
+    HostKind::ALL
+        .into_iter()
+        .filter(|host| host.config_owner() == ConfigOwner::Bridge)
+        .collect()
+}
+
+fn agent(id: &str, enabled: bool) -> (ExternalAgentId, ExternalAgentConfig) {
+    let id = ExternalAgentId::try_new(id).expect("valid id");
+    (
+        id.clone(),
+        ExternalAgentConfig {
+            id,
+            display_name: "Agent".to_owned(),
+            kind: ExternalAgentKind::DesktopApp,
+            enabled,
+            default_enabled: true,
+            description: String::new(),
+            platforms: Vec::new(),
+            docs_url: None,
+            desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy::default(),
+            extensions: Vec::new(),
+        },
+    )
+}
+
+#[test]
+fn the_document_never_lists_a_host_that_configures_itself() {
+    let default_document = discovery_document(&with_instance(Some(acme()))).expect("configured");
+    assert!(!default_document.enabled_hosts.contains(&HostKind::Harness));
+
+    let mut services = with_instance(Some(acme()));
+    services.external_agents.extend([agent("harness", true)]);
+    assert!(
+        services
+            .instance_enabled_hosts()
+            .contains(&HostKind::Harness),
+        "the instance serves harness"
+    );
+    let document = discovery_document(&services).expect("configured");
+    assert_eq!(
+        document.enabled_hosts,
+        bridge_configured(),
+        "a bridge of any version parses the document of an instance that enables harness"
+    );
+    let wire = serde_json::to_string(&document).expect("serialise");
+    assert!(!wire.contains("harness"), "{wire}");
 }
 
 #[test]

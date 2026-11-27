@@ -12,7 +12,8 @@ use crate::gui::error::{GuiError, GuiResult};
 use crate::gui::events::{ReplyId, UiEvent};
 use crate::gui::hosts::events::{HostUiEvent, ProbeCause};
 use crate::gui::{GuiApp, emit};
-use crate::integration::{GeneratedProfile, find_host_by_id};
+use crate::integration::GeneratedProfile;
+use crate::integration::host_app::HostApp;
 use crate::wire::ipc::{BridgeError, ErrorCode, ErrorScope};
 
 use super::finish;
@@ -92,11 +93,9 @@ pub(crate) fn on_profile_generate_finished(
 // the OS holds for approval is not read back — it is not installed yet.
 fn verify_managed_servers(
     app: &GuiApp,
-    host_id: HostKind,
+    host: &'static dyn HostApp,
 ) -> Result<Option<usize>, ManagedServersUnverified> {
-    let Some(host) = find_host_by_id(host_id) else {
-        return Ok(None);
-    };
+    let host_id = host.id();
     if !host.profile_carries_managed_servers() || manual_approval_notice(host).is_some() {
         return Ok(None);
     }
@@ -200,10 +199,12 @@ pub(crate) fn on_profile_install_finished(
     result: Result<(String, Vec<String>), Arc<GuiError>>,
     reply_to: ReplyId,
 ) {
-    let action = find_host_by_id(host_id).map_or(
-        "installed",
-        crate::integration::host_app::HostApp::install_action_label,
-    );
+    let Some(host) =
+        crate::gui::hosts::resolve::resolve_or_reply(app, host_id, "install profile", reply_to)
+    else {
+        return;
+    };
+    let action = host.install_action_label();
     let bridge_result = match result {
         Ok((path, warnings)) => {
             super::note_install_pending(app, host_id);
@@ -211,7 +212,7 @@ pub(crate) fn on_profile_install_finished(
             for warning in &warnings {
                 app.append_log_warn(format!("[{host_id}] {warning}"));
             }
-            match verify_managed_servers(app, host_id) {
+            match verify_managed_servers(app, host) {
                 Ok(connectors) => {
                     Ok(json!({ "path": path, "warnings": warnings, "connectors": connectors }))
                 },
@@ -267,7 +268,7 @@ pub(crate) fn on_profile_install_finished(
 }
 
 async fn generate_profile_for(
-    host: &'static dyn crate::integration::HostApp,
+    host: &'static dyn HostApp,
     bridge: &crate::context::BridgeContext,
     overrides: &crate::integration::reapply::ModelProtocolOverrides,
 ) -> GuiResult<GeneratedProfile> {

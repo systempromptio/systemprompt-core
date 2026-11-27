@@ -208,6 +208,55 @@ fn sign_bytes_round_trips_through_verifier() {
 }
 
 #[test]
+fn a_manifest_with_host_extensions_round_trips_through_seal_and_verify() {
+    use systemprompt_models::bridge::host::HostKind;
+    use systemprompt_models::bridge::ids::HostExtensionId;
+
+    let pubkey = manifest_keys().manifest_pubkey_b64();
+    let extension = |id: &str| HostExtensionId::try_new(id).expect("kebab-case extension id");
+    let mut manifest = sample_manifest();
+    manifest.enabled_hosts = vec![HostKind::Harness];
+    manifest.host_extensions = [(
+        HostKind::Harness,
+        vec![extension("drive"), extension("brain")],
+    )]
+    .into_iter()
+    .collect();
+
+    let envelope = sealed_envelope(&manifest);
+    assert!(
+        envelope
+            .payload
+            .contains(r#""host_extensions":{"harness":["drive","brain"]}"#),
+        "the signed bytes carry the map: {}",
+        envelope.payload
+    );
+    verify_envelope(&envelope, &pubkey).expect("the signature covers host_extensions");
+    let read: SignedManifest =
+        serde_json::from_str(&envelope.payload).expect("the signed payload parses");
+    assert_eq!(read.host_extensions, manifest.host_extensions);
+
+    let mut bare = manifest.clone();
+    bare.host_extensions.clear();
+    let without = sealed_envelope(&bare);
+    assert!(!without.payload.contains("host_extensions"));
+    assert_ne!(
+        envelope.signature, without.signature,
+        "the map is part of what is signed"
+    );
+
+    let mut forged = envelope.clone();
+    forged.payload = forged
+        .payload
+        .replace(r#"["drive","brain"]"#, r#"["drive"]"#);
+    assert_ne!(forged.payload, envelope.payload);
+    assert!(
+        verify_envelope(&forged, &pubkey).is_err(),
+        "an extension list edited after signing does not verify"
+    );
+}
+
+#[test]
 fn tamper_with_payload_breaks_signature() {
     let pubkey = manifest_keys().manifest_pubkey_b64();
 

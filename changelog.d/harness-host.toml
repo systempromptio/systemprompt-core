@@ -1,17 +1,37 @@
 [root]
 section = "Breaking"
 area = "Hosts"
-text = "`HostKind` gains `Harness` (`harness`), a desktop app (`HostProduct::Harness`) that speaks both the Anthropic Messages and the OpenAI Chat Completions wire; `HostKind::ALL` has eight ids. `HostKind::config_owner()` names who writes a host's configuration and holds its loopback credential: `ConfigOwner::Host` for `harness`, `ConfigOwner::Bridge` for every other host. `ClientKind` gains `Harness`, so `x-systemprompt-client: harness` and the User-Agent product `harness` attribute a request to it, and `EvaluatorClient` gains `Harness`, so a consumer device may fetch installation plans and bind sessions for `host=harness`. An instance enables `harness` like every other host unless `external_agents.harness.enabled` is `false`, and a bridge built against 0.87 cannot parse a manifest that names it: upgrade bridges with the gateway or disable the host. Migrate an exhaustive `match` over `HostKind`, `HostProduct`, `ClientKind` or `EvaluatorClient` by adding the arm."
+text = "`HostKind` gains `Harness` (`harness`), a desktop app (`HostProduct::Harness`); `HostKind::ALL` has eight ids. `HostKind::config_owner()` names who writes a host's configuration and holds its loopback credential: `ConfigOwner::Host` for `harness`, `ConfigOwner::Bridge` for every other host. A host that configures itself is opt-in per instance: it is served only when `external_agents` declares it with `enabled: true`, and with no entry it is withheld from the instance hosts, every user's manifest and consumer authorization, so an instance that declares nothing serves the hosts it served before. On an instance that serves it, the host reaches a user only through that user's own enabled preference; `default_enabled` does not apply to it, and turning it on or off never changes the user's other hosts or counts as the last enabled host. `HostKind::min_bridge_version()` names the first bridge release able to parse each host, and a manifest carries a `min_bridge_version` of at least the newest floor among the hosts it names (0.88.0 for `harness`), so a bridge built against 0.87 refuses it with the upgrade-required message instead of a parse error, and `/.well-known/systemprompt-bridge` never lists a host that configures itself. `ClientKind` gains `Harness`, so `x-systemprompt-client: harness` and the User-Agent product `harness` attribute a request to it; `host-token` attestation naming it, or naming a client the bridge configures no host for (`pi`, `other`), is refused with `400`, because the bridge holds no credential for either. `EvaluatorClient` gains `Harness`, so a consumer device may fetch installation plans and bind sessions for `host=harness` on an instance that enables it. `external_agents` validation refuses an entry whose key names no host (`harnes`, `cursor`), an entry whose key differs from its `id` and two keys that name one host (`codex_cli` beside `codex-cli`). The bridge preference routes answer `422 host_disabled` for any write naming a host the instance does not serve. Migrate an exhaustive `match` over `HostKind`, `HostProduct`, `ClientKind`, `EvaluatorClient` or `ClassificationRejection` by adding the arm, and remove any `external_agents` entry whose key is not a host id, and declare `external_agents.harness` to serve the host."
 
 [[crate]]
 name = "systemprompt-models"
 section = "Breaking"
-text = "`bridge::host::HostKind` and `HostProduct` gain `Harness` (`harness`, a desktop app), `bridge::host` gains `ConfigOwner { Bridge, Host }` and `HostKind::config_owner()` (`Host` for `harness`, `Bridge` for every other host), `origin::ClientKind` gains `Harness` (declarable, User-Agent product `harness`) and `feedback::EvaluatorClient` gains `Harness`. Migrate an exhaustive `match` by adding the arm."
+text = "`bridge::host::HostKind` and `HostProduct` gain `Harness` (`harness`, a desktop app), `bridge::host` gains `ConfigOwner { Bridge, Host }` and `HostKind::config_owner()` (`Host` for `harness`, `Bridge` for every other host), `origin::ClientKind` gains `Harness` (declarable, User-Agent product `harness`) and `feedback::EvaluatorClient` gains `Harness`. `origin::ClassificationRejection` gains `HostTokenForHostOwnedClient` and `HostTokenForClientWithoutHost`: `classify` refuses `host-token` attestation for a client whose host configures itself and for a client with no host (`pi`, `other`). `HostKind::min_bridge_version()` returns the first bridge release able to parse a host, `None` for a host every supported bridge parses and 0.88.0 for `harness`; `bridge::manifest::manifest_min_bridge_version` takes the hosts the manifest names as a second argument and returns at least the newest of their floors. `mcp::ExecutionSource::from_hook_host` returns `Option<ExecutionSource>`, `None` for `harness`. Migrate an exhaustive `match` by adding the arm, pass the manifest's enabled hosts and the keys of its two host maps to `manifest_min_bridge_version`, and handle the `Option`."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Breaking"
+text = "`ServicesConfig::instance_enabled_hosts` and `instance_hosts` serve a host whose `config_owner()` is `ConfigOwner::Host` only when `external_agents` declares it with `enabled: true`; a host the bridge configures is still served unless its entry says `enabled: false`. `services::external_agent::validate_catalog`, which `ServicesConfig::validate` runs, refuses an entry whose key names no host, an entry whose key differs from its `id` and two keys that name one host; `ExternalAgentConfig::validate` refuses the first two. Migrate a services tree by removing or renaming an `external_agents` entry whose key is not a host id, giving each entry the key its `id` names and keeping one entry per host."
+
+[[crate]]
+name = "systemprompt-gateway-entry"
+section = "Changed"
+text = "`GET /v1/bridge/manifest` names a host that configures itself only on an instance that declares it and only for a user who has turned it on, raises `min_bridge_version` to the newest floor among the hosts the manifest names in `enabled_hosts`, `host_model_protocols` and `host_extensions` (0.88.0 for `harness`), and carries a stored model filter only for a host the instance serves. `POST /v1/bridge/profile/enabled_hosts` and `POST /v1/bridge/profile/host-model-filter` answer `422 host_disabled` for any write naming a host the instance does not serve, switching it off and clearing its filter included. `http::bridge::manifest::hosts` holds the host projections of the manifest."
+
+[[crate]]
+name = "systemprompt-marketplace-entry"
+section = "Added"
+text = "`http::managed::consumer::instance_serves` is the predicate consumer authorization applies to the `host` of a receipt or session binding: whether a host the instance serves accepts it."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Changed"
+text = "`/.well-known/systemprompt-bridge` lists in `enabled_hosts` only the hosts the bridge configures; a host that configures itself is never listed, so a bridge of any version parses the document."
 
 [[crate]]
 name = "systemprompt-agent-runs"
 section = "Changed"
-text = "`host_for(HostKind::Harness)` is `Execution::Unsupported`: the harness desktop app has no headless packaging."
+text = "`host_for(HostKind::Harness)` is `Execution::Unsupported`: no headless adapter exists for the host."
 
 [[crate]]
 name = "systemprompt-marketplace"
@@ -21,9 +41,9 @@ text = "A consumer installation plan for `harness` renders `SKILL.md` as the Cla
 [[crate]]
 name = "systemprompt-ai"
 section = "Changed"
-text = "`ai_requests.client_kind` and `ai_request_client_evidence.attested_host` admit `harness` (migration `059_ai_requests_client_kind_harness`)."
+text = "`ai_requests.client_kind` and `ai_request_client_evidence.attested_host` admit `harness` (migration `059_ai_requests_client_kind_harness`, measured at 110 ms for its slowest statement over 300000 rows)."
 
 [[crate]]
 name = "systemprompt-oauth"
 section = "Changed"
-text = "`bridge_user_host_prefs` and `bridge_user_host_model_prefs` admit the host id `harness` (migration `030_bridge_host_prefs_harness`)."
+text = "`bridge_user_host_prefs` and `bridge_user_host_model_prefs` admit the host id `harness` (migration `030_bridge_host_prefs_harness`). A host that configures itself is enabled for a user only by its own row: `EnabledHostPrefs::admits` and `chose_default_hosts` keep it apart from the \"no rows means every host\" rule of the hosts the bridge configures, and `BridgeHostPrefsRepository::set_enabled` writes its row without reading or recording any other. `set_enabled` answers `HostPrefWrite::WouldDisableAll` when the write would leave no bridge-configured host enabled: neither a host that configures itself nor a stored row this build cannot parse counts as the host that remains."

@@ -13,20 +13,36 @@
 //! The `id` field MUST equal the bridge's `HostApp::id()` for the same host
 //! (e.g. `claude_desktop`, `codex_cli`).
 //!
+//! A host that configures itself (`harness`) is served only when its entry is
+//! present with `enabled: true`; every other host is served unless its entry
+//! says `enabled: false`.
+//!
 //! `extensions` names the optional feature extensions a host compiled with
 //! them may turn on; the signed manifest carries the list as
-//! `host_extensions` for each host the user has enabled. Only an entry that
-//! names a known host may declare extensions.
+//! `host_extensions` for each host the user has enabled. An extension adds
+//! capability and nothing else: a host that is not told of one runs without
+//! it, so nothing that restricts or enforces may be an extension. Only an
+//! entry whose key names a host that configures itself may declare any, and
+//! each id is a kebab-case [`HostExtensionId`] refused at load when malformed.
+//!
+//! [`validate_catalog`] refuses an entry whose key names no host (`harnes`,
+//! `Harness`): such an entry would be read by nothing, so an `enabled: false`
+//! under a mistyped key would leave its host served. It also refuses an entry
+//! whose key differs from its `id`, and
+//! two entries whose keys name one host (`codex_cli` beside `codex-cli`):
+//! which of the two would supply `enabled` and the signed extension list is
+//! otherwise an accident of map order.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ExternalAgentId;
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{ConfigOwner, HostKind};
+use systemprompt_models::bridge::ids::HostExtensionId;
 use systemprompt_models::errors::{ServicesValidationError, ValidationSubject};
-
-const EXTENSION_ID_MAX_CHARS: usize = 64;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -53,7 +69,7 @@ pub struct ExternalAgentConfig {
     #[serde(default)]
     pub desktop_policy: systemprompt_models::bridge::desktop_policy::DesktopPolicy,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub extensions: Vec<String>,
+    pub extensions: Vec<HostExtensionId>,
 }
 
 #[must_use]
@@ -61,32 +77,51 @@ pub fn external_agent_host(key: &ExternalAgentId) -> Option<HostKind> {
     key.as_str().replace('_', "-").parse().ok()
 }
 
+fn named_host(key: &ExternalAgentId) -> Result<HostKind, ServicesValidationError> {
+    external_agent_host(key).ok_or_else(|| {
+        let known: Vec<String> = HostKind::ALL
+            .iter()
+            .map(|host| host.as_str().replace('-', "_"))
+            .collect();
+        ServicesValidationError::invalid_field(
+            ValidationSubject::named("External agent", key.as_str()),
+            format!(
+                "key '{}' names no host; expected one of {}",
+                key.as_str(),
+                known.join(", ")
+            ),
+        )
+    })
+}
+
 impl ExternalAgentConfig {
     pub fn validate(&self, key: &ExternalAgentId) -> Result<(), ServicesValidationError> {
-        if self.extensions.is_empty() {
-            return Ok(());
-        }
         let subject = || ValidationSubject::named("External agent", key.as_str());
-        if external_agent_host(key).is_none() {
+        let host = named_host(key)?;
+        if self.id.as_str() != key.as_str() {
             return Err(ServicesValidationError::invalid_field(
                 subject(),
                 format!(
-                    "extensions are declared but '{}' names no known host",
+                    "id '{}' differs from its key '{}'",
+                    self.id.as_str(),
                     key.as_str()
                 ),
             ));
         }
-        let mut seen = std::collections::BTreeSet::new();
+        if self.extensions.is_empty() {
+            return Ok(());
+        }
+        if host.config_owner() != ConfigOwner::Host {
+            return Err(ServicesValidationError::invalid_field(
+                subject(),
+                format!(
+                    "extensions are declared but '{}' names a host the bridge configures",
+                    key.as_str()
+                ),
+            ));
+        }
+        let mut seen = BTreeSet::new();
         for extension in &self.extensions {
-            if !is_extension_id(extension) {
-                return Err(ServicesValidationError::invalid_field(
-                    subject(),
-                    format!(
-                        "extension '{extension}' must be 1 to {EXTENSION_ID_MAX_CHARS} lowercase \
-                         letters, digits or hyphens, starting with a letter"
-                    ),
-                ));
-            }
             if !seen.insert(extension.as_str()) {
                 return Err(ServicesValidationError::invalid_field(
                     subject(),
@@ -98,12 +133,29 @@ impl ExternalAgentConfig {
     }
 }
 
-fn is_extension_id(value: &str) -> bool {
-    value.len() <= EXTENSION_ID_MAX_CHARS
-        && value.starts_with(|c: char| c.is_ascii_lowercase())
-        && value
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+pub fn validate_catalog(
+    agents: &HashMap<ExternalAgentId, ExternalAgentConfig>,
+) -> Result<(), ServicesValidationError> {
+    let mut keys: Vec<&ExternalAgentId> = agents.keys().collect();
+    keys.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+    let mut by_host: BTreeMap<HostKind, &ExternalAgentId> = BTreeMap::new();
+    for key in keys {
+        if let Some(agent) = agents.get(key) {
+            agent.validate(key)?;
+        }
+        let host = named_host(key)?;
+        if let Some(other) = by_host.insert(host, key) {
+            return Err(ServicesValidationError::invalid_field(
+                ValidationSubject::named("External agent", key.as_str()),
+                format!(
+                    "'{}' and '{}' both name the host '{host}'; keep one entry",
+                    other.as_str(),
+                    key.as_str()
+                ),
+            ));
+        }
+    }
+    Ok(())
 }
 
 const fn default_enabled() -> bool {

@@ -1,5 +1,7 @@
 -- @no-transaction
 -- @supersedes-checksum: 61dfca5ca6c37959
+-- @supersedes-checksum: 718e068ed82f1eec
+-- @supersedes-checksum: 726a3dcc17d183e2
 -- @cost: rows=97723 measured=1.1s triggers=live
 -- `ai_requests.client_kind` and `ai_request_client_evidence.attested_host`
 -- gain 'harness', the ClientKind of the harness desktop app

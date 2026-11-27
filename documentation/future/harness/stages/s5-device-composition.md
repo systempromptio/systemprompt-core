@@ -10,7 +10,7 @@
 
 | Lane | Repository | Owned paths | Work |
 |---|---|---|---|
-| **S5-A1 Shared machinery** | core | `crates/shared/provider-contracts/**`; `crates/shared/extension/**`; `systemprompt-harness/src/contract/**` | Move the composition machinery (slots, standing, typed state, provide and factory types, dependency ordering, withholding) down into `systemprompt-provider-contracts`, untangling its one reference to a database handle. `systemprompt-extension` re-exports it, so no server crate changes. In `systemprompt-harness`: `HarnessExtension`, `HarnessContributions`, the device reserved shapes, `BrandDecl` and `ThemeDecl` as data, mount-point ids, and the `harness.members` block with its admission rule |
+| **S5-A1 Shared machinery** | core | `crates/shared/provider-contracts/**`; `crates/shared/extension/**`; `systemprompt-harness/src/contract/**` | Move the composition machinery (slots, standing, typed state, provide and factory types, dependency ordering, withholding) down into `systemprompt-provider-contracts`, untangling its one reference to a database handle. `systemprompt-extension` re-exports it, so no server crate changes. In `systemprompt-harness`: `HarnessExtension`, `HarnessContributions`, the device reserved shapes, `BrandDecl` and `ThemeDecl` as data, mount-point ids, and the `harness.members` block with its admission rule The contract also fixes two things S0 left to it: the header and the stored column that carry a fork's brand, introduced with `BrandDecl` (D43; `x-systemprompt-client` stays the closed client kind), and whether `harness.members` absorbs `host_extensions` or the field stays as its additive half (`../architecture/04-host-integrations.md` section 3.3). Two live sources of member enablement are not kept |
 | **S5-A2 Contract review** **(review)** | core | None | Reserved shapes cannot be claimed by an extension-standing member; admission withholds, never partially admits; `harness.members` can narrow and never widen; no server crate's public interface changed |
 
 Serial: every other lane in this stage compiles against S5-A1.
@@ -50,6 +50,8 @@ Specification: `../architecture/12-workbench-and-automation.md`. Each is a membe
 | **S5-D3 Parallel sessions, schedules and memory views** | template | `extensions/harness/views/{sessions,schedules,memory}/**` | Starting a session in its own working copy; finishing one (merge, pull request, discard). Creating, pausing and running schedules. Seeing what a turn recalled and removing a remembered item |
 | **S5-D4 Workbench review** **(review)** | — | None | The terminal as a user-driven execution path; the preview pane's confinement and the proxy's authentication; that the web view exists only in the `preview` slice |
 
+**Catalogue rows deferred to this stage.** 10 rows of the reference-test catalogue wait here (`../testing/04-test-migration.md` section 1.1): members activating independently; members contributing views, themes, tools and commands. S5-C3 ports them against the outside member.
+
 ## Stage gate (L2)
 
 - Every S1 and S2 check, unchanged, on all three systems. No expected trace edited.
@@ -63,6 +65,7 @@ Specification: `../architecture/12-workbench-and-automation.md`. Each is a membe
 2. The built-in tool list function, the fixed service wiring, the brand enum and the untyped extensions map no longer exist.
 3. The outside member builds without editing any kernel crate.
 4. `architecture/03-composition-contract.md` matches the signatures that landed.
+5. No catalogue row deferred to this stage is `open`.
 
 ## Decisions reserved to people
 

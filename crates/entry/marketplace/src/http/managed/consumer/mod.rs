@@ -7,6 +7,8 @@
 mod authorization;
 mod error;
 
+pub use authorization::instance_serves;
+
 use axum::extract::{DefaultBodyLimit, Path, State};
 use axum::http::HeaderMap;
 use axum::routing::{get, post};
