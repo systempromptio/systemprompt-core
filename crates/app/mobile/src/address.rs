@@ -17,7 +17,9 @@ pub struct InstanceAddress(String);
 
 impl InstanceAddress {
     pub fn parse(input: &str) -> Result<Self, MobileError> {
-        let url = Url::parse(input.trim()).map_err(|_| MobileError::InvalidAddress)?;
+        let Ok(url) = Url::parse(input.trim()) else {
+            return Err(MobileError::InvalidAddress);
+        };
         let names_only_an_origin = url.username().is_empty()
             && url.password().is_none()
             && url.query().is_none()

@@ -42,11 +42,10 @@ impl MobileError {
 impl From<ClientError> for MobileError {
     fn from(error: ClientError) -> Self {
         match &error {
-            ClientError::Timeout => Self::Network,
             ClientError::HttpError(source) if source.is_decode() || source.is_builder() => {
                 Self::internal(&error)
             },
-            ClientError::HttpError(_) => Self::Network,
+            ClientError::Timeout | ClientError::HttpError(_) => Self::Network,
             ClientError::ApiError { status, .. } | ClientError::UnreadableErrorBody { status, .. } => {
                 Self::from_status(*status)
             },

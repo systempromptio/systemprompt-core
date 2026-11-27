@@ -106,11 +106,10 @@ async fn a_contract_this_build_does_not_read_is_too_old() {
 
 #[tokio::test]
 async fn an_unreachable_instance_is_a_network_failure() {
-    let server = MockServer::start().await;
-    let address = server.uri();
-    drop(server);
-
-    assert_eq!(Instances::new().discover(address).await, Err(MobileError::Network));
+    assert_eq!(
+        Instances::new().discover("http://127.0.0.1:1".to_owned()).await,
+        Err(MobileError::Network)
+    );
 }
 
 #[tokio::test]
