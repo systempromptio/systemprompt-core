@@ -143,6 +143,78 @@ async fn a_stored_context_is_dropped_when_no_member_provides_contexts() {
     assert!(matches!(again, ContextCheck::Contextless), "{again:?}");
 }
 
+struct UnownedContexts;
+
+#[async_trait::async_trait]
+impl systemprompt_traits::CallerContexts for UnownedContexts {
+    async fn owned_context(
+        &self,
+        _context_id: &ContextId,
+    ) -> Result<Option<systemprompt_traits::OwnedContextSummary>, systemprompt_traits::ContextProviderError>
+    {
+        Ok(None)
+    }
+
+    async fn owned_names(
+        &self,
+        _context_ids: &[ContextId],
+    ) -> Result<
+        std::collections::HashMap<ContextId, String>,
+        systemprompt_traits::ContextProviderError,
+    > {
+        Ok(std::collections::HashMap::new())
+    }
+}
+
+impl systemprompt_traits::ContextDirectory for UnownedContexts {
+    fn for_caller(&self, _caller: &UserId) -> Box<dyn systemprompt_traits::CallerContexts + '_> {
+        Box::new(Self)
+    }
+}
+
+struct FailingIssuer;
+
+#[async_trait::async_trait]
+impl systemprompt_traits::CallerSessionContexts for FailingIssuer {
+    async fn session_context(
+        &self,
+        _session_id: &SessionId,
+        _name: &str,
+    ) -> Result<ContextId, systemprompt_traits::ContextProviderError> {
+        Err(systemprompt_traits::ContextProviderError::NotFound {
+            context_id: ContextId::generate(),
+        })
+    }
+}
+
+impl systemprompt_traits::SessionContextIssuer for FailingIssuer {
+    fn for_caller(
+        &self,
+        _caller: &UserId,
+    ) -> Box<dyn systemprompt_traits::CallerSessionContexts + '_> {
+        Box::new(Self)
+    }
+}
+
+#[tokio::test]
+async fn a_stale_context_is_dropped_when_no_replacement_can_be_issued() {
+    let user_id = unique_user_id("ctxnoissue");
+    let stale = ContextId::generate();
+    let mut session = session_for(&user_id, SessionId::generate(), stale);
+    let contexts = systemprompt_cli::session::SessionContexts::new(
+        std::sync::Arc::new(UnownedContexts),
+        std::sync::Arc::new(FailingIssuer),
+    );
+
+    let outcome = revalidate_context(&contexts, &mut session, &pname("ctxdb")).await;
+
+    assert!(
+        matches!(outcome, ContextCheck::Unverified(SessionContextError::Context(_))),
+        "{outcome:?}"
+    );
+    assert_eq!(session.context_id, None);
+}
+
 fn contexts(pool: &DbPool) -> systemprompt_cli::session::SessionContexts {
     let service = std::sync::Arc::new(systemprompt_agent::services::ContextProviderService::new(
         ContextRepository::new(pool),

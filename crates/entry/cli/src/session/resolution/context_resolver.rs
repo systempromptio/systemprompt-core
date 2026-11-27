@@ -217,6 +217,7 @@ pub async fn revalidate_context(
                 );
             },
         }
+        session.context_id = None;
     }
 
     match contexts
