@@ -3,8 +3,11 @@
 -- app versions, the app identifier and when it was last seen. Records written
 -- before a device reported itself read platform 'unknown'; the constant
 -- default makes the column a catalog change, not a rewrite. The platform
--- check is added NOT VALID under a brief lock and validated under SHARE
--- UPDATE EXCLUSIVE, so reads and writes continue. user_device_push_tokens is
+-- check is added NOT VALID and then validated; the migration runs in one
+-- transaction, so the lock ADD COLUMN takes is held until it commits (the
+-- measured cost above is that whole window). The check is dropped first so a
+-- database whose table was created from the current schema file, check
+-- included, replays this without a duplicate. user_device_push_tokens is
 -- a new, empty table whose foreign keys point at user_device_certs and users,
 -- neither of them a large table.
 ALTER TABLE user_device_certs
@@ -13,6 +16,7 @@ ALTER TABLE user_device_certs
     ADD COLUMN IF NOT EXISTS app_version TEXT,
     ADD COLUMN IF NOT EXISTS app_id TEXT,
     ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
+ALTER TABLE user_device_certs DROP CONSTRAINT IF EXISTS user_device_certs_platform_check;
 ALTER TABLE user_device_certs
     ADD CONSTRAINT user_device_certs_platform_check
     CHECK (platform IN ('ios', 'android', 'macos', 'windows', 'linux', 'unknown')) NOT VALID;

@@ -7,8 +7,9 @@
 //! fetches the notification. The collapse key is sent as `apns-collapse-id`.
 //!
 //! Only a token issued to the declared topic (the app's bundle id) is pushed
-//! to. Apple's `410`, `BadDeviceToken` and `Unregistered` answers, and a
-//! stored token that is not hexadecimal, mark the token unregistered.
+//! to. Apple's `410` and `Unregistered` answers, and a stored token that is
+//! not hexadecimal, mark the token unregistered. `BadDeviceToken` does not:
+//! Apple sends it for a token from the other environment too.
 //! Throttling, a server failure and an expired provider token are worth
 //! another attempt; every other refusal is not.
 //!
@@ -103,7 +104,11 @@ fn verdict(response: ProviderResponse) -> Result<PushVerdict, PushError> {
         .map(|failure| failure.reason)
         .unwrap_or_default();
     match (status, reason.as_str()) {
-        (410, _) | (_, "BadDeviceToken" | "Unregistered") => Ok(PushVerdict::Unregistered),
+        // Why: Apple also answers BadDeviceToken when a sandbox token meets
+        // the production host (or the reverse), so it is a rejection: treating
+        // it as unregistered would delete every token of a misconfigured
+        // instance on first delivery.
+        (410, _) | (_, "Unregistered") => Ok(PushVerdict::Unregistered),
         (429 | 500..=599, _) | (_, "ExpiredProviderToken") => {
             Err(PushError::Unavailable { status, reason })
         },
