@@ -84,8 +84,24 @@ async fn recent_contexts_never_show_another_users_model_agent_or_name() {
     let (other, _other_session) = seed_user_and_session(&pool).await;
     let (context_id, _task_id) = seed_context_and_task(&repos(&pool), &owner, &owner_session).await;
     let now = Utc::now();
-    seed_context_rollup(&pool, &other, &context_id, "other-model", "other-agent", now - Duration::minutes(5)).await;
-    seed_context_rollup(&pool, &owner, &context_id, "owner-model", "owner-agent", now - Duration::minutes(1)).await;
+    seed_context_rollup(
+        &pool,
+        &other,
+        &context_id,
+        "other-model",
+        "other-agent",
+        now - Duration::minutes(5),
+    )
+    .await;
+    seed_context_rollup(
+        &pool,
+        &owner,
+        &context_id,
+        "owner-model",
+        "owner-agent",
+        now - Duration::minutes(1),
+    )
+    .await;
     let report = AgentActivityReportRepository::new(&pool);
 
     let rows = report
@@ -98,6 +114,9 @@ async fn recent_contexts_never_show_another_users_model_agent_or_name() {
         .expect("the caller's own activity in the context is listed");
 
     assert_eq!(row.model.as_deref(), Some("other-model"));
-    assert_eq!(row.agent_name.as_ref().map(|name| name.as_str()), Some("other-agent"));
+    assert_eq!(
+        row.agent_name.as_ref().map(|name| name.as_str()),
+        Some("other-agent")
+    );
     assert_eq!(row.context_name, None);
 }

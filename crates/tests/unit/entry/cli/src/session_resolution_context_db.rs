@@ -150,8 +150,10 @@ impl systemprompt_traits::CallerContexts for UnownedContexts {
     async fn owned_context(
         &self,
         _context_id: &ContextId,
-    ) -> Result<Option<systemprompt_traits::OwnedContextSummary>, systemprompt_traits::ContextProviderError>
-    {
+    ) -> Result<
+        Option<systemprompt_traits::OwnedContextSummary>,
+        systemprompt_traits::ContextProviderError,
+    > {
         Ok(None)
     }
 
@@ -209,7 +211,10 @@ async fn a_stale_context_is_dropped_when_no_replacement_can_be_issued() {
     let outcome = revalidate_context(&contexts, &mut session, &pname("ctxdb")).await;
 
     assert!(
-        matches!(outcome, ContextCheck::Unverified(SessionContextError::Context(_))),
+        matches!(
+            outcome,
+            ContextCheck::Unverified(SessionContextError::Context(_))
+        ),
         "{outcome:?}"
     );
     assert_eq!(session.context_id, None);
