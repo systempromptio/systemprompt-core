@@ -10,14 +10,14 @@
 use std::fmt;
 use std::sync::Arc;
 
-use harness_engine::extension::GovernorObserver;
-use harness_ids::extension_id;
-use sp_extension::{
+use systemprompt_engine::run::extension::GovernorObserver;
+use systemprompt_identifiers::engine::extension_id;
+use crate::extension::{
     AppliedInstance, ApplyError, EngineExtension, ExtensionId, ExtensionMetadata, ManifestApplier,
     SpContext, SpExtension, register_sp_extension,
 };
 
-use crate::governance::{Governance, GovernanceTelemetry};
+use crate::governance::governance::{Governance, GovernanceTelemetry};
 
 /// The governance extension, id `governance`, required.
 ///

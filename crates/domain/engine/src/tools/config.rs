@@ -8,9 +8,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::shell::BackgroundJobs;
-use crate::tools::TodoSink;
-use crate::truncate::OutputLimits;
+use crate::tools::shell::BackgroundJobs;
+use crate::tools::tools::TodoSink;
+use crate::tools::truncate::OutputLimits;
 
 /// How shell commands run. `path` replaces the detected shell (a path, or a
 /// name looked up on PATH); `capture_bytes` is the output kept in memory per
@@ -94,7 +94,7 @@ impl Default for SearchLimits {
     }
 }
 
-/// Everything [`crate::builtin`] needs to build the tool set.
+/// Everything [`crate::tools::builtin`] needs to build the tool set.
 ///
 /// `output` caps what any tool returns before the rest is spilled to a file;
 /// `jobs` is the registry background shell commands join, one per engine;

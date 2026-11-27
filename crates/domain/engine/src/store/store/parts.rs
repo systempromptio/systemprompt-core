@@ -6,12 +6,12 @@
 
 use rusqlite::{OptionalExtension, params};
 
-use crate::change::Change;
-use crate::error::{Result, StoreError, not_found};
-use crate::id::{MessageId, PartId, SessionId, column, now_ms, param};
-use crate::model::{Part, PartBody, Todo};
-use crate::rows::{load_part, load_session, query_parts, query_todos, write_part};
-use crate::store::Store;
+use crate::store::change::Change;
+use crate::store::error::{Result, StoreError, not_found};
+use crate::store::id::{MessageId, PartId, SessionId, column, now_ms, param};
+use crate::store::model::{Part, PartBody, Todo};
+use crate::store::rows::{load_part, load_session, query_parts, query_todos, write_part};
+use crate::store::store::Store;
 
 const APPEND_TEXT: &str = "UPDATE part SET payload = json_set(payload, '$.text', \
        COALESCE(json_extract(payload, '$.text'), '') || ?2), updated_at = ?3 \

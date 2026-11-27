@@ -22,7 +22,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use serde::Serialize;
-use sp_client::{CredentialSource, HttpClient, SpClient, with_jwt};
+use systemprompt_device::client::{CredentialSource, HttpClient, SpClient, with_jwt};
 use sp_protocol::ids::DocumentId;
 use sp_protocol::wire::paths;
 use url::Url;

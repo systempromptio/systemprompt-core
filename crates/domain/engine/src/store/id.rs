@@ -11,7 +11,7 @@
 
 use std::str::FromStr;
 
-pub use harness_ids::{CallId, IdError, MessageId, PartId, ProjectId, SessionId, now_ms};
+pub use systemprompt_identifiers::engine::{CallId, IdError, MessageId, PartId, ProjectId, SessionId, now_ms};
 use rusqlite::Row;
 use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef};
 

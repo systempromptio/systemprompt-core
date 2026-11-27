@@ -5,7 +5,7 @@
 
 use std::path::Path;
 
-use crate::paths::display_slash;
+use crate::config::paths::display_slash;
 
 pub fn inside(dir: &Path) -> String {
     let base = display_slash(dir);

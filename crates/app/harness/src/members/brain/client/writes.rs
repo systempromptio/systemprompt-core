@@ -16,8 +16,8 @@ use sp_protocol::wire::brain::{
 use sp_protocol::wire::paths;
 
 use super::BrainClient;
-use crate::error::BrainError;
-use crate::http::Call;
+use crate::members::brain::error::BrainError;
+use crate::members::brain::http::Call;
 
 const ENTER: &str = "POST /api/v1/brain/facts";
 const CONFIRM: &str = "POST /api/v1/brain/facts/{id}/confirm";

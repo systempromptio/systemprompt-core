@@ -8,8 +8,8 @@
 use std::future::Future;
 use std::sync::Arc;
 
-use sp_accounts::{Accounts, AccountsError, DeviceEntry};
-use sp_client::{
+use systemprompt_device::accounts::{Accounts, AccountsError, DeviceEntry};
+use systemprompt_device::client::{
     ClientError, ConsumerOutcome, CredentialError, CredentialSource, Freshness, JwtSession,
     ManifestFetch, ManifestKey, SpClient,
 };

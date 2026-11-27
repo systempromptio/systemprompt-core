@@ -39,10 +39,10 @@ pub use enablement::Enablement;
 pub use error::ExtensionError;
 pub use extension::SpExtension;
 pub use handles::Handles;
-pub use harness_engine::extension::{
+pub use systemprompt_engine::run::extension::{
     Contributed, EnabledExtensions, EngineExtension, ExtensionMetadata, ResolveError, Resolved,
 };
-pub use harness_ids::{ExtensionId, extension_id};
+pub use systemprompt_identifiers::engine::{ExtensionId, extension_id};
 pub use harness_tasks::CancellationToken;
 pub use policy::ExtensionPolicy;
 pub use register::SpExtensionRegistration;

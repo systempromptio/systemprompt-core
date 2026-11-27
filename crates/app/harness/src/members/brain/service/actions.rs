@@ -12,8 +12,8 @@ use sp_protocol::wire::brain::{
 };
 
 use super::{BrainService, Change};
-use crate::client::FactQuery;
-use crate::error::BrainError;
+use crate::members::brain::client::FactQuery;
+use crate::members::brain::error::BrainError;
 
 impl BrainService {
     pub async fn facts(&self, query: &FactQuery) -> Result<FactPage, BrainError> {

@@ -23,9 +23,9 @@ use sp_protocol::wire::manifest::Publication;
 use sp_protocol::wire::paths;
 use sp_protocol::{DeviceCredential, HOST_ID, Jwt};
 
-use crate::client::{SpClient, push_segments};
-use crate::error::ClientError;
-use crate::http::{SMALL_BODY, decode, exchange, failure, protocol};
+use crate::client::client::{SpClient, push_segments};
+use crate::client::error::ClientError;
+use crate::client::http::{SMALL_BODY, decode, exchange, failure, protocol};
 
 const ENROL_ENDPOINT: &str = "POST /v1/bridge/device";
 const PLAN_ENDPOINT: &str =

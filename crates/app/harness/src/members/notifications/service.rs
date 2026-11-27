@@ -10,12 +10,12 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
-use sp_extension::{BackgroundService, CancellationToken};
+use crate::extension::{BackgroundService, CancellationToken};
 
-use crate::error::NotificationsError;
-use crate::feed::catch_up;
-use crate::handle::{NotificationsHandle, Target};
-use crate::inbox::FeedStatus;
+use crate::members::notifications::error::NotificationsError;
+use crate::members::notifications::feed::catch_up;
+use crate::members::notifications::handle::{NotificationsHandle, Target};
+use crate::members::notifications::inbox::FeedStatus;
 
 const MAX_DOUBLINGS: u32 = 16;
 

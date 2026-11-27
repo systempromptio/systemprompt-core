@@ -12,14 +12,14 @@
 
 use std::path::Path;
 
-use harness_config::{Layout, Paths};
+use systemprompt_engine::config::{Layout, Paths};
 use sp_protocol::view::SyncCounts;
 
-use crate::bundle::is_owned_path;
-use crate::error::ProjectionError;
-use crate::ledger::{self, AGENTS_FILE, OWNED_LEDGER, SKILLS_DIR, SKILLS_LEDGER};
-use crate::model::{BundleFile, Counts, Projection, SkillSet};
-use crate::{defaults, managed};
+use crate::projection::bundle::is_owned_path;
+use crate::projection::error::ProjectionError;
+use crate::projection::ledger::{self, AGENTS_FILE, OWNED_LEDGER, SKILLS_DIR, SKILLS_LEDGER};
+use crate::projection::model::{BundleFile, Counts, Projection, SkillSet};
+use crate::projection::{defaults, managed};
 
 /// Writes projections into one config dir. Every method blocks on the
 /// filesystem; async callers run it on a blocking thread. One applier per

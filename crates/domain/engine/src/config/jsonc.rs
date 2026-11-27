@@ -10,9 +10,9 @@ use jsonc_parser::ParseOptions;
 use jsonc_parser::cst::{CstInputValue, CstObject, CstRootNode};
 use serde_json::{Map, Value};
 
-use crate::error::ConfigError;
-use crate::fsio::write_atomic;
-use crate::paths::{Layout, Paths};
+use crate::config::error::ConfigError;
+use crate::config::fsio::write_atomic;
+use crate::config::paths::{Layout, Paths};
 
 pub(crate) fn options() -> ParseOptions {
     ParseOptions::default()
@@ -126,7 +126,7 @@ pub fn update_global_setting(
         Err(source) => return Err(ConfigError::Read { path: file, source }),
     };
     let after = edit_text(&file, &before, key, value)?;
-    crate::settings::validate_text(&file, &after, &paths.home)?;
+    crate::config::settings::validate_text(&file, &after, &paths.home)?;
     if after == before {
         return Ok(false);
     }

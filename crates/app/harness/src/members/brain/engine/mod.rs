@@ -21,14 +21,14 @@ mod tools;
 
 use std::sync::Arc;
 
-use harness_engine::extension::{
+use systemprompt_engine::run::extension::{
     CallAugmenter, EngineExtension, ExtensionMetadata, ExtensionTool, GovernorObserver,
     PromptContext, PromptSection,
 };
-use sp_extension::ExtensionSettings;
+use crate::extension::ExtensionSettings;
 
-use crate::extension::metadata;
-use crate::service::BrainService;
+use crate::members::brain::extension::metadata;
+use crate::members::brain::service::BrainService;
 
 const HEADING: &str = "Team memory";
 const GUIDANCE: &str = "This organisation keeps a shared memory of confirmed facts. Facts it recalls for a request arrive in a <team_memory> block, each line tagged with its fact id; treat them as what the team has agreed, and name the fact id when an answer rests on one. Use brain_lookup to read facts by id, kind or subject, and brain_why to see why a fact ranks where it does. When the conversation settles something the team should remember, propose it with brain_propose; when a recalled fact is wrong or out of date, dispute it with brain_dispute and give the reason. A person confirms, retracts, pins and erases facts in the Brain screen: never say you did any of those.";

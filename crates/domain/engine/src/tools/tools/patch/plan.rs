@@ -10,11 +10,11 @@ use std::path::PathBuf;
 
 use super::apply::apply_hunks;
 use super::parse::{FileOp, Hunk};
-use crate::contract::ToolContext;
-use crate::error::ToolError;
-use crate::files::read_existing;
-use crate::path::{display_path, resolve};
-use crate::text::TextFile;
+use crate::tools::contract::ToolContext;
+use crate::tools::error::ToolError;
+use crate::tools::files::read_existing;
+use crate::tools::path::{display_path, resolve};
+use crate::tools::text::TextFile;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Change {

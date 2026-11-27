@@ -11,7 +11,7 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
-use crate::error::ConfigError;
+use crate::config::error::ConfigError;
 
 /// A cheap digest of the size and modification time of every file and directory
 /// a load consulted, including the ones that did not exist. Equal fingerprints

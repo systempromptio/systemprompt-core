@@ -10,20 +10,20 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use sp_governance::SessionBinding;
+use crate::governance::SessionBinding;
 use sp_protocol::ids::AccountId;
 use sp_protocol::view::{SyncErrorKind, SyncStatus};
 use tokio::sync::{broadcast, watch};
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 
-use crate::bundles::BundleCache;
-use crate::cadence::{Clock, RandomJitter};
-use crate::planner::{Next, Planner, Trigger};
-use crate::poll::{Poller, Scope};
-use crate::ports::Store;
-use crate::runtime::RuntimeFiles;
-use crate::target::Target;
+use crate::sync::bundles::BundleCache;
+use crate::sync::cadence::{Clock, RandomJitter};
+use crate::sync::planner::{Next, Planner, Trigger};
+use crate::sync::poll::{Poller, Scope};
+use crate::sync::ports::Store;
+use crate::sync::runtime::RuntimeFiles;
+use crate::sync::target::Target;
 
 #[derive(Clone)]
 pub(crate) struct LoopContext<S: Store, T: Target> {

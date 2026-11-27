@@ -7,18 +7,18 @@
 
 use std::sync::Arc;
 
-use harness_config::{AgentDef, Loaded};
-use harness_prompt::notices::{self, BackgroundJob};
-use harness_store::{
+use crate::config::{AgentDef, Loaded};
+use crate::prompt::notices::{self, BackgroundJob};
+use crate::store::{
     Message, MessageId, MessagePage, Part, PartBody, Session, SessionId, UserMessage,
 };
-use harness_tools::{JobReport, JobState};
+use crate::tools::{JobReport, JobState};
 
 use super::run::{self, TurnMode};
 use super::{Admission, Admit, Admitted, Delivery, PromptInput, attachments, meta, revert, title};
-use crate::error::EngineError;
-use crate::governor::UserPrompt;
-use crate::inner::Inner;
+use crate::run::error::EngineError;
+use crate::run::governor::UserPrompt;
+use crate::run::inner::Inner;
 
 const TRUNCATED_TAIL_BYTES: usize = 8 * 1024;
 

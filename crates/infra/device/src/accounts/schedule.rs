@@ -11,7 +11,7 @@
 use std::time::Duration;
 
 use chrono::{DateTime, TimeDelta, Utc};
-use sp_client::Freshness;
+use crate::client::Freshness;
 
 pub const RETRY_EVERY: Duration = Duration::from_secs(30);
 

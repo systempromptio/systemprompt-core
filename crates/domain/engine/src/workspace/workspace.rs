@@ -14,13 +14,13 @@ use harness_tasks::{CancellationToken, OwnedTask};
 use tokio::sync::broadcast;
 use tokio_util::sync::DropGuard;
 
-use crate::diff::FileDiff;
-use crate::format::{FormatError, Formatter, FormatterConfig};
-use crate::snapshot::{
+use crate::workspace::diff::FileDiff;
+use crate::workspace::format::{FormatError, Formatter, FormatterConfig};
+use crate::workspace::snapshot::{
     DiffTarget, PrunePolicy, PruneReport, SnapshotError, SnapshotId, SnapshotOptions, SnapshotStore,
 };
-use crate::vcs::{VcsError, VcsInfo, VcsStatus};
-use crate::watch::{FileEvent, FileWatcher, WatchError, WatchOptions};
+use crate::workspace::vcs::{VcsError, VcsInfo, VcsStatus};
+use crate::workspace::watch::{FileEvent, FileWatcher, WatchError, WatchOptions};
 
 const PRUNER_TASK: &str = "workspace-snapshot-pruner";
 const PRUNE_TASK: &str = "workspace-snapshot-prune";

@@ -7,13 +7,13 @@
 
 use std::sync::Arc;
 
-use harness_config::{AgentDef, Command, Paths};
+use crate::config::{AgentDef, Command, Paths};
 
-use crate::extension::{
+use crate::run::extension::{
     CallAugmenter, Contributed, EnabledExtensions, ExtensionSet, ExtensionTool, GovernorObserver,
     ToolReviewer,
 };
-use crate::governor::{Governor, McpSpec};
+use crate::run::governor::{Governor, McpSpec};
 
 pub(crate) struct Contributions {
     pub(crate) revision: u64,

@@ -11,7 +11,7 @@ use tokio::process::{Child, Command};
 use tracing::debug;
 use tracing::trace;
 
-use crate::spec::ServerSpec;
+use crate::lsp::spec::ServerSpec;
 
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;

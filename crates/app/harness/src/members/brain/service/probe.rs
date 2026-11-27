@@ -8,11 +8,11 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
-use sp_extension::{BackgroundService, CancellationToken};
+use crate::extension::{BackgroundService, CancellationToken};
 
 use super::{BrainService, BrainStatus};
-use crate::client::{BrainClient, FactQuery};
-use crate::error::BrainError;
+use crate::members::brain::client::{BrainClient, FactQuery};
+use crate::members::brain::error::BrainError;
 
 const FIRST_RETRY: Duration = Duration::from_secs(15);
 const LAST_RETRY: Duration = Duration::from_secs(300);

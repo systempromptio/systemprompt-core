@@ -7,10 +7,10 @@
 
 use std::collections::HashSet;
 
-use harness_ids::{CallId, MessageId};
-use harness_llm::{Attachment, Content, Message};
-use harness_prompt::{compaction, notices};
-use harness_store::{MessageWithParts, PartBody, ToolState};
+use systemprompt_identifiers::engine::{CallId, MessageId};
+use crate::llm::{Attachment, Content, Message};
+use crate::prompt::{compaction, notices};
+use crate::store::{MessageWithParts, PartBody, ToolState};
 use serde_json::Value;
 
 use super::attachments::{decode, parse_data_url};
@@ -100,7 +100,7 @@ pub(crate) fn map_messages(
     let mut out = Vec::with_capacity(messages.len());
     for message in messages {
         match &message.message {
-            harness_store::Message::User(user) => {
+            crate::store::Message::User(user) => {
                 if is_compaction_request(message) {
                     continue;
                 }
@@ -109,7 +109,7 @@ pub(crate) fn map_messages(
                     out.push(Message::user(content));
                 }
             },
-            harness_store::Message::Assistant(assistant) => {
+            crate::store::Message::Assistant(assistant) => {
                 if assistant.system {
                     continue;
                 }

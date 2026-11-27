@@ -5,10 +5,10 @@
 
 use rusqlite::{Connection, OptionalExtension, Params, Row, params};
 
-use crate::error::{Result, corrupt};
-use crate::id::{MessageId, SessionId, column, optional_column, optional_param, param};
-use crate::model::{AssistantMessage, FinishReason, Message, Usage, UserMessage};
-use crate::rows::{to_i64, to_u64};
+use crate::store::error::{Result, corrupt};
+use crate::store::id::{MessageId, SessionId, column, optional_column, optional_param, param};
+use crate::store::model::{AssistantMessage, FinishReason, Message, Usage, UserMessage};
+use crate::store::rows::{to_i64, to_u64};
 
 const MESSAGE_COLUMNS: &str = "id, session_id, role, agent, model, parent_id, is_system, error, \
      finish, input_tokens, output_tokens, reasoning_tokens, cache_read_tokens, \

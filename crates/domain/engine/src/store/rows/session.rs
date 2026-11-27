@@ -7,10 +7,10 @@ use std::path::PathBuf;
 
 use rusqlite::{Connection, OptionalExtension, Params, Row, params};
 
-use crate::error::Result;
-use crate::id::{ProjectId, SessionId, column, optional_column, optional_param, param};
-use crate::model::{DiffSummary, Session};
-use crate::rows::{to_i64, to_u64};
+use crate::store::error::Result;
+use crate::store::id::{ProjectId, SessionId, column, optional_column, optional_param, param};
+use crate::store::model::{DiffSummary, Session};
+use crate::store::rows::{to_i64, to_u64};
 
 const SESSION_COLUMNS: &str = "id, project_id, parent_id, directory, title, agent, model, \
      permission, revert, additions, deletions, files, metadata, created_at, updated_at, \

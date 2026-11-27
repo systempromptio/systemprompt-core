@@ -25,7 +25,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Deserializer};
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
-use crate::error::{JwtError, SecretError};
+use crate::protocol::error::{JwtError, SecretError};
 
 macro_rules! secret {
     ($name:ident, $kind:literal) => {

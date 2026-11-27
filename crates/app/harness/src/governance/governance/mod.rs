@@ -16,25 +16,25 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use arc_swap::ArcSwapOption;
-use harness_engine::extension::EnabledExtensions;
-use harness_ids::SessionId;
+use systemprompt_engine::run::extension::EnabledExtensions;
+use systemprompt_identifiers::engine::SessionId;
 use harness_tasks::CancellationToken;
 use indexmap::IndexMap;
 use parking_lot::Mutex;
-use sp_client::CredentialSource;
-use sp_extension::AppliedInstance;
-use sp_projection::Applied;
+use systemprompt_device::client::CredentialSource;
+use crate::extension::AppliedInstance;
+use crate::projection::Applied;
 use sp_protocol::DeviceCredential;
 use sp_protocol::ids::NativeSessionId;
 use sp_protocol::origin::normalize_instance_url;
 use tokio::sync::broadcast;
 use url::Url;
 
-use crate::error::GovernanceError;
-use crate::hooks::HookApi;
-use crate::instance::Instance;
-use crate::telemetry::EventQueue;
-use crate::usage::{Counters, UsageTotals};
+use crate::governance::error::GovernanceError;
+use crate::governance::hooks::HookApi;
+use crate::governance::instance::Instance;
+use crate::governance::telemetry::EventQueue;
+use crate::governance::usage::{Counters, UsageTotals};
 
 const BINDINGS_CAPACITY: usize = 64;
 
@@ -112,8 +112,8 @@ impl Shared {
 /// resets the usage totals and moves the generation on; a snapshot that names
 /// another URL than its client leaves nothing applied. `clear` forgets the
 /// instance. The governance extension follows the applied instance through
-/// [`GovernanceApplier`](crate::GovernanceApplier) and reports governance
-/// telemetry through [`GovernanceTelemetry`](crate::GovernanceTelemetry).
+/// [`GovernanceApplier`](crate::governance::GovernanceApplier) and reports governance
+/// telemetry through [`GovernanceTelemetry`](crate::governance::GovernanceTelemetry).
 pub struct Governance {
     shared: Arc<Shared>,
     events: Option<EventQueue>,

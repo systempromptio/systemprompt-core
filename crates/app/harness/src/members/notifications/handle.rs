@@ -13,10 +13,10 @@ use sp_protocol::wire::notifications::{MarkRead, MarkSeen};
 use tokio::sync::futures::Notified;
 use tokio::sync::{Notify, watch};
 
-use crate::client::{FeedQuery, NotificationsClient};
-use crate::error::NotificationsError;
-use crate::feed::FEED_PAGE;
-use crate::inbox::{FeedStatus, Inbox, UnreadCount};
+use crate::members::notifications::client::{FeedQuery, NotificationsClient};
+use crate::members::notifications::error::NotificationsError;
+use crate::members::notifications::feed::FEED_PAGE;
+use crate::members::notifications::inbox::{FeedStatus, Inbox, UnreadCount};
 
 /// The reader's notifications, shared through `SpContext::handles`.
 ///

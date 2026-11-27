@@ -7,7 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::parse::{Hunk, HunkLine, PatchError};
-use crate::matching::squash;
+use crate::tools::matching::squash;
 
 fn replace_range(lines: &mut Vec<String>, start: usize, len: usize, with: Vec<String>) {
     let tail = lines.split_off(start + len);

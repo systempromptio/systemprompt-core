@@ -8,8 +8,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_accounts::DeviceEntry;
-use sp_client::with_jwt;
+use systemprompt_device::accounts::DeviceEntry;
+use systemprompt_device::client::with_jwt;
 use sp_protocol::DeviceCredential;
 use sp_protocol::ids::{ConsumerInstallationId, DeviceId, UserId};
 use sp_protocol::names::device_fingerprint;
@@ -17,10 +17,10 @@ use sp_protocol::wire::consumer::DeviceEnrolRequest;
 use uuid::Uuid;
 
 use super::{RuntimeFiles, WaitKey};
-use crate::cadence::enrol_delay;
-use crate::poll::Scope;
-use crate::ports::{Instance, Store};
-use crate::target::Target;
+use crate::sync::cadence::enrol_delay;
+use crate::sync::poll::Scope;
+use crate::sync::ports::{Instance, Store};
+use crate::sync::target::Target;
 
 #[derive(Debug, Clone)]
 pub(super) struct HeldDevice {

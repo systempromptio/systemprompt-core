@@ -13,24 +13,24 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use harness_config::Loaded;
-use harness_lsp::LspManager;
-use harness_mcp::{ManagerConfig, McpManager, StatusMap};
+use crate::config::Loaded;
+use crate::lsp::LspManager;
+use crate::mcp::{ManagerConfig, McpManager, StatusMap};
 use harness_tasks::CancellationToken;
-use harness_tools::{ShellSpec, Tool};
-use harness_workspace::Workspace;
+use crate::tools::{ShellSpec, Tool};
+use crate::workspace::Workspace;
 use parking_lot::RwLock;
 use tokio::sync::{Mutex, broadcast, watch};
 
 use convert::{builtin_agents, builtin_tools, lsp_config, mcp_servers};
 pub(crate) use convert::{formatter_config, prompt_shell};
 
-use crate::error::EngineError;
-use crate::events::{EngineEvent, publish};
-use crate::governed::Contributions;
-use crate::governor::McpSpec;
-use crate::inner::Inner;
-use crate::session::commands::is_builtin_command;
+use crate::run::error::EngineError;
+use crate::run::events::{EngineEvent, publish};
+use crate::run::governed::Contributions;
+use crate::run::governor::McpSpec;
+use crate::run::inner::Inner;
+use crate::run::session::commands::is_builtin_command;
 
 pub(crate) struct DirState {
     pub(crate) directory: PathBuf,

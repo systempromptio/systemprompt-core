@@ -15,7 +15,7 @@ use std::sync::atomic::Ordering;
 use std::time::Instant;
 
 use chrono::Utc;
-use sp_client::DeviceTokenSource;
+use systemprompt_device::client::DeviceTokenSource;
 use sp_protocol::Jwt;
 use sp_protocol::ids::DriveDeviceId;
 use sp_protocol::wire::drive::SyncTokenAnswer;

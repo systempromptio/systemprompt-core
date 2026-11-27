@@ -13,10 +13,10 @@ use url::Url;
 
 use super::config::{ServerSpec, ServerStatus};
 use super::state::{ConnectSettings, Shared, Slot};
-use crate::client::{McpClient, RequestOptions, ServerNotification};
-use crate::error::{McpError, describe};
-use crate::headers::HeaderCell;
-use crate::transport::LocalCommand;
+use crate::mcp::client::{McpClient, RequestOptions, ServerNotification};
+use crate::mcp::error::{McpError, describe};
+use crate::mcp::headers::HeaderCell;
+use crate::mcp::transport::LocalCommand;
 
 const TOOLS_CHANGED: &str = "notifications/tools/list_changed";
 

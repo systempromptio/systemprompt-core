@@ -12,7 +12,7 @@ use sp_protocol::names::sha256_hex;
 use sp_protocol::wire::consumer::{Check, RuntimeFile, RuntimeReadback};
 use sp_protocol::wire::manifest::Sha256Digest;
 
-use crate::error::MaterializeError;
+use crate::projection::error::MaterializeError;
 
 pub(crate) fn read_back(
     path: &Path,

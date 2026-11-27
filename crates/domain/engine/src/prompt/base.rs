@@ -2,7 +2,7 @@
 //! that build on it.
 //!
 //! The core prompt is static so that it caches; anything that varies per
-//! machine or per session is added by [`crate::system::build`] in later blocks.
+//! machine or per session is added by [`crate::prompt::system::build`] in later blocks.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

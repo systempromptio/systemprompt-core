@@ -14,14 +14,14 @@ use std::fmt;
 use std::path::PathBuf;
 
 use async_trait::async_trait;
-use sp_accounts::Accounts;
-use sp_client::HttpClient;
-use sp_extension::{BackgroundService, CancellationToken, ExtensionSettings};
+use systemprompt_device::accounts::Accounts;
+use systemprompt_device::client::HttpClient;
+use crate::extension::{BackgroundService, CancellationToken, ExtensionSettings};
 use sp_protocol::ids::{AccountId, DriveDeviceId};
 
 use super::handle::{DriveHandle, Target};
 use super::settings::DriveSettings;
-use crate::sync::{SyncAccount, account_root};
+use systemprompt_drive::sync::{SyncAccount, account_root};
 
 const SERVICE: &str = "drive-follow";
 

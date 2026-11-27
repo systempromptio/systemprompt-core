@@ -28,14 +28,14 @@ pub(crate) mod title;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use harness_store::{MessageId, NewSession, PartBody, Session, SessionId};
+use crate::store::{MessageId, NewSession, PartBody, Session, SessionId};
 use serde::{Deserialize, Serialize};
 
 pub(crate) use runs::{Admit, Runs};
 
-use crate::error::EngineError;
-use crate::governor::SessionEvent;
-use crate::inner::{Inner, project_name};
+use crate::run::error::EngineError;
+use crate::run::governor::SessionEvent;
+use crate::run::inner::{Inner, project_name};
 
 /// How a prompt sent during a run reaches the model: `Steer` delivers it at the
 /// next step boundary of the running turn, `Queue` as a new turn once the run

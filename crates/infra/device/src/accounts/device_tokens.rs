@@ -1,5 +1,5 @@
 //! The device token of an account's sign-in, handed to the Drive sync through
-//! [`sp_client::DeviceTokenSource`].
+//! [`crate::client::DeviceTokenSource`].
 //!
 //! The instance returns it beside every session token minted from the account's
 //! PAT, so it lives where the session token lives: in memory, in the account's
@@ -14,11 +14,11 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use async_trait::async_trait;
-use sp_client::{CredentialError, DeviceTokenSource, Freshness};
+use crate::client::{CredentialError, DeviceTokenSource, Freshness};
 use sp_protocol::Jwt;
 use sp_protocol::ids::AccountId;
 
-use crate::accounts::Accounts;
+use crate::accounts::accounts::Accounts;
 
 impl Accounts {
     #[must_use]

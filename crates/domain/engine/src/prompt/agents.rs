@@ -6,10 +6,10 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::base::{CORE_PROMPT, EXPLORE_PROMPT, GENERAL_PROMPT, PLAN_PROMPT};
-use crate::compaction::COMPACTION_PROMPT;
-use crate::generate::{SUMMARY_PROMPT, TITLE_PROMPT};
-use crate::tool_names::{ALL, EDIT, PATCH, QUESTION, TASK, TODO, WRITE};
+use crate::prompt::base::{CORE_PROMPT, EXPLORE_PROMPT, GENERAL_PROMPT, PLAN_PROMPT};
+use crate::prompt::compaction::COMPACTION_PROMPT;
+use crate::prompt::generate::{SUMMARY_PROMPT, TITLE_PROMPT};
+use crate::prompt::tool_names::{ALL, EDIT, PATCH, QUESTION, TASK, TODO, WRITE};
 
 /// Where an agent can be used: picked by the user, started through the task
 /// tool, or both.

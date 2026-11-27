@@ -16,16 +16,16 @@
 use std::future::Future;
 use std::sync::Arc;
 
-use sp_accounts::Accounts;
-use sp_extension::{AppliedInstance, EnabledExtensions, ManifestAppliers};
-use sp_governance::{Governance, SessionBinding, UsageTotals};
-use sp_projection::{Applied, Applier, ApplyReport, Projection};
+use systemprompt_device::accounts::Accounts;
+use crate::extension::{AppliedInstance, EnabledExtensions, ManifestAppliers};
+use crate::governance::{Governance, SessionBinding, UsageTotals};
+use crate::projection::{Applied, Applier, ApplyReport, Projection};
 use sp_protocol::DeviceCredential;
 use sp_protocol::ids::AccountId;
 use sp_protocol::wire::consumer::{InstallationPlan, RuntimeReadback};
 use tokio::sync::{Mutex, broadcast};
 
-pub use crate::error::TargetError;
+pub use crate::sync::error::TargetError;
 
 /// Where accepted content goes: the applier, the extensions' manifest appliers
 /// and governance; implemented by the live target the engine builds from an

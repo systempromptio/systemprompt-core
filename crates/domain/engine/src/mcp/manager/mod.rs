@@ -24,11 +24,11 @@ use state::{ConnectSettings, Shared, Slot, State};
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
-use crate::catalog::McpTool;
-use crate::client::{McpClient, RequestOptions};
-use crate::error::McpError;
-use crate::reconcile::{self, Existing, Plan};
-use crate::types::CallResult;
+use crate::mcp::catalog::McpTool;
+use crate::mcp::client::{McpClient, RequestOptions};
+use crate::mcp::error::McpError;
+use crate::mcp::reconcile::{self, Existing, Plan};
+use crate::mcp::types::CallResult;
 
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(5);
 const HTTP_CONNECT_TIMEOUT: Duration = Duration::from_secs(15);

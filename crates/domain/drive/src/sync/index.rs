@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sp_protocol::ids::{DocumentId, DocumentProposalId, DocumentRevisionId};
-use sp_secure::{Access, write_atomic};
+use systemprompt_device::secure::{Access, write_atomic};
 
 use super::error::SyncError;
 

@@ -6,7 +6,7 @@
 
 use std::fmt;
 
-use crate::stream::EventStream;
+use crate::llm::stream::EventStream;
 
 /// The status and headers of a model response.
 ///

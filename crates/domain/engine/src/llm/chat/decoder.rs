@@ -10,10 +10,10 @@ use std::collections::BTreeMap;
 
 use serde_json::Value;
 
-use crate::error::{LlmError, stream_error};
-use crate::event::{Event, FinishReason, Usage};
-use crate::repair::{ToolInput, repair_tool_input};
-use crate::sse::SseFrame;
+use crate::llm::error::{LlmError, stream_error};
+use crate::llm::event::{Event, FinishReason, Usage};
+use crate::llm::repair::{ToolInput, repair_tool_input};
+use crate::llm::sse::SseFrame;
 
 #[derive(Default)]
 struct Slot {

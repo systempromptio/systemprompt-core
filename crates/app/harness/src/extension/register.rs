@@ -6,7 +6,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use crate::extension::SpExtension;
+use crate::extension::extension::SpExtension;
 
 /// One registered extension type: the factory that builds it with `Default`.
 #[derive(Clone, Copy)]

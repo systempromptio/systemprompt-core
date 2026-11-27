@@ -1,10 +1,10 @@
 //! One bounded exchange with an instance route, the bearer attached.
 //!
 //! The URL is resolved on the instance's own origin, redirects are never
-//! followed (the shared `sp_client::HttpClient` refuses them), an answer is
+//! followed (the shared `systemprompt_device::client::HttpClient` refuses them), an answer is
 //! read up to its route's limit and refused past it, and a transport error is
 //! reported without its URL. A 401 is turned into the client's refusal so
-//! `sp_client::with_jwt` mints a fresh token and tries once more.
+//! `systemprompt_device::client::with_jwt` mints a fresh token and tries once more.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,7 +14,7 @@ use std::time::Duration;
 use reqwest::Method;
 use reqwest::header::{ACCEPT, CONTENT_TYPE, RETRY_AFTER};
 use serde::Deserialize;
-use sp_client::{ClientError, TransportFailure};
+use systemprompt_device::client::{ClientError, TransportFailure};
 use sp_protocol::wire::headers;
 use sp_protocol::{HOST_ID, Jwt};
 use url::Url;

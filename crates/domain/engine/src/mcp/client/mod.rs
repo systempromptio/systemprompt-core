@@ -23,14 +23,14 @@ pub use options::{
 };
 use session::Session;
 
-use crate::error::McpError;
-use crate::headers::HeaderCell;
-use crate::jsonrpc;
-use crate::transport::{
+use crate::mcp::error::McpError;
+use crate::mcp::headers::HeaderCell;
+use crate::mcp::jsonrpc;
+use crate::mcp::transport::{
     InboundSink, LegacySse, LocalCommand, StdioTransport, StreamTransport, StreamableHttp,
     Transport, spawn_line_reader,
 };
-use crate::types::{ClientInfo, ServerInfo};
+use crate::mcp::types::{ClientInfo, ServerInfo};
 
 /// A connection to one MCP server.
 ///

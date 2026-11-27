@@ -6,12 +6,12 @@
 
 use rusqlite::{Connection, params};
 
-use crate::change::Change;
-use crate::error::{Result, not_found};
-use crate::id::{ProjectId, SessionId, column, now_ms, optional_column, optional_param, param};
-use crate::model::{DiffSummary, NewSession, RevertMarker, Session};
-use crate::rows::{insert_session, load_session, query_sessions, update_session_row};
-use crate::store::Store;
+use crate::store::change::Change;
+use crate::store::error::{Result, not_found};
+use crate::store::id::{ProjectId, SessionId, column, now_ms, optional_column, optional_param, param};
+use crate::store::model::{DiffSummary, NewSession, RevertMarker, Session};
+use crate::store::rows::{insert_session, load_session, query_sessions, update_session_row};
+use crate::store::store::Store;
 
 const SESSION_TREE: &str = "WITH RECURSIVE tree(id, depth) AS ( \
        SELECT id, 0 FROM session WHERE id = ?1 \

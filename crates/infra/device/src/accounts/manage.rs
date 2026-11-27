@@ -12,13 +12,13 @@
 
 use std::collections::HashSet;
 
-use sp_client::SpClient;
+use crate::client::SpClient;
 use sp_protocol::ids::{AccountId, InstanceKey};
 
-use crate::accounts::Accounts;
-use crate::error::AccountsError;
-use crate::slug::unique_slug;
-use crate::store::StoreFile;
+use crate::accounts::accounts::Accounts;
+use crate::accounts::error::AccountsError;
+use crate::accounts::slug::unique_slug;
+use crate::accounts::store::StoreFile;
 
 impl Accounts {
     pub fn activate(&self, id: &AccountId) -> Result<(), AccountsError> {

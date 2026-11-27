@@ -16,9 +16,9 @@ use sp_protocol::ids::{PluginId, SkillId};
 use sp_protocol::names::{is_plain_id, skill_dir_name};
 use sp_protocol::wire::manifest::{Manifest, Sha256Digest, SkillEntry};
 
-use crate::input::ProjectionInput;
-use crate::model::{Counts, Projection, SkillFile, SkillPublication, SkillSet};
-use crate::{bundle, defaults, gateway, mcp, rules, skill_md};
+use crate::projection::input::ProjectionInput;
+use crate::projection::model::{Counts, Projection, SkillFile, SkillPublication, SkillSet};
+use crate::projection::{bundle, defaults, gateway, mcp, rules, skill_md};
 
 #[must_use]
 pub fn plan(input: &ProjectionInput<'_>) -> Projection {

@@ -17,25 +17,25 @@ use std::path::Path;
 use std::sync::Arc;
 
 use chrono::Utc;
-use harness_engine::{ToolCall, ToolOutcome, UserPrompt};
-use harness_ids::SessionId;
+use systemprompt_engine::run::{ToolCall, ToolOutcome, UserPrompt};
+use systemprompt_identifiers::engine::SessionId;
 use serde_json::json;
-use sp_client::{ClientError, HookClient, HookGrant, SpClient, with_jwt};
+use systemprompt_device::client::{ClientError, HookClient, HookGrant, SpClient, with_jwt};
 use sp_protocol::ids::{PluginId, SkillId};
 use sp_protocol::names::{native_session_id, skill_dir_name};
 use sp_protocol::wire::hooks::{GovernAnswer, HookContext, HookEvent, ToolResponse, skill_ref};
 use sp_protocol::{DeviceCredential, HOST_ID, HookToken, Jwt};
 use uuid::Uuid;
 
-use crate::error::GovernanceError;
-use crate::instance::Instance;
+use crate::governance::error::GovernanceError;
+use crate::governance::instance::Instance;
 
 /// The instance routes governance calls.
 ///
 /// Hook-client provisioning, hook-token minting, event tracking and tool
 /// verdicts. An applied instance holds it as `Arc<dyn HookApi>`, hence
 /// `#[async_trait]`; [`SpClient`] is the production implementation and
-/// [`crate::Governance::install`] accepts any other.
+/// [`crate::governance::Governance::install`] accepts any other.
 #[async_trait::async_trait]
 pub trait HookApi: Send + Sync {
     async fn provision_client(&self, jwt: &Jwt) -> Result<HookClient, ClientError>;

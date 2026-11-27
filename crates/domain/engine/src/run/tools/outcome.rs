@@ -1,20 +1,20 @@
 //! How a tool call ends on its part: completed with the tool's output, or
-//! failed, with the marker [`crate::denied`] defines when a policy, a rule, the
+//! failed, with the marker [`crate::run::denied`] defines when a policy, a rule, the
 //! user or an abort stopped it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use harness_prompt::notices;
-use harness_store::{Attachment, JsonMap, ToolState, now_ms};
-use harness_tools::{ToolError, ToolOutput};
+use crate::prompt::notices;
+use crate::store::{Attachment, JsonMap, ToolState, now_ms};
+use crate::tools::{ToolError, ToolOutput};
 use serde_json::Value;
 
 use super::exec::Invocation;
 use super::gate::Gate;
 use super::progress::object;
-use crate::denied;
-use crate::governor::{ToolCall, ToolOutcome};
+use crate::run::denied;
+use crate::run::governor::{ToolCall, ToolOutcome};
 
 pub(crate) struct Finished {
     pub(crate) state: ToolState,

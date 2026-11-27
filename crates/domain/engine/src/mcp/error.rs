@@ -8,7 +8,7 @@ use std::time::Duration;
 use serde_json::Value;
 
 /// A boxed error from code outside this crate, such as a
-/// [`crate::HeaderSource`].
+/// [`crate::mcp::HeaderSource`].
 pub type BoxError = Box<dyn std::error::Error + Send + Sync>;
 
 /// Everything that can go wrong talking to a server. No variant carries a

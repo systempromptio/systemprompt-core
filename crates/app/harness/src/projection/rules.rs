@@ -14,7 +14,7 @@
 use sp_protocol::host::rule_targets_host;
 use sp_protocol::wire::manifest::RuleEntry;
 
-use crate::plan::unique_plain;
+use crate::projection::plan::unique_plain;
 
 pub const RULES_BEGIN: &str =
     "<!-- systemprompt:begin (managed by the bridge; edits are replaced) -->";

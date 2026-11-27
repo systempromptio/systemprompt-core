@@ -11,7 +11,7 @@ use serde_json::{Map, Value};
 
 use super::matching::{inside, wildcard};
 use super::{Action, EDIT, EXTERNAL_DIRECTORY, InvalidRule, READ, REPEATED_CALL, Rule, SHELL};
-use crate::paths::{Paths, display_slash, expand_home};
+use crate::config::paths::{Paths, display_slash, expand_home};
 
 const PLAN_SHELL_ALLOWED: [&str; 10] = [
     "git status *",

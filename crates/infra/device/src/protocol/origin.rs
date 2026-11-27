@@ -17,8 +17,8 @@
 
 use url::{Host, Url};
 
-use crate::error::OriginError;
-use crate::wire::paths;
+use crate::protocol::error::OriginError;
+use crate::protocol::wire::paths;
 
 const LOOPBACK_HOSTS: [&str; 3] = ["127.0.0.1", "localhost", "[::1]"];
 

@@ -7,11 +7,11 @@
 use std::fmt;
 use std::sync::Arc;
 
-use harness_engine::extension::EnabledExtensions;
+use systemprompt_engine::run::extension::EnabledExtensions;
 use tokio::sync::watch;
 
 /// The extensions the applied instance enabled, `None` while no instance is
-/// applied. [`ManifestAppliers`](crate::ManifestAppliers) sets it on every
+/// applied. [`ManifestAppliers`](crate::extension::ManifestAppliers) sets it on every
 /// apply and clears it; screens and services subscribe to follow it.
 #[derive(Clone)]
 pub struct Enablement {

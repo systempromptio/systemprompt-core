@@ -3,7 +3,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_client::{ClientError, CredentialError};
+use systemprompt_device::client::{ClientError, CredentialError};
 
 /// Why governance could not apply an instance or reach it. Never carries a
 /// credential.

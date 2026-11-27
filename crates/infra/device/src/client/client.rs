@@ -12,8 +12,8 @@ use sp_protocol::wire::headers;
 use sp_protocol::{HOST_ID, OriginError};
 use url::Url;
 
-use crate::error::ClientError;
-use crate::http::HttpClient;
+use crate::client::error::ClientError;
+use crate::client::http::HttpClient;
 
 /// The client of one systemprompt instance. Cheap to clone; holds no
 /// credential.

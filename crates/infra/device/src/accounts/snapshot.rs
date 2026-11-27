@@ -8,8 +8,8 @@
 use sp_protocol::ids::AccountId;
 use sp_protocol::view::{AccountStatus, AccountView, KeyOffer};
 
-use crate::keys;
-use crate::store::AccountRecord;
+use crate::accounts::keys;
+use crate::accounts::store::AccountRecord;
 
 /// The accounts as the shell shows them, published on every change.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

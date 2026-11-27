@@ -7,15 +7,15 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use harness_config::{Action, Rule, Ruleset};
-use harness_ids::{PermissionId, QuestionId};
-use harness_store::SessionId;
+use crate::config::{Action, Rule, Ruleset};
+use systemprompt_identifiers::engine::{PermissionId, QuestionId};
+use crate::store::SessionId;
 use harness_tasks::CancellationToken;
 use parking_lot::Mutex;
 use tokio::sync::oneshot;
 
-use crate::events::{EngineEvent, PermissionAsk, QuestionAsk, Reply};
-use crate::inner::Inner;
+use crate::run::events::{EngineEvent, PermissionAsk, QuestionAsk, Reply};
+use crate::run::inner::Inner;
 
 pub(crate) type Answers = Vec<Vec<String>>;
 

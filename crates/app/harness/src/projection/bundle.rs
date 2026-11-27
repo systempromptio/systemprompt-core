@@ -18,8 +18,8 @@ use sp_protocol::ids::PluginId;
 use sp_protocol::names::{is_safe_plugin_segment, sha256_hex};
 use sp_protocol::wire::manifest::{Manifest, PluginEntry, Sha256Digest};
 
-use crate::input::BundleFiles;
-use crate::model::BundleFile;
+use crate::projection::input::BundleFiles;
+use crate::projection::model::BundleFile;
 
 const AGENTS_DIR: &str = "agents/";
 const THEMES_DIR: &str = "themes/";

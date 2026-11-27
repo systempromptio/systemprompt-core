@@ -17,14 +17,14 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
-use sp_projection::SkillPublication;
+use crate::projection::SkillPublication;
 use sp_protocol::ids::{NativeSessionId, PublicationId, UserId};
 use sp_protocol::wire::consumer::InstallationPlan;
 
-use crate::outbox::{self, Outbox};
-use crate::poll::Scope;
-use crate::ports::Store;
-use crate::target::Target;
+use crate::sync::outbox::{self, Outbox};
+use crate::sync::poll::Scope;
+use crate::sync::ports::Store;
+use crate::sync::target::Target;
 
 use self::deliver::deliver;
 use self::device::{HeldDevice, forget_device, held_device};
@@ -172,7 +172,7 @@ impl RuntimeFiles {
             key,
             Wait {
                 attempts,
-                next: crate::cadence::after(now, delay(attempts)),
+                next: crate::sync::cadence::after(now, delay(attempts)),
             },
         );
     }

@@ -21,8 +21,8 @@ mod tools;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use sp_client::HttpClient;
-use sp_extension::{
+use systemprompt_device::client::HttpClient;
+use crate::extension::{
     AppliedInstance, ApplyError, BackgroundService, EngineExtension, ExtensionId,
     ExtensionMetadata, ManifestApplier, SpContext, SpExtension, extension_id,
     register_sp_extension,
@@ -35,8 +35,8 @@ pub use kind::DocumentKind;
 pub use settings::DriveSettings;
 pub use tools::{PERMISSION, TOOL_NAMES};
 
-use crate::client::DriveClient;
-use crate::sync::default_drive_root;
+use systemprompt_drive::client::DriveClient;
+use systemprompt_drive::sync::default_drive_root;
 
 /// The Drive as an instance-side extension.
 ///

@@ -4,9 +4,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_client::SpClient;
+use crate::client::SpClient;
 
-use crate::accounts::Accounts;
+use crate::accounts::accounts::Accounts;
 
 /// What an address turned out to be.
 #[derive(Debug, Clone, PartialEq, Eq)]

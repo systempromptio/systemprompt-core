@@ -19,7 +19,7 @@ use tokio_util::sync::CancellationToken;
 use super::decode::Decoder;
 use super::select::{ShellKind, ShellSpec};
 use super::tree::ProcessTree;
-use crate::error::ToolError;
+use crate::tools::error::ToolError;
 
 const PS_PRELUDE: &str = "$ProgressPreference = 'SilentlyContinue'; try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}; $OutputEncoding = [System.Text.Encoding]::UTF8; ";
 const DRAIN_GRACE: Duration = Duration::from_millis(750);

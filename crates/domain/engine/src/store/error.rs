@@ -5,7 +5,7 @@
 
 use std::path::PathBuf;
 
-use crate::id::IdError;
+use crate::store::id::IdError;
 
 /// Every way a store operation can fail.
 #[derive(Debug, thiserror::Error)]

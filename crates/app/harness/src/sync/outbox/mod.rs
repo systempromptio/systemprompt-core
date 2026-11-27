@@ -21,7 +21,7 @@ use sp_protocol::ids::{DeviceId, InstallationReceiptId, NativeSessionId};
 use sp_protocol::wire::consumer::ReceiptRequest;
 use sp_protocol::wire::manifest::Publication;
 
-use crate::cadence::{after, outbox_delay};
+use crate::sync::cadence::{after, outbox_delay};
 
 pub use file::{OutboxError, file_name, load, outbox_path, save};
 

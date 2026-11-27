@@ -12,10 +12,10 @@ use serde_json::json;
 
 use super::ShellTool;
 use super::tokenize::{Dialect, Segment, split_commands};
-use crate::contract::{PermissionRequest, ToolContext};
-use crate::error::ToolError;
-use crate::path::{dir_pattern, is_within, resolve, slash};
-use crate::text::title_line;
+use crate::tools::contract::{PermissionRequest, ToolContext};
+use crate::tools::error::ToolError;
+use crate::tools::path::{dir_pattern, is_within, resolve, slash};
+use crate::tools::text::title_line;
 
 impl ShellTool {
     pub(super) async fn authorize(

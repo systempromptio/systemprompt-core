@@ -8,15 +8,15 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use harness_tasks::OwnedTask;
-use sp_accounts::AccountsSnapshot;
+use systemprompt_device::accounts::AccountsSnapshot;
 use sp_protocol::ids::AccountId;
 use sp_protocol::view::{AccountStatus, AccountView, KeyFingerprint, SyncStatus};
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
-use crate::account_loop::{self, LoopContext};
-use crate::ports::Store;
-use crate::target::Target;
+use crate::sync::account_loop::{self, LoopContext};
+use crate::sync::ports::Store;
+use crate::sync::target::Target;
 
 pub(crate) fn active_signed_in(snapshot: &AccountsSnapshot) -> Option<&AccountView> {
     snapshot

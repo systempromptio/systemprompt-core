@@ -7,8 +7,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::client::SUPPORTED_PROTOCOL_VERSIONS;
-use crate::error::McpError;
+use crate::mcp::client::SUPPORTED_PROTOCOL_VERSIONS;
+use crate::mcp::error::McpError;
 
 mod content;
 

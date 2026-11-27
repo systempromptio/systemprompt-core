@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 
 use serde_json::{Map, Value};
 
-use crate::types::{ToolInfo, empty_object_schema};
+use crate::mcp::types::{ToolInfo, empty_object_schema};
 
 pub const MAX_QUALIFIED_NAME_LEN: usize = 64;
 

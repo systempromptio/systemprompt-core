@@ -12,9 +12,9 @@ use sp_protocol::names::{is_plain_relative_path, is_safe_plugin_segment};
 use sp_protocol::wire::catalog::{ModelCatalog, Profile, WhoamiResponse};
 use sp_protocol::wire::paths;
 
-use crate::client::{SpClient, push_segments};
-use crate::error::ClientError;
-use crate::http::{DEFAULT_TIMEOUT, SMALL_BODY, decode, exchange, failure};
+use crate::client::client::{SpClient, push_segments};
+use crate::client::error::ClientError;
+use crate::client::http::{DEFAULT_TIMEOUT, SMALL_BODY, decode, exchange, failure};
 
 const PROFILE_ENDPOINT: &str = "GET /v1/bridge/profile";
 const MODELS_ENDPOINT: &str = "GET /v1/models";

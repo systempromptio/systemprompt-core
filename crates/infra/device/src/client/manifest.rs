@@ -26,9 +26,9 @@ use sp_protocol::wire::manifest::{
 use sp_protocol::wire::paths;
 use sp_protocol::{Jwt, PubkeyError};
 
-use crate::client::SpClient;
-use crate::error::{ClientError, Incompatibility};
-use crate::http::{DEFAULT_TIMEOUT, SMALL_BODY, decode, decode_error, exchange, failure, protocol};
+use crate::client::client::SpClient;
+use crate::client::error::{ClientError, Incompatibility};
+use crate::client::http::{DEFAULT_TIMEOUT, SMALL_BODY, decode, decode_error, exchange, failure, protocol};
 
 const MANIFEST_ENDPOINT: &str = "GET /v1/bridge/manifest";
 const PUBKEY_ENDPOINT: &str = "GET /v1/bridge/pubkey";

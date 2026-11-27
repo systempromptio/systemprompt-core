@@ -7,14 +7,14 @@ use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use harness_config::{Layout, Paths};
-use harness_ids::ExtensionId;
-use sp_accounts::Accounts;
-use sp_client::HttpClient;
+use systemprompt_engine::config::{Layout, Paths};
+use systemprompt_identifiers::engine::ExtensionId;
+use systemprompt_device::accounts::Accounts;
+use systemprompt_device::client::HttpClient;
 
-use crate::enablement::Enablement;
-use crate::handles::Handles;
-use crate::settings::{ExtensionSettings, SettingsAccess};
+use crate::extension::enablement::Enablement;
+use crate::extension::handles::Handles;
+use crate::extension::settings::{ExtensionSettings, SettingsAccess};
 
 /// The product this build presents, as the brand names it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

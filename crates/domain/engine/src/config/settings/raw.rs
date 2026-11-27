@@ -8,7 +8,7 @@ use serde::Deserialize;
 use serde_json::{Map, Value};
 
 use super::{Compaction, Formatter, LspServer, McpServer};
-use crate::error::FieldError;
+use crate::config::error::FieldError;
 
 #[derive(Default, Deserialize)]
 #[serde(default)]

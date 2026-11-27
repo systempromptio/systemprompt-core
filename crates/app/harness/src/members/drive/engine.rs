@@ -4,7 +4,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use harness_engine::extension::{EngineExtension, ExtensionMetadata, ExtensionTool};
+use systemprompt_engine::run::extension::{EngineExtension, ExtensionMetadata, ExtensionTool};
 
 use super::DriveExtension;
 use super::handle::DriveHandle;

@@ -10,10 +10,10 @@ use sp_protocol::ids::{DocumentFolderId, DocumentId, DocumentRevisionId};
 use sp_protocol::wire::drive::DriveAnchor;
 
 use super::DriveOperation;
-use crate::agent;
-use crate::client::DriveClient;
-use crate::error::DriveError;
-use crate::extension::kind::DocumentKind;
+use crate::members::drive::agent;
+use systemprompt_drive::client::DriveClient;
+use systemprompt_drive::error::DriveError;
+use crate::members::drive::kind::DocumentKind;
 
 #[derive(Deserialize)]
 pub(super) struct ProposeInput {

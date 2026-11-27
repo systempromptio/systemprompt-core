@@ -6,22 +6,22 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{TimeDelta, Utc};
-use harness_engine::extension::EnabledExtensions;
-use harness_engine::{
+use systemprompt_engine::run::extension::EnabledExtensions;
+use systemprompt_engine::run::{
     Endpoint, GovernError, Governor, McpSpec, ModelCall, ModelSpec, Purpose, ResponseAction,
     ToolCall, Usage, Verdict,
 };
 use serde_json::json;
-use sp_client::Freshness;
+use systemprompt_device::client::Freshness;
 use sp_protocol::HOST_ID;
 use sp_protocol::names::session_uuid;
 use sp_protocol::wire::headers;
 use sp_protocol::wire::hooks::session_metadata_user_id;
 
 use super::Governance;
-use crate::error::GovernanceError;
-use crate::instance::{Instance, JWT_MIN_VALIDITY};
-use crate::{hooks, telemetry};
+use crate::governance::error::GovernanceError;
+use crate::governance::instance::{Instance, JWT_MIN_VALIDITY};
+use crate::governance::{hooks, telemetry};
 
 const RENEW_FAILED: &str =
     "The instance refused the session token and a new one could not be had. Sign in again.";

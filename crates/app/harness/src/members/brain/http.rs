@@ -1,9 +1,9 @@
-//! The request layer under [`crate::BrainClient`]: one bounded JSON exchange
+//! The request layer under [`crate::members::brain::BrainClient`]: one bounded JSON exchange
 //! with a bearer.
 //!
 //! The URL is always resolved on the account's own origin
 //! (`sp_protocol::origin`), redirects are never followed (the shared
-//! [`sp_client::HttpClient`] refuses them), every answer is read up to its
+//! [`systemprompt_device::client::HttpClient`] refuses them), every answer is read up to its
 //! route's limit and refused past it, and a transport error is reported
 //! without its URL.
 //!
@@ -15,14 +15,14 @@ use std::time::Duration;
 use bytes::Bytes;
 use reqwest::Method;
 use reqwest::header::{ACCEPT, CONTENT_TYPE, HeaderMap};
-use sp_client::{ClientError, TransportFailure};
+use systemprompt_device::client::{ClientError, TransportFailure};
 use sp_protocol::origin::resolve_instance_path;
 use sp_protocol::wire::envelope::ErrorEnvelope;
 use sp_protocol::wire::headers;
 use sp_protocol::{HOST_ID, Jwt};
 use url::Url;
 
-use crate::error::{plain_key, protocol, refusal};
+use crate::members::brain::error::{plain_key, protocol, refusal};
 
 pub(crate) const TIMEOUT: Duration = Duration::from_secs(30);
 

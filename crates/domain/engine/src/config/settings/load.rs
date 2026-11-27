@@ -11,11 +11,11 @@ use serde_json::{Map, Value};
 
 use super::raw::{RawMcp, RawSettings};
 use super::{McpServer, Settings};
-use crate::agent::AgentOverride;
-use crate::error::{ConfigError, FieldError};
-use crate::fsio::Probe;
-use crate::jsonc::{self, merge_value};
-use crate::permission::Ruleset;
+use crate::config::agent::AgentOverride;
+use crate::config::error::{ConfigError, FieldError};
+use crate::config::fsio::Probe;
+use crate::config::jsonc::{self, merge_value};
+use crate::config::permission::Ruleset;
 
 struct Layer {
     // JSON: the keys of one settings file left after rules and lists are lifted out.

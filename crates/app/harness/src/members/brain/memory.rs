@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 
-use harness_ids::SessionId;
+use systemprompt_identifiers::engine::SessionId;
 use parking_lot::Mutex;
 use sp_protocol::wire::brain::FactRef;
 

@@ -16,17 +16,17 @@ mod contributions;
 
 use std::sync::Arc;
 
-use harness_config::Paths;
-use harness_llm::{Endpoint, ModelSpec, ResponseHead, Usage};
+use crate::config::Paths;
+use crate::llm::{Endpoint, ModelSpec, ResponseHead, Usage};
 use parking_lot::RwLock;
 
 pub(crate) use contributions::Contributions;
 use contributions::Reading;
 
-use crate::extension::{
+use crate::run::extension::{
     Contributed, EnabledExtensions, ExtensionSet, PromptContext, PromptSection, Review, add_headers,
 };
-use crate::governor::{
+use crate::run::governor::{
     GovernError, Governor, ModelCall, ResponseAction, SessionEvent, ToolCall, ToolOutcome,
     UserPrompt, Verdict,
 };

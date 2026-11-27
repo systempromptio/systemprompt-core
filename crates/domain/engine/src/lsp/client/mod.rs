@@ -29,9 +29,9 @@ use tokio::process::{Child, ChildStderr, ChildStdin, ChildStdout};
 use tokio::sync::{mpsc, watch};
 use tracing::{debug, trace};
 
-use crate::error::LspError;
-use crate::parse::ServerCapabilities;
-use crate::spec::{LspTimeouts, ServerSpec};
+use crate::lsp::error::LspError;
+use crate::lsp::parse::ServerCapabilities;
+use crate::lsp::spec::{LspTimeouts, ServerSpec};
 
 use connection::Shared;
 use documents::Document;

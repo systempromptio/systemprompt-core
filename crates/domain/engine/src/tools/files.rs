@@ -9,8 +9,8 @@ use std::path::Path;
 
 use serde_json::json;
 
-use crate::contract::{PermissionRequest, ToolContext};
-use crate::error::ToolError;
+use crate::tools::contract::{PermissionRequest, ToolContext};
+use crate::tools::error::ToolError;
 
 pub(crate) async fn read_existing(path: &Path) -> Result<Option<Vec<u8>>, ToolError> {
     match tokio::fs::read(path).await {

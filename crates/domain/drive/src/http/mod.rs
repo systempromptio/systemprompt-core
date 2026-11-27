@@ -3,7 +3,7 @@
 //!
 //! The URL is always resolved on the account's own origin
 //! (`sp_protocol::origin`), redirects are never followed (the
-//! shared [`sp_client::HttpClient`] refuses them), every answer is read up to
+//! shared [`systemprompt_device::client::HttpClient`] refuses them), every answer is read up to
 //! its route's limit and refused past it, and a transport error is reported
 //! without its URL.
 //!
@@ -16,7 +16,7 @@ use bytes::Bytes;
 use reqwest::Method;
 use reqwest::header::{ACCEPT, CONTENT_TYPE, HeaderMap};
 use serde::Deserialize;
-use sp_client::{ClientError, TransportFailure};
+use systemprompt_device::client::{ClientError, TransportFailure};
 use sp_protocol::ids::ContextId;
 use sp_protocol::origin::resolve_instance_path;
 use sp_protocol::wire::headers;

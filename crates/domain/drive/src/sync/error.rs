@@ -5,8 +5,8 @@
 
 use std::path::PathBuf;
 
-use sp_client::{ClientError, CredentialError};
-use sp_secure::SecureError;
+use systemprompt_device::client::{ClientError, CredentialError};
+use systemprompt_device::secure::SecureError;
 
 use super::names::PathRefusal;
 

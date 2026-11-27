@@ -10,7 +10,7 @@
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Number, Value};
 
-use crate::error::ToolError;
+use crate::tools::error::ToolError;
 
 // JSON: the schema is a tool's JSON Schema and the input the object the model
 // wrote.

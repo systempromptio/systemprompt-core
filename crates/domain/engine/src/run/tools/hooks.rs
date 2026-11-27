@@ -9,14 +9,14 @@ use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use harness_lsp::{DiagnosticFormat, DiagnosticScope, LspManager, Severity, format_diagnostics};
-use harness_store::{SessionId, Todo, TodoPriority, TodoStatus};
-use harness_tools::{FileObserver, JobListener, JobReport, TodoItem, TodoSink, ToolError};
-use harness_workspace::Workspace;
+use crate::lsp::{DiagnosticFormat, DiagnosticScope, LspManager, Severity, format_diagnostics};
+use crate::store::{SessionId, Todo, TodoPriority, TodoStatus};
+use crate::tools::{FileObserver, JobListener, JobReport, TodoItem, TodoSink, ToolError};
+use crate::workspace::Workspace;
 
-use crate::db::Db;
-use crate::inner::Inner;
-use crate::session::admit;
+use crate::run::db::Db;
+use crate::run::inner::Inner;
+use crate::run::session::admit;
 
 const DIAGNOSTICS_WAIT: Duration = Duration::from_secs(5);
 
@@ -44,15 +44,15 @@ impl TodoSink for StoreTodos {
 
 fn stored_todo(todo: TodoItem) -> Todo {
     let status = match todo.status {
-        harness_tools::TodoStatus::Pending => TodoStatus::Pending,
-        harness_tools::TodoStatus::InProgress => TodoStatus::InProgress,
-        harness_tools::TodoStatus::Completed => TodoStatus::Completed,
-        harness_tools::TodoStatus::Cancelled => TodoStatus::Cancelled,
+        crate::tools::TodoStatus::Pending => TodoStatus::Pending,
+        crate::tools::TodoStatus::InProgress => TodoStatus::InProgress,
+        crate::tools::TodoStatus::Completed => TodoStatus::Completed,
+        crate::tools::TodoStatus::Cancelled => TodoStatus::Cancelled,
     };
     let priority = match todo.priority {
-        Some(harness_tools::TodoPriority::High) => TodoPriority::High,
-        Some(harness_tools::TodoPriority::Low) => TodoPriority::Low,
-        Some(harness_tools::TodoPriority::Medium) | None => TodoPriority::Medium,
+        Some(crate::tools::TodoPriority::High) => TodoPriority::High,
+        Some(crate::tools::TodoPriority::Low) => TodoPriority::Low,
+        Some(crate::tools::TodoPriority::Medium) | None => TodoPriority::Medium,
     };
     Todo {
         content: todo.content,

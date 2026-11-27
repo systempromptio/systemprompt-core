@@ -17,9 +17,9 @@ use sp_protocol::wire::drive::{
     DriveScope, EditMode, EditRequest,
 };
 
-use crate::client::{DriveClient, EditOutcome, ListQuery, ReadView};
-use crate::error::{DriveError, NeededCapability};
-use crate::view::{DocumentItem, document_items};
+use systemprompt_drive::client::{DriveClient, EditOutcome, ListQuery, ReadView};
+use systemprompt_drive::error::{DriveError, NeededCapability};
+use systemprompt_drive::view::{DocumentItem, document_items};
 
 const MAX_LISTED: usize = 50;
 const MAX_OUTLINE_LINES: usize = 400;

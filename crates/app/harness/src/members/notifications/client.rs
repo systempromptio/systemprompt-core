@@ -14,7 +14,7 @@ use std::sync::Arc;
 use reqwest::Method;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use sp_client::{ClientError, CredentialSource, HttpClient, SpClient, TransportFailure, with_jwt};
+use systemprompt_device::client::{ClientError, CredentialSource, HttpClient, SpClient, TransportFailure, with_jwt};
 use sp_protocol::origin::resolve_instance_path;
 use sp_protocol::wire::notifications::{
     FEED_PAGE_MAX, FEED_QUERY_LIMIT, FEED_QUERY_SINCE, FEED_QUERY_UNREAD, KeysetCursor, MarkRead,
@@ -22,8 +22,8 @@ use sp_protocol::wire::notifications::{
 };
 use sp_protocol::wire::paths;
 
-use crate::error::NotificationsError;
-use crate::http::{Answer, Call, send_once};
+use crate::members::notifications::error::NotificationsError;
+use crate::members::notifications::http::{Answer, Call, send_once};
 
 const FEED_BODY: usize = 4 * 1024 * 1024;
 

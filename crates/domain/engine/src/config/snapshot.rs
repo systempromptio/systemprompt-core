@@ -8,16 +8,16 @@ use std::path::{Path, PathBuf};
 
 use indexmap::IndexMap;
 
-use crate::agent::{self, AgentDef, AgentInputs, AgentMode, AgentSource};
-use crate::command::{self, Command};
-use crate::error::ConfigError;
-use crate::fsio::{Fingerprint, Probe};
-use crate::instruction::{self, Instruction};
-use crate::paths::{Layout, Paths};
-use crate::permission::{Action, EXTERNAL_DIRECTORY, Rule, Ruleset, inside};
-use crate::settings::{self, Settings};
-use crate::skill::{self, Skill};
-use crate::worktree::Worktree;
+use crate::config::agent::{self, AgentDef, AgentInputs, AgentMode, AgentSource};
+use crate::config::command::{self, Command};
+use crate::config::error::ConfigError;
+use crate::config::fsio::{Fingerprint, Probe};
+use crate::config::instruction::{self, Instruction};
+use crate::config::paths::{Layout, Paths};
+use crate::config::permission::{Action, EXTERNAL_DIRECTORY, Rule, Ruleset, inside};
+use crate::config::settings::{self, Settings};
+use crate::config::skill::{self, Skill};
+use crate::config::worktree::Worktree;
 
 /// Settings, agents, skills, commands and instructions for one working
 /// directory.

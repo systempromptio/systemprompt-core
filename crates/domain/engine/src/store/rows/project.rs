@@ -7,9 +7,9 @@ use std::path::PathBuf;
 
 use rusqlite::{Connection, OptionalExtension, Params, Row, params};
 
-use crate::error::Result;
-use crate::id::{ProjectId, column, param};
-use crate::model::Project;
+use crate::store::error::Result;
+use crate::store::id::{ProjectId, column, param};
+use crate::store::model::Project;
 
 const PROJECT_COLUMNS: &str = "id, worktree, name, created_at, updated_at";
 

@@ -4,8 +4,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use harness_engine::extension::EnabledExtensions;
-use harness_ids::ExtensionId;
+use systemprompt_engine::run::extension::EnabledExtensions;
+use systemprompt_identifiers::engine::ExtensionId;
 use sp_protocol::host::{HOST_ID, enables_host};
 use sp_protocol::wire::manifest::Manifest;
 

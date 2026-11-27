@@ -17,10 +17,10 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 
 use super::options::{DEFAULT_REQUEST_TIMEOUT, RequestOptions, ServerNotification};
-use crate::error::McpError;
-use crate::jsonrpc::{self, Incoming, METHOD_NOT_FOUND};
-use crate::transport::{InboundSink, Transport};
-use crate::types::ServerInfo;
+use crate::mcp::error::McpError;
+use crate::mcp::jsonrpc::{self, Incoming, METHOD_NOT_FOUND};
+use crate::mcp::transport::{InboundSink, Transport};
+use crate::mcp::types::ServerInfo;
 
 const NOTIFICATION_BUFFER: usize = 64;
 const TASK_DRAIN: Duration = Duration::from_secs(2);

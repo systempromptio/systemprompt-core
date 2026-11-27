@@ -11,12 +11,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_client::{InstanceDiscovery, SpClient};
+use crate::client::{InstanceDiscovery, SpClient};
 use sp_protocol::view::{SignInFailure, SignInOutcome};
 use sp_protocol::{OneTimeCode, Pat};
 use tokio_util::sync::CancellationToken;
 
-use crate::accounts::Accounts;
+use crate::accounts::accounts::Accounts;
 
 pub(crate) struct Reached {
     pub(crate) client: SpClient,

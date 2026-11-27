@@ -17,7 +17,7 @@ use serde_json::{Map, Value};
 use sp_protocol::names::sha256_hex;
 use sp_protocol::wire::manifest::SkillEntry;
 
-use crate::model::SkillFile;
+use crate::projection::model::SkillFile;
 
 const PLATFORM_KEYS: [&str; 7] = [
     "name",

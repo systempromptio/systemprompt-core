@@ -11,7 +11,7 @@
 //!
 //! The sync talks to the instance's Drive sync feed (`/v1/bridge/drive/`),
 //! whose credential is a sync token traded for the device token of the sign-in
-//! ([`sp_client::DeviceTokenSource`]); the account's session JWT is never used
+//! ([`systemprompt_device::client::DeviceTokenSource`]); the account's session JWT is never used
 //! for it. Conflict policy: a local edit is never overwritten; when the
 //! instance moved on, the local file is kept beside the head as `<name>
 //! (conflict from <device>).<ext>` and listed in the status until the user

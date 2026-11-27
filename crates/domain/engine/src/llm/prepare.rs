@@ -12,11 +12,11 @@ use bytes::Bytes;
 use serde_json::{Map, Value};
 use url::Url;
 
-use crate::endpoint::Endpoint;
-use crate::error::LlmError;
-use crate::model::{Protocol, Request};
-use crate::transport::HttpRequest;
-use crate::{chat, messages};
+use crate::llm::endpoint::Endpoint;
+use crate::llm::error::LlmError;
+use crate::llm::model::{Protocol, Request};
+use crate::llm::transport::HttpRequest;
+use crate::llm::{chat, messages};
 
 // JSON: the provider request body, with the endpoint's caller-owned metadata
 // merged in.

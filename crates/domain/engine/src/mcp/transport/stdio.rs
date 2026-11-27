@@ -17,7 +17,7 @@ use tokio::sync::Mutex;
 
 use super::lines::{LineWriter, spawn_line_reader};
 use super::{InboundSink, Transport};
-use crate::error::McpError;
+use crate::mcp::error::McpError;
 
 const EXIT_GRACE: Duration = Duration::from_secs(2);
 #[cfg(windows)]

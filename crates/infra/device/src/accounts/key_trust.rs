@@ -7,13 +7,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_client::ManifestKey;
+use crate::client::ManifestKey;
 use sp_protocol::ids::AccountId;
 use sp_protocol::view::{KeyFingerprint, KeyOffer};
 
-use crate::accounts::Accounts;
-use crate::error::AccountsError;
-use crate::keys;
+use crate::accounts::accounts::Accounts;
+use crate::accounts::error::AccountsError;
+use crate::accounts::keys;
 
 impl Accounts {
     pub fn offer_key(&self, id: &AccountId, key: &ManifestKey) -> Result<(), AccountsError> {

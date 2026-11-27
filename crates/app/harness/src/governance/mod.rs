@@ -2,7 +2,7 @@
 //!
 //! [`Governance`] holds the applied instance (its projection snapshot, the
 //! client that reaches it, the source of its session tokens and the extensions
-//! it enabled) and implements [`harness_engine::Governor`]: every model call
+//! it enabled) and implements [`systemprompt_engine::run::Governor`]: every model call
 //! and tool decision of the engine passes through it, and it serves the
 //! instance's extension enablement. [`GovernanceExtension`] is the required
 //! extension around it: its engine half observes session moments, prompts and

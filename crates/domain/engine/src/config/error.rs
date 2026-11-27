@@ -6,7 +6,7 @@
 
 use std::path::PathBuf;
 
-use crate::permission::InvalidRule;
+use crate::config::permission::InvalidRule;
 
 /// A configuration input that could not be read, parsed or accepted.
 #[derive(Debug, thiserror::Error)]

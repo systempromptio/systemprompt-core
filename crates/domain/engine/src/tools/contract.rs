@@ -12,12 +12,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use harness_ids::{CallId, MessageId, SessionId};
+use systemprompt_identifiers::engine::{CallId, MessageId, SessionId};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use tokio_util::sync::CancellationToken;
 
-use crate::error::ToolError;
+use crate::tools::error::ToolError;
 
 /// A capability the model can call, held by the engine as `dyn Tool`.
 ///

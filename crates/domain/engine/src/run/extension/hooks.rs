@@ -7,10 +7,10 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use async_trait::async_trait;
-use harness_ids::ExtensionId;
-use harness_llm::{Endpoint, ResponseHead};
+use systemprompt_identifiers::engine::ExtensionId;
+use crate::llm::{Endpoint, ResponseHead};
 
-use crate::governor::{ModelCall, SessionEvent, ToolCall, ToolOutcome, UserPrompt};
+use crate::run::governor::{ModelCall, SessionEvent, ToolCall, ToolOutcome, UserPrompt};
 
 /// Hears what the Governor hears, after it, and changes nothing.
 ///

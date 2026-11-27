@@ -9,21 +9,21 @@ use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use harness_config::{AgentDef, Command, Skill};
-use harness_ids::{PermissionId, QuestionId};
-use harness_llm::ModelSpec;
-use harness_mcp::StatusMap;
-use harness_store::{MessageId, MessagePage, MessageWithParts, Session, SessionId, Store};
+use crate::config::{AgentDef, Command, Skill};
+use systemprompt_identifiers::engine::{PermissionId, QuestionId};
+use crate::llm::ModelSpec;
+use crate::mcp::StatusMap;
+use crate::store::{MessageId, MessagePage, MessageWithParts, Session, SessionId, Store};
 use harness_tasks::CancellationToken;
-use harness_workspace::FileDiff;
+use crate::workspace::FileDiff;
 use tokio::sync::broadcast;
 
-use crate::error::EngineError;
-use crate::events::{EngineEvent, PermissionAsk, QuestionAsk, Reply, RunStatus};
-use crate::governor::SessionEvent;
-use crate::inner::{Inner, project_name};
-use crate::options::EngineOptions;
-use crate::session::{self, Admitted, CommandInfo, CommandInput, CommandOutcome, PromptInput};
+use crate::run::error::EngineError;
+use crate::run::events::{EngineEvent, PermissionAsk, QuestionAsk, Reply, RunStatus};
+use crate::run::governor::SessionEvent;
+use crate::run::inner::{Inner, project_name};
+use crate::run::options::EngineOptions;
+use crate::run::session::{self, Admitted, CommandInfo, CommandInput, CommandOutcome, PromptInput};
 
 const GENERATION_POLL: Duration = Duration::from_secs(2);
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(5);

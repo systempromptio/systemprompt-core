@@ -7,16 +7,16 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use harness_config::{AgentDef, Loaded, Ruleset, permission};
-use harness_prompt::tool_names::FILE_WRITERS;
-use harness_store::{MessagePage, MessageWithParts, PartBody, SessionId};
+use crate::config::{AgentDef, Loaded, Ruleset, permission};
+use crate::prompt::tool_names::FILE_WRITERS;
+use crate::store::{MessagePage, MessageWithParts, PartBody, SessionId};
 use harness_tasks::CancellationToken;
-use harness_tools::ToolError;
+use crate::tools::ToolError;
 
 use super::history::text_of;
 use super::run::{self, TurnMode};
 use super::{Admission, Admit, Delivery, admit, create};
-use crate::inner::Inner;
+use crate::run::inner::Inner;
 
 #[derive(Debug, Clone)]
 pub(crate) struct SubtaskRequest {

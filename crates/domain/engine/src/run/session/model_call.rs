@@ -7,14 +7,14 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use futures_util::StreamExt;
-use harness_llm::retry::{self, Retry};
-use harness_llm::{Event, EventStream, LlmError, ModelResponse, Request, Usage};
+use crate::llm::retry::{self, Retry};
+use crate::llm::{Event, EventStream, LlmError, ModelResponse, Request, Usage};
 use harness_tasks::CancellationToken;
 
-use crate::error::EngineError;
-use crate::events::RunStatus;
-use crate::governor::{ModelCall, Purpose, ResponseAction};
-use crate::inner::Inner;
+use crate::run::error::EngineError;
+use crate::run::events::RunStatus;
+use crate::run::governor::{ModelCall, Purpose, ResponseAction};
+use crate::run::inner::Inner;
 
 pub(crate) const MAX_ATTEMPTS: u32 = 6;
 
@@ -41,7 +41,7 @@ pub(crate) async fn open(
             },
         };
         let transport = inner.transport.as_ref();
-        let opened = harness_llm::stream(transport, &endpoint, request, cancel.clone()).await;
+        let opened = crate::llm::stream(transport, &endpoint, request, cancel.clone()).await;
         if let Some(status) = head_status(&opened) {
             match inner.governed.response(call, status, attempts.count).await {
                 ResponseAction::Retry if !attempts.governor_retry => {

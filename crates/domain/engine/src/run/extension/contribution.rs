@@ -8,8 +8,8 @@ use std::fmt;
 use std::path::Path;
 use std::sync::Arc;
 
-use harness_ids::{ExtensionId, SessionId};
-use harness_tools::Tool;
+use systemprompt_identifiers::engine::{ExtensionId, SessionId};
+use crate::tools::Tool;
 
 /// A tool an extension adds beside the built-ins.
 ///

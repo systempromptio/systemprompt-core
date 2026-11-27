@@ -13,14 +13,14 @@
 use std::fmt;
 use std::pin::Pin;
 
-use sp_client::{CallbackOutcome, LoopbackCallback};
+use crate::client::{CallbackOutcome, LoopbackCallback};
 use sp_protocol::OneTimeCode;
 use sp_protocol::view::{SignInFailure, SignInOutcome};
 use tokio_util::sync::CancellationToken;
 
-use crate::accounts::Accounts;
-use crate::signin::{Reached, until_cancelled};
-use crate::state::BrowserAttempt;
+use crate::accounts::accounts::Accounts;
+use crate::accounts::signin::{Reached, until_cancelled};
+use crate::accounts::state::BrowserAttempt;
 
 type SignInRun = Pin<Box<dyn Future<Output = SignInOutcome> + Send + 'static>>;
 

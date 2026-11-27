@@ -8,11 +8,11 @@
 use std::fmt;
 use std::sync::Arc;
 
-use harness_engine::extension::GovernorObserver;
-use harness_engine::{SessionEvent, ToolCall, ToolOutcome, UserPrompt};
+use systemprompt_engine::run::extension::GovernorObserver;
+use systemprompt_engine::run::{SessionEvent, ToolCall, ToolOutcome, UserPrompt};
 
 use super::Governance;
-use crate::hooks;
+use crate::governance::hooks;
 
 /// The governance telemetry: `SessionStart`, `SessionEnd`, `Stop`,
 /// `UserPromptSubmit` and `PostToolUse` events for the applied instance,

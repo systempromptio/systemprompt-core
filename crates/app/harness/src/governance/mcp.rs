@@ -12,14 +12,14 @@ use std::fmt;
 use std::sync::Arc;
 
 use chrono::{TimeDelta, Utc};
-use harness_engine::McpSpec;
-use harness_mcp::{BoxError, HeaderSource};
-use sp_client::{CredentialSource, Freshness};
-use sp_projection::ManagedMcp;
+use systemprompt_engine::run::McpSpec;
+use systemprompt_engine::mcp::{BoxError, HeaderSource};
+use systemprompt_device::client::{CredentialSource, Freshness};
+use crate::projection::ManagedMcp;
 use sp_protocol::origin::bearer_allowed;
 use url::Url;
 
-use crate::instance::JWT_MIN_VALIDITY;
+use crate::governance::instance::JWT_MIN_VALIDITY;
 
 pub(crate) fn specs(
     servers: &[ManagedMcp],

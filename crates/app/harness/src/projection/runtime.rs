@@ -20,12 +20,12 @@ use std::path::{Path, PathBuf};
 
 use sp_protocol::names::is_plain_relative_path;
 use sp_protocol::wire::consumer::{Check, InstallationPlan, RuntimeReadback};
-use sp_secure::{Access, contained_path, read_optional, remove_if_exists, write_if_changed};
+use systemprompt_device::secure::{Access, contained_path, read_optional, remove_if_exists, write_if_changed};
 
-use crate::apply::Applier;
-use crate::error::MaterializeError;
-use crate::ledger::{self, RUNTIME_LEDGER, SKILL_FILE, SKILLS_DIR, SKILLS_LEDGER};
-use crate::readback::read_back;
+use crate::projection::apply::Applier;
+use crate::projection::error::MaterializeError;
+use crate::projection::ledger::{self, RUNTIME_LEDGER, SKILL_FILE, SKILLS_DIR, SKILLS_LEDGER};
+use crate::projection::readback::read_back;
 
 const PLAN_FILES_MAX: usize = 8192;
 const PLAN_BYTES_MAX: usize = 24 * 1024 * 1024;
@@ -62,7 +62,7 @@ impl Applier {
             let outcome = write_if_changed(path, &file.bytes, Access::Shared)
                 .map_err(MaterializeError::secure("write a runtime file"))?;
             #[cfg(unix)]
-            crate::readback::set_mode(path, file.executable)?;
+            crate::projection::readback::set_mode(path, file.executable)?;
             tracing::debug!(skill = skill_dir, file = %file.path, ?outcome, "runtime file");
         }
         for path in &stale {

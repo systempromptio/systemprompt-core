@@ -1,4 +1,4 @@
-//! What [`crate::plan`] reads: the verified manifest and what was fetched with
+//! What [`crate::projection::plan`] reads: the verified manifest and what was fetched with
 //! it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.

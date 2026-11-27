@@ -2,7 +2,7 @@
 //!
 //! A path the instance names is untrusted: it is placed only as a relative,
 //! `/`-separated path of portable segments ([`super::names`]), resolved with
-//! [`sp_secure::contained_path`] so no existing component below the folder is a
+//! [`systemprompt_device::secure::contained_path`] so no existing component below the folder is a
 //! link or reparse point. A download sits between that check and the write, so
 //! every write and move checks the whole path again ([`SyncRoot::confine`])
 //! just before it lands.
@@ -17,7 +17,7 @@
 
 use std::path::{Component, Path, PathBuf};
 
-use sp_secure::{SecureError, contained_path};
+use systemprompt_device::secure::{SecureError, contained_path};
 use url::Url;
 
 use super::error::SyncError;

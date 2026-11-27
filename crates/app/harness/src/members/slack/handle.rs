@@ -7,11 +7,11 @@
 use std::fmt;
 use std::sync::{Arc, OnceLock};
 
-use sp_notifications::{FeedStatus, Inbox, Notification, NotificationsHandle};
+use crate::members::notifications::{FeedStatus, Inbox, Notification, NotificationsHandle};
 use tokio::sync::watch;
 
-use crate::origin::is_slack_originated;
-use crate::status::SlackStatus;
+use crate::members::slack::origin::is_slack_originated;
+use crate::members::slack::status::SlackStatus;
 
 /// Slack as the reader's notifications show it, shared through
 /// `SpContext::handles`.

@@ -73,7 +73,7 @@ pub(crate) fn stream_error(kind: Option<String>, message: Option<String>) -> Llm
         .or_else(|| kind.clone())
         .unwrap_or_else(|| "unknown stream error".to_owned());
     let probe = format!("{} {}", kind.as_deref().unwrap_or_default(), message);
-    if crate::overflow::is_context_overflow(None, &probe) {
+    if crate::llm::overflow::is_context_overflow(None, &probe) {
         return LlmError::ContextOverflow {
             status: None,
             message: excerpt(&message),

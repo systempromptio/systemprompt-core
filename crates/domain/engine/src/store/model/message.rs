@@ -6,8 +6,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::id::{MessageId, SessionId, now_ms};
-use crate::model::{FinishReason, Part, Usage};
+use crate::store::id::{MessageId, SessionId, now_ms};
+use crate::store::model::{FinishReason, Part, Usage};
 
 /// The class of failure an assistant message ended with.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

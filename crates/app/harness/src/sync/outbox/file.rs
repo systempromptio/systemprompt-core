@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 use sp_protocol::ids::{AccountId, DeviceId};
 use sp_protocol::names::sha256_hex;
-use sp_secure::{SecureError, read_optional, write_private};
+use systemprompt_device::secure::{SecureError, read_optional, write_private};
 
 use super::Outbox;
 

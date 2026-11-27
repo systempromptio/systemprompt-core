@@ -6,12 +6,12 @@
 
 use std::path::{Path, PathBuf};
 
-use harness_ids::SessionId;
+use systemprompt_identifiers::engine::SessionId;
 use sp_protocol::wire::hooks::HookEvent;
 
 use super::Governance;
-use crate::instance::Instance;
-use crate::telemetry::{Job, Rejected};
+use crate::governance::instance::Instance;
+use crate::governance::telemetry::{Job, Rejected};
 
 const REMEMBERED_SESSIONS: usize = 4_096;
 

@@ -12,9 +12,9 @@ use sp_protocol::wire::brain::{
 
 use super::render::{fact_detail, page_text, why_text};
 use super::tools::BrainOperation;
-use crate::client::FactQuery;
-use crate::error::BrainError;
-use crate::service::BrainService;
+use crate::members::brain::client::FactQuery;
+use crate::members::brain::error::BrainError;
+use crate::members::brain::service::BrainService;
 
 const MAX_LOOKUP: u32 = 50;
 

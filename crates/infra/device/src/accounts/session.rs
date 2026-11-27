@@ -13,16 +13,16 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use sp_client::{CredentialError, CredentialSource, Freshness, JwtSession};
+use crate::client::{CredentialError, CredentialSource, Freshness, JwtSession};
 use sp_protocol::Jwt;
 use sp_protocol::ids::AccountId;
-use sp_secure::SealedString;
+use crate::secure::SealedString;
 use tokio::sync::broadcast;
 
-use crate::accounts::Accounts;
-use crate::renewal::Renewal;
-use crate::schedule::satisfies;
-use crate::state::State;
+use crate::accounts::accounts::Accounts;
+use crate::accounts::renewal::Renewal;
+use crate::accounts::schedule::satisfies;
+use crate::accounts::state::State;
 
 /// A session token was minted for an account. It names the account only; pull
 /// the token with [`Accounts::session`].

@@ -8,7 +8,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use harness_ids::ExtensionId;
+use systemprompt_identifiers::engine::ExtensionId;
 
 use super::enabled::EnabledExtensions;
 use super::error::ResolveError;

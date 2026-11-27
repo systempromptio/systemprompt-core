@@ -7,16 +7,16 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use harness_llm::{Message, Request};
-use harness_prompt::agents::TITLE;
-use harness_prompt::generate::{TITLE_MAX_CHARS, TITLE_PROMPT, clean_title, title_request};
-use harness_store::SessionId;
+use crate::llm::{Message, Request};
+use crate::prompt::agents::TITLE;
+use crate::prompt::generate::{TITLE_MAX_CHARS, TITLE_PROMPT, clean_title, title_request};
+use crate::store::SessionId;
 use harness_tasks::CancellationToken;
 
 use super::model_call;
-use crate::error::EngineError;
-use crate::governor::{ModelCall, Purpose};
-use crate::inner::Inner;
+use crate::run::error::EngineError;
+use crate::run::governor::{ModelCall, Purpose};
+use crate::run::inner::Inner;
 
 const TITLE_MAX_OUTPUT: u32 = 100;
 

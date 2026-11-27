@@ -5,9 +5,9 @@
 
 use rusqlite::{Connection, OptionalExtension, Params, Row, params};
 
-use crate::error::{Result, corrupt};
-use crate::id::{MessageId, PartId, SessionId, column, param};
-use crate::model::{Part, Todo, TodoPriority, TodoStatus};
+use crate::store::error::{Result, corrupt};
+use crate::store::id::{MessageId, PartId, SessionId, column, param};
+use crate::store::model::{Part, Todo, TodoPriority, TodoStatus};
 
 const PART_COLUMNS: &str = "id, session_id, message_id, payload, created_at, updated_at";
 

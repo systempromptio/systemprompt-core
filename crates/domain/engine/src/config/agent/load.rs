@@ -9,11 +9,11 @@ use std::path::{Path, PathBuf};
 use indexmap::IndexMap;
 
 use super::{AgentDef, AgentMode, AgentOverride, Origin};
-use crate::error::ConfigError;
-use crate::frontmatter;
-use crate::fsio::Probe;
-use crate::paths::Paths;
-use crate::permission::Ruleset;
+use crate::config::error::ConfigError;
+use crate::config::frontmatter;
+use crate::config::fsio::Probe;
+use crate::config::paths::Paths;
+use crate::config::permission::Ruleset;
 
 #[derive(Debug, Clone)]
 pub(crate) struct AgentSource {

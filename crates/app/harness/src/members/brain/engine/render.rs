@@ -6,7 +6,7 @@
 
 use sp_protocol::wire::brain::{BrainFact, FactPage, FactScope, FactWhy, TopicId};
 
-use crate::error::BrainError;
+use crate::members::brain::error::BrainError;
 
 pub(super) fn fact_line(fact: &BrainFact) -> String {
     let mut line = format!(

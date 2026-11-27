@@ -7,18 +7,18 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use harness_ids::QuestionId;
-use harness_prompt::engine_tools::{
+use systemprompt_identifiers::engine::QuestionId;
+use crate::prompt::engine_tools::{
     QUESTION_DESCRIPTION, QUESTION_MAX_OPTIONS, QUESTION_MAX_QUESTIONS, QUESTION_MIN_OPTIONS,
     question_schema,
 };
-use harness_prompt::tool_names::QUESTION;
-use harness_tools::{PermissionRequest, Tool, ToolContext, ToolError, ToolOutput};
+use crate::prompt::tool_names::QUESTION;
+use crate::tools::{PermissionRequest, Tool, ToolContext, ToolError, ToolOutput};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use crate::events::{Question, QuestionAsk};
-use crate::inner::Inner;
+use crate::run::events::{Question, QuestionAsk};
+use crate::run::inner::Inner;
 
 pub(crate) struct QuestionTool {
     inner: Arc<Inner>,

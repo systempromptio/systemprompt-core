@@ -9,8 +9,8 @@ use std::path::{Component, Path, PathBuf};
 
 use serde_json::json;
 
-use crate::contract::{PermissionRequest, ToolContext};
-use crate::error::ToolError;
+use crate::tools::contract::{PermissionRequest, ToolContext};
+use crate::tools::error::ToolError;
 
 pub fn resolve(cwd: &Path, input: &str) -> PathBuf {
     let trimmed = input.trim();

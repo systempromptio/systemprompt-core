@@ -7,14 +7,14 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use harness_config::Loaded;
-use harness_prompt::engine_tools::{SKILL_DESCRIPTION, skill_content, skill_schema};
-use harness_prompt::tool_names::SKILL;
-use harness_tools::{PermissionRequest, Tool, ToolContext, ToolError, ToolOutput};
+use crate::config::Loaded;
+use crate::prompt::engine_tools::{SKILL_DESCRIPTION, skill_content, skill_schema};
+use crate::prompt::tool_names::SKILL;
+use crate::tools::{PermissionRequest, Tool, ToolContext, ToolError, ToolOutput};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use crate::session::attachments::slash;
+use crate::run::session::attachments::slash;
 
 pub(crate) struct SkillTool {
     config: Arc<Loaded>,

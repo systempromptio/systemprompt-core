@@ -1,5 +1,5 @@
 //! The Drive as agent tools (search, list, read, propose an edit, create,
-//! comment): each asks the gate under `drive` and answers `crate::agent`'s
+//! comment): each asks the gate under `drive` and answers `crate::members::drive::agent`'s
 //! text. `Tool` is the engine's `dyn` contract, hence `#[async_trait]` on its
 //! impl.
 //!
@@ -14,16 +14,16 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use harness_tools::{PermissionRequest, Tool, ToolContext, ToolError, ToolOutput};
+use systemprompt_engine::tools::{PermissionRequest, Tool, ToolContext, ToolError, ToolOutput};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
 use self::read::{List, Read, Search};
 use self::write::{Comment, Create, Propose};
 use super::handle::DriveHandle;
-use crate::agent;
-use crate::client::DriveClient;
-use crate::error::DriveError;
+use crate::members::drive::agent;
+use systemprompt_drive::client::DriveClient;
+use systemprompt_drive::error::DriveError;
 
 pub const PERMISSION: &str = "drive";
 pub const TOOL_NAMES: [&str; 6] = [
@@ -101,7 +101,7 @@ impl<O: DriveOperation> Tool for DriveTool<O> {
     // JSON: the model's tool input arrives as JSON and is checked against the
     // schema here.
     async fn run(&self, mut input: Value, ctx: &ToolContext) -> Result<ToolOutput, ToolError> {
-        harness_tools::validate(&O::schema(), &mut input)?;
+        systemprompt_engine::tools::validate(&O::schema(), &mut input)?;
         let input: O::Input = serde_json::from_value(input)
             .map_err(|error| ToolError::caused(INPUT_REFUSED, error))?;
         let target = O::target(&input);

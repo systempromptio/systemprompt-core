@@ -11,15 +11,15 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use harness_engine::extension::ExtensionTool;
-use harness_tools::{PermissionRequest, Tool, ToolContext, ToolError, ToolOutput};
+use systemprompt_engine::run::extension::ExtensionTool;
+use systemprompt_engine::tools::{PermissionRequest, Tool, ToolContext, ToolError, ToolOutput};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
 use super::operations::{Dispute, Lookup, Propose, Why};
 use super::render::failure_text;
-use crate::error::BrainError;
-use crate::service::BrainService;
+use crate::members::brain::error::BrainError;
+use crate::members::brain::service::BrainService;
 
 pub(super) const PERMISSION: &str = "brain";
 const INPUT_REFUSED: &str = "The input does not fit this tool; take fact ids from brain_lookup and write subjects as kind:id.";
@@ -83,7 +83,7 @@ impl<O: BrainOperation> Tool for BrainTool<O> {
     // JSON: the model's tool input arrives as JSON and is checked against the
     // schema here.
     async fn run(&self, mut input: Value, ctx: &ToolContext) -> Result<ToolOutput, ToolError> {
-        harness_tools::validate(&O::schema(), &mut input)?;
+        systemprompt_engine::tools::validate(&O::schema(), &mut input)?;
         let input: O::Input = serde_json::from_value(input)
             .map_err(|error| ToolError::caused(INPUT_REFUSED, error))?;
         let target = O::target(&input);

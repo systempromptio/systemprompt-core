@@ -3,10 +3,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::id::{MessageId, PartId, ProjectId, SessionId};
-use crate::model::{Message, Part, Project, Session, Todo};
+use crate::store::id::{MessageId, PartId, ProjectId, SessionId};
+use crate::store::model::{Message, Part, Project, Session, Todo};
 
-/// A committed write, published on [`crate::Store::subscribe`] after its
+/// A committed write, published on [`crate::store::Store::subscribe`] after its
 /// transaction commits.
 ///
 /// Sessions are boxed to keep the enum small. Deleting a session removes its

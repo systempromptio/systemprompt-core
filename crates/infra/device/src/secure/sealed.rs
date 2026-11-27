@@ -10,8 +10,8 @@ use base64::engine::general_purpose::STANDARD;
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, Zeroizing};
 
-use crate::error::SecureError;
-use crate::sealer::Sealer;
+use crate::secure::error::SecureError;
+use crate::secure::sealer::Sealer;
 
 /// Base64 (standard alphabet, padded) of a [`Sealer`]'s ciphertext.
 ///

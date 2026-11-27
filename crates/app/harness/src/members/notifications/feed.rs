@@ -10,10 +10,10 @@
 
 use chrono::Utc;
 
-use crate::client::FeedQuery;
-use crate::error::NotificationsError;
-use crate::handle::{NotificationsHandle, Target};
-use crate::inbox::{FeedStatus, INBOX_CAPACITY, Inbox};
+use crate::members::notifications::client::FeedQuery;
+use crate::members::notifications::error::NotificationsError;
+use crate::members::notifications::handle::{NotificationsHandle, Target};
+use crate::members::notifications::inbox::{FeedStatus, INBOX_CAPACITY, Inbox};
 
 pub(crate) const FEED_PAGE: u32 = 50;
 

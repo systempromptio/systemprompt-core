@@ -10,23 +10,23 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::Utc;
-use sp_client::{JwtSession, ManifestFetch, ManifestKey, SpClient};
+use crate::client::{JwtSession, ManifestFetch, ManifestKey, SpClient};
 use sp_protocol::Pat;
 use sp_protocol::ids::{AccountId, InstanceKey, UserId};
 use sp_protocol::view::{InstanceSummary, SignInFailure, SignInOutcome};
 use sp_protocol::wire::catalog::WhoamiResponse;
-use sp_secure::SealedString;
+use crate::secure::SealedString;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use crate::accounts::Accounts;
-use crate::error::AccountsError;
-use crate::keys;
-use crate::probe::label_for;
-use crate::signin::{Reached, until_cancelled};
-use crate::slug::unique_slug;
-use crate::store::{AccountRecord, StoreFile};
-use crate::summary::summarize;
+use crate::accounts::accounts::Accounts;
+use crate::accounts::error::AccountsError;
+use crate::accounts::keys;
+use crate::accounts::probe::label_for;
+use crate::accounts::signin::{Reached, until_cancelled};
+use crate::accounts::slug::unique_slug;
+use crate::accounts::store::{AccountRecord, StoreFile};
+use crate::accounts::summary::summarize;
 
 struct FirstContact {
     session: JwtSession,

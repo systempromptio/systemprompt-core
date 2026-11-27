@@ -19,7 +19,7 @@ use sp_protocol::origin::{bearer_allowed, is_transport_secure, rehome_instance_m
 use sp_protocol::wire::manifest::{ManagedMcpServer, Manifest};
 use url::Url;
 
-use crate::model::ManagedMcp;
+use crate::projection::model::ManagedMcp;
 
 const AUTHORIZATION: &str = "authorization";
 

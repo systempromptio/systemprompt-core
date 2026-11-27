@@ -19,8 +19,8 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::agent::AgentOverride;
-use crate::permission::Ruleset;
+use crate::config::agent::AgentOverride;
+use crate::config::permission::Ruleset;
 
 pub(crate) use load::{load, validate_text};
 

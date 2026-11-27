@@ -9,7 +9,7 @@
 use base64::Engine as _;
 use serde_json::{Map, Value, json};
 
-use crate::model::{
+use crate::llm::model::{
     Content, Message, Params, Reasoning, ReasoningEffort, Request, Role, ToolChoice,
 };
 

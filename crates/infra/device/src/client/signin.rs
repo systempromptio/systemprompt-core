@@ -25,9 +25,9 @@ use sp_protocol::wire::{headers, paths};
 use sp_protocol::{Jwt, OneTimeCode, Pat};
 use url::Url;
 
-use crate::client::SpClient;
-use crate::error::{ClientError, Incompatibility, excerpt};
-use crate::http::{DEFAULT_TIMEOUT, SMALL_BODY, decode, exchange, failure, protocol};
+use crate::client::client::SpClient;
+use crate::client::error::{ClientError, Incompatibility, excerpt};
+use crate::client::http::{DEFAULT_TIMEOUT, SMALL_BODY, decode, exchange, failure, protocol};
 
 const DISCOVERY_ENDPOINT: &str = "GET /.well-known/systemprompt-bridge";
 const CAPABILITIES_ENDPOINT: &str = "GET /v1/auth/bridge/capabilities";

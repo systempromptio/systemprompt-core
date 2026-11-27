@@ -7,7 +7,7 @@
 use std::io;
 use std::path::PathBuf;
 
-use sp_secure::SecureError;
+use systemprompt_device::secure::SecureError;
 
 /// Why an apply or a clear stopped. Files written before the failure stay as
 /// written; the next apply converges.
@@ -49,7 +49,7 @@ pub enum ProjectionError {
         source: SecureError,
     },
     #[error("cannot update the global settings file")]
-    Settings(#[source] harness_config::ConfigError),
+    Settings(#[source] systemprompt_engine::config::ConfigError),
 }
 
 impl ProjectionError {

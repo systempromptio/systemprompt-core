@@ -5,7 +5,7 @@
 //! An id is 1 to 64 characters of `a-z`, `0-9` and single hyphens, starting
 //! with a letter and not ending with a hyphen. Ids read from a manifest are
 //! validated with `parse`; an extension names its own id with
-//! [`extension_id!`](crate::extension_id), which checks the literal while
+//! [`extension_id!`](crate::engine::extension_id), which checks the literal while
 //! compiling, so a malformed id fails the build and the result needs no error
 //! handling.
 //!
@@ -16,7 +16,7 @@ use std::borrow::Cow;
 use std::fmt;
 use std::str::FromStr;
 
-use crate::error::IdError;
+use crate::engine::error::IdError;
 
 const KIND: &str = "extension";
 

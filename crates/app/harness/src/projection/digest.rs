@@ -17,7 +17,7 @@ use serde_json::{Value, json};
 use sp_protocol::jcs::canonicalize;
 use sp_protocol::names::sha256_hex;
 
-use crate::input::ProjectionInput;
+use crate::projection::input::ProjectionInput;
 
 const RESIGNED_FIELDS: [&str; 3] = ["manifest_version", "issued_at", "not_before"];
 

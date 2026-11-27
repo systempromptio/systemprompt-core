@@ -8,8 +8,8 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-use crate::types::{Diagnostic, Hover, Location, Position, Range, Severity};
-use crate::{paths, uri};
+use crate::lsp::types::{Diagnostic, Hover, Location, Position, Range, Severity};
+use crate::lsp::{paths, uri};
 
 mod symbols;
 

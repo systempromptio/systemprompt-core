@@ -15,12 +15,12 @@ use serde_json::{Value, json};
 use url::Url;
 
 use self::download::{Fetched, Request, download};
-use crate::config::FetchConfig;
-use crate::contract::{Attachment, PermissionRequest, Tool, ToolContext, ToolOutput};
-use crate::error::ToolError;
-use crate::repair::parse_input;
-use crate::tools::html::{Flavor, convert};
-use crate::truncate::{Keep, OutputLimits, truncate_output};
+use crate::tools::config::FetchConfig;
+use crate::tools::contract::{Attachment, PermissionRequest, Tool, ToolContext, ToolOutput};
+use crate::tools::error::ToolError;
+use crate::tools::repair::parse_input;
+use crate::tools::tools::html::{Flavor, convert};
+use crate::tools::truncate::{Keep, OutputLimits, truncate_output};
 
 /// Fetches web pages.
 #[derive(Debug, Clone)]
@@ -78,7 +78,7 @@ struct Input {
 #[async_trait]
 impl Tool for FetchTool {
     fn name(&self) -> &str {
-        crate::names::FETCH
+        crate::tools::names::FETCH
     }
 
     fn description(&self) -> String {

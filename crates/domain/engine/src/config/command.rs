@@ -8,9 +8,9 @@ use std::path::{Path, PathBuf};
 use indexmap::IndexMap;
 use serde_json::Value;
 
-use crate::error::{ConfigError, FieldError};
-use crate::frontmatter;
-use crate::fsio::Probe;
+use crate::config::error::{ConfigError, FieldError};
+use crate::config::frontmatter;
+use crate::config::fsio::Probe;
 
 /// A slash command loaded from `<dir>/<name>.md`; nested directories give names
 /// like `git/commit`.

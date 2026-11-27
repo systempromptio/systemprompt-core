@@ -7,16 +7,16 @@
 use std::fmt;
 use std::sync::Arc;
 
-use harness_engine::extension::{
+use systemprompt_engine::run::extension::{
     Contributed, EnabledExtensions, EngineExtension, ExtensionSet, Resolved, admitted, resolve,
 };
 
-use crate::applier::ManifestAppliers;
-use crate::context::SpContext;
-use crate::error::ExtensionError;
-use crate::extension::SpExtension;
-use crate::register::SpExtensionRegistration;
-use crate::service::BackgroundService;
+use crate::extension::applier::ManifestAppliers;
+use crate::extension::context::SpContext;
+use crate::extension::error::ExtensionError;
+use crate::extension::extension::SpExtension;
+use crate::extension::register::SpExtensionRegistration;
+use crate::extension::service::BackgroundService;
 
 type Entry = Resolved<Arc<dyn SpExtension>>;
 

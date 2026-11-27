@@ -14,10 +14,10 @@ use ignore::WalkBuilder;
 use regex::Regex;
 use tokio_util::sync::CancellationToken;
 
-use crate::config::SearchLimits;
-use crate::error::ToolError;
-use crate::path::slash;
-use crate::text::{clip_chars, looks_binary};
+use crate::tools::config::SearchLimits;
+use crate::tools::error::ToolError;
+use crate::tools::path::slash;
+use crate::tools::text::{clip_chars, looks_binary};
 
 #[derive(Debug)]
 pub(super) struct Include {

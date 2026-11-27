@@ -10,17 +10,17 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use async_trait::async_trait;
-use harness_config::{Action, AgentDef, Loaded, Rule, Ruleset};
-use harness_ids::PermissionId;
-use harness_store::SessionId;
+use crate::config::{Action, AgentDef, Loaded, Rule, Ruleset};
+use systemprompt_identifiers::engine::PermissionId;
+use crate::store::SessionId;
 use harness_tasks::CancellationToken;
-use harness_tools::{PermissionGate, PermissionRequest, ToolError};
+use crate::tools::{PermissionGate, PermissionRequest, ToolError};
 use parking_lot::Mutex;
 use tokio::sync::OnceCell;
 
-use crate::events::{PermissionAsk, Reply};
-use crate::governor::{ToolCall, Verdict};
-use crate::inner::Inner;
+use crate::run::events::{PermissionAsk, Reply};
+use crate::run::governor::{ToolCall, Verdict};
+use crate::run::inner::Inner;
 
 pub(crate) struct Gate {
     inner: Arc<Inner>,

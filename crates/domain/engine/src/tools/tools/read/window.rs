@@ -5,9 +5,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use crate::config::ReadLimits;
-use crate::error::ToolError;
-use crate::text::{BOM, clip_chars};
+use crate::tools::config::ReadLimits;
+use crate::tools::error::ToolError;
+use crate::tools::text::{BOM, clip_chars};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Window {

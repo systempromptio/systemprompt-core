@@ -8,19 +8,19 @@
 
 use std::sync::Arc;
 
-use harness_config::{AgentDef, Loaded, Ruleset};
-use harness_llm::{LlmError, Message, ModelSpec, Request};
-use harness_prompt::notices;
-use harness_store::{MessageId, MessagePage, MessageWithParts, PartBody, Session, SessionId};
+use crate::config::{AgentDef, Loaded, Ruleset};
+use crate::llm::{LlmError, Message, ModelSpec, Request};
+use crate::prompt::notices;
+use crate::store::{MessageId, MessagePage, MessageWithParts, PartBody, Session, SessionId};
 use harness_tasks::CancellationToken;
 
 use super::{admit, compaction, history, meta, step, system};
-use crate::directory::DirState;
-use crate::error::EngineError;
-use crate::events::{EngineEvent, RunStatus, SessionFailure};
-use crate::governor::SessionEvent;
-use crate::inner::Inner;
-use crate::tools::registry::{self, ToolBox};
+use crate::run::directory::DirState;
+use crate::run::error::EngineError;
+use crate::run::events::{EngineEvent, RunStatus, SessionFailure};
+use crate::run::governor::SessionEvent;
+use crate::run::inner::Inner;
+use crate::run::tools::registry::{self, ToolBox};
 
 const DEFAULT_MAX_STEPS: u32 = 100;
 

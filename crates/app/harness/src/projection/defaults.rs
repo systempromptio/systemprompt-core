@@ -11,13 +11,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use harness_config::{ConfigError, Layout, Paths, update_global_setting};
+use systemprompt_engine::config::{ConfigError, Layout, Paths, update_global_setting};
 use serde_json::{Map, Value};
 use sp_protocol::wire::manifest::Manifest;
-use sp_secure::read_optional;
+use systemprompt_device::secure::read_optional;
 
-use crate::error::ProjectionError;
-use crate::model::{BundleFile, DefaultTheme};
+use crate::projection::error::ProjectionError;
+use crate::projection::model::{BundleFile, DefaultTheme};
 
 const MODEL_KEY: &str = "model";
 

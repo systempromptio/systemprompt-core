@@ -11,7 +11,7 @@ use tracing::{debug, trace};
 
 use super::connection::{Published, RemoteError, Shared};
 use super::handshake::workspace_folder;
-use crate::parse;
+use crate::lsp::parse;
 
 const METHOD_NOT_FOUND: i64 = -32601;
 

@@ -12,8 +12,8 @@ use sp_protocol::wire::paths;
 
 use super::query::strip_empty_query;
 use super::{BrainClient, FactQuery};
-use crate::error::BrainError;
-use crate::http::Call;
+use crate::members::brain::error::BrainError;
+use crate::members::brain::http::Call;
 
 const FACTS: &str = "GET /api/v1/brain/facts";
 const FACT: &str = "GET /api/v1/brain/facts/{id}";

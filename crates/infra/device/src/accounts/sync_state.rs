@@ -11,11 +11,11 @@
 
 use sp_protocol::ids::{AccountId, DeviceId, UserId};
 use sp_protocol::{DeviceCredential, ManifestVersion};
-use sp_secure::SealedString;
+use crate::secure::SealedString;
 
-use crate::accounts::Accounts;
-use crate::error::AccountsError;
-use crate::store::DeviceRecord;
+use crate::accounts::accounts::Accounts;
+use crate::accounts::error::AccountsError;
+use crate::accounts::store::DeviceRecord;
 
 /// The device this install enrolled for an account's user, with its credential
 /// opened for one call.

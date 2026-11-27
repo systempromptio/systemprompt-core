@@ -18,7 +18,7 @@ use bytes::Bytes;
 use chrono::Utc;
 use reqwest::Method;
 use serde::Deserialize;
-use sp_client::{ClientError, HttpClient, TransportFailure};
+use systemprompt_device::client::{ClientError, HttpClient, TransportFailure};
 use sp_protocol::Jwt;
 use sp_protocol::ids::{DocumentId, DocumentRevisionId};
 use sp_protocol::wire::drive::{

@@ -11,9 +11,9 @@ use std::fmt;
 use std::sync::Arc;
 use std::time::Instant;
 
-use sp_client::{ClientError, CredentialSource, ManifestFetch, ManifestKey, with_jwt};
-use sp_extension::ExtensionPolicy;
-use sp_projection::{
+use systemprompt_device::client::{ClientError, CredentialSource, ManifestFetch, ManifestKey, with_jwt};
+use crate::extension::ExtensionPolicy;
+use crate::projection::{
     ContentDigest, ProjectionInput, SkillPublication, digest, plan, wanted_bundle_files,
 };
 use sp_protocol::ids::{AccountId, UserId};
@@ -25,14 +25,14 @@ use tokio::sync::watch;
 
 mod catalog;
 
-use crate::acceptance::accept;
-use crate::bundles::BundleCache;
-use crate::cadence::Clock;
-use crate::error::PollError;
-use crate::planner::{Outcome, Planner, Request};
-use crate::ports::{Instance, Store};
-use crate::runtime::RuntimeFiles;
-use crate::target::Target;
+use crate::sync::acceptance::accept;
+use crate::sync::bundles::BundleCache;
+use crate::sync::cadence::Clock;
+use crate::sync::error::PollError;
+use crate::sync::planner::{Outcome, Planner, Request};
+use crate::sync::ports::{Instance, Store};
+use crate::sync::runtime::RuntimeFiles;
+use crate::sync::target::Target;
 
 /// What one account's poll works over: its id, the store and target, its
 /// instance, the clock and the status it publishes.

@@ -16,10 +16,10 @@ use tokio_util::sync::CancellationToken;
 
 use super::config::{ServerConfig, ServerStatus, StatusMap};
 use super::job::ServerJob;
-use crate::catalog::Catalog;
-use crate::client::McpClient;
-use crate::headers::{self, HeaderCell};
-use crate::types::{ClientInfo, ToolInfo};
+use crate::mcp::catalog::Catalog;
+use crate::mcp::client::McpClient;
+use crate::mcp::headers::{self, HeaderCell};
+use crate::mcp::types::{ClientInfo, ToolInfo};
 
 pub(super) struct ConnectSettings {
     pub(super) http: reqwest::Client,

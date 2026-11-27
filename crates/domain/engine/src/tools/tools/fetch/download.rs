@@ -10,7 +10,7 @@ use std::time::Duration;
 use reqwest::header::{ACCEPT, CONTENT_TYPE};
 use url::Url;
 
-use crate::error::ToolError;
+use crate::tools::error::ToolError;
 
 #[derive(Debug)]
 pub(super) struct Fetched {

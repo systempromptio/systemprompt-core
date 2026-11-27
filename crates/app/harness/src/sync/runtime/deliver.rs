@@ -7,14 +7,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use sp_client::ConsumerOutcome;
+use systemprompt_device::client::ConsumerOutcome;
 use sp_protocol::wire::consumer::SessionBindingRequest;
 use sp_protocol::{DeviceCredential, HOST_ID};
 use tokio::time::{Duration, Instant, timeout};
 
-use crate::cadence::{Clock, DELIVERY_BUDGET};
-use crate::outbox::{BindingAnswer, Outbox, ReceiptAnswer};
-use crate::ports::Instance;
+use crate::sync::cadence::{Clock, DELIVERY_BUDGET};
+use crate::sync::outbox::{BindingAnswer, Outbox, ReceiptAnswer};
+use crate::sync::ports::Instance;
 
 const CONFLICT: u16 = 409;
 

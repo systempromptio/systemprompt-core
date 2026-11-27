@@ -12,15 +12,15 @@
 
 use std::sync::Arc;
 
-use sp_extension::{
+use crate::extension::{
     AppliedInstance, ApplyError, BackgroundService, EngineExtension, ExtensionId,
     ExtensionMetadata, ManifestApplier, SpContext, SpExtension, extension_id,
     register_sp_extension,
 };
 
-use crate::client::BrainClient;
-use crate::engine::BrainEngine;
-use crate::service::{BrainProbe, BrainService};
+use crate::members::brain::client::BrainClient;
+use crate::members::brain::engine::BrainEngine;
+use crate::members::brain::service::{BrainProbe, BrainService};
 
 pub const BRAIN_EXTENSION: ExtensionId = extension_id!("brain");
 
