@@ -10,7 +10,7 @@ golden/scenarios/<id>/          (core's test workspace)
   workspace/         the fixture project the session works in
   prompt.txt         the user's message (and any follow-up or steering messages)
   turns.json         the model script (02-scripted-instance.md section 3)
-  verdicts.json      optional: scripted verdicts per tool call
+  verdicts.json      optional: scripted verdicts, a default and one per tool (02-scripted-instance.md section 2)
   expected/
     trace.json       the normalised trace (section 3)
     workspace/       the fixture project as it must be afterwards
@@ -97,7 +97,7 @@ Through the headless `run` command added in S2-A2, which uses the same engine an
 
 In the parity job only, on Linux:
 
-1. Install the reference agent from its public release at the pinned version.
+1. Install the reference agent from its public release at the pinned version (tag `v2.4.2`, D47): the release of that tag, not the package registry's `latest`, which is on the older release line.
 2. Start the scripted instance's binary. The reference agent needs only the model routes; it is configured with a custom provider whose base URL is the scripted instance.
 3. Copy the fixture workspace; run the reference agent headless with the same prompt and an equivalent permission configuration.
 4. Export its session in its native format; normalise with the reference table.
