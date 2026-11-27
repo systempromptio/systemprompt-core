@@ -14,7 +14,7 @@
 
 ## 2. The reference agent
 
-OpenCode, unmodified, installed from its public release at a pinned version, used only as a comparison baseline in the parity job and as the source of a behaviour catalogue. It was chosen because users of the harness are moving from it, and because its headless mode and provider configuration allow it to be driven by a local scripted endpoint.
+OpenCode, unmodified, installed from its public release at a pinned version (tag `v2.4.2`, D47), used only as a comparison baseline in the parity job and as the source of a behaviour catalogue. It was chosen because users of the harness are moving from it, and because its headless mode and provider configuration allow it to be driven by a local scripted endpoint.
 
 Nothing of it is linked, vendored or copied into the harness. Names of other projects do not appear in harness source, test names, strings or file names; the pin and the name live in workflow configuration and in this directory.
 
@@ -22,8 +22,8 @@ Nothing of it is linked, vendored or copied into the harness. Names of other pro
 
 | Layer | Scope | Count today or planned | Runs at |
 |---|---|---|---|
-| Unit and crate tests | One crate through its public API | 942 at the lift | L2, three systems |
-| Migrated tests | Behaviours catalogued from the reference agent's suite, re-expressed in Rust | Set by the catalogue | L2 |
+| Unit and crate tests | One crate through its public API | The harness repository's count at the lift pin, less the retirements the lift manifest lists (`../stages/s1-lift.md` states the figure) | L2, three systems |
+| Migrated tests | Behaviours catalogued from the reference agent's suite, re-expressed in Rust | 920 catalogue rows to port at the first classification (`04-test-migration.md` section 1.1) | L2 |
 | Scripted-instance tests | Sign-in, key trust, sync, acceptance, heartbeat, telemetry against a mock instance | About 40 planned | L2 |
 | Golden scenarios | A whole session: prompt in, scripted turns, tools run, end state | 24 in the first set | L2, Windows and macOS |
 | Parity comparison | The same scenarios through the reference agent; differences classified | Same 24 | L2, one system is enough |
