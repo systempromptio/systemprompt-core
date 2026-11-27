@@ -164,10 +164,10 @@ pub fn routes(state: &BridgeRouteState) -> Router {
         )
 }
 
-/// The release feed and download. Built apart from [`routes`] because the
-/// mount charges them to their own rate scope: one platform is served to a
-/// caller with no credential, and each uncached call is an upstream fetch on
-/// the operator's token.
+// Why: built apart from `routes` because the mount charges the release feed
+// and download to their own rate scope: one platform is served to a caller
+// with no credential, and each uncached call is an upstream fetch on the
+// operator's token.
 pub fn release_routes(state: &BridgeRouteState) -> Result<Router, ReleaseError> {
     let feed = Arc::new(ReleaseFeed::new()?);
     let latest_state = (state.clone(), Arc::clone(&feed));

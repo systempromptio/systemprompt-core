@@ -98,9 +98,9 @@ impl ReleaseError {
         }
     }
 
-    /// The answer a caller with no credential reads. Which release is
-    /// missing, and from which repository and window, is logged for the
-    /// operator and replaced by [`Self::Unavailable`].
+    // Why: which release is missing, and from which repository and window,
+    // is for the operator's log; a caller with no credential reads
+    // `Unavailable` in its place.
     #[must_use]
     pub fn for_anonymous(self) -> Self {
         match self {

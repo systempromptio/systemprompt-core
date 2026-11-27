@@ -28,9 +28,9 @@ use super::protocol::{MountCtx, declare};
 use crate::routes::gateway::{GatewayMountParts, gateway_mount_parts};
 use crate::services::middleware::{gateway_protection, place};
 
-/// Release checks and downloads per second from one caller. A bridge reads
-/// the feed on a timer and a phone downloads its app once, so the rate is
-/// fixed and small rather than a profile budget.
+// Why: a bridge reads the release feed on a timer and a phone downloads its
+// app once, so the rate per caller is fixed and small rather than a profile
+// budget.
 const BRIDGE_RELEASE_PER_SECOND: u64 = 5;
 
 fn mount_gateway(

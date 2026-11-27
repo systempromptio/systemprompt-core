@@ -526,7 +526,10 @@ async fn an_anonymous_caller_reads_one_fixed_not_found_naming_no_repository() ->
         for withheld in ["systempromptio", "systemprompt-core", "bridge-v", "window"] {
             assert!(!body.contains(withheld), "{uri} names {withheld}: {body}");
         }
-        let error: serde_json::Value = serde_json::from_str(&body)?;
+        let mut error: serde_json::Value = serde_json::from_str(&body)?;
+        if let Some(fields) = error.as_object_mut() {
+            fields.remove("timestamp");
+        }
         anonymous.push(error);
     }
     assert_eq!(
