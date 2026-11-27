@@ -1,0 +1,24 @@
+[root]
+section = "Added"
+area = "Device crates"
+text = "`systemprompt-engine` (the native agent engine), `systemprompt-device` (accounts, sign-in, the instance client, sealing), `systemprompt-drive` (folder sync) and `systemprompt-harness` (the governor, manifest projection, live sync and the Drive, Brain, notifications and Slack extensions) hold the device code. `just lint-module-order` holds the module order of the engine and the harness crate, `just lint-device-no-window` requires every spawn in a device crate to suppress the console window on Windows, and `just lint-foreign-names` keeps the names of `scripts/foreign-names.txt` out of the four crates and their tests. Their tests run natively on Windows and macOS in the `device-native` job of the Quality workflow when a change reaches them."
+
+[[crate]]
+name = "systemprompt-engine"
+section = "Added"
+text = "New crate: the native agent engine. Modules `config`, `store`, `llm`, `tools`, `mcp`, `workspace`, `lsp`, `prompt` and `run`, each naming only the modules before it."
+
+[[crate]]
+name = "systemprompt-device"
+section = "Added"
+text = "New crate: device identity and trust. Modules `protocol`, `secure`, `client`, `accounts` and `view`."
+
+[[crate]]
+name = "systemprompt-drive"
+section = "Added"
+text = "New crate: folder sync. `DriveClient` over an account's document routes and `DriveSync`, a local folder mirrored with them."
+
+[[crate]]
+name = "systemprompt-harness"
+section = "Added"
+text = "New crate: the device composition. Modules `projection`, `extension`, `governance`, `members` and `sync`, each naming only the modules before it; `members::REGISTERED` lists the extensions a composition registers."

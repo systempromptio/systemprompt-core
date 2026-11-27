@@ -31,7 +31,7 @@ AFFECTED = {
     "affected_dirs": ["crates/domain/files", "crates/entry/api"],
     "clippy_packages": ["systemprompt-api", "systemprompt-files"],
     "test_packages": ["systemprompt-files-tests"], "test_dirs": ["crates/tests/unit/domain/files"],
-    "shard_groups": ["domain"], "archive_sets": ["unit"], "bridge": False,
+    "shard_groups": ["domain"], "archive_sets": ["unit"], "bridge": False, "device_native": False,
     "units": ["capability:files"], "mixed_kernel_and_capability": False, "scope_size": 3,
 }
 NONE = dict(AFFECTED, mode="none", changed_crates=[], affected_crates=[], affected_dirs=[], clippy_packages=[],
@@ -69,7 +69,10 @@ class Decisions(unittest.TestCase):
     def test_affected_selection(self):
         runs = ci_plan.decisions("quality", AFFECTED, "affected")
         self.assertTrue(runs["lint"] and runs["docs"] and runs["lint-tests"] and runs["msrv"])
-        self.assertFalse(runs["bridge-web"] or runs["bridge-native"])
+        self.assertFalse(runs["bridge-web"] or runs["bridge-native"] or runs["device-native"])
+        device = ci_plan.decisions("quality", dict(AFFECTED, device_native=True), "affected")
+        self.assertTrue(device["device-native"])
+        self.assertFalse(device["bridge-native"])
         self.assertTrue(runs["source-gates"] and runs["file-size"])
 
     def test_none_selection_keeps_only_unconditional_jobs(self):
@@ -175,7 +178,7 @@ class KernelLane(unittest.TestCase):
 
     def test_the_flag_decides_no_job(self):
         base = {"mode": "affected", "shard_groups": [], "archive_sets": [], "clippy_packages": ["a"],
-                "test_packages": [], "bridge": False, "changed_crates": ["a"]}
+                "test_packages": [], "bridge": False, "device_native": False, "changed_crates": ["a"]}
         for workflow in ci_plan.JOBS:
             flipped = [ci_plan.decisions(workflow, dict(base, mixed_kernel_and_capability=flag), "affected")
                        for flag in (False, True)]
@@ -192,7 +195,10 @@ class Aggregate(unittest.TestCase):
 
     def test_skip_the_selection_explains_passes_under_the_affected_policy(self):
         with affected_policy():
-            self.assertTrue(self.verdict("quality", needs("quality", bridge_web="skipped", bridge_native="skipped")))
+            self.assertTrue(self.verdict("quality", needs("quality", bridge_web="skipped", bridge_native="skipped",
+                                                         device_native="skipped")))
+            self.assertFalse(self.verdict("quality", needs("quality", device_native="skipped"),
+                                          selection=dict(AFFECTED, device_native=True)))
             self.assertTrue(self.verdict("ci", needs("ci", build="skipped", migrator="skipped", test="skipped",
                                                     test_tools="skipped", build_no_engine="skipped",
                                                     schema_ladder="skipped"), selection=NONE))

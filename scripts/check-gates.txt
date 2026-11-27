@@ -37,6 +37,7 @@ check-headers
 lint-layers
 lint-kernel-deps
 lint-device-closure
+lint-module-order
 lint-phone-closure
 lint-capability-cfg
 lint-domain-protocol-deps
@@ -55,6 +56,7 @@ lint-bridge-css-tokens
 lint-bridge-i18n
 lint-bridge-js-imports
 lint-bridge-no-window
+lint-device-no-window
 lint-bridge-verdicts
 lint-bridge-typed-warnings
 lint-bridge-layers
@@ -62,6 +64,7 @@ lint-bridge-globals
 lint-core-globals
 lint-serde-aliases
 lint-bridge-file-size
+lint-foreign-names
 lint-repo-hygiene
 changelog-check
 check-removed-config-names

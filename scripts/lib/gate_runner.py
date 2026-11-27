@@ -83,7 +83,7 @@ def packages(names):
 def full_selection(shard_groups):
     return {"mode": "full", "reasons": ["--full"], "clippy_packages": [], "test_packages": [],
             "affected_dirs": [], "test_dirs": [], "shard_groups": list(shard_groups), "bridge": True,
-            "units": [], "scope_size": None}
+            "device_native": True, "units": [], "scope_size": None}
 
 
 def phase_fmt(selection, changed, group=None):

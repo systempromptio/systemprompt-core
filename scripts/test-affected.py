@@ -111,6 +111,26 @@ class Closure(unittest.TestCase):
     def test_dev_dependency_edges_do_not_propagate(self):
         self.assertNotIn("files", run("crates/domain/agent/src/lib.rs")["affected_crates"])
 
+    def test_device_native_follows_the_listed_test_crates(self):
+        def flag(path, listed=("agent-tests",)):
+            return affected.select([path], GRAPH, RULES, SHARDS, UNITS, device_native=listed)["device_native"]
+
+        self.assertTrue(flag("crates/domain/agent/src/lib.rs"))
+        self.assertTrue(flag("crates/infra/db/src/lib.rs"))
+        self.assertTrue(flag("crates/tests/unit/domain/agent/src/lib.rs"))
+        self.assertFalse(flag("crates/domain/ai/src/lib.rs"))
+        self.assertFalse(flag("bin/bridge/src/main.rs"))
+        self.assertFalse(flag("crates/domain/agent/src/lib.rs", listed=()))
+        self.assertTrue(flag("scripts/x.sh"))
+        self.assertFalse(run("crates/domain/agent/src/lib.rs")["device_native"])
+
+    def test_the_device_native_list_names_test_workspace_packages(self):
+        listed = affected.load_names(affected.DEVICE_NATIVE)
+        self.assertTrue(listed)
+        graph = affected.repo_graph(affected.ROOT)
+        tests = {node["name"] for node in graph.values() if node["workspace"] == affected.TEST_WORKSPACE}
+        self.assertEqual(sorted(set(listed) - tests), [])
+
     def test_bridge_flag_follows_bridge_workspace(self):
         self.assertTrue(affected.select(["bin/bridge/src/main.rs"], GRAPH, RULES, SHARDS, UNITS)["bridge"])
         self.assertFalse(run("crates/domain/agent/src/lib.rs")["bridge"])

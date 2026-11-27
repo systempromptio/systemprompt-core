@@ -1,0 +1,8 @@
+# Names that never appear in the lifted device crates or their tests: in
+# code, comments, strings, tests or file names. One extended regular
+# expression per line, matched case-insensitively against every tracked or new
+# file and every path in the scope of scripts/lint-foreign-names.sh. Each
+# pattern is written so that this file does not match itself (a bracketed
+# letter).
+# Gate: scripts/lint-foreign-names.sh (`just lint-foreign-names`).
+open[c]ode

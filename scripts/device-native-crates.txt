@@ -1,0 +1,16 @@
+# Test crates of the lifted device crates (systemprompt-engine, -device,
+# -harness, -drive, and the device wire bodies of systemprompt-models) that run
+# natively on Windows and macOS in quality.yml's `device-native` job. That job
+# runs when a selection reaches one of them (`device_native` of
+# scripts/affected.py), so a change to a device crate, to a crate one depends
+# on, or to these tests is compiled and tested on both systems.
+#
+# The rules of scripts/bridge-native-crates.txt hold here too: no database, so
+# no systemprompt-test-fixtures, no linux-keyutils-keyring-store and no
+# sqlx::query*! user in the closure, and no systemprompt-test-hack — see
+# scripts/lint-native-test-deps.sh. One package name per line; `#` comments.
+systemprompt-device-tests
+systemprompt-drive-tests
+systemprompt-engine-tests
+systemprompt-harness-tests
+systemprompt-models-device-tests

@@ -72,6 +72,7 @@ jobs:
       run_lint: ${{ steps.plan.outputs.run_lint }}
       run_lint_tests: ${{ steps.plan.outputs.run_lint_tests }}
       run_bridge_native: ${{ steps.plan.outputs.run_bridge_native }}
+      run_device_native: ${{ steps.plan.outputs.run_device_native }}
       run_docs: ${{ steps.plan.outputs.run_docs }}
       run_source_gates: ${{ steps.plan.outputs.run_source_gates }}
       run_msrv: ${{ steps.plan.outputs.run_msrv }}
@@ -293,6 +294,56 @@ jobs:
         timeout-minutes: 40
         shell: bash
         run: bash scripts/bridge-native-tests.sh
+
+  device-native:
+    # The lifted device crates (engine, device, harness, Drive) hold code that
+    # is cfg-gated to Windows or macOS: keyrings, sealing, directory ACLs, job
+    # objects, console suppression. The ubuntu jobs configure it out, so this
+    # job compiles and tests it natively. It runs only when the selection
+    # reaches a test crate of scripts/device-native-crates.txt
+    # (`device_native` of scripts/affected.py): a change to one of the four
+    # crates, to a crate one depends on, or to their tests. It sets no secret
+    # and names no instance or model provider.
+    name: Device native checks (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    # The cargo steps carry their own timeouts, as in `bridge-native`.
+    timeout-minutes: 75
+    needs: affected
+    if: needs.affected.outputs.run_device_native == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.sha }}
+      - run: rustup show
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: |
+            .
+            crates/tests
+          shared-key: device-native
+          cache-on-failure: true
+          save-if: ${{ github.ref == 'refs/heads/next' }}
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        with:
+          tool: nextest@0.9.146
+      - name: Check the device crates (x86_64-pc-windows-msvc)
+        # Every Windows-only module of the four crates is compiled here whatever
+        # the tests below happen to link.
+        if: matrix.os == 'windows-latest'
+        timeout-minutes: 20
+        env:
+          SQLX_OFFLINE: "true"
+        run: cargo check -p systemprompt-engine -p systemprompt-device -p systemprompt-harness -p systemprompt-drive --target x86_64-pc-windows-msvc --locked
+      - name: Device test crates (native, offline)
+        # The package list is scripts/device-native-crates.txt, the same file
+        # `just lint-device-native-tests` reads.
+        timeout-minutes: 40
+        shell: bash
+        run: bash scripts/bridge-native-tests.sh --list scripts/device-native-crates.txt
 
   docs:
     name: Rustdoc (warnings as errors)
@@ -544,7 +595,7 @@ jobs:
     name: Escape report
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [affected, bridge-web, lint, lint-tests, bridge-native, docs, source-gates, msrv, file-size, shadow-gates, shadow-clippy]
+    needs: [affected, bridge-web, lint, lint-tests, bridge-native, device-native, docs, source-gates, msrv, file-size, shadow-gates, shadow-clippy]
     if: ${{ always() && needs.affected.outputs.shadow == 'true' }}
     permissions:
       contents: read
@@ -579,7 +630,7 @@ jobs:
     name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'Quality passed' || 'Quality passed (push)' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [affected, gate-plan, bridge-web, lint, lint-tests, bridge-native, docs, source-gates, msrv, file-size]
+    needs: [affected, gate-plan, bridge-web, lint, lint-tests, bridge-native, device-native, docs, source-gates, msrv, file-size]
     if: always()
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -2,7 +2,9 @@
 # compiled and run with no database, so none of them may depend on
 # systemprompt-test-fixtures, linux-keyutils-keyring-store or any crate that uses
 # sqlx::query*!, and every eligible bridge test crate is listed — see
-# scripts/lint-native-test-deps.sh. One package name per line; `#` comments.
+# scripts/lint-native-test-deps.sh. The test crates of the lifted device crates
+# run natively too, in their own job, from scripts/device-native-crates.txt.
+# One package name per line; `#` comments.
 systemprompt-bridge-activity-tests
 systemprompt-bridge-auth-session-tests
 systemprompt-bridge-auth-tests
@@ -28,9 +30,4 @@ systemprompt-bridge-ts-export-tests
 systemprompt-bridge-validate-tests
 systemprompt-bridge-verdicts-tests
 systemprompt-bridge-window-state-tests
-systemprompt-device-tests
-systemprompt-drive-tests
-systemprompt-engine-tests
-systemprompt-harness-tests
-systemprompt-models-device-tests
 systemprompt-scripted-instance

@@ -23,7 +23,7 @@ check-lockfile-registry     global  cheap    release 0.1s; every tracked Cargo.l
 machete                     global  cheap    release cargo-machete over every workspace (`just machete`); needs the cargo-machete binary
 lint-field-copy-from        unit    cheap    sql     0.6s; struct field counts are read across the whole tree, findings reported in scope
 lint-env-vars               unit    cheap    sql     1.1s; allowlist reasons and staleness checked in full mode only
-lint-native-test-deps       global  cheap    sql     0.2s; crates/tests cargo metadata graph against bridge-native-crates.txt and hakari.toml
+lint-native-test-deps       global  cheap    sql     0.2s; crates/tests cargo metadata graph against bridge-native-crates.txt, device-native-crates.txt and hakari.toml
 sqlx-audit-caches           unit    cheap    sql     1.0s; a crate's .sqlx cache against that crate's src; scope selects the crates it touches
 lint-discarded-results      unit    compile  errors  20.8s cold (rust-contracts build), cached after; roots narrowed to the scope
 lint-fail-open              unit    compile  errors  0.3s warm; rust-contracts, roots narrowed to the scope
@@ -57,6 +57,7 @@ check-headers               unit    cheap    sql     0.2s
 lint-layers                 global  cheap    sql     0.1s; the cargo dependency graph
 lint-kernel-deps            global  cheap    sql     0.1s; the cargo dependency graph
 lint-device-closure         global  cheap    sql     0.1s; the cargo dependency graph against the kernel rows of units.txt
+lint-module-order           global  cheap    sql     0.3s; every source file of systemprompt-engine and systemprompt-harness against the fixed module order of each
 lint-phone-closure          global  cheap    sql     0.1s; the cargo dependency graph from systemprompt-mobile, feature-resolved from the manifests
 lint-capability-cfg         global  cheap    errors  0.3s; crates/ (minus crates/tests) token scan against the capability features of units.txt and the facade
 lint-domain-protocol-deps   global  cheap    sql     0.1s; the cargo dependency graph
@@ -75,6 +76,7 @@ lint-bridge-css-tokens      global  cheap    bridge  0.1s; token definitions and
 lint-bridge-i18n            global  cheap    bridge  0.3s; the bridge catalogue against every reference and producer enum
 lint-bridge-js-imports      unit    cheap    bridge  12.2s full; exported names always read from the whole web tree, files judged in scope
 lint-bridge-no-window       unit    cheap    bridge  0.1s
+lint-device-no-window       unit    cheap    bridge  0.1s; spawn sites under the src of the device crates
 lint-bridge-verdicts        unit    cheap    bridge  0.1s
 lint-bridge-typed-warnings  unit    cheap    bridge  0.1s
 lint-bridge-layers          unit    cheap    bridge  4.7s; each module file against the fixed order list
@@ -82,6 +84,7 @@ lint-bridge-globals         unit    cheap    bridge  0.1s; stale allowlist entri
 lint-core-globals           unit    cheap    bridge  0.5s; stale allowlist entries in full mode only
 lint-serde-aliases          unit    cheap    bridge  0.8s; stale allowlist entries in full mode only
 lint-bridge-file-size       unit    cheap    bridge  0.4s
+lint-foreign-names          global  cheap    bridge  0.4s; every file and path of the four lifted device crates and their test crates against foreign-names.txt
 lint-repo-hygiene           global  cheap    sql     0.1s; every tracked path
 changelog-check             global  cheap    release 0.1s; every changelog.d fragment against the published crates
 check-removed-config-names  unit    cheap    bridge  1.3s

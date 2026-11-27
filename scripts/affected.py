@@ -11,6 +11,9 @@ build edges gives the affected crates; the test-workspace crates reaching an
 affected crate directly, and every test crate reaching one of those, give the
 test packages, ignoring all edges into and out of the hakari crate. Test
 packages map onto the shard groups and archive sets of scripts/test-shard.sh.
+`device_native` is true when a test package of
+scripts/device-native-crates.txt is among them: the lifted device crates'
+tests, which then also run natively on Windows and macOS.
 
 A path matching the `[none]` section of scripts/affected-force-full.txt has no
 gate consequence, whatever else matches it. Otherwise a path matching the
@@ -35,6 +38,7 @@ from units import UnitsError, load_units
 ROOT = Path(__file__).resolve().parents[1]
 FORCE_FULL = ROOT / "scripts" / "affected-force-full.txt"
 TEST_SHARD = ROOT / "scripts" / "test-shard.sh"
+DEVICE_NATIVE = ROOT / "scripts" / "device-native-crates.txt"
 
 ROOT_WORKSPACE = "."
 TEST_WORKSPACE = "crates/tests"
@@ -148,7 +152,13 @@ def crate_dirs(graph, names):
     return {by_name[name] for name in names}
 
 
-def select(changed, graph, rules, shard_map, units, crates=()):
+def load_names(path):
+    """The package names of a one-per-line list; `#` starts a comment."""
+    names = [line.split("#", 1)[0].strip() for line in Path(path).read_text().splitlines()]
+    return [name for name in names if name]
+
+
+def select(changed, graph, rules, shard_map, units, crates=(), device_native=()):
     changed = sorted({p.strip().removeprefix("./") for p in changed} - {""})
     production = {d for d, n in graph.items() if n["workspace"] != TEST_WORKSPACE}
     tests = {d for d, n in graph.items() if n["workspace"] == TEST_WORKSPACE and n["name"] != HACK_CRATE}
@@ -204,6 +214,7 @@ def select(changed, graph, rules, shard_map, units, crates=()):
         "shard_groups": groups,
         "archive_sets": archive_sets,
         "bridge": any(graph[d]["workspace"] == BRIDGE_WORKSPACE for d in affected),
+        "device_native": any(graph[d]["name"] in device_native for d in test_set),
         "units": unit_names,
         "mixed_kernel_and_capability": mixed,
         "kernel_crates_touched": kernel_touched,
@@ -289,8 +300,9 @@ def main(argv=None):
             changed = args.files
         else:
             changed = sys.stdin.read().splitlines()
-        result = select(changed, graph, parse_rules(FORCE_FULL.read_text()), load_shard_map(), units, crates)
-    except (SelectorError, UnitsError, subprocess.CalledProcessError) as error:
+        result = select(changed, graph, parse_rules(FORCE_FULL.read_text()), load_shard_map(), units, crates,
+                        frozenset(load_names(DEVICE_NATIVE)))
+    except (SelectorError, UnitsError, OSError, subprocess.CalledProcessError) as error:
         print(f"affected: {error}", file=sys.stderr)
         return 2
     print(render(result, args.format))

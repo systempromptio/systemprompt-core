@@ -73,6 +73,8 @@ systemprompt-bench                 tooling
 systemprompt-fuzz                  tooling
 systemprompt-loadtest              tooling
 mock-inference                     tooling
+# Device crates: one unit, composed into the binary on a user's machine or
+# phone and never into an instance (scripts/lint-device-closure.py).
 systemprompt-device                capability:device
 systemprompt-machine               capability:device
 systemprompt-engine                capability:device

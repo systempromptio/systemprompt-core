@@ -27,7 +27,7 @@ AFFECTED = {
     "affected_dirs": ["crates/domain/files", "crates/entry/api"],
     "clippy_packages": ["systemprompt-api", "systemprompt-files"],
     "test_packages": ["systemprompt-files-tests"], "test_dirs": ["crates/tests/unit/domain/files"],
-    "shard_groups": ["domain"], "archive_sets": ["unit"], "bridge": False,
+    "shard_groups": ["domain"], "archive_sets": ["unit"], "bridge": False, "device_native": False,
     "units": ["capability:files"], "mixed_kernel_and_capability": False, "scope_size": 3,
 }
 NONE = dict(AFFECTED, mode="none", changed_crates=[], affected_crates=[], affected_dirs=[], clippy_packages=[],

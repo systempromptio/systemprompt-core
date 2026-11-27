@@ -99,6 +99,7 @@ JOBS = {
                      shadow=SHADOW_CLIPPY),
         "lint-tests": Rule("fields", "Test workspace all-targets clippy + rustdoc", ("test_packages",), scoped=True),
         "bridge-native": Rule("fields", "Bridge native checks ({})", ("bridge",)),
+        "device-native": Rule("fields", "Device native checks ({})", ("device_native",)),
         "docs": Rule("fields", "Rustdoc (warnings as errors)", ("clippy_packages", "bridge"), scoped=True,
                      shadow=SHADOW_CLIPPY),
         "source-gates": Rule("always", "", names=GATE_GROUP_NAMES, scoped=True, shadow=SHADOW_GATES),

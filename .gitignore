@@ -118,6 +118,12 @@ scripts/*
 # (.github/workflows/ci.yml) and the local `just test-shard` recipes.
 !scripts/test-shard.sh
 !scripts/test-db.sh
+!scripts/lint-module-order.py
+!scripts/test-lint-module-order.py
+!scripts/lint-device-no-window.sh
+!scripts/lint-foreign-names.sh
+!scripts/foreign-names.txt
+!scripts/device-native-crates.txt
 !scripts/stop-hook.sh
 !scripts/worktree-cache.sh
 !scripts/check-gates.txt

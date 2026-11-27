@@ -17,9 +17,10 @@ platforms = [
 ]
 
 [final-excludes]
-# The native (Windows/macOS) bridge matrix builds these with no database and
-# no server stack; they stay free of the hack. Mirrors
-# scripts/bridge-native-crates.txt (checked by scripts/lint-native-test-deps.sh).
+# The native (Windows/macOS) bridge and device matrices build these with no
+# database and no server stack; they stay free of the hack. Mirrors
+# scripts/bridge-native-crates.txt and scripts/device-native-crates.txt
+# together (checked by scripts/lint-native-test-deps.sh).
 workspace-members = [
     "systemprompt-scripted-instance",
     "systemprompt-bridge-activity-tests",

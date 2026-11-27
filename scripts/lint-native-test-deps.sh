@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# The bridge test crates in scripts/bridge-native-crates.txt run in the native
-# (Windows/macOS) quality matrix with no database and SQLX_OFFLINE=true. A
+# The test crates in scripts/bridge-native-crates.txt and
+# scripts/device-native-crates.txt run in the native (Windows/macOS) quality
+# matrices with no database and SQLX_OFFLINE=true. A
 # dependency — direct or transitive within crates/tests — on
 # systemprompt-test-fixtures, on any workspace crate that uses `sqlx::query*!`,
 # or on linux-keyutils-keyring-store (Linux-only libc constants) cannot build
@@ -9,9 +10,11 @@
 # stack into the native build, so crates/tests/.config/hakari.toml excludes
 # exactly the listed crates from carrying it.
 #
-# The list is also complete: every systemprompt-bridge* package in crates/tests
-# whose closure is clean must be listed, so quality.yml and coverage-bridge.yml
-# exercise every bridge test crate that can run natively.
+# The bridge list is also complete: every systemprompt-bridge* package in
+# crates/tests whose closure is clean must be listed, so quality.yml and
+# coverage-bridge.yml exercise every bridge test crate that can run natively.
+# The device list holds the test crates of the lifted device crates; a crate
+# is in one list, never both, and each list names at least one crate.
 #
 # Ownership of the "uses sqlx::query*!" fact is derived from the source tree
 # of each crates/tests package, so a new query!-backed helper crate is caught
@@ -20,9 +23,20 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-mapfile -t native < <(grep -vE '^[[:space:]]*(#|$)' scripts/bridge-native-crates.txt)
-if [ "${#native[@]}" -eq 0 ]; then
-    echo "scripts/bridge-native-crates.txt lists no crates" >&2
+lists=(scripts/bridge-native-crates.txt scripts/device-native-crates.txt)
+native=()
+for list in "${lists[@]}"; do
+    mapfile -t names < <(grep -vE '^[[:space:]]*(#|$)' "$list")
+    if [ "${#names[@]}" -eq 0 ]; then
+        echo "$list lists no crates" >&2
+        exit 1
+    fi
+    native+=("${names[@]}")
+done
+repeated=$(printf '%s\n' "${native[@]}" | sort | uniq -d)
+if [ -n "$repeated" ]; then
+    echo "listed in both ${lists[*]}, or twice in one:" >&2
+    printf '%s\n' "$repeated" | sed 's/^/    /' >&2
     exit 1
 fi
 
@@ -117,13 +131,13 @@ with open(os.path.join("crates", "tests", ".config", "hakari.toml"), encoding="u
 hack_free = set(re.findall(r'"([^"]+)"', excludes.group(1))) if excludes else set()
 for name in sorted(hack_free ^ set(listed)):
     status = 1
-    where = "scripts/bridge-native-crates.txt" if name in hack_free else "final-excludes.workspace-members"
+    where = "the native crate lists (scripts/bridge-native-crates.txt, scripts/device-native-crates.txt)" if name in hack_free else "final-excludes.workspace-members"
     print(f"✗ {name} is missing from {where}; crates/tests/.config/hakari.toml must exclude exactly the native crates", file=sys.stderr)
 
 if status:
     print(file=sys.stderr)
-    print("Native bridge test crates must not depend on DB-backed fixtures, sqlx::query*! users", file=sys.stderr)
+    print("Native test crates must not depend on DB-backed fixtures, sqlx::query*! users", file=sys.stderr)
     print("or linux-keyutils-keyring-store, and every eligible bridge test crate must be listed.", file=sys.stderr)
     sys.exit(1)
-print(f"✓ native bridge test crates are DB-free and complete ({len(listed)} crates)")
+print(f"✓ native test crates are DB-free and complete ({len(listed)} crates)")
 PY
