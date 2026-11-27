@@ -54,3 +54,11 @@ fn undeclared_hosts_are_unsupported() {
         Execution::Unsupported { .. }
     ));
 }
+
+#[test]
+fn harness_is_unsupported_headless() {
+    assert!(
+        matches!(host_for(HostKind::Harness), Execution::Unsupported { .. }),
+        "no run is dispatched to a host with no headless adapter"
+    );
+}
