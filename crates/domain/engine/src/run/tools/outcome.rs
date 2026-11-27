@@ -1,6 +1,6 @@
 //! How a tool call ends on its part: completed with the tool's output, or
-//! failed, with the marker [`crate::run::denied`] defines when a policy, a rule, the
-//! user or an abort stopped it.
+//! failed, with the marker [`crate::run::denied`] defines when a policy, a
+//! rule, the user or an abort stopped it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

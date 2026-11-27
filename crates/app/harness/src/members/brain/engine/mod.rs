@@ -21,11 +21,11 @@ mod tools;
 
 use std::sync::Arc;
 
+use crate::extension::ExtensionSettings;
 use systemprompt_engine::run::extension::{
     CallAugmenter, EngineExtension, ExtensionMetadata, ExtensionTool, GovernorObserver,
     PromptContext, PromptSection,
 };
-use crate::extension::ExtensionSettings;
 
 use crate::members::brain::extension::metadata;
 use crate::members::brain::service::BrainService;

@@ -13,12 +13,13 @@
 use std::fs::File;
 use std::io;
 use std::os::windows::fs::OpenOptionsExt;
-use std::os::windows::io::{AsRawHandle, FromRawHandle};
+use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
 use std::path::Path;
 use std::ptr::{null, null_mut};
-use std::sync::{Mutex, PoisonError};
 
-use windows_sys::Win32::Foundation::{GENERIC_READ, GENERIC_WRITE, INVALID_HANDLE_VALUE};
+use windows_sys::Win32::Foundation::{
+    GENERIC_READ, GENERIC_WRITE, INVALID_HANDLE_VALUE, WAIT_ABANDONED, WAIT_OBJECT_0,
+};
 use windows_sys::Win32::Security::Authorization::{
     ConvertStringSecurityDescriptorToSecurityDescriptorW, GetSecurityInfo, SE_FILE_OBJECT,
     SetSecurityInfo,
@@ -32,6 +33,9 @@ use windows_sys::Win32::Storage::FileSystem::{
     CREATE_NEW, CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_FLAG_BACKUP_SEMANTICS,
     FILE_FLAG_OPEN_REPARSE_POINT, FILE_READ_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_READ,
     READ_CONTROL, WRITE_DAC,
+};
+use windows_sys::Win32::System::Threading::{
+    CreateMutexW, INFINITE, ReleaseMutex, WaitForSingleObject,
 };
 
 use super::ffi::{LocalAllocation, checked, status, wide};
@@ -205,11 +209,45 @@ fn open_directory_for_dac(path: &Path, access: u32) -> io::Result<File> {
     Ok(file)
 }
 
+const DACL_WRITE_MUTEX: &str = "Local\\systemprompt-device-private-dacl";
+
 // Why: a protected DACL set on a directory is re-propagated to every child, and
-// a sibling thread creating or renaming inside that directory sees
+// a sibling thread or process creating or renaming inside that directory sees
 // ACCESS_DENIED meanwhile; the DACL is therefore written only when verification
-// fails, and that write is serialised.
-static PROTECT: Mutex<()> = Mutex::new(());
+// fails, and that write is serialised on a named Windows mutex of the logon
+// session, which the thread that acquired it must release.
+struct DaclWriteGuard(OwnedHandle);
+
+impl DaclWriteGuard {
+    fn acquire() -> io::Result<Self> {
+        let name: Vec<u16> = DACL_WRITE_MUTEX.encode_utf16().chain(Some(0)).collect();
+        // SAFETY: the name is NUL terminated and outlives the call; a non-null
+        // handle is a mutex handle owned by the OwnedHandle and closed on drop.
+        let mutex = unsafe {
+            let handle = CreateMutexW(null(), 0, name.as_ptr());
+            if handle.is_null() {
+                return Err(io::Error::last_os_error());
+            }
+            OwnedHandle::from_raw_handle(handle)
+        };
+        // SAFETY: the handle is a live mutex handle for the whole wait.
+        let waited = unsafe { WaitForSingleObject(mutex.as_raw_handle(), INFINITE) };
+        match waited {
+            WAIT_OBJECT_0 | WAIT_ABANDONED => Ok(Self(mutex)),
+            _ => Err(io::Error::last_os_error()),
+        }
+    }
+}
+
+impl Drop for DaclWriteGuard {
+    fn drop(&mut self) {
+        // SAFETY: the handle is live until the field drops, and this thread
+        // has owned the mutex since `acquire` returned on it.
+        unsafe {
+            ReleaseMutex(self.0.as_raw_handle());
+        }
+    }
+}
 
 pub(crate) fn protect_directory(path: &Path) -> io::Result<()> {
     let owner = current_sid()?;
@@ -219,7 +257,7 @@ pub(crate) fn protect_directory(path: &Path) -> io::Result<()> {
         return Ok(());
     }
     drop(probe);
-    let _guard = PROTECT.lock().unwrap_or_else(PoisonError::into_inner);
+    let _guard = DaclWriteGuard::acquire()?;
     let file = open_directory_for_dac(path, READ_CONTROL | WRITE_DAC)?;
     if verify_against(&file, &expected).is_ok() {
         return Ok(());

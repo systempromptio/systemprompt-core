@@ -7,8 +7,8 @@
 use std::path::PathBuf;
 use std::time::SystemTime;
 
-use systemprompt_identifiers::engine::{JobId, SessionId};
 use serde::Serialize;
+use systemprompt_identifiers::engine::{JobId, SessionId};
 
 /// Told when a background command ends on its own, times out or is killed by
 /// id. Commands removed with [`crate::tools::BackgroundJobs::kill_all`] or

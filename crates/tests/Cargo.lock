@@ -820,7 +820,7 @@ dependencies = [
  "rustc-hash 1.1.0",
  "shlex 1.3.0",
  "syn 2.0.119",
- "which",
+ "which 4.4.2",
 ]
 
 [[package]]
@@ -1617,6 +1617,16 @@ version = "0.5.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98b0cc327b5bc766e7fda9c9260cc0fa81b43a8e240440422dff70788e3f9ef1"
 dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-deque"
+version = "0.8.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "622f3fc73690be383c7214310406f28a90e6edeadc3cea882f9d71e495b9711a"
+dependencies = [
+ "crossbeam-epoch",
  "crossbeam-utils",
 ]
 
@@ -2637,6 +2647,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "fallible-iterator"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2acce4a10f12dc2fb14a218589d4f1f62ef011b2d0cc4b3cb1bba8e94da14649"
+
+[[package]]
+name = "fallible-streaming-iterator"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
+
+[[package]]
 name = "fancy-regex"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3238,6 +3260,7 @@ checksum = "f98b0d85522dc0a824cfebbc9594ff4a9b289c568bea0370319dfbdf20ccdd2d"
 dependencies = [
  "aho-corasick",
  "bstr",
+ "log",
  "regex-automata",
  "regex-syntax",
 ]
@@ -3838,6 +3861,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ignore"
+version = "0.4.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "484be5657551d7868d67587df967fb4fcbe9d266a761cc855aaa148fda0b3cc7"
+dependencies = [
+ "crossbeam-deque",
+ "globset",
+ "log",
+ "memchr",
+ "regex-automata",
+ "same-file",
+ "walkdir",
+ "winapi-util",
+]
+
+[[package]]
 name = "im"
 version = "15.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4258,6 +4297,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "jsonc-parser"
+version = "0.34.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ecded084f9b9a718d39668a42657c32253663d1f6afb3fbb9134f0305f73f48"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "jsonschema"
 version = "0.61.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4510,6 +4558,7 @@ version = "0.37.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1f111c8c41e7c61a49cd34e44c7619462967221a6443b0ec299e0ac30cfb9b1"
 dependencies = [
+ "cc",
  "pkg-config",
  "vcpkg",
 ]
@@ -7087,6 +7136,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsqlite-vfs"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c51c9ae4df8a7fba42103df5c621fa3c37eccf3a3c650879e90fc48b11cc192c"
+dependencies = [
+ "hashbrown 0.16.1",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "rusqlite"
+version = "0.39.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a0d2b0146dd9661bf67bb107c0bb2a55064d556eeb3fc314151b957f313bcd4e"
+dependencies = [
+ "bitflags 2.13.2",
+ "fallible-iterator",
+ "fallible-streaming-iterator",
+ "hashlink",
+ "libsqlite3-sys",
+ "smallvec",
+ "sqlite-wasm-rs",
+]
+
+[[package]]
 name = "rust_decimal"
 version = "1.43.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7835,6 +7909,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
 
 [[package]]
+name = "similar"
+version = "2.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbbb5d9659141646ae647b42fe094daf6c6192d1620870b449d9557f748b2daa"
+
+[[package]]
 name = "simple_asn1"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7999,6 +8079,18 @@ dependencies = [
  "der 0.8.3",
  "digest 0.11.3",
  "sha2 0.11.1",
+]
+
+[[package]]
+name = "sqlite-wasm-rs"
+version = "0.5.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc3efc0da82635d7e1ced0053bbbfa8c7ab9645d0bf36ceb4f7127bb85315d75"
+dependencies = [
+ "cc",
+ "js-sys",
+ "rsqlite-vfs",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -10516,6 +10608,58 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-device"
+version = "0.87.0"
+dependencies = [
+ "async-trait",
+ "aws-lc-rs",
+ "base64 0.23.1",
+ "chrono",
+ "core-foundation",
+ "ed25519-dalek 3.0.0",
+ "hostname",
+ "keyring-core",
+ "parking_lot 0.13.0",
+ "reqwest",
+ "security-framework",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "url",
+ "uuid",
+ "windows-native-keyring-store",
+ "windows-sys 0.61.2",
+ "zeroize",
+]
+
+[[package]]
+name = "systemprompt-device-tests"
+version = "0.0.11"
+dependencies = [
+ "async-trait",
+ "base64 0.23.1",
+ "chrono",
+ "ed25519-dalek 3.0.0",
+ "reqwest",
+ "security-framework",
+ "serde_json",
+ "systemprompt-device",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "tempfile",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "systemprompt-documents"
 version = "0.87.0"
 dependencies = [
@@ -10557,6 +10701,109 @@ version = "0.0.11"
 dependencies = [
  "systemprompt-documents",
  "systemprompt-test-hack",
+]
+
+[[package]]
+name = "systemprompt-drive"
+version = "0.87.0"
+dependencies = [
+ "bytes",
+ "chrono",
+ "hostname",
+ "notify-debouncer-mini",
+ "parking_lot 0.13.0",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "systemprompt-device",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "unicode-normalization",
+ "url",
+]
+
+[[package]]
+name = "systemprompt-drive-tests"
+version = "0.0.11"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "reqwest",
+ "serde_json",
+ "sha2 0.11.1",
+ "systemprompt-device",
+ "systemprompt-drive",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "tempfile",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "systemprompt-engine"
+version = "0.87.0"
+dependencies = [
+ "async-trait",
+ "base64 0.23.1",
+ "bytes",
+ "chrono",
+ "dunce",
+ "futures-util",
+ "globset",
+ "httpdate",
+ "ignore",
+ "indexmap 2.14.2",
+ "jsonc-parser",
+ "libc",
+ "notify-debouncer-mini",
+ "parking_lot 0.13.0",
+ "regex",
+ "reqwest",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "sha2 0.11.1",
+ "similar",
+ "systemprompt-identifiers",
+ "systemprompt-traits",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "url",
+ "uuid",
+ "which 8.0.6",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "systemprompt-engine-tests"
+version = "0.0.11"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "futures-util",
+ "httpdate",
+ "parking_lot 0.13.0",
+ "reqwest",
+ "rusqlite",
+ "serde_json",
+ "systemprompt-engine",
+ "systemprompt-identifiers",
+ "systemprompt-traits",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "url",
 ]
 
 [[package]]
@@ -11201,6 +11448,61 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "systemprompt-harness"
+version = "0.87.0"
+dependencies = [
+ "arc-swap",
+ "async-trait",
+ "bytes",
+ "chrono",
+ "hostname",
+ "indexmap 2.14.2",
+ "jsonc-parser",
+ "parking_lot 0.13.0",
+ "rand 0.10.3",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "systemprompt-device",
+ "systemprompt-drive",
+ "systemprompt-engine",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "systemprompt-harness-tests"
+version = "0.0.11"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "systemprompt-device",
+ "systemprompt-drive",
+ "systemprompt-engine",
+ "systemprompt-harness",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "url",
  "uuid",
 ]
 
@@ -11905,6 +12207,17 @@ dependencies = [
  "systemprompt-manifest",
  "systemprompt-models",
  "systemprompt-test-hack",
+]
+
+[[package]]
+name = "systemprompt-models-device-tests"
+version = "0.0.11"
+dependencies = [
+ "chrono",
+ "serde_json",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "url",
 ]
 
 [[package]]
@@ -12992,6 +13305,8 @@ dependencies = [
  "getrandom 0.2.17",
  "getrandom 0.3.4",
  "getrandom 0.4.3",
+ "globset",
+ "hashbrown 0.16.1",
  "hashbrown 0.17.1",
  "hmac 0.12.1",
  "hybrid-array",
@@ -14890,6 +15205,15 @@ dependencies = [
  "home",
  "once_cell",
  "rustix 0.38.44",
+]
+
+[[package]]
+name = "which"
+version = "8.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bae2f2b2b816647a1cab1acc91f5bd20812d53cb344382635ec2181940c8034f"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

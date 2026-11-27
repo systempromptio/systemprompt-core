@@ -6,16 +6,16 @@
 
 use std::sync::Arc;
 
-use async_trait::async_trait;
-use systemprompt_identifiers::engine::QuestionId;
 use crate::prompt::engine_tools::{
     QUESTION_DESCRIPTION, QUESTION_MAX_OPTIONS, QUESTION_MAX_QUESTIONS, QUESTION_MIN_OPTIONS,
     question_schema,
 };
 use crate::prompt::tool_names::QUESTION;
 use crate::tools::{PermissionRequest, Tool, ToolContext, ToolError, ToolOutput};
+use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{Value, json};
+use systemprompt_identifiers::engine::QuestionId;
 
 use crate::run::events::{Question, QuestionAsk};
 use crate::run::inner::Inner;
@@ -64,7 +64,7 @@ impl Tool for QuestionTool {
         })
         .await?;
         let ask = QuestionAsk {
-            id: QuestionId::mint(),
+            id: QuestionId::mint(self.inner.store.ids()),
             session: ctx.session_id.clone(),
             call_id: ctx.call_id.clone(),
             questions: input.questions.clone(),

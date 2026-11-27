@@ -9,8 +9,8 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_traits::BackgroundTasks;
 use parking_lot::Mutex;
+use systemprompt_traits::BackgroundTasks;
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 

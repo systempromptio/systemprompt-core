@@ -15,8 +15,8 @@ use crate::secure::SealedString;
 use systemprompt_identifiers::{DeviceId, UserId};
 use systemprompt_models::bridge::manifest_version::ManifestVersion;
 
-use crate::accounts::accounts::Accounts;
 use crate::accounts::error::AccountsError;
+use crate::accounts::handle::Accounts;
 use crate::accounts::store::DeviceRecord;
 
 /// The device this install enrolled for an account's user, with its credential

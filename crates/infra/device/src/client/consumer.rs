@@ -28,9 +28,9 @@ use systemprompt_models::feedback::receipts::{
     SessionBindingRequest,
 };
 
-use crate::client::client::{SpClient, push_segments};
 use crate::client::error::ClientError;
 use crate::client::http::{SMALL_BODY, decode, exchange, failure, protocol};
+use crate::client::instance::{SpClient, push_segments};
 
 const ENROL_ENDPOINT: &str = "POST /v1/bridge/device";
 const PLAN_ENDPOINT: &str =

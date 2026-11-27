@@ -1,10 +1,9 @@
-//! The named registration list of instance-side extensions.
+//! One entry of a named registration list of instance-side extensions.
 //!
-//! The composition names its members: nothing is collected at link time.
-//! [`REGISTERED`] lists the extensions that ship with the device, each under
-//! its extension id, and
-//! [`SpExtensions::registered`](crate::extension::SpExtensions::registered)
-//! builds them from it.
+//! The composition names its members: nothing is collected at link time. A
+//! list of [`SpExtensionRegistration`]s, each an extension type under its
+//! extension id, is built by
+//! [`SpExtensions::from_registrations`](crate::extension::SpExtensions::from_registrations).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,12 +13,7 @@ use std::sync::Arc;
 
 use systemprompt_identifiers::engine::ExtensionId;
 
-use crate::extension::extension::SpExtension;
-use crate::governance::GovernanceExtension;
-use crate::members::brain::{BRAIN_EXTENSION, BrainExtension};
-use crate::members::drive::DriveExtension;
-use crate::members::notifications::NotificationsExtension;
-use crate::members::slack::SlackExtension;
+use crate::extension::contract::SpExtension;
 
 /// One registered extension type: its id and the factory that builds it with
 /// `Default`.
@@ -50,11 +44,3 @@ impl fmt::Debug for SpExtensionRegistration {
             .finish_non_exhaustive()
     }
 }
-
-pub const REGISTERED: [SpExtensionRegistration; 5] = [
-    SpExtensionRegistration::of::<GovernanceExtension>(GovernanceExtension::ID),
-    SpExtensionRegistration::of::<DriveExtension>(DriveExtension::ID),
-    SpExtensionRegistration::of::<BrainExtension>(BRAIN_EXTENSION),
-    SpExtensionRegistration::of::<NotificationsExtension>(NotificationsExtension::ID),
-    SpExtensionRegistration::of::<SlackExtension>(SlackExtension::ID),
-];

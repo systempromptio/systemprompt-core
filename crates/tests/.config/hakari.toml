@@ -47,6 +47,11 @@ workspace-members = [
     "systemprompt-bridge-validate-tests",
     "systemprompt-bridge-verdicts-tests",
     "systemprompt-bridge-window-state-tests",
+    "systemprompt-device-tests",
+    "systemprompt-drive-tests",
+    "systemprompt-engine-tests",
+    "systemprompt-harness-tests",
+    "systemprompt-models-device-tests",
 ]
 # Top-of-stack crates only their own test crates link: pinning them would make
 # every test crate wait on the API server, the gateway and the bridge.

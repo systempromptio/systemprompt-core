@@ -8,10 +8,10 @@ use std::collections::HashMap;
 use std::hash::Hash;
 
 use crate::config::{Action, Rule, Ruleset};
-use systemprompt_identifiers::engine::{PermissionId, QuestionId};
 use crate::store::SessionId;
-use systemprompt_traits::CancellationToken;
 use parking_lot::Mutex;
+use systemprompt_identifiers::engine::{PermissionId, QuestionId};
+use systemprompt_traits::CancellationToken;
 use tokio::sync::oneshot;
 
 use crate::run::events::{EngineEvent, PermissionAsk, QuestionAsk, Reply};

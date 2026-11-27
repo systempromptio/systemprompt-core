@@ -114,3 +114,6 @@ mod path_segment_ids_tests;
 
 #[cfg(test)]
 mod session_kind_tests;
+
+#[cfg(test)]
+mod engine;

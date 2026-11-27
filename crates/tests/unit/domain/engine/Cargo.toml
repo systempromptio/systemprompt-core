@@ -1,0 +1,30 @@
+[package]
+name = "systemprompt-engine-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-engine crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-engine = { workspace = true }
+
+[dev-dependencies]
+systemprompt-identifiers = { workspace = true }
+systemprompt-traits = { workspace = true }
+async-trait = { workspace = true }
+bytes = { workspace = true }
+futures-util = { workspace = true }
+httpdate = { workspace = true }
+parking_lot = { workspace = true }
+reqwest = { workspace = true }
+rusqlite = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+url = { workspace = true }

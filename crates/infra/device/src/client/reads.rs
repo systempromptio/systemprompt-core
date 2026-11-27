@@ -14,9 +14,9 @@ use systemprompt_models::bridge::catalog::ModelCatalog;
 use systemprompt_models::bridge::gateway::WhoamiResponse;
 use systemprompt_models::bridge::profile::BridgeProfileResponse as Profile;
 
-use crate::client::client::{SpClient, push_segments};
 use crate::client::error::ClientError;
 use crate::client::http::{DEFAULT_TIMEOUT, SMALL_BODY, decode, exchange, failure};
+use crate::client::instance::{SpClient, push_segments};
 
 const PROFILE_ENDPOINT: &str = "GET /v1/bridge/profile";
 const MODELS_ENDPOINT: &str = "GET /v1/models";

@@ -13,8 +13,8 @@ mod lines;
 mod sse;
 mod stdio;
 
-use systemprompt_traits::BackgroundTasks;
 use serde_json::Value;
+use systemprompt_traits::BackgroundTasks;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 

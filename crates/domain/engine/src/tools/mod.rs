@@ -14,6 +14,7 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod builtin;
 mod config;
 mod contract;
 mod diff;
@@ -24,11 +25,14 @@ mod path;
 mod repair;
 mod shell;
 mod text;
-mod tools;
 mod truncate;
 
 use std::sync::Arc;
 
+pub use builtin::{
+    EditTool, FetchTool, GlobTool, GrepTool, PatchTool, ReadTool, TodoItem, TodoPriority, TodoSink,
+    TodoStatus, TodoTool, WriteTool,
+};
 pub use config::{FetchConfig, ReadLimits, SearchLimits, ShellConfig, ToolsConfig};
 pub use contract::{
     Attachment, FileObserver, PermissionGate, PermissionRequest, Progress, Tool, ToolContext,
@@ -40,10 +44,6 @@ pub use repair::validate;
 pub use shell::{
     BackgroundJobs, Dialect, JobInfo, JobListener, JobReport, JobState, Segment, ShellKind,
     ShellSpec, ShellTool, split_commands,
-};
-pub use tools::{
-    EditTool, FetchTool, GlobTool, GrepTool, PatchTool, ReadTool, TodoItem, TodoPriority, TodoSink,
-    TodoStatus, TodoTool, WriteTool,
 };
 pub use truncate::{Keep, OutputLimits, Truncated, truncate_output};
 

@@ -54,7 +54,9 @@ impl ServerInfo {
                 "initialize result has no protocol version",
             ))?;
         if !SUPPORTED_PROTOCOL_VERSIONS.contains(&protocol_version) {
-            return Err(McpError::ProtocolVersion(protocol_version.to_owned()));
+            return Err(McpError::ProtocolVersion {
+                version: protocol_version.to_owned(),
+            });
         }
         let info = result.get("serverInfo");
         let field = |key: &str| {

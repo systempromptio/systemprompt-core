@@ -3,11 +3,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use async_trait::async_trait;
 use crate::mcp::{McpError, McpManager, McpTool};
 use crate::tools::{
     Attachment, Keep, OutputLimits, Tool, ToolContext, ToolError, ToolOutput, truncate_output,
 };
+use async_trait::async_trait;
 use serde_json::{Value, json};
 
 pub(crate) struct McpToolAdapter {

@@ -8,15 +8,15 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use async_trait::async_trait;
 use crate::lsp::{DiagnosticFormat, DiagnosticScope, LspManager, Severity, format_diagnostics};
 use crate::store::{SessionId, Todo, TodoPriority, TodoStatus};
 use crate::tools::{FileObserver, JobListener, JobReport, TodoItem, TodoSink, ToolError};
 use crate::workspace::Workspace;
+use async_trait::async_trait;
 
 use crate::run::db::Db;
 use crate::run::inner::Inner;
-use crate::run::session::admit;
+use crate::run::session::job_notice;
 
 const DIAGNOSTICS_WAIT: Duration = Duration::from_secs(5);
 
@@ -137,7 +137,7 @@ impl JobListener for JobNotices {
         let report = report.clone();
         inner.tasks.spawn("background job notice", async move {
             let job = report.job.id.clone();
-            if let Err(error) = admit::job_finished(&engine, report).await {
+            if let Err(error) = job_notice::job_finished(&engine, report).await {
                 let error = error.describe();
                 tracing::warn!(job = %job, error = %error, "background job notice not posted");
             }

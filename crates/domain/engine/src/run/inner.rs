@@ -16,10 +16,10 @@ use crate::config::{Layout, Loaded, Paths, Ruleset, Settings};
 use crate::llm::{ModelSpec, Transport};
 use crate::mcp::ClientInfo;
 use crate::store::{Session, SessionId, Store, StoreError};
-use systemprompt_traits::{BackgroundTasks, CancellationToken};
 use crate::tools::{BackgroundJobs, TodoSink};
 use crate::workspace::{PrunePolicy, PruneSchedule, Workspace, WorkspaceOptions};
 use parking_lot::{Mutex, RwLock};
+use systemprompt_traits::{BackgroundTasks, CancellationToken};
 use tokio::sync::broadcast;
 
 use crate::run::db::Db;

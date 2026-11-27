@@ -13,9 +13,9 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
-use systemprompt_identifiers::engine::{JobId, SessionId};
-use systemprompt_traits::{BackgroundTasks, CancellationToken};
 use parking_lot::Mutex;
+use systemprompt_identifiers::engine::{IdClock, JobId, SessionId};
+use systemprompt_traits::{BackgroundTasks, CancellationToken};
 
 use super::jobs::{JobInfo, JobListener, JobReport, JobState};
 use super::process::{self, Ending, Running};
@@ -37,6 +37,7 @@ struct Inner {
     jobs: Mutex<HashMap<JobId, Entry>>,
     listener: Mutex<Option<Arc<dyn JobListener>>>,
     tasks: BackgroundTasks,
+    ids: IdClock,
 }
 
 /// The registry of background shell commands.
@@ -85,6 +86,7 @@ impl BackgroundJobs {
             jobs: Mutex::default(),
             listener: Mutex::default(),
             tasks,
+            ids: IdClock::new(),
         };
         Self {
             inner: Arc::new(inner),
@@ -184,7 +186,7 @@ impl BackgroundJobs {
     }
 
     pub(crate) fn start(&self, request: &JobStart<'_>) -> Result<JobInfo, ToolError> {
-        let id = JobId::mint();
+        let id = JobId::mint(&self.inner.ids);
         let dir = request.data_dir.join("jobs");
         std::fs::create_dir_all(&dir)
             .map_err(|err| ToolError::io(format!("could not create {}", dir.display()), err))?;

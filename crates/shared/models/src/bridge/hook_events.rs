@@ -14,7 +14,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use systemprompt_identifiers::{NativeSessionId, ToolUseId};
+use systemprompt_identifiers::{McpToolName, NativeSessionId, ToolUseId};
 
 /// What every hook event says about where it happened: `session_id` is the v5
 /// UUID the instance knows the session by, `native_session_id` the harness's
@@ -67,7 +67,7 @@ pub enum HookEvent {
     PreToolUse {
         #[serde(flatten)]
         context: HookContext,
-        tool_name: String,
+        tool_name: McpToolName,
         // JSON: tool input is the tool's own argument object.
         tool_input: serde_json::Value,
         tool_use_id: ToolUseId,
@@ -75,7 +75,7 @@ pub enum HookEvent {
     PostToolUse {
         #[serde(flatten)]
         context: HookContext,
-        tool_name: String,
+        tool_name: McpToolName,
         // JSON: tool input is the tool's own argument object.
         tool_input: serde_json::Value,
         tool_use_id: ToolUseId,

@@ -25,8 +25,8 @@ use systemprompt_identifiers::PluginId;
 use systemprompt_identifiers::engine::SessionId;
 use url::Url;
 
+use crate::governance::control::InstanceParts;
 use crate::governance::error::GovernanceError;
-use crate::governance::governance::InstanceParts;
 use crate::governance::hooks::HookApi;
 use crate::governance::{mcp, models};
 

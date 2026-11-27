@@ -7424,7 +7424,6 @@ dependencies = [
 name = "systemprompt-drive"
 version = "0.87.0"
 dependencies = [
- "async-trait",
  "bytes",
  "chrono",
  "hostname",

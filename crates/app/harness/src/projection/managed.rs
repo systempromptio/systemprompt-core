@@ -8,7 +8,9 @@
 use std::path::Path;
 use std::{fs, io};
 
-use systemprompt_device::secure::{Access, contained_path, read_optional, remove_if_exists, write_if_changed};
+use systemprompt_device::secure::{
+    Access, contained_path, read_optional, remove_if_exists, write_if_changed,
+};
 
 use crate::projection::error::ProjectionError;
 use crate::projection::ledger::{self, SKILL_FILE};

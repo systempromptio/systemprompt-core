@@ -13,9 +13,9 @@ use systemprompt_engine::run::extension::{
 
 use crate::extension::applier::ManifestAppliers;
 use crate::extension::context::SpContext;
+use crate::extension::contract::SpExtension;
 use crate::extension::error::ExtensionError;
-use crate::extension::extension::SpExtension;
-use crate::extension::register::{REGISTERED, SpExtensionRegistration};
+use crate::extension::register::SpExtensionRegistration;
 use crate::extension::service::BackgroundService;
 
 type Entry = Resolved<Arc<dyn SpExtension>>;
@@ -31,10 +31,6 @@ pub struct SpExtensions {
 }
 
 impl SpExtensions {
-    pub fn registered() -> Result<Self, ExtensionError> {
-        Self::from_registrations(&REGISTERED)
-    }
-
     pub fn from_registrations(
         registrations: &[SpExtensionRegistration],
     ) -> Result<Self, ExtensionError> {

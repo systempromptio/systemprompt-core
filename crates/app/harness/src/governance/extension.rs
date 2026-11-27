@@ -17,7 +17,7 @@ use crate::extension::{
 use systemprompt_engine::run::extension::GovernorObserver;
 use systemprompt_identifiers::extension_id;
 
-use crate::governance::governance::{Governance, GovernanceTelemetry};
+use crate::governance::control::{Governance, GovernanceTelemetry};
 
 /// The governance extension, id `governance`, required.
 ///

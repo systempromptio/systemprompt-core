@@ -2,10 +2,10 @@
 //!
 //! A path the instance names is untrusted: it is placed only as a relative,
 //! `/`-separated path of portable segments ([`super::names`]), resolved with
-//! [`systemprompt_device::secure::contained_path`] so no existing component below the folder is a
-//! link or reparse point. A download sits between that check and the write, so
-//! every write and move checks the whole path again ([`SyncRoot::confine`])
-//! just before it lands.
+//! [`systemprompt_device::secure::contained_path`] so no existing component
+//! below the folder is a link or reparse point. A download sits between that
+//! check and the write, so every write and move checks the whole path again
+//! ([`SyncRoot::confine`]) just before it lands.
 //!
 //! The folder is the caller's choice; [`default_drive_root`] names
 //! `<Documents>/<product> Drive` and [`account_root`] one subfolder per

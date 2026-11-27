@@ -16,7 +16,7 @@ use crate::protocol::{OneTimeCode, Pat};
 use crate::view::{SignInFailure, SignInOutcome};
 use tokio_util::sync::CancellationToken;
 
-use crate::accounts::accounts::Accounts;
+use crate::accounts::handle::Accounts;
 
 pub(crate) struct Reached {
     pub(crate) client: SpClient,

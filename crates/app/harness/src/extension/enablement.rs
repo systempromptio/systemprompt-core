@@ -11,8 +11,8 @@ use systemprompt_engine::run::extension::EnabledExtensions;
 use tokio::sync::watch;
 
 /// The extensions the applied instance enabled, `None` while no instance is
-/// applied. [`ManifestAppliers`](crate::extension::ManifestAppliers) sets it on every
-/// apply and clears it; screens and services subscribe to follow it.
+/// applied. [`ManifestAppliers`](crate::extension::ManifestAppliers) sets it on
+/// every apply and clears it; screens and services subscribe to follow it.
 #[derive(Clone)]
 pub struct Enablement {
     sender: Arc<watch::Sender<Option<EnabledExtensions>>>,

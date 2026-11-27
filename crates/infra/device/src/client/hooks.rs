@@ -28,9 +28,9 @@ use systemprompt_models::bridge::session::HookTokenRequest;
 use url::Url;
 use uuid::Uuid;
 
-use crate::client::client::SpClient;
 use crate::client::error::ClientError;
 use crate::client::http::{SMALL_BODY, decode, exchange, failure, protocol};
+use crate::client::instance::SpClient;
 
 const OAUTH_CLIENT_ENDPOINT: &str = "POST /v1/auth/bridge/oauth-client";
 const HOOK_TOKEN_ENDPOINT: &str = "POST {token endpoint}";

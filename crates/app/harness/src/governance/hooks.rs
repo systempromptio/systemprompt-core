@@ -23,7 +23,7 @@ use systemprompt_device::protocol::names::{native_session_id, skill_dir_name};
 use systemprompt_device::protocol::{DeviceCredential, HookToken, Jwt};
 use systemprompt_engine::run::{ToolCall, ToolOutcome, UserPrompt};
 use systemprompt_identifiers::engine::SessionId;
-use systemprompt_identifiers::{NativeSessionId, PluginId, SkillId, ToolUseId};
+use systemprompt_identifiers::{McpToolName, NativeSessionId, PluginId, SkillId, ToolUseId};
 use systemprompt_models::bridge::hook_events::{
     GovernAnswer, HookContext, HookEvent, ToolResponse, skill_ref,
 };
@@ -196,7 +196,7 @@ pub(crate) fn prompt(prompt: &UserPrompt) -> Option<HookEvent> {
 pub(crate) fn pre_tool(call: &ToolCall) -> HookEvent {
     HookEvent::PreToolUse {
         context: context(&call.session_id, &call.directory),
-        tool_name: call.tool.clone(),
+        tool_name: McpToolName::new(call.tool.as_str()),
         tool_input: call.input.clone(),
         tool_use_id: ToolUseId::new(call.call_id.as_str()),
     }
@@ -238,7 +238,7 @@ pub(crate) fn post_tool(
     );
     HookEvent::PostToolUse {
         context: context(&call.session_id, &call.directory),
-        tool_name: call.tool.clone(),
+        tool_name: McpToolName::new(call.tool.as_str()),
         tool_input,
         tool_use_id: ToolUseId::new(call.call_id.as_str()),
         tool_response,

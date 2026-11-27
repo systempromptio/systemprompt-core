@@ -10,10 +10,11 @@ use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use systemprompt_identifiers::engine::{CallId, MessageId, SessionId};
 use crate::llm::{Endpoint, ModelSpec, Usage};
 use crate::mcp::HeaderSource;
 use serde_json::Value;
+use systemprompt_identifiers::ModelId;
+use systemprompt_identifiers::engine::{CallId, MessageId, SessionId};
 
 use crate::run::extension::EnabledExtensions;
 
@@ -84,7 +85,7 @@ pub enum Purpose {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModelCall {
     pub session_id: SessionId,
-    pub model_id: String,
+    pub model_id: ModelId,
     pub purpose: Purpose,
     pub directory: PathBuf,
 }
@@ -104,7 +105,7 @@ pub struct UserPrompt {
     pub message_id: MessageId,
     pub text: String,
     pub agent: String,
-    pub model_id: String,
+    pub model_id: ModelId,
     pub directory: PathBuf,
 }
 
@@ -169,43 +170,4 @@ pub enum GovernError {
         #[source]
         source: Box<dyn StdError + Send + Sync>,
     },
-}
-
-/// A Governor that offers no models, enables no extension and allows every
-/// tool: an engine built with it refuses every prompt with
-/// [`crate::run::ErrorKind::NotSignedIn`].
-#[derive(Debug, Clone, Copy, Default)]
-pub struct NullGovernor;
-
-#[async_trait::async_trait]
-impl Governor for NullGovernor {
-    fn models(&self) -> Vec<ModelSpec> {
-        Vec::new()
-    }
-
-    fn mcp_servers(&self) -> Vec<McpSpec> {
-        Vec::new()
-    }
-
-    async fn authorize(&self, _call: &ModelCall) -> Result<Endpoint, GovernError> {
-        Err(GovernError::NotSignedIn)
-    }
-
-    async fn response(&self, _call: &ModelCall, _status: u16, _attempt: u32) -> ResponseAction {
-        ResponseAction::Continue
-    }
-
-    async fn step_finished(&self, _call: &ModelCall, _usage: &Usage) {}
-
-    async fn tool_before(&self, _call: &ToolCall) -> Verdict {
-        Verdict::Allow
-    }
-
-    fn extensions(&self) -> Option<EnabledExtensions> {
-        None
-    }
-
-    fn generation(&self) -> u64 {
-        0
-    }
 }

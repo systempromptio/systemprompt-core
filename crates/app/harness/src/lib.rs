@@ -6,8 +6,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-pub mod projection;
 pub mod extension;
 pub mod governance;
 pub mod members;
+pub mod projection;
 pub mod sync;

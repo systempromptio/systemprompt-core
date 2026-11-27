@@ -4,8 +4,8 @@
 //! denied, rejected or malformed calls.
 //!
 //! Text meant to be appended to a user message is wrapped by
-//! [`reminder`](crate::prompt::notices::reminder) so the model can tell it from what
-//! the user typed. Text meant to be a tool result is returned bare.
+//! [`reminder`](crate::prompt::notices::reminder) so the model can tell it from
+//! what the user typed. Text meant to be a tool result is returned bare.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

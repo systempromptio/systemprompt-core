@@ -7,7 +7,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::store::id::{CallId, MessageId, PartId, SessionId, now_ms};
+use crate::store::id::{CallId, IdClock, MessageId, PartId, SessionId, now_ms};
 use crate::store::model::{FinishReason, JsonMap, Usage};
 
 /// A file a tool produced alongside its output.
@@ -167,10 +167,15 @@ pub struct Part {
 }
 
 impl Part {
-    pub fn new(session_id: SessionId, message_id: MessageId, body: PartBody) -> Self {
+    pub fn new(
+        ids: &IdClock,
+        session_id: SessionId,
+        message_id: MessageId,
+        body: PartBody,
+    ) -> Self {
         let now = now_ms();
         Self {
-            id: PartId::mint(),
+            id: PartId::mint(ids),
             session_id,
             message_id,
             created_at: now,

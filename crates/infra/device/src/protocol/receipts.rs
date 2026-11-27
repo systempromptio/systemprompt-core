@@ -101,7 +101,7 @@ pub fn build_receipt(
         revision_id: plan.revision_id.clone(),
         generation: plan.generation,
         bundle_digest: plan.bundle_digest.clone(),
-        host: plan.host.clone(),
+        host: plan.host,
         observed_at,
         files,
         runtime_files: runtime,

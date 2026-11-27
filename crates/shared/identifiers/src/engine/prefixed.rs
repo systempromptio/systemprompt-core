@@ -6,7 +6,8 @@
 //! a permission request and a question request are what the engine puts to the
 //! user while a tool waits.
 //!
-//! Each type carries its prefix, mints with `mint()`, validates with `parse()`
+//! Each type carries its prefix, mints from an [`IdClock`] with `mint()`,
+//! validates with `parse()`
 //! (also behind `FromStr`, `TryFrom<String>` and `Deserialize`) and serialises
 //! as its plain string.
 //!
@@ -16,7 +17,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use crate::engine::clock::{created_ms, mint, validate};
+use crate::engine::clock::{IdClock, created_ms, validate};
 use crate::engine::error::IdError;
 
 macro_rules! define_id {
@@ -28,8 +29,8 @@ macro_rules! define_id {
         impl $name {
             pub const PREFIX: &'static str = $prefix;
 
-            pub fn mint() -> Self {
-                Self(mint($prefix))
+            pub fn mint(clock: &IdClock) -> Self {
+                Self(clock.mint($prefix))
             }
 
             pub fn parse(value: &str) -> Result<Self, IdError> {

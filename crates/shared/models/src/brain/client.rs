@@ -3,9 +3,9 @@
 //!
 //! Facts, revisions, proposals, scopes, statuses and subjects are the types of
 //! [`crate::brain`] and the ids are `systemprompt-identifiers`'. This module
-//! adds the route bodies a device client exchanges beside them, field for field as the instance writes
-//! them: answers tolerate unknown fields, requests carry exactly the fields the
-//! instance accepts.
+//! adds the route bodies a device client exchanges beside them, field for field
+//! as the instance writes them: answers tolerate unknown fields, requests carry
+//! exactly the fields the instance accepts.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

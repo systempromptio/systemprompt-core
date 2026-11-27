@@ -15,7 +15,7 @@ use crate::protocol::ids::AccountId;
 use crate::secure::SealedString;
 use systemprompt_identifiers::SessionId;
 
-use crate::accounts::accounts::Accounts;
+use crate::accounts::handle::Accounts;
 use crate::accounts::state::State;
 
 type MintInputs = (Option<(String, SealedString)>, Option<SessionId>);

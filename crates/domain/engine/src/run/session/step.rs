@@ -20,6 +20,7 @@ use crate::run::governor::{ModelCall, Purpose};
 use crate::run::inner::Inner;
 use crate::run::tools::exec;
 use crate::run::tools::registry::ToolBox;
+use systemprompt_identifiers::ModelId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct StepOutcome {
@@ -35,6 +36,7 @@ pub(crate) async fn run(
     let inner = &ctx.inner;
     let session_id = ctx.session.id.clone();
     let mut message = AssistantMessage::new(
+        inner.store.ids(),
         session_id.clone(),
         parent.clone(),
         &ctx.agent.name,
@@ -47,13 +49,18 @@ pub(crate) async fn run(
     };
     put_part(
         inner,
-        Part::new(session_id.clone(), message.id.clone(), start),
+        Part::new(
+            inner.store.ids(),
+            session_id.clone(),
+            message.id.clone(),
+            start,
+        ),
     )
     .await?;
 
     let call = ModelCall {
         session_id: session_id.clone(),
-        model_id: ctx.model.id.clone(),
+        model_id: ModelId::new(ctx.model.id.as_str()),
         purpose: Purpose::Step,
         directory: ctx.session.directory.clone(),
     };
@@ -86,7 +93,12 @@ pub(crate) async fn run(
     };
     put_part(
         inner,
-        Part::new(session_id.clone(), message.id.clone(), finish),
+        Part::new(
+            inner.store.ids(),
+            session_id.clone(),
+            message.id.clone(),
+            finish,
+        ),
     )
     .await?;
     if has_calls && let Some(before) = &before {
@@ -151,7 +163,12 @@ async fn record_patch(ctx: &StepContext, message_id: &MessageId, before: &Snapsh
         hash: before.to_string(),
         files,
     };
-    let part = Part::new(ctx.session.id.clone(), message_id.clone(), patch);
+    let part = Part::new(
+        ctx.inner.store.ids(),
+        ctx.session.id.clone(),
+        message_id.clone(),
+        patch,
+    );
     if let Err(error) = put_part(&ctx.inner, part).await {
         tracing::warn!(session = %ctx.session.id, error = %error, "could not record a patch");
     }

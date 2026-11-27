@@ -6,7 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::store::id::{MessageId, SessionId, now_ms};
+use crate::store::id::{IdClock, MessageId, SessionId, now_ms};
 use crate::store::model::{FinishReason, Part, Usage};
 
 /// The class of failure an assistant message ended with.
@@ -65,9 +65,14 @@ pub struct UserMessage {
 }
 
 impl UserMessage {
-    pub fn new(session_id: SessionId, agent: impl Into<String>, model: impl Into<String>) -> Self {
+    pub fn new(
+        ids: &IdClock,
+        session_id: SessionId,
+        agent: impl Into<String>,
+        model: impl Into<String>,
+    ) -> Self {
         Self {
-            id: MessageId::mint(),
+            id: MessageId::mint(ids),
             session_id,
             agent: agent.into(),
             model: model.into(),
@@ -101,13 +106,14 @@ pub struct AssistantMessage {
 
 impl AssistantMessage {
     pub fn new(
+        ids: &IdClock,
         session_id: SessionId,
         parent_id: MessageId,
         agent: impl Into<String>,
         model: impl Into<String>,
     ) -> Self {
         Self {
-            id: MessageId::mint(),
+            id: MessageId::mint(ids),
             session_id,
             parent_id,
             agent: agent.into(),

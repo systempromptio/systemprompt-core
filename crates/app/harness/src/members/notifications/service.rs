@@ -9,8 +9,8 @@
 
 use std::time::Duration;
 
-use async_trait::async_trait;
 use crate::extension::{BackgroundService, CancellationToken};
+use async_trait::async_trait;
 
 use crate::members::notifications::error::NotificationsError;
 use crate::members::notifications::feed::catch_up;
