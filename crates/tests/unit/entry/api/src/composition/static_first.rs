@@ -146,14 +146,25 @@ fn statics(layers: &MountLayers) -> RootFallback {
 }
 
 fn with_site_fallback(layers: &MountLayers) -> Router {
+    site_behind(layers, statics(layers))
+}
+
+fn site_behind(layers: &MountLayers, statics: RootFallback) -> Router {
     let fallback = protect_site_fallback(
         Router::new().fallback_service(axum::routing::any(site).with_state(())),
         layers,
     )
     .expect("the site fallback mounts");
     RootFallbackOwner::default()
-        .place(Router::new(), fallback.behind(statics(layers)))
+        .place(Router::new(), fallback.behind(statics))
         .expect("one fallback is placed")
+}
+
+fn statics_without_index(layers: &MountLayers) -> RootFallback {
+    let protection = RouteProtection::new(AuthzPolicy::public(), ContextKind::Public);
+    let router = Router::new().route("/", get(missed)).fallback(missed);
+    protect_root_fallback(router, &protection, layers, RouteGroup::Static)
+        .expect("the static router mounts")
 }
 
 async fn send(router: &Router, method: Method, uri: &str) -> (StatusCode, HeaderMap, String) {
@@ -293,4 +304,27 @@ async fn without_a_site_fallback_the_static_miss_is_the_answer() {
     );
     let (status, _, body) = send(&router, Method::GET, "/docs").await;
     assert_eq!((status, body.as_str()), (StatusCode::OK, "static:docs"));
+}
+
+#[tokio::test]
+async fn without_an_index_the_web_root_is_the_site_fallbacks() {
+    let layers = layers(ProtectionGuards::default()).await;
+    let router = site_behind(&layers, statics_without_index(&layers));
+    let (status, _, body) = send(&router, Method::GET, "/").await;
+    assert_eq!((status, body.as_str()), (StatusCode::OK, "site:GET"));
+    let (status, _, body) = send(&router, Method::GET, "/.well-known/openid-configuration").await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{body}");
+    assert!(!body.starts_with("site:"), "a reserved path stays refused: {body}");
+}
+
+#[tokio::test]
+async fn an_asset_extension_does_not_pass_site_auth_on_the_fallback() {
+    let router = with_site_fallback(&layers(site_auth()).await);
+    for uri in ["/admin/report.js", "/app/board.css"] {
+        let (status, _, body) = send(&router, Method::GET, uri).await;
+        assert!(status.is_redirection(), "{uri}: {status} {body}");
+        assert!(!body.starts_with("site:"), "{uri}: {body}");
+    }
+    let (status, _, body) = send(&router, Method::POST, "/admin/report.js").await;
+    assert!(status.is_redirection(), "a write is judged by its prefix: {status} {body}");
 }

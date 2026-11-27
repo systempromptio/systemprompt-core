@@ -55,6 +55,18 @@ class CapabilityCfg(unittest.TestCase):
     def test_feature_enabling_a_capability_package_counts(self):
         self.check('#[cfg(feature = "otel")]\nconst X: u8 = 1;\n', ["1"])
 
+    def test_a_multi_line_cfg_on_a_fn_fails(self):
+        self.check('#[cfg(all(\n    feature = "brain",\n    unix\n))]\nfn recall() {}\n', ["1"])
+
+    def test_a_multi_line_cfg_on_a_mod_passes(self):
+        self.check('#[cfg(any(\n    feature = "brain",\n))]\nmod brain;\n', [])
+
+    def test_a_cfg_macro_in_a_body_fails(self):
+        self.check('fn boot() {\n    if cfg!(feature = "otel") {\n        start();\n    }\n}\n', ["2"])
+
+    def test_a_cfg_macro_naming_no_capability_passes(self):
+        self.check('fn boot() {\n    if cfg!(feature = "api") {}\n}\n', [])
+
     def test_surface_and_infra_features_are_not_capabilities(self):
         self.check('#[cfg(feature = "api")]\nfn a() {}\n#[cfg(feature = "logging")]\nfn b() {}\n', [])
 

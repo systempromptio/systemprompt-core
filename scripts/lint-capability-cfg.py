@@ -5,7 +5,9 @@ A capability feature switches a whole module in or out; it never edits the
 inside of a function, an impl, a struct or a constant. So a
 `#[cfg(...)]`/`#[cfg_attr(...)]` naming a capability feature must annotate a
 `mod` declaration or the `use`/`pub use` that re-exports a gated module.
-The facade crate (`systemprompt/src`) is the composition root and is exempt.
+An attribute spanning several lines is read whole, and a `cfg!(...)` naming a
+capability feature fails wherever it appears: it edits a function body. The
+facade crate (`systemprompt/src`) is the composition root and is exempt.
 
 A capability feature is a capability unit name of scripts/units.txt, or a
 feature of the facade (`systemprompt/Cargo.toml`) that enables a package of
@@ -26,6 +28,7 @@ from units import parse_units  # noqa: E402
 
 FEATURE = re.compile(r'feature\s*=\s*"([^"]+)"')
 CFG = re.compile(r"^\s*#\[cfg(_attr)?\(")
+CFG_MACRO = re.compile(r"\bcfg!\s*\(")
 ATTRIBUTE = re.compile(r"^\s*#\[")
 ALLOWED_ITEM = re.compile(r"^\s*(pub(\([a-z]+\))?\s+)?(mod|use)\s")
 FEATURE_ROW = re.compile(r"^([A-Za-z0-9_-]+)\s*=\s*\[(.*?)\]", re.S | re.M)
@@ -64,18 +67,38 @@ def sources(root):
         yield rel, path
 
 
+def balanced(lines, row, column, opening, closing):
+    """The text from `lines[row][column]` (an `opening` bracket) to its partner."""
+    depth, parts = 0, []
+    for index in range(row, len(lines)):
+        text = lines[index][column:] if index == row else lines[index]
+        for offset, char in enumerate(text):
+            depth += (char == opening) - (char == closing)
+            if depth == 0:
+                parts.append(text[:offset + 1])
+                return "\n".join(parts)
+        parts.append(text)
+    return "\n".join(parts)
+
+
 def violations(root):
     capabilities = capability_features(root)
     found = []
     for rel, path in sources(root):
         lines = path.read_text().splitlines()
         for number, line in enumerate(lines, 1):
+            for match in CFG_MACRO.finditer(line):
+                named = sorted(set(FEATURE.findall(balanced(lines, number - 1, match.end() - 1, "(", ")"))) & capabilities)
+                if named:
+                    found.append(f"  {rel}:{number}: capability cfg! ({', '.join(named)}) in code; gate a module instead")
             if not CFG.match(line):
                 continue
-            named = sorted(set(FEATURE.findall(line)) & capabilities)
+            attribute = balanced(lines, number - 1, line.index("#[") + 1, "[", "]")
+            named = sorted(set(FEATURE.findall(attribute)) & capabilities)
             if not named:
                 continue
-            item = next((later for later in lines[number:] if later.strip() and not ATTRIBUTE.match(later)), "")
+            end = number - 1 + attribute.count("\n")
+            item = next((later for later in lines[end + 1:] if later.strip() and not ATTRIBUTE.match(later)), "")
             if not ALLOWED_ITEM.match(item):
                 found.append(f"  {rel}:{number}: capability cfg ({', '.join(named)}) on `{item.strip()[:60]}`; gate a module instead")
     return found

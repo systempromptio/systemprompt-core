@@ -7,14 +7,18 @@
 //! - `/api/v1/content` public reads behind the public gate with a public
 //!   request context;
 //! - `/api/v1/content` link generation (`POST /links/generate`) behind the user
-//!   gate with a user request context;
+//!   gate, and the five link-analytics reads (`GET /links`, `/links/journey`,
+//!   `/links/{link_id}/clicks`, `/links/{link_id}/performance` and
+//!   `/links/campaigns/{campaign_id}/performance`) behind the admin gate, all
+//!   with a user request context;
 //! - the short-link redirect `/r/{short_code}` at the web root behind the
 //!   public gate with a public request context.
 //!
 //! Each set's shape equals the reference composition's conferral for
 //! `content-http` at its base. The public and signed-in sets share their
 //! base, so the conferral pins routes instead: the signed-in set holds only
-//! `POST /links/generate`, and the redirect set only `GET /r/{short_code}`.
+//! `POST /links/generate` and the five analytics reads, and the redirect set
+//! only `GET /r/{short_code}`.
 //! The handlers read the content repositories the `content` member provides,
 //! which this member `requires`, and the
 //! [`ContentHttpSettings`](crate::http::ContentHttpSettings) its own provide fn

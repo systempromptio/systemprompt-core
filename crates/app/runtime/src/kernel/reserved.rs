@@ -83,17 +83,27 @@ const fn core_only_provides() -> [(TypeId, &'static str); 4] {
 
 pub(super) fn refuse_core_only_provides(built: &BuiltState) -> Result<(), KernelError> {
     for member in built.members() {
-        for entry in member.sink.provides() {
+        let provided = member
+            .sink
+            .provides()
+            .iter()
+            .map(|entry| (entry.type_id(), entry.type_name()));
+        let slot_built = member
+            .sink
+            .slots()
+            .iter()
+            .map(|record| (record.built().type_id(), record.built().type_name()));
+        for (type_id, ty) in provided.chain(slot_built) {
             let Some((_, provider)) = core_only_provides()
                 .into_iter()
-                .find(|(id, _)| *id == entry.type_id())
+                .find(|(id, _)| *id == type_id)
             else {
                 continue;
             };
             if member.owner.as_str() != provider || member.standing != StandingTag::Core {
                 return Err(KernelError::CoreOnlyProvide {
                     owner: member.owner.clone(),
-                    ty: entry.type_name(),
+                    ty,
                     provider,
                 });
             }

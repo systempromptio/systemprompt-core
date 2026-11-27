@@ -48,7 +48,10 @@
 //! context and [`SITE_FALLBACK_RATE`] only (no authenticated context, no sealed
 //! state), behind the site-auth layer when a member declares site auth
 //! ([`site_fallback_protection`]), layered whole, and answering `404`
-//! for any path under a reserved entry, so it never answers a reserved path.
+//! for any path under a reserved entry or a core route family, so it never
+//! answers a reserved path. It receives the request's headers as sent,
+//! `Cookie` and `Authorization` included, as an install route set does; the
+//! core-family refusal is what keeps a core path's bearer from it.
 //!
 //! The body-limit check sees only the group-level limit a declaration
 //! carries. A few routes set their own `DefaultBodyLimit` inside their

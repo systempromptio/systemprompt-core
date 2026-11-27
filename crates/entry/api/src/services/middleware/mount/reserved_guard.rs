@@ -14,7 +14,9 @@
 //! `..`, or contains `/`, `\\` or `;`. The site fallback is refused more
 //! ([`guarded_site`]): every core route family as well (`/api` and everything
 //! under the API base, `/mcp` and `/otel`), whatever the method, so a core
-//! path's request and its bearer never reach an install's site.
+//! path's request and its bearer never reach an install's site. The web root
+//! `/` itself is the site fallback's: static content answers it first, and a
+//! static miss there (no `index.html`) reaches the fallback.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -24,6 +26,7 @@ use axum::extract::{OriginalUri, Request};
 use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
+use systemprompt_extension::reserved::WEB_ROOT_BASE_PATH;
 use systemprompt_extension::router::reserved_answering;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::modules::ApiPaths;
@@ -57,7 +60,7 @@ fn ambiguous(segment: &str) -> bool {
     segment == "." || segment == ".." || segment.contains(['/', '\\', ';'])
 }
 
-fn falls_under_reserved(path: &str) -> bool {
+fn falls_under_reserved(path: &str, root_admitted: bool) -> bool {
     let mut decoded = Vec::new();
     for segment in path.split('/') {
         match urlencoding::decode(segment) {
@@ -67,7 +70,8 @@ fn falls_under_reserved(path: &str) -> bool {
         }
     }
     let segments: Vec<&str> = decoded.iter().map(String::as_str).collect();
-    reserved_answering(&segments, None).is_some()
+    reserved_answering(&segments, None)
+        .is_some_and(|entry| !(root_admitted && entry.path == WEB_ROOT_BASE_PATH))
 }
 
 fn original_path(request: &Request) -> String {
@@ -88,7 +92,7 @@ fn not_found(path: String) -> Response {
 
 async fn refuse_reserved(request: Request, next: Next) -> Response {
     let path = original_path(&request);
-    if falls_under_reserved(&path) {
+    if falls_under_reserved(&path, false) {
         return not_found(path);
     }
     next.run(request).await
@@ -96,7 +100,7 @@ async fn refuse_reserved(request: Request, next: Next) -> Response {
 
 async fn refuse_core_family(request: Request, next: Next) -> Response {
     let path = original_path(&request);
-    if falls_under_reserved(&path) || falls_under_core_family(&path) {
+    if falls_under_reserved(&path, true) || falls_under_core_family(&path) {
         return not_found(path);
     }
     next.run(request).await

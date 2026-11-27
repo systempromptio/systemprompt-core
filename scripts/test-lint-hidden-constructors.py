@@ -74,6 +74,24 @@ class HiddenConstructors(unittest.TestCase):
         self.write("crates/tests/unit/systemprompt/src/forged.rs", "fn f() { Admitted::__from_facade(p); }\n")
         self.check([])
 
+    def test_function_pointer_outside_facade_fails(self):
+        self.write("crates/entry/cli/src/forge.rs", "fn f() {\n    let make = Admitted::__from_facade;\n}\n")
+        self.check(["crates/entry/cli/src/forge.rs:2"])
+
+    def test_qualified_handoff_fn_is_banned(self):
+        self.write("crates/entry/api/src/serve.rs", "pub async fn serve_admitted(admitted: Admitted) {}\n"
+                   "pub const unsafe fn raw_admitted(admitted: &Admitted) {}\n")
+        self.write("systemprompt/src/lib.rs", "pub use systemprompt_api::{serve_admitted, raw_admitted};\n")
+        self.check(["systemprompt/src/lib.rs:1", "systemprompt/src/lib.rs:1"])
+
+    def test_leading_colon_reexport_fails(self):
+        self.write("systemprompt/src/lib.rs", "pub use ::systemprompt_api::mount_admitted;\n")
+        self.check(["systemprompt/src/lib.rs:1"])
+
+    def test_extern_crate_of_a_kernel_crate_fails(self):
+        self.write("systemprompt/src/lib.rs", "extern crate systemprompt_cli as kernel_cli;\n")
+        self.check(["systemprompt/src/lib.rs:1"])
+
     def test_named_handoff_reexport_fails(self):
         self.write("systemprompt/src/lib.rs", "pub mod cli {\n    pub use systemprompt_cli::{CliRunError, run_composed};\n}\n")
         self.check(["systemprompt/src/lib.rs:2"])

@@ -32,11 +32,7 @@ pub struct OtlpExportUnavailable {
 }
 
 impl ExportCapability {
-    pub const COMPILED: Self = if cfg!(feature = "otel") {
-        Self::Linked
-    } else {
-        Self::NotLinked
-    };
+    pub const COMPILED: Self = compiled::CAPABILITY;
 
     pub fn admit(self, otlp: Option<&OtlpExportConfig>) -> Result<(), OtlpExportUnavailable> {
         match (self, otlp) {
@@ -46,4 +42,14 @@ impl ExportCapability {
             _ => Ok(()),
         }
     }
+}
+
+#[cfg(feature = "otel")]
+mod compiled {
+    pub(super) const CAPABILITY: super::ExportCapability = super::ExportCapability::Linked;
+}
+
+#[cfg(not(feature = "otel"))]
+mod compiled {
+    pub(super) const CAPABILITY: super::ExportCapability = super::ExportCapability::NotLinked;
 }

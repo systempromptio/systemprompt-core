@@ -1,5 +1,9 @@
 //! Site-wide auth gate redirecting unauthenticated page requests to login.
 //!
+//! A path ending in a static-asset extension passes the gate only while static
+//! content may still serve it; a request the site fallback answers (one
+//! carrying [`StaticMiss`]) is judged by its prefix like any page.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -12,6 +16,8 @@ use systemprompt_models::auth::{DynRequestAuthenticator, JwtAudience, Permission
 use systemprompt_security::TokenExtractor;
 
 use systemprompt_security::http::SessionCookie;
+
+use crate::services::middleware::StaticMiss;
 
 const SITE_AUDIENCES: &[JwtAudience] = &[JwtAudience::Web];
 
@@ -49,9 +55,10 @@ pub async fn site_auth_gate(
         return next.run(request).await;
     }
 
-    if STATIC_ASSET_EXTENSIONS
-        .iter()
-        .any(|ext| path.ends_with(ext))
+    if request.extensions().get::<StaticMiss>().is_none()
+        && STATIC_ASSET_EXTENSIONS
+            .iter()
+            .any(|ext| path.ends_with(ext))
     {
         return next.run(request).await;
     }
