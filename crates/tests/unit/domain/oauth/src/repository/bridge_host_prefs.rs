@@ -149,6 +149,93 @@ async fn disabling_the_only_instance_host_with_no_rows_is_refused() {
 }
 
 #[tokio::test]
+async fn a_host_that_configures_itself_does_not_stand_in_for_the_last_bridge_host() {
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let repo = BridgeHostPrefsRepository::new(&pool);
+    let user_id = unique_user_id("bhp-owned");
+    seed_user_row(
+        &pool,
+        &user_id,
+        &format!("{}@bhp.invalid", user_id.as_str()),
+    )
+    .await
+    .expect("seed user");
+    let instance = hosts(&[HostKind::ClaudeCode, HostKind::Harness], &[]);
+
+    let outcome = repo
+        .set_enabled(&user_id, HostKind::ClaudeCode, false, &instance)
+        .await
+        .expect("disable with no rows");
+    assert_eq!(
+        outcome,
+        HostPrefWrite::WouldDisableAll,
+        "harness is a host the bridge never lists; it cannot be all that is left"
+    );
+    assert!(
+        repo.get_enabled_prefs(&user_id)
+            .await
+            .expect("list")
+            .hosts
+            .is_empty(),
+        "a refused write stores nothing"
+    );
+
+    for host in [HostKind::ClaudeCode, HostKind::Harness] {
+        repo.set_enabled(&user_id, host, true, &instance)
+            .await
+            .expect("enable");
+    }
+    let outcome = repo
+        .set_enabled(&user_id, HostKind::ClaudeCode, false, &instance)
+        .await
+        .expect("disable with stored rows");
+    assert_eq!(outcome, HostPrefWrite::WouldDisableAll);
+
+    let outcome = repo
+        .set_enabled(&user_id, HostKind::Harness, false, &instance)
+        .await
+        .expect("disable harness");
+    assert_eq!(
+        outcome,
+        HostPrefWrite::Written,
+        "a bridge-configured host remains, so harness may be switched off"
+    );
+    assert_eq!(
+        repo.get_enabled_prefs(&user_id).await.expect("list").hosts,
+        vec![HostKind::ClaudeCode]
+    );
+}
+
+#[tokio::test]
+async fn disabling_one_bridge_host_with_no_rows_keeps_harness_among_the_rest() {
+    ensure_test_bootstrap();
+    let pool = test_db_pool().await;
+    let repo = BridgeHostPrefsRepository::new(&pool);
+    let user_id = unique_user_id("bhp-owned-rest");
+    seed_user_row(
+        &pool,
+        &user_id,
+        &format!("{}@bhp.invalid", user_id.as_str()),
+    )
+    .await
+    .expect("seed user");
+    let instance = hosts(
+        &[HostKind::ClaudeCode, HostKind::OpenCode, HostKind::Harness],
+        &[],
+    );
+
+    let outcome = repo
+        .set_enabled(&user_id, HostKind::OpenCode, false, &instance)
+        .await
+        .expect("disable opencode");
+    assert_eq!(outcome, HostPrefWrite::Written);
+    let prefs = repo.get_enabled_prefs(&user_id).await.expect("list");
+    assert_eq!(prefs.hosts, vec![HostKind::ClaudeCode, HostKind::Harness]);
+    assert!(!prefs.admits(HostKind::OpenCode, &instance));
+}
+
+#[tokio::test]
 async fn list_enabled_empty_for_unknown_user() {
     ensure_test_bootstrap();
     let pool = test_db_pool().await;
