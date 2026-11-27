@@ -16,6 +16,8 @@ use crate::services::gateway::config::{BridgeInstanceSpec, BridgeReleasesSpec, G
 use crate::services::gateway::error::{GatewayProfileError, GatewayResult};
 use crate::services::gateway::route::GatewayRoute;
 
+const ANDROID_ASSET: &str = "android";
+
 impl GatewayConfig {
     #[must_use]
     pub fn unresolved_secret_refs(&self, has_secret: impl Fn(&str) -> bool) -> Vec<String> {
@@ -62,6 +64,14 @@ impl GatewayConfig {
         }
         if let Some(instance) = self.bridge_instance.as_ref() {
             validate_bridge_instance(instance)?;
+        }
+        if self.serves_app_download(ANDROID_ASSET)
+            && !self
+                .bridge_releases
+                .as_ref()
+                .is_some_and(|releases| releases.assets.contains_key(ANDROID_ASSET))
+        {
+            return Err(GatewayProfileError::AndroidClientNotPublished);
         }
         Ok(())
     }

@@ -2,14 +2,16 @@
 //! `gateway.bridge_instance` block, and otherwise the configured routes and
 //! branding with the instance-wide enabled hosts the bridge configures. A host
 //! that configures itself is never listed, declared or not: the bridge is the
-//! document's only reader and manages no such host.
+//! document's only reader and manages no such host. The `clients` section
+//! lists the phone apps the instance declares and is absent when it declares
+//! none.
 
 use systemprompt_api::routes::wellknown::bridge::discovery_document;
 use systemprompt_identifiers::ExternalAgentId;
 use systemprompt_manifest::services::external_agent::{ExternalAgentConfig, ExternalAgentKind};
 use systemprompt_manifest::services::gateway::GatewayState;
 use systemprompt_manifest::services::{
-    BridgeBrandingSpec, BridgeInstanceSpec, GatewayConfig, ServicesConfig,
+    BridgeInstanceSpec, GatewayConfig, GatewayConfigSpec, ServicesConfig,
 };
 use systemprompt_models::bridge::host::{ConfigOwner, HostKind};
 use systemprompt_models::bridge::instance::DISCOVERY_CONTRACT;
@@ -25,15 +27,87 @@ fn with_instance(instance: Option<BridgeInstanceSpec>) -> ServicesConfig {
 }
 
 fn acme() -> BridgeInstanceSpec {
-    BridgeInstanceSpec {
-        device_link_path: "/bridge-auth/device-link".to_owned(),
-        identity_path: "/api/public/bridge/whoami".to_owned(),
-        branding: BridgeBrandingSpec {
-            display_name: Some("Acme".to_owned()),
-            docs_url: Some("https://docs.acme.test".to_owned()),
-            ..BridgeBrandingSpec::default()
+    serde_json::from_value(serde_json::json!({
+        "device_link_path": "/bridge-auth/device-link",
+        "identity_path": "/api/public/bridge/whoami",
+        "branding": {
+            "display_name": "Acme",
+            "docs_url": "https://docs.acme.test",
         },
+    }))
+    .expect("instance spec parses")
+}
+
+fn with_clients(clients: serde_json::Value) -> ServicesConfig {
+    let spec: GatewayConfigSpec = serde_json::from_value(serde_json::json!({
+        "bridge_instance": {
+            "device_link_path": "/bridge-auth/device-link",
+            "identity_path": "/api/public/bridge/whoami",
+            "clients": clients,
+        }
+    }))
+    .expect("gateway spec parses");
+    ServicesConfig {
+        gateway: Some(GatewayState::Resolved(spec.resolve())),
+        ..ServicesConfig::default()
     }
+}
+
+#[test]
+fn the_document_of_an_instance_with_no_apps_has_no_clients_section() {
+    let document = discovery_document(&with_instance(Some(acme()))).expect("configured");
+    assert!(document.clients.is_empty());
+    let json = serde_json::to_value(&document).expect("serialise");
+    assert!(json.get("clients").is_none(), "{json}");
+}
+
+#[test]
+fn the_document_lists_each_configured_app_with_its_floor_and_where_to_get_it() {
+    let document = discovery_document(&with_clients(serde_json::json!({
+        "ios": {
+            "app_id": "io.example.app",
+            "min_version": "1.2.0",
+            "link": "https://apps.example.com/redeem",
+        },
+        "android": { "app_id": "io.example.android", "min_version": "1.3.0" },
+    })))
+    .expect("configured");
+    let json = serde_json::to_value(&document).expect("serialise");
+    assert_eq!(
+        json["clients"],
+        serde_json::json!({
+            "ios": {
+                "app_id": "io.example.app",
+                "min_version": "1.2.0",
+                "link": "https://apps.example.com/redeem",
+            },
+            "android": {
+                "app_id": "io.example.android",
+                "min_version": "1.3.0",
+                "download_path": "/v1/bridge/download/android",
+            },
+        })
+    );
+    let floors = document.clients.version_floors();
+    assert_eq!(floors.ios, Some(semver::Version::new(1, 2, 0)));
+    assert_eq!(floors.android, Some(semver::Version::new(1, 3, 0)));
+}
+
+#[test]
+fn the_document_lists_only_the_platform_that_has_an_app() {
+    let document = discovery_document(&with_clients(serde_json::json!({
+        "android": { "app_id": "io.example.android" },
+    })))
+    .expect("configured");
+    assert_eq!(
+        serde_json::to_value(&document).expect("serialise")["clients"],
+        serde_json::json!({
+            "android": {
+                "app_id": "io.example.android",
+                "download_path": "/v1/bridge/download/android",
+            },
+        })
+    );
 }
 
 #[test]

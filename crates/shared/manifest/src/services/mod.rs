@@ -82,8 +82,9 @@ pub use enforcement::{EnforcementMode, UnknownEnforcementMode};
 pub use external_agent::{ExternalAgentConfig, ExternalAgentKind, external_agent_host};
 pub use frontmatter::{Frontmatter, split_frontmatter, strip_frontmatter};
 pub use gateway::{
-    BridgeBrandingSpec, BridgeInstanceSpec, BridgeReleasesSpec, GatewayConfig, GatewayConfigSpec,
-    GatewayProfileError, GatewayResult, GatewayRoute, GatewayState, ModelGlobs, OverrideRuleAction,
+    AndroidClientSpec, BridgeBrandingSpec, BridgeClientsError, BridgeClientsSpec,
+    BridgeInstanceSpec, BridgeReleasesSpec, GatewayConfig, GatewayConfigSpec, GatewayProfileError,
+    GatewayResult, GatewayRoute, GatewayState, IosClientSpec, ModelGlobs, OverrideRuleAction,
     QuotaFaultMode, ResponseFormatKind, RouteAlias, RouteDeployment, RouteMatch, RouteRequirements,
     SelectionStrategy, SystemPromptRule, WeightedDeployment, estimate_input_tokens,
     estimate_text_tokens, slugify_pattern, synthesize_route_id,

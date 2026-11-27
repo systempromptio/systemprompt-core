@@ -86,6 +86,11 @@ pub enum GatewayProfileError {
     )]
     BridgePinnedVersionOutsideWindow { pinned: semver::Version },
 
+    #[error(
+        "gateway `bridge_instance.clients.android` is declared but `bridge_releases.assets` has no `android` asset, so the download the discovery document names does not exist"
+    )]
+    AndroidClientNotPublished,
+
     #[error(transparent)]
     BuiltInSecretRef(#[from] ServicesValidationError),
 }

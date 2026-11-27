@@ -1,0 +1,29 @@
+[root]
+section = "Added"
+area = "Mobile"
+text = "An instance vouches for its phone apps and tells a phone where to get them. `gateway.bridge_instance` takes `vouched_apps` (per iOS app a team id, bundle id and link paths; per Android app a package name and signing-certificate fingerprints) and `clients` (per platform an app id and `min_version`, plus an https `link` for iOS). `/.well-known/apple-app-site-association` and `/.well-known/assetlinks.json` serve the vendor documents built from `vouched_apps`, unauthenticated and cacheable, and answer 404 when no app of that vendor is declared. The discovery document at `/.well-known/systemprompt-bridge` carries a `clients` section with each app's identifier, minimum version and location. The release proxy serves the `android` key of `bridge_releases.assets` as `application/vnd.android.package-archive`, with its checksum on `/v1/bridge/latest?platform=android`; when `clients.android` is declared those two reads need no credential."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Added"
+text = "`BridgeInstanceSpec` has `clients` and `vouched_apps`, both checked as they are parsed: an iOS link must be an https URL with a host, a minimum version carries no build metadata, and a `VouchedApps` declaration must pass `VouchedApps::validate`. `GatewayConfig::vouched_apps`, `GatewayConfig::client_version_floors` and `GatewayConfig::serves_app_download` read them."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Breaking"
+text = "`BridgeInstanceSpec` has two new public fields, `clients` and `vouched_apps`. Migrate a struct literal by adding `clients: Default::default(), vouched_apps: Default::default()`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Added"
+text = "`routes::wellknown::apple` and `routes::wellknown::android` serve the two app association documents and are merged into `wellknown_router`; `routes::wellknown::ASSOCIATION_CACHE_CONTROL` is their cache policy. `routes::wellknown::bridge::discovery_document` fills the `clients` section from `bridge_instance.clients`."
+
+[[crate]]
+name = "systemprompt-gateway-entry"
+section = "Added"
+text = "`http::bridge::release::asset_content_type` and `ANDROID_PACKAGE_CONTENT_TYPE`: `/v1/bridge/download/android` is served as an Android package."
+
+[[crate]]
+name = "systemprompt-gateway-entry"
+section = "Changed"
+text = "`/v1/bridge/latest` and `/v1/bridge/download/{platform}` answer a caller with no credential for the platform `bridge_instance.clients` offers for download (`android`), and ignore `refresh=true` from such a caller. Every other platform still requires the bridge credential."

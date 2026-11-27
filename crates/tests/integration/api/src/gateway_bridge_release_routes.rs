@@ -8,6 +8,11 @@
 //! api.github.com to reach until `BridgeReleasesSpec` gained `api_base`;
 //! they now run against wiremock.
 //!
+//! The instance's Android app is one more platform of the same feed. It is
+//! the one platform served to a caller with no credential, because the
+//! discovery document offers it to a phone that has no app yet, and it is
+//! served as an Android package.
+//!
 //! The profile is isolated per suite because the shared fixture has no
 //! `gateway:` section at all, so these routes would otherwise short-circuit
 //! before reaching any of it.
@@ -72,6 +77,13 @@ gateway:
     api_base: {api_base}
     assets:
       darwin-arm64: systemprompt-bridge-darwin-arm64.tar.gz
+      android: example-android.apk
+  bridge_instance:
+    device_link_path: /bridge-auth/device-link
+    identity_path: /api/public/bridge/whoami
+    clients:
+      android:
+        app_id: io.example.android
 "#
     )
 }
@@ -106,6 +118,8 @@ fn get(uri: &str, token: Option<&str>) -> Request<Body> {
 
 const ASSET: &str = "systemprompt-bridge-darwin-arm64.tar.gz";
 const DIGEST: &str = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+const APK: &str = "example-android.apk";
+const APK_DIGEST: &str = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08";
 
 fn release(base: &str, tag: &str, draft: bool, prerelease: bool) -> serde_json::Value {
     serde_json::json!({
@@ -115,6 +129,7 @@ fn release(base: &str, tag: &str, draft: bool, prerelease: bool) -> serde_json::
         "html_url": format!("https://example.invalid/{tag}"),
         "assets": [
             { "name": ASSET, "url": format!("{base}/asset"), "size": 1234 },
+            { "name": APK, "url": format!("{base}/apk"), "size": 4321 },
             { "name": "SHA256SUMS", "url": format!("{base}/sums"), "size": 64 }
         ]
     })
@@ -386,6 +401,103 @@ async fn a_download_whose_asset_fetch_fails_upstream_is_a_bad_gateway() -> anyho
         502,
         "an asset the gateway could not fetch is not a missing release: {body}"
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn an_anonymous_caller_is_still_refused_a_desktop_download() -> anyhow::Result<()> {
+    let (app, _token) = app().await?;
+
+    let (status, _) = body_to_string(
+        app.oneshot(get("/bridge/download/darwin-arm64", None))
+            .await?,
+    )
+    .await?;
+
+    assert_eq!(
+        status.as_u16(),
+        401,
+        "only the platform the discovery document offers is served without a credential"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_phone_with_no_credential_reads_the_android_release_and_its_checksum()
+-> anyhow::Result<()> {
+    let base = server().await.uri();
+    mount_releases(serde_json::json!([release(
+        &base,
+        "bridge-v0.32.0",
+        false,
+        false
+    )]))
+    .await;
+    Mock::given(method("GET"))
+        .and(path("/sums"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_string(format!("{DIGEST}  {ASSET}\n{APK_DIGEST}  {APK}\n")),
+        )
+        .mount(server().await)
+        .await;
+
+    let (app, _token) = app().await?;
+    let (status, body) = body_to_string(
+        app.oneshot(get("/bridge/latest?platform=android&refresh=true", None))
+            .await?,
+    )
+    .await?;
+
+    assert_eq!(status.as_u16(), 200, "{body}");
+    let manifest: serde_json::Value = serde_json::from_str(&body)?;
+    assert_eq!(manifest["version"], "0.32.0");
+    assert_eq!(manifest["size"], 4321);
+    assert_eq!(
+        manifest["sha256"], APK_DIGEST,
+        "the checksum is the APK's entry in the signed SHA256SUMS, not the bridge's"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_phone_with_no_credential_downloads_the_apk_as_an_android_package() -> anyhow::Result<()>
+{
+    let base = server().await.uri();
+    mount_releases(serde_json::json!([release(
+        &base,
+        "bridge-v0.32.0",
+        false,
+        false
+    )]))
+    .await;
+    Mock::given(method("GET"))
+        .and(path("/apk"))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(b"apk-bytes".to_vec()))
+        .mount(server().await)
+        .await;
+
+    let (app, _token) = app().await?;
+    let response = app.oneshot(get("/bridge/download/android", None)).await?;
+
+    assert_eq!(response.status().as_u16(), 200);
+    assert_eq!(
+        response
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok()),
+        Some("application/vnd.android.package-archive"),
+        "the platform installer opens the download only under the package media type"
+    );
+    assert_eq!(
+        response
+            .headers()
+            .get(header::CONTENT_DISPOSITION)
+            .and_then(|v| v.to_str().ok()),
+        Some(format!("attachment; filename=\"{APK}\"").as_str())
+    );
+    let (_, body) = body_to_string(response).await?;
+    assert_eq!(body, "apk-bytes");
     Ok(())
 }
 

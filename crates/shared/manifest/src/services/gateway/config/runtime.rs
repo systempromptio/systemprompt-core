@@ -4,6 +4,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use systemprompt_identifiers::ModelId;
+use systemprompt_models::association::VouchedApps;
+use systemprompt_models::bridge::clients::ClientVersionFloors;
 
 use crate::services::gateway::config::{
     BridgeInstanceSpec, BridgeReleasesSpec, GatewayConfigSpec, QuotaFaultMode, default_auth_scheme,
@@ -55,6 +57,29 @@ impl GatewayConfig {
     #[must_use]
     pub fn find_route(&self, id: &str) -> Option<&GatewayRoute> {
         self.routes.iter().find(|route| route.id.as_str() == id)
+    }
+
+    #[must_use]
+    pub fn vouched_apps(&self) -> Option<&VouchedApps> {
+        self.bridge_instance
+            .as_ref()
+            .map(|instance| &instance.vouched_apps)
+    }
+
+    #[must_use]
+    pub fn client_version_floors(&self) -> ClientVersionFloors {
+        self.bridge_instance
+            .as_ref()
+            .map_or_else(ClientVersionFloors::default, |instance| {
+                instance.clients.version_floors()
+            })
+    }
+
+    #[must_use]
+    pub fn serves_app_download(&self, platform: &str) -> bool {
+        self.bridge_instance
+            .as_ref()
+            .is_some_and(|instance| instance.clients.serves_download(platform))
     }
 
     #[must_use]

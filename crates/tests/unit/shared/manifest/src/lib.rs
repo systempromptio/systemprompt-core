@@ -4,6 +4,8 @@
 //! bridge profile and the Vertex rate card.
 
 #[cfg(test)]
+mod bridge_clients_config;
+#[cfg(test)]
 mod bridge_gateway_config;
 #[cfg(test)]
 mod bridge_profile;

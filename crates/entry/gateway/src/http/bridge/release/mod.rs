@@ -15,6 +15,14 @@
 //! answer — a GitHub blip must not turn into a failed update check for
 //! everyone at once.
 //!
+//! A platform is a key of `bridge_releases.assets`, so the instance's Android
+//! app is the `android` key naming the signed APK of the same release; it is
+//! served as an Android package and `/latest` carries its checksum. A phone
+//! that has no app yet holds no credential, so the one platform the discovery
+//! document offers for download (`bridge_instance.clients.android`) is served
+//! to an anonymous caller; every other platform requires the bridge
+//! credential. An anonymous caller cannot force a refresh.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -39,6 +47,7 @@ mod upstream;
 pub use self::error::ReleaseError;
 pub use self::feed::{REFRESH_INTERVAL, ReleaseFeed, ResolvedAsset, ResolvedRelease};
 pub use self::github::parse_sha256sums;
+pub use self::upstream::{ANDROID_PACKAGE_CONTENT_TYPE, asset_content_type};
 
 use self::github::github;
 
@@ -60,10 +69,9 @@ pub async fn latest(
     headers: HeaderMap,
     Query(query): Query<LatestQuery>,
 ) -> Result<Json<ReleaseManifest>, ReleaseError> {
-    authenticate_bridge(&state.authenticator, &headers).await?;
-    let spec = releases_spec(&state.host.services.view())?;
+    let Admitted { spec, caller } = admit(&state, &headers, &query.platform).await?;
     let secrets = &*state.releases;
-    let resolved = if query.refresh {
+    let resolved = if query.refresh && caller == Caller::Bridge {
         feed.resolve_fresh(&spec, secrets, &query.platform).await?
     } else {
         feed.resolve(&spec, secrets, &query.platform).await?
@@ -77,8 +85,7 @@ pub async fn download(
     headers: HeaderMap,
     Path(platform): Path<String>,
 ) -> Result<Response, ReleaseError> {
-    authenticate_bridge(&state.authenticator, &headers).await?;
-    let spec = releases_spec(&state.host.services.view())?;
+    let Admitted { spec, .. } = admit(&state, &headers, &platform).await?;
     let secrets = &*state.releases;
     let asset = feed.resolve_asset(&spec, secrets, &platform).await?;
 
@@ -105,7 +112,10 @@ pub async fn download(
     Ok((
         StatusCode::OK,
         [
-            (header::CONTENT_TYPE, "application/octet-stream".to_owned()),
+            (
+                header::CONTENT_TYPE,
+                asset_content_type(&platform).to_owned(),
+            ),
             (
                 header::CONTENT_DISPOSITION,
                 format!("attachment; filename=\"{}\"", asset.name),
@@ -114,6 +124,42 @@ pub async fn download(
         body,
     )
         .into_response())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Caller {
+    Bridge,
+    Anonymous,
+}
+
+struct Admitted {
+    spec: BridgeReleasesSpec,
+    caller: Caller,
+}
+
+async fn admit(
+    state: &BridgeRouteState,
+    headers: &HeaderMap,
+    platform: &str,
+) -> Result<Admitted, ReleaseError> {
+    let services = state.host.services.view();
+    let caller = if serves_anonymously(&services, platform) {
+        Caller::Anonymous
+    } else {
+        authenticate_bridge(&state.authenticator, headers).await?;
+        Caller::Bridge
+    };
+    Ok(Admitted {
+        spec: releases_spec(&services)?,
+        caller,
+    })
+}
+
+fn serves_anonymously(services: &ServicesView, platform: &str) -> bool {
+    services
+        .config()
+        .gateway_config()
+        .is_some_and(|gateway| gateway.serves_app_download(platform))
 }
 
 fn releases_spec(services: &ServicesView) -> Result<BridgeReleasesSpec, ReleaseError> {

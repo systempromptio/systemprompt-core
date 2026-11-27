@@ -13,16 +13,19 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod clients;
 mod runtime;
 mod validate;
 
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ModelId;
+use systemprompt_models::association::VouchedApps;
 use systemprompt_models::bridge::instance::{BridgeVersionWindow, InstanceBranding};
 
 use crate::services::gateway::override_rule::SystemPromptRule;
 use crate::services::gateway::route::GatewayRoute;
 
+pub use clients::{AndroidClientSpec, BridgeClientsError, BridgeClientsSpec, IosClientSpec};
 pub use runtime::GatewayConfig;
 
 /// What the gateway does when it cannot evaluate a quota or policy.
@@ -81,11 +84,13 @@ pub struct GatewayConfigSpec {
     pub bridge_instance: Option<BridgeInstanceSpec>,
 }
 
-/// The routes and branding a shared bridge binary discovers for this
-/// instance at `/.well-known/systemprompt-bridge`.
+/// What this instance tells its clients about itself: the routes, branding
+/// and phone apps discovered at `/.well-known/systemprompt-bridge`, and the
+/// apps its domain vouches for in the two association documents.
 ///
 /// Both paths are relative to the gateway origin: the sign-in page and the
 /// identity endpoint belong to the instance, not to the bridge build.
+/// `clients` and `vouched_apps` are checked as they are parsed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct BridgeInstanceSpec {
@@ -93,6 +98,18 @@ pub struct BridgeInstanceSpec {
     pub identity_path: String,
     #[serde(default)]
     pub branding: BridgeBrandingSpec,
+    #[serde(
+        default,
+        deserialize_with = "clients::deserialize_clients",
+        skip_serializing_if = "BridgeClientsSpec::is_empty"
+    )]
+    pub clients: BridgeClientsSpec,
+    #[serde(
+        default,
+        deserialize_with = "clients::deserialize_vouched_apps",
+        skip_serializing_if = "VouchedApps::is_empty"
+    )]
+    pub vouched_apps: VouchedApps,
 }
 
 /// Presentation the bridge shows for this instance before and after sign-in.

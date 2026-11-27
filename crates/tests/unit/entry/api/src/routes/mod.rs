@@ -21,6 +21,7 @@ mod gateway_authz_request;
 mod gateway_bridge_device;
 mod gateway_bridge_harness_routes;
 mod gateway_bridge_instance_hosts;
+mod gateway_bridge_release_android;
 mod gateway_bridge_release_error;
 mod gateway_bridge_release_feed;
 mod gateway_bridge_release_flight;
@@ -47,6 +48,7 @@ mod gateway_upstream_status_mapping;
 mod proxy_mcp_metadata;
 mod role_table;
 mod sync_types;
+mod wellknown_association;
 mod wellknown_bridge_discovery;
 
 mod gateway_sessions_mint;
