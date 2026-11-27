@@ -124,11 +124,14 @@ impl UserRepository {
         &self,
         device_id: &DeviceId,
         provider: PushProvider,
+        token: &PushToken,
     ) -> Result<bool> {
         let result = sqlx::query!(
-            "DELETE FROM user_device_push_tokens WHERE device_id = $1 AND provider = $2",
+            "DELETE FROM user_device_push_tokens WHERE device_id = $1 AND provider = $2 AND token \
+             = $3",
             device_id as _,
             provider.as_str(),
+            token.expose(),
         )
         .execute(&*self.write_pool)
         .await?;

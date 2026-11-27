@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM user_device_push_tokens WHERE device_id = $1 AND provider = $2 AND token = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "bf5830149be352f69f86d6d264deb165a390ba12adef8d24394e7ea655402be8"
+}

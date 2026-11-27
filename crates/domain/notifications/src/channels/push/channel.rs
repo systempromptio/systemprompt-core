@@ -53,11 +53,9 @@ impl<S: PushSender> PushChannel<S> {
         for token in tokens.iter().filter(|token| self.sender.serves(token)) {
             let outcome = match self.sender.send(token, &payload).await {
                 Ok(PushVerdict::Accepted) => Ok(()),
-                Ok(PushVerdict::Unregistered) => self
-                    .directory
-                    .revoke(&token.device_id, provider)
-                    .await
-                    .map_err(PushError::from),
+                Ok(PushVerdict::Unregistered) => {
+                    self.directory.revoke(token).await.map_err(PushError::from)
+                },
                 Err(error) => Err(error),
             };
             if let Err(error) = outcome {

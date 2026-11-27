@@ -36,8 +36,9 @@ pub enum PushTokenDirectoryError {
 /// The push tokens of users' devices.
 ///
 /// `tokens_for` answers every live token of the user's unrevoked devices.
-/// `revoke` drops one device's token for a provider; an absent token is not
-/// an error. Held as `Arc<dyn PushTokenDirectory>`, so it uses
+/// `revoke` drops exactly the token it is handed: a device that registered a
+/// new token since the caller read this one keeps the new one. An absent
+/// token is not an error. Held as `Arc<dyn PushTokenDirectory>`, so it uses
 /// `#[async_trait]`: native `async fn` in traits is not `dyn`-compatible.
 #[async_trait::async_trait]
 pub trait PushTokenDirectory: Send + Sync {
@@ -46,11 +47,7 @@ pub trait PushTokenDirectory: Send + Sync {
         user: &UserId,
     ) -> Result<Vec<DevicePushToken>, PushTokenDirectoryError>;
 
-    async fn revoke(
-        &self,
-        device: &DeviceId,
-        provider: PushProvider,
-    ) -> Result<(), PushTokenDirectoryError>;
+    async fn revoke(&self, token: &DevicePushToken) -> Result<(), PushTokenDirectoryError>;
 }
 
 pub type DynPushTokenDirectory = Arc<dyn PushTokenDirectory>;

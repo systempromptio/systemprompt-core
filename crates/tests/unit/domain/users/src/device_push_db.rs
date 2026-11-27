@@ -2,11 +2,11 @@
 //! device's token, a revoked device cannot register, a refresh replaces the
 //! token, revocation and the user purge remove tokens, the admin list shows
 //! what a device reported, and the push token directory returns only the
-//! live tokens of unrevoked devices.
+//! live tokens of unrevoked devices and revokes a token by its value.
 
 use std::sync::Arc;
 
-use systemprompt_extension::notifications::PushTokenDirectory;
+use systemprompt_extension::notifications::{DevicePushToken, PushTokenDirectory};
 use systemprompt_identifiers::UserId;
 use systemprompt_models::devices::{AppIdentifier, DeviceClientInfo, DevicePlatform};
 use systemprompt_models::notifications::{PushProvider, PushToken, RegisterPushTokenRequest};
@@ -339,17 +339,56 @@ async fn the_directory_returns_only_live_tokens_of_the_users_devices() {
         .find(|token| token.device_id.as_str() == dropped_device.id.as_str())
         .expect("the third device still holds its token");
     directory
-        .revoke(&unregistered.device_id, PushProvider::Fcm)
+        .revoke(&DevicePushToken {
+            provider: PushProvider::Fcm,
+            ..unregistered.clone()
+        })
         .await
         .expect("another provider's token is absent, which is not an error");
     assert_eq!(live_tokens(&ctx, &ctx.owner).await.len(), 2);
     directory
-        .revoke(&unregistered.device_id, PushProvider::Apns)
+        .revoke(&unregistered)
         .await
         .expect("drop the unregistered token");
 
     assert_eq!(live_tokens(&ctx, &ctx.owner).await, vec![kept_token]);
     assert_eq!(live_tokens(&ctx, &ctx.other).await.len(), 1);
+
+    cleanup(&ctx).await;
+}
+
+// Why: a provider's verdict is about the token it was sent. A device that
+// registered a new token between the directory read and the verdict must
+// keep it, or it stays unreachable until the app next registers.
+#[tokio::test]
+async fn a_refreshed_token_survives_the_revocation_of_the_one_it_replaced() {
+    let ctx = setup("dps10").await;
+    let fingerprint = unique_fingerprint();
+    enroll(&ctx, &ctx.owner, &fingerprint).await;
+    ctx.push
+        .register(&ctx.owner, &fingerprint, &ios(&unique_token()))
+        .await
+        .expect("register");
+    let stale = ctx
+        .push
+        .tokens_for(&ctx.owner)
+        .await
+        .expect("tokens")
+        .pop()
+        .expect("the device holds its first token");
+    let refreshed = unique_token();
+    ctx.push
+        .register(&ctx.owner, &fingerprint, &ios(&refreshed))
+        .await
+        .expect("refresh");
+
+    let directory: &dyn PushTokenDirectory = &ctx.push;
+    directory
+        .revoke(&stale)
+        .await
+        .expect("a token that is no longer held is not an error");
+
+    assert_eq!(live_tokens(&ctx, &ctx.owner).await, vec![refreshed]);
 
     cleanup(&ctx).await;
 }

@@ -210,6 +210,24 @@ async fn an_unregistered_fcm_token_is_revoked_in_the_delivery() {
 }
 
 #[tokio::test]
+async fn the_revocation_names_the_token_the_provider_refused() {
+    let unregistered = r#"{"error":{"code":404,"status":"NOT_FOUND","details":[{"@type":"type.googleapis.com/google.firebase.fcm.v1.FcmError","errorCode":"UNREGISTERED"}]}}"#;
+    let http = StubHttp::answering(404, unregistered);
+    let directory = both_tokens();
+
+    fcm_channel(&http, &directory, false)
+        .deliver(&notification(APPROVAL_KIND, Attention::Human), 0)
+        .await
+        .expect("an unregistered token is not a delivery failure");
+
+    assert_eq!(
+        directory.revoked_tokens(),
+        [device_token("tablet", PushProvider::Fcm, FCM_TOKEN, APP)],
+        "the directory drops the refused value, so a token registered since is kept"
+    );
+}
+
+#[tokio::test]
 async fn an_accepted_push_revokes_nothing() {
     let http = StubHttp::answering(200, "");
     let directory = both_tokens();

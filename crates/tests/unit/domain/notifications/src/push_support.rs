@@ -75,7 +75,7 @@ impl ProviderCredential for StubCredential {
 
 pub(crate) struct StubDirectory {
     tokens: Vec<DevicePushToken>,
-    revoked: Mutex<Vec<(DeviceId, PushProvider)>>,
+    revoked: Mutex<Vec<DevicePushToken>>,
 }
 
 impl StubDirectory {
@@ -87,6 +87,13 @@ impl StubDirectory {
     }
 
     pub(crate) fn revoked(&self) -> Vec<(DeviceId, PushProvider)> {
+        self.revoked_tokens()
+            .into_iter()
+            .map(|token| (token.device_id, token.provider))
+            .collect()
+    }
+
+    pub(crate) fn revoked_tokens(&self) -> Vec<DevicePushToken> {
         self.revoked
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -103,15 +110,11 @@ impl PushTokenDirectory for StubDirectory {
         Ok(self.tokens.clone())
     }
 
-    async fn revoke(
-        &self,
-        device: &DeviceId,
-        provider: PushProvider,
-    ) -> Result<(), PushTokenDirectoryError> {
+    async fn revoke(&self, token: &DevicePushToken) -> Result<(), PushTokenDirectoryError> {
         self.revoked
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .push((device.clone(), provider));
+            .push(token.clone());
         Ok(())
     }
 }

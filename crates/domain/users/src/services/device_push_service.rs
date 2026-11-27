@@ -21,7 +21,7 @@ use async_trait::async_trait;
 use systemprompt_extension::notifications::{
     DevicePushToken, PushTokenDirectory, PushTokenDirectoryError,
 };
-use systemprompt_identifiers::{DeviceId, UserId};
+use systemprompt_identifiers::UserId;
 use systemprompt_models::devices::{AdminDeviceRow, DeviceClientInfo, DevicePlatform};
 use systemprompt_models::notifications::{
     PushProvider, PushTokenRegistration, PushTokenRevocation, RegisterPushTokenRequest,
@@ -175,13 +175,9 @@ impl PushTokenDirectory for DevicePushService {
             .map_err(directory_error)
     }
 
-    async fn revoke(
-        &self,
-        device: &DeviceId,
-        provider: PushProvider,
-    ) -> Result<(), PushTokenDirectoryError> {
+    async fn revoke(&self, token: &DevicePushToken) -> Result<(), PushTokenDirectoryError> {
         self.repository
-            .delete_device_push_token_for_provider(device, provider)
+            .delete_device_push_token_for_provider(&token.device_id, token.provider, &token.token)
             .await
             .map(drop)
             .map_err(directory_error)
