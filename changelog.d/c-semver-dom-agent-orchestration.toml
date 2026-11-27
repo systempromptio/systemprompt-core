@@ -1,0 +1,14 @@
+[[crate]]
+name = "systemprompt-agent"
+section = "Breaking"
+text = "`PortService::new` takes the stop grace `Duration`, and `PortService::cleanup_port_if_needed` takes the `&SpawnStamp` of the spawn alongside the port and `&AgentName`, so only a port holder this node spawned is stopped. `AgentLifecycle::verify_startup` takes the spawned `pid` between the agent name and the port."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Breaking"
+text = "`AgentOAuthState::new(db, config, audiences)` takes the accepted `Vec<JwtAudience>` only; the bearer is verified by a `DynRequestAuthenticator` given with `AgentOAuthState::with_authenticator`. Migrate by dropping the issuer and `VerificationKeyring` arguments and passing the composition's authenticator."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Breaking"
+text = "`AgentConfigAuthoringService::create` takes a check closure `impl FnOnce(&StagedAgentFile<'_>) -> Result<(), CheckError>` after the `AgentCreateRequest`; the staged file is written only when the check passes. Pass `|_| Ok(())` to keep writing unchecked."

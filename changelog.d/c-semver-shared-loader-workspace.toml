@@ -1,0 +1,14 @@
+[[crate]]
+name = "systemprompt-loader"
+section = "Breaking"
+text = "The `module_loader` module (`ModuleLoader`) is removed; members are composed explicitly. `ConfigWriter::create_agent(agent, services_dir, check)` and `ConfigWriter::update_agent(name, agent, services_dir, check)` take a `check: impl FnOnce(&StagedAgentFile<'_>) -> Result<(), CheckError>` run on the staged file before it is written."
+
+[[crate]]
+name = "systemprompt-loader"
+section = "Breaking"
+text = "`subprocess::owns(pid, &ChildClaim)`, `subprocess::live_pid_is_subprocess(pid, &ChildClaim)` and `subprocess::stop_owned(pid, &ChildClaim, grace)` take one `ChildClaim` in place of the kind, name key and service name."
+
+[[crate]]
+name = "systemprompt-loader"
+section = "Breaking"
+text = "`ExtensionLoadError::ManifestMissing` is a struct variant `{ extension }`; `ConfigLoadError::DuplicateAgent`, `DuplicateMcpServer`, `DuplicatePlugin`, `DuplicateMarketplace`, `DuplicateSkill`, `DuplicateExternalAgent`, `DuplicateSlackApp` and `DuplicateTeamsApp` are struct variants `{ name }`."

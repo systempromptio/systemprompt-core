@@ -1,0 +1,39 @@
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`SiteAuthSession` is `{ authenticator: &DynRequestAuthenticator, cookie }`: the site gate verifies through the request authenticator, so `SiteAuthSession` is not `UnwindSafe` or `RefUnwindSafe` because it borrows a `dyn RequestAuthenticator`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`IssuedSession` replaces `sessions: &McpProxySessionRepository` with `backends: &dyn ProxyBackendResolver`; `ServiceResolver::resolve` takes `(service_name, ctx, backends: Option<&dyn ProxyBackendResolver>)`."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`services::request_base_url` and `services::session_cookie` are removed; `RequestBaseUrlError`, `SameSite` and `SessionCookie` are `systemprompt_security::http::{RequestBaseUrlError, SameSite, SessionCookie}`. `services::validation` and `is_valid_email` are removed; validate an address with `systemprompt_identifiers::Email::try_new`. `RouteGroup` (`services::server::routes::role`) is `systemprompt_extension::protection::RouteGroup`; `role::route_groups` returns that type."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`repository::banned_ips` is removed; the IP-ban gate reads the `DynIpBanStore` the users member provides from the kernel state. `ProxyService::with_tool_usage_repo` and `ProxyService::with_artifact_ingest` are removed: every proxied external MCP tool call is audited through the backends given to `ProxyService::with_mcp_backends`. `OpsSampler::with_notifications` is removed; the notification backlog gauges are metrics the `notifications` member contributes."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`setup_api_server` (`services::server`, `server::builder`) takes `(ctx, composed: Composed, events, readiness)`; `handle_health_detail` takes `(State<AppContext>, Option<Extension<Arc<ExtensionReadiness>>>, Option<Extension<Arc<ExtensionDiagnostics>>>)` and reports the enabled members' readiness checks and diagnostics. `RouterExt::with_bearer_window` takes `(limits, jwt, window: RateWindow)`, where `RateWindow { per_second, scope }` carries the two arguments it replaces. `outbound_headers` takes `(&HeaderMap, &HeaderMap)` with no `BuildHasher` parameter."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "`ResponseBuildError::Tap` is a new variant on the exhaustive `ResponseBuildError`, returned when the audited upstream response body cannot be read."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "The `agent-runs` and `pdf` features are removed; enable the facade's `agent-runs` and `files-pdf` features."
+
+[[crate]]
+name = "systemprompt-api"
+section = "Breaking"
+text = "These consts are `pub(crate)`: `HTTP_LOAD_SHED_TOTAL`, `HTTP_IN_FLIGHT_LIMIT`, `HTTP_IN_FLIGHT_SATURATION`, `HTTP_REQUEST_DURATION_SECONDS`, `HTTP_BUCKETS`, `MAX_TRACKED_KEYS`, `SWEEP_INTERVAL`, `MCP_PASSTHROUGH_HEADERS`, `TRACE_PASSTHROUGH_HEADERS`, `AGENT_PASSTHROUGH_HEADERS`, `FORWARDED_TO_OWNER`, `OWNER_CACHE_TTL` and `FAILED_START_BACKOFF`, and so is `smart_fallback_handler` (`static_content::fallback`). `REFRESH_INTERVAL`, `CACHE_TTL` and `GATEWAY_SERVER_ERROR_MESSAGE` are in `systemprompt_gateway_entry::http` (`bridge::release`, `messages::error`), `REAUTH_WINDOW_SECS` is `systemprompt_identity_entry::http::oauth::endpoints::authorize::decision::REAUTH_WINDOW_SECS`, `FRESH_REVALIDATE_AFTER` is `systemprompt_marketplace::catalog::FRESH_REVALIDATE_AFTER`, and `VERIFY_ATTEMPTS` and `VERIFY_BACKOFF` are in `systemprompt_mcp::services::reconcile`."

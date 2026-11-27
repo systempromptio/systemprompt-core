@@ -1,0 +1,14 @@
+[[crate]]
+name = "systemprompt-traits"
+section = "Breaking"
+text = "`SessionUsageCounters` requires `increment_ai_usage(&SessionId, tokens: i32, cost_microdollars: i64)`, which the gateway calls when it settles a request; an implementor adds the method."
+
+[[crate]]
+name = "systemprompt-agent"
+section = "Breaking"
+text = "`AgentOAuthState` holds `audiences: Arc<[JwtAudience]>` and `authenticator: Option<DynRequestAuthenticator>`; the `auth_service` and `jwt_provider` fields are removed. Build it with `AgentOAuthState::new` and `with_authenticator`."
+
+[[crate]]
+name = "systemprompt-runtime"
+section = "Breaking"
+text = "`DataPlane.fingerprint_repo` is removed; the `analytics` member provides the fingerprint view as a `FingerprintProvider`."

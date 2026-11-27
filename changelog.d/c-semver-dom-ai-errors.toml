@@ -1,0 +1,9 @@
+[[crate]]
+name = "systemprompt-ai"
+section = "Breaking"
+text = "`FallbackReason::SynthesisFailed` carries the `AiError` rather than its message, so `FallbackReason` and `SynthesisResult` are not `UnwindSafe` or `RefUnwindSafe`; `SynthesisResult::Success { content }` is a struct variant."
+
+[[crate]]
+name = "systemprompt-ai"
+section = "Breaking"
+text = "`PersonalKeyError::NotPersonalCredential { credential }` (a `CredentialId`) and `PersonalKeyError::Rejected { credential }` are struct variants."

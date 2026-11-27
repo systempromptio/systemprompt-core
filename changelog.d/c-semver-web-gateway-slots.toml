@@ -1,0 +1,24 @@
+[root]
+section = "Breaking"
+area = "Extensions"
+text = "Gateway route selectors, system-prompt overrides, safety scanners, outbound adapters and SSO providers are contributed through capability slots rather than `inventory` registrations: `RouteSelectorSlot`, `OverrideSlot`, `SafetyScannerSlot` and `OutboundSlot` in `systemprompt_gateway::contract`, and `SsoSlot` in `systemprompt_oauth_issuance::contract`. `RouteSelectorRegistration`, `SystemPromptOverrideRegistration`, `SafetyScannerRegistration`, `SsoProviderRegistration`, `AuthEventSinkRegistration` and `RoleResolverRegistration` are removed. Migrate a registration to `c.slot::<RouteSelectorSlot>().selector(..)`, `c.slot::<OverrideSlot>().prompt_override(..)`, `c.slot::<SafetyScannerSlot>().scanner(..)`, `c.slot::<OutboundSlot>().adapter(..)` or `c.slot::<SsoSlot>().provider(..)` / `.event_sink(..)` / `.role_resolver(..)` in `Extension::contribute`."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Breaking"
+text = "`RouteSelectorRegistration`, `SystemPromptOverrideRegistration` and `SafetyScannerRegistration` are removed; contribute through `contract::{RouteSelectorSlot, OverrideSlot, SafetyScannerSlot, OutboundSlot}`. `RouteSelectorChain::new` takes `Vec<Arc<dyn RouteSelector>>` and `OverridePolicy::new` takes `Vec<Arc<dyn SystemPromptOverride>>`. `SafetyScannerRegistry::discover`, `GatewayUpstreamRegistry::is_extension` and `GatewayEngines::refuse_shadowed_caller_wires` are removed: `OutboundSlot` refuses an adapter tagged like a built-in wire or a duplicate tag, and `GatewayUpstreamRegistry::is_builtin(tag)` names the built-in tags. `GatewayUpstreamRegistry::adapter_for` takes only the `WireProtocol`."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Breaking"
+text = "`GatewayRepositories::with_session_store` is removed; settlement counts AI usage through `GatewayRepositories::with_session_usage`."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Breaking"
+text = "`GatewayAuditError::JournalKey(AtRestHashError)` is a new variant on the exhaustive `GatewayAuditError`, returned when the journal key cannot be derived. `GatewayJournal` is not `UnwindSafe` or `RefUnwindSafe` because it holds the journal's `dyn JournalSync` and a `tokio::sync::Mutex`."
+
+[[crate]]
+name = "systemprompt-oauth-issuance"
+section = "Breaking"
+text = "`sso::SsoProviderRegistration`, `sso::AuthEventSinkRegistration` and `sso::RoleResolverRegistration` are removed; contribute through `contract::SsoSlot` (`SsoBuilder::{provider, event_sink, role_resolver}`). `SsoProviderError::Duplicate` is removed: a duplicate provider id is refused by the slot build with `SlotError::DuplicateId`."

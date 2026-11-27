@@ -1,0 +1,14 @@
+[[crate]]
+name = "systemprompt-manifest"
+section = "Breaking"
+text = "`RateLimitsConfig` has a `memory_capacity: u64` field and `QuotaConfig` an `admission_limit: NonZeroU32` field; a struct literal sets them or uses `..Default::default()`."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Breaking"
+text = "`GatewayProfileError` and `CatalogError` (which wraps it) are not `UnwindSafe` or `RefUnwindSafe`, because `GatewayProfileError::BuiltInSecretRef` holds a `ServicesValidationError`. `GatewayProfileError::RouteMatchBadToolType` is a struct variant `{ tool_type }`."
+
+[[crate]]
+name = "systemprompt-manifest"
+section = "Breaking"
+text = "`SkillFrontmatterError::NonFiniteNumber`, `NonStringNestedKey` and `Tagged` are struct variants `{ path }`; `NodeRoleParseError::Unknown` is `{ value }`; `OciReferenceError::MissingRegistry` and `EmptyRepository` are `{ reference }`, `OciReferenceError::InvalidRepository` is `{ repository }`, `InvalidDigest` is `{ digest }` and `InvalidTag` is `{ tag }`."

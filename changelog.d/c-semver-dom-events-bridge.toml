@@ -1,0 +1,9 @@
+[[crate]]
+name = "systemprompt-events"
+section = "Breaking"
+text = "`PostgresEventBridge::new` takes the node's `NotificationHub` as a fifth argument and listens through its subscription."
+
+[[crate]]
+name = "systemprompt-events"
+section = "Breaking"
+text = "`ToSse::to_frame` is a required method returning a `systemprompt_traits::events::SseFrame`, and `ToSse::to_sse` is provided from it; an implementation of `ToSse` implements `to_frame`."

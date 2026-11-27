@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Analytics"
+text = "The AI, agent and tool report rows are owned by the report ports in `systemprompt_traits::usage_reports`, which the member owning each view implements; `systemprompt-analytics` keeps the traffic, session and content rows."
+
+[[crate]]
+name = "systemprompt-analytics"
+section = "Breaking"
+text = "The AI, agent and tool report rows of `models::reporting` move to `systemprompt_traits::usage_reports`: `ToolCaller`, `AgentStatsRow`, `AgentListRow`, `AgentStatusBreakdownRow`, `AgentHourlyRow`, `AgentAiStatsRow`, `AgentSummaryRow`, `AgentErrorRow`, `ToolAgentUsageRow` and `RecentContextRow` (`usage_reports::agent`); `CostSummaryRow`, `PreviousCostRow`, `CostTrendRow`, `CostBreakdownRow`, `CostUserBreakdownRow`, `RequestListFilter`, `RequestListRow`, `RequestStatsRow`, `RequestTrendRow`, `ModelUsageRow`, `ContextGroupRow`, `ContextSummaryRow` and `GatewaySessionListRow` (`usage_reports::ai`); `ToolStatusBreakdownRow`, `ToolSummaryRow`, `ToolListRow`, `ToolExecutionRow`, `ToolStatsRow` and `ToolErrorRow` (`usage_reports::mcp`). The crate-root re-exports `ContextGroupRow`, `ContextSummaryRow` and `RecentContextRow` are removed with them."
+
+[[crate]]
+name = "systemprompt-analytics"
+section = "Breaking"
+text = "`OverviewAgentRow`, `OverviewCostRow`, `OverviewRequestRow`, `OverviewToolRow`, `AgentTaskRow` and `TimestampRow` are removed; the overview and agent reports read the owning member's report port. `TopContentRow` and `ConversationListRow` are the output rows of the `systemprompt-analytics-entry` CLI commands."

@@ -1,0 +1,14 @@
+[[crate]]
+name = "systemprompt-agent"
+section = "Breaking"
+text = "`repository::ownership` is removed, with `AgentOwnerReassignment`; the agent member declares its owner reassignments as `OwnerReassignment` contributions in its extension, which the user merge executes."
+
+[[crate]]
+name = "systemprompt-ai"
+section = "Breaking"
+text = "`repository::ownership` is removed, with `AiOwnerReassignment`; the ai member declares its owner reassignments as `OwnerReassignment` contributions in its extension."
+
+[[crate]]
+name = "systemprompt-database"
+section = "Breaking"
+text = "`repository::ownership` is removed, with the `owner_reassignment!` macro; declare a reassignment as `systemprompt_extension::OwnerReassignment` with `c.owner_reassignment(..)` in the member's extension."

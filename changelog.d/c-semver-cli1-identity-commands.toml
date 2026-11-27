@@ -1,0 +1,4 @@
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`admin::bridge::BridgeCommands`, `admin::keys::KeysCommands` and the `admin::bridge::signing_key_fingerprint` module (`SigningKeyFingerprintArgs`, `SigningKeyFingerprintOutput`, `key_fingerprint`) are removed; use `systemprompt_identity_entry::cli::bridge::BridgeCommands`, `systemprompt_identity_entry::cli::keys::KeysCommands` and `systemprompt_identity_entry::cli::bridge::signing_key_fingerprint`. `signing_key_fingerprint::manifest_pubkey_b64` is removed; use `systemprompt_security::keys::SigningKeys::manifest_pubkey_b64`."

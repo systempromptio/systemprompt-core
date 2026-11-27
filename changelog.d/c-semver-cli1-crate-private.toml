@@ -1,0 +1,29 @@
+[root]
+section = "Breaking"
+area = "CLI"
+text = "`systemprompt-cli` exports only the items another crate or test reads: the command output types of `admin config`, `admin session`, `admin bootstrap`, `infra jobs`, `infra logs` and `infra services start`, and the setup and catalog helpers, are crate-private. Drive these commands through the CLI rather than calling their modules."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`admin::config::types::{ConfigOverviewOutput, ConfigMutationOutput, ServerConfigOutput, ServerOverview, ServerSetOutput, CorsListOutput, CorsModifyOutput, RuntimeConfigOutput, RuntimeOverview, RuntimeSetOutput, SecurityConfigOutput, SecurityOverview, SecuritySetOutput, RateLimitsSummary, PathsConfigOutput, PathsOverview, PathsValidateOutput, PathInfo, ServicesConfigOutput, ServicesSetOutput}` are crate-private."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`infrastructure::jobs::types::{JobListOutput, JobShowOutput, JobEnableOutput, JobRunOutput, JobRunResult, BatchJobRunOutput, JobHistoryOutput, JobHistoryEntry}` are crate-private."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`infrastructure::logs::{LogFilters, LogViewOutput, LogExportOutput, LogCleanupOutput, LogDeleteOutput}`, `logs::search::CombinedSearchOutput`, `logs::trace::{TraceListOutput, TraceListRow}` and `logs::governance::report::{GovernanceReportOutput, WarningGroupRow, SafetyFindingGroupRow}` are crate-private."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`admin::session::types::{SessionShowOutput, SwitchOutput, RoutingInfo}`, `admin::bootstrap::BootstrapOutput` and `infrastructure::services::start::StartupOptions` are crate-private."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`admin::config::catalog_edit::{parse_wire, parse_clients, parse_endpoints, parse_headers}`, `catalog_discovery::show_discovery`, `admin::config::secret::file_secrets_path` (which takes a `&dyn KernelHost`), `admin::config::migrate::models::pricing_close`, `admin::config::migrate::swap::StdFileSwap`, `admin::setup::provision::provision_role_and_db` and `admin::setup::postgres::require_verified` are crate-private."

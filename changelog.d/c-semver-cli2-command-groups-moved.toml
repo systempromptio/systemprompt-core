@@ -1,0 +1,24 @@
+[root]
+section = "Breaking"
+area = "CLI"
+text = "The cloud, marketplace-services, agent and issues command groups are compiled from their own crates: `CoreCommands::Artifacts` and `CoreCommands::Contexts` are registered by `systemprompt-agent-entry`, `AdminCommands::Issues` by `systemprompt-issues`, and the cloud and services constants they use move with them."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`CoreCommands::Artifacts` and `CoreCommands::Contexts` are removed; `ArtifactsCommands` and `ContextsCommands` are registered by `systemprompt-agent-entry`. `AdminCommands::Issues` is removed; `IssuesCommands` is registered by `systemprompt-issues`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "The cloud command consts `SUCCESS_HTML`, `ERROR_HTML`, `DEFAULT_READINESS_WAIT`, `FORWARD_ONLY_HINT`, `VAULT_ADDR_ENV` and `VAULT_NAMESPACE_ENV` are removed; they are in `systemprompt-cloud-entry` under `cli::templates::oauth`, `cli::deploy::pipeline::orchestrator`, `cli::doctor::restore_checks` and `cli::deploy::pipeline::request`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "The services consts `STAGING_VERSION`, `STAGING_REQUIRES_CORE` and `PLUGIN_CONFIG_FILE` are removed; they are in `systemprompt-marketplace-entry` under `cli::services::staging` and `cli::services::versions`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`runner::routing::operator_tenant_token` is removed; use `systemprompt_cloud::routing::operator_tenant_token` (returns `OperatorTokenError`) or `CloudAccess::operator_tenant_token`. `runner::routing::determine_execution_target(profile, cloud)` and `runner::routing::resolve_tenant(profile, tenant, cloud)` take an `Option<&DynCloudAccess>`; `resolve_tenant` returns a `TenantRoute`."

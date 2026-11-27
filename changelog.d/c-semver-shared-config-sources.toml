@@ -1,0 +1,4 @@
+[[crate]]
+name = "systemprompt-config"
+section = "Breaking"
+text = "`bootstrap::build_external_provider(cfg, env, &SecretsSources)` takes the composition's external secrets sources as a third argument; `SecretsService::load(profile, SecretsSources)` and `SecretsService::from_secrets(profile, SecretsSources, secrets)` take them too. Build a `SecretsSources::new(registrations)` from the composition and pass it."

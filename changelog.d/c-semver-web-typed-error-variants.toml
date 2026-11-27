@@ -1,0 +1,34 @@
+[root]
+section = "Breaking"
+area = "Error types"
+text = "The OAuth, OAuth issuance, security and gateway error variants that carried a bare `String` are struct variants with named, typed fields (`OauthError::ClientNotFound { client_id: ClientId }`, `AuthError::UnknownKid { kid }`, `ImageFetchFault::UnsupportedType { mime }`). Migrate a pattern `E::V(s)` to `E::V { field }` or `E::V { .. }`."
+
+[[crate]]
+name = "systemprompt-oauth"
+section = "Breaking"
+text = "`OauthError` variants are struct variants: `TokenInvalid { reason: &'static str }`, `Expired { reason: &'static str }`, `InvalidClient { reason: &'static str }`, `ClientNotFound { client_id: ClientId }`, `UsernameTaken { username }`, `EmailRegistered { email }`, `UserNotFound { user_id: UserId }` and `WebAuthnVerificationFailed { reason: &'static str }`. `OauthError::InvalidGrant` is removed; a refused enterprise-identity link is `OauthError::FederatedLinkRefused { refusal: FederatedRefusal }`, and a DCR client missing from `oauth_clients` is `OauthError::DcrClientNotFound { client_id }`."
+
+[[crate]]
+name = "systemprompt-oauth"
+section = "Breaking"
+text = "`OAuthParseError` variants are struct variants `{ value: String }`: `GrantType`, `PkceMethod`, `ResponseType`, `ResponseMode`, `DisplayMode`, `Prompt` and `TokenAuthMethod`."
+
+[[crate]]
+name = "systemprompt-oauth"
+section = "Breaking"
+text = "`services::providers` (`JwtValidationProviderImpl`) is removed; a bearer is verified through the kernel's request authenticator. `services::jwt::authorization` is `systemprompt_security::jwt::authorization` (`AuthorizationService`)."
+
+[[crate]]
+name = "systemprompt-oauth-issuance"
+section = "Breaking"
+text = "`ClientCredentialsError::InvalidScope { reason }`, `ClientCredentialsError::InvalidAudience { audience }` and `OidcProviderError::IdpError { code }` are struct variants."
+
+[[crate]]
+name = "systemprompt-security"
+section = "Breaking"
+text = "`JwksClientError::InsecureScheme { issuer }`, `JwksClientError::HostNotAllowed { host }`, `AuthError::UnknownKid { kid }` and `AuthError::UntrustedIssuer { issuer }` are struct variants."
+
+[[crate]]
+name = "systemprompt-gateway"
+section = "Breaking"
+text = "`ImageFetchFault::UnsupportedType { mime }` and `GuardedRejection::Unresolvable { host }` are struct variants."

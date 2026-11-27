@@ -1,0 +1,9 @@
+[[crate]]
+name = "systemprompt-files"
+section = "Breaking"
+text = "`ModelRejection::BlockTooLong`, `TooManyMarks`, `BadBlockId`, `BadAttribute`, `MarkOutOfRange`, `LinkNotAllowed`, `UnexpectedText` and `RawChanged` are struct variants `{ block }`, and `FileUploadError::PathValidation { reason }` is a struct variant carrying a `&'static str`."
+
+[[crate]]
+name = "systemprompt-files"
+section = "Breaking"
+text = "`DocumentRepositories::new` and `DocumentBlobRepository::new` take the shared `Arc<BlobHolders>` after the `&DbPool`. `PathMove` is `Copy`."

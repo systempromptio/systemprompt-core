@@ -1,0 +1,19 @@
+[[crate]]
+name = "systemprompt-governance"
+section = "Breaking"
+text = "The `policy::governed` module is removed: `GovernedTarget`, `GovernedInput`, `GovernedString`, `GovernedScalar`, `PromptPart`, `McpToolInput`, `PROMPT_TARGET_NAME` and `UNKNOWN_TARGET_NAME` are defined in `systemprompt_provider_contracts::governance` and re-exported from `policy`. `policy::rate_window::RateCounts` is removed; use `policy::RateCounts` (`systemprompt_provider_contracts::governance::RateCounts`)."
+
+[[crate]]
+name = "systemprompt-governance"
+section = "Breaking"
+text = "`policy::registry::PolicyRegistration`, `authz::registry::AuthzHookRegistration`, `authz::subject_directory::RoleDirectoryRegistration` and `authz::subject::SubjectProviderRegistration` are removed, with `AuthzHookContext`, `discover_authz_hook`, `discover_role_directory` and `discover_subject_providers`; contribute a policy with `Contributions::policy`, subject attributes with `Contributions::subject_attributes`, and a hook or role directory to `contract::{AuthzHookSlot, RoleDirectorySlot}`."
+
+[[crate]]
+name = "systemprompt-governance"
+section = "Breaking"
+text = "`GovernanceEngine::load(pool, &PolicyCatalog, rate_windows, unapplied)` and `GovernanceEngine::from_config(config, &PolicyCatalog, rate_windows)` take the policy catalog. `AccessControlIngestionService::new(db, role_directory)` and `AccessControlIngestionService::from_pool(pool, role_directory)` take an `Option<SharedRoleDirectory>` in place of the services view, subject handle and secret store."
+
+[[crate]]
+name = "systemprompt-governance"
+section = "Breaking"
+text = "`AuthzError::InvalidAccess`, `AuthzError::UnknownEntityKind` and `AuthzError::UnknownAccessScope` are removed; `AuthzError::InvalidRuleType` is a struct variant `{ rule_type }` and `AuthzError::Subject` wraps a `SubjectAttributeError`. `RulesProblem::Duplicate` is a struct variant `{ entity }`. `GovernanceConfigError::InvalidEnabled { location, value }` and `PolicyConfigurationError::ContributedPolicyParams` are new variants of exhaustive enums."

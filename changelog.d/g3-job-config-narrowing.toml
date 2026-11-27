@@ -11,7 +11,7 @@ text = "`PrerenderEnv::config` is replaced by `PrerenderEnv::settings: &Prerende
 [[crate]]
 name = "systemprompt-agent-runs"
 section = "Fixed"
-text = "The `agent_run_dirs_cleanup` job resolves `AgentRunRetention`, which the `agent_runs` member provides from the runtime configuration, instead of the sealed `Arc<Config>`; the job ran into `MissingDependency` on every run and no run directory was removed."
+text = "The `agent_run_dirs_cleanup` job resolves `AgentRunRetention`, which the `agent_runs` member provides from the runtime configuration, instead of the sealed `Arc<Config>`, so every run resolves its dependency and removes the expired run directories."
 
 [[crate]]
 name = "systemprompt-agent-runs"

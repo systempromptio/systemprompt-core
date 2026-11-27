@@ -1,0 +1,24 @@
+[root]
+section = "Breaking"
+area = "CLI"
+text = "`plugins` reports the admitted composition: `plugins seams` lists one row per admitted member and contribution kind, `plugins capabilities` covers jobs, schemas, roles and configuration sections, and `plugins validate`, `plugins capabilities templates` and `plugins capabilities tools` are removed. Their JSON output shapes change to match."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`plugins::seams::catalog` is removed with `LinkedSeam` and `linked_seams`, as are `plugins::seams::Needed`, `plugins::seams::Requirement`, `plugins::seams::profile_requirements`, `plugins::seams::evaluate` and `plugins::types::SeamStatus`. `SeamRow` is `{ member, standing, contribution, count, entries }` (fields `seam`, `owner`, `requires` and `status` are removed) and `SeamsArgs` filters by `member` instead of `seam`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`CapabilitiesCommands::Templates` and `CapabilitiesCommands::Tools` are removed with `plugins::capabilities::templates::TemplatesArgs`, `plugins::types::TemplateInfo`, `plugins::types::TemplateWithExtension`, `plugins::types::TemplatesListOutput`, `plugins::types::ToolWithExtension` and `plugins::types::RouteInfo`. `plugins validate` is removed with `plugins::types::ExtensionValidationOutput` and `plugins::types::ValidationWarning`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`CapabilitySummary` and `CapabilitiesSummaryOutput` count `jobs`, `schemas`, `roles` and `configs`; their `templates`, `tools`, `routes` and `storage_paths` fields and `CapabilitySummary::summary_string` are removed."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`ExtensionSummary` and `ExtensionDetailOutput` carry `standing: ExtensionStanding` instead of `priority`; `ExtensionDetailOutput` carries `config_prefixes: Vec<String>` instead of `config_prefix`, and drops `dependencies`, `templates`, `routes`, `tools` and `storage_paths`. `ExtensionConfigOutput` and `ExtensionConfigSummary` drop `has_config` (`config_prefix` is a `String`, `ExtensionConfigOutput::config_schema` a `serde_json::Value`); `SchemaInfo` and `SchemaWithExtension` drop `source`."

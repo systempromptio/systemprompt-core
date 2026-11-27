@@ -1,0 +1,24 @@
+[root]
+section = "Breaking"
+area = "CLI"
+text = "Project discovery, identity generation, resolved paths, boot loading and the provider catalog constants live in `systemprompt-loader` (`systemprompt_loader::workspace`, `systemprompt_loader::load_boot`); `shared::project`, `shared::identity`, `systemprompt_cli::paths` and `systemprompt_cli::boot` loaders are removed from the CLI."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`shared::project` is removed; `ProjectRoot` and `ProjectError` are `systemprompt_loader::workspace::paths::{ProjectRoot, ProjectError}`. `systemprompt_cli::paths::ResolvedPaths` is removed; use `systemprompt_loader::workspace::paths::ResolvedPaths`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`shared::identity` is removed with its re-exports `generate_identity` and `IdentityBundle`; use `systemprompt_loader::workspace::identity::{generate_identity, IdentityBundle}`, where `generate_identity` returns `Result<IdentityBundle, IdentityError>`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`boot::load_profile`, `boot::load_boot` and `boot::load_boot_from_path` are removed. Use `LoadedProfile::from_path` for the profile and `systemprompt_loader::load_boot::{load_boot, load_boot_from_path}`, which take a `SecretsSources` argument and return `BootLoadError`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "The const `VERTEX` is removed from the CLI setup catalog; use `systemprompt_loader::workspace::provider_catalog::VERTEX`."

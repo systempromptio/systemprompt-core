@@ -1,0 +1,34 @@
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`DbCommands::MigrateStatus`, `DbCommands::MigrateRepair` and `DbCommands::MigrateMarkApplied` have no `json` field; select JSON with the global output format (`OutputFormat::Json`)."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`JobsCommands::Prune` is a new variant of the exhaustive `JobsCommands`. `jobs::types::JobInfo` carries `owner` and `registered`; `ExtensionMigrationStatus` drops `is_required`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`web::assets::execute` takes `(command, config, services_root: &Path, profile: &Profile)` and returns `Result<CommandOutput>`. `WebPaths::resolve` takes the services root `&Path`; `WebPaths::resolve_from_profile` is removed (pass `profile.paths.services`)."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`CliSessionContext::to_request_context` is removed; a command builds its `RequestContext` with `CallerSession::request_context` from `systemprompt_extension::cli`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "The features `office`, `pdf`, `engine-loro` and `agent-runs` are removed from `systemprompt-cli`; enable `files-office`, `files-pdf`, `files-collab-loro` and `agent-runs` on the `systemprompt` facade."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "`session::api::create_local_session_row` and `shared::logs_dir` (`resolve_logs_dir`) are removed; CLI session rows open through the users admin-bootstrap view and log directories resolve with `systemprompt_models::path_confine::logs::confined_logs_dir`."
+
+[[crate]]
+name = "systemprompt-cli"
+section = "Breaking"
+text = "These items are crate-private: `build::types::BuildOutput`, `build::types::CoreBuildOutput`, `build::types::BuildExtensionRow`, `session::resolution::ProfileContext`, `session::api::load_signing_keys`, `runner::routing::authorize_target`, `runner::interrupt::restore_terminal`, and the consts `AI_FILE`, `GATEWAY_FILE`, `PROVIDERS_FILE`, `LEGACY_MAP_FILE`, `DATABASE_URL_ALIASES` and `SEED_BYTES`."

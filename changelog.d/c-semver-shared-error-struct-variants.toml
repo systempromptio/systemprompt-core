@@ -1,0 +1,4 @@
+[root]
+section = "Breaking"
+area = "Error types"
+text = "Error variants across the crate family that carried one unnamed value are struct variants with a named field (`OutboundUrlError::Scheme { scheme }`, `ConfigLoadError::DuplicateAgent { name }`, `McpDomainError::ServerNotFound { server }`, `CostDirectiveError::Rows { value }` and the others each crate's changelog lists), and several error enums gain variants. Match them by field name (`E::V { field, .. }`) and add a wildcard arm where the enum is matched exhaustively."
