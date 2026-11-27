@@ -5,6 +5,11 @@
 //! replay protection — and neither may reach up into the other. One struct is
 //! both the writer's and every reader's shape.
 //!
+//! `enabled_hosts` is read leniently: a host id this binary does not know is
+//! dropped with a warning instead of failing the read. A newer bridge may have
+//! written the record before a rollback, and install and uninstall must still
+//! run on the binary that is left.
+//!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
@@ -51,7 +56,7 @@ pub struct LastSyncState {
     pub hook_count: usize,
     #[serde(default)]
     pub user: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "known_hosts")]
     pub enabled_hosts: Vec<HostKind>,
     #[serde(default)]
     pub auto_update: AutoUpdatePolicy,
@@ -59,6 +64,26 @@ pub struct LastSyncState {
     pub host_failures: Vec<String>,
     #[serde(default)]
     pub malformed_plugins: Vec<String>,
+}
+
+fn known_hosts<'de, D>(deserializer: D) -> Result<Vec<HostKind>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let recorded = Vec::<String>::deserialize(deserializer)?;
+    Ok(recorded
+        .into_iter()
+        .filter_map(|id| match id.parse::<HostKind>() {
+            Ok(host) => Some(host),
+            Err(error) => {
+                tracing::warn!(
+                    %error,
+                    "last-sync record names a host this bridge does not know; dropping it"
+                );
+                None
+            },
+        })
+        .collect())
 }
 
 impl LastSyncState {

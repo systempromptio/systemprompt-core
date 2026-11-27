@@ -7,7 +7,7 @@
 //! that every variant round-trips through its column string, and that the
 //! bridge host ids map onto the wire vocabulary.
 
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{ConfigOwner, HostKind};
 use systemprompt_models::feedback::EvaluatorClient;
 use systemprompt_models::origin::{
     ClassificationInput, ClassificationRejection, ClientAttestation, ClientKind,
@@ -256,6 +256,61 @@ fn host_token_wins_over_everything_and_names_the_attested_host() {
         Some(NativeMarker::ClaudeMetadataUserId)
     );
     assert!(classified.conflicting);
+}
+
+#[test]
+fn a_host_token_never_attests_a_client_whose_host_configures_itself() {
+    let mut i = input(b"{}");
+    i.principal_is_bridge = true;
+    i.declared_attestation = Some("host-token");
+    i.declared_client = Some("harness");
+    let rejection = classify(&i).expect_err("the bridge holds no credential for harness");
+    assert!(matches!(
+        rejection,
+        ClassificationRejection::HostTokenForHostOwnedClient { .. }
+    ));
+    assert!(rejection.to_string().contains("configures itself"));
+    assert_eq!(
+        rejection.evidence().declared_client.as_deref(),
+        Some("harness")
+    );
+    assert_eq!(rejection.evidence().attested_host, None);
+
+    for host in HostKind::ALL {
+        let client = ClientKind::from(host);
+        i.declared_client = Some(client.as_str());
+        match host.config_owner() {
+            ConfigOwner::Bridge => {
+                let classified = classify(&i).expect("a bridge-configured host is attested");
+                assert_eq!(classified.attestation, ClientAttestation::HostToken);
+                assert_eq!(classified.evidence.attested_host, Some(client));
+            },
+            ConfigOwner::Host => assert!(
+                matches!(
+                    classify(&i),
+                    Err(ClassificationRejection::HostTokenForHostOwnedClient { .. })
+                ),
+                "{host}"
+            ),
+        }
+    }
+}
+
+#[test]
+fn harness_is_still_declared_and_passed_through_on_the_secret_channel() {
+    let mut i = input(b"{}");
+    i.declared_client = Some("harness");
+    let classified = classify(&i).expect("a self-declared harness is attributed");
+    assert_eq!(classified.client, ClientKind::Harness);
+    assert_eq!(classified.attestation, ClientAttestation::Declared);
+    assert_eq!(classified.evidence.attested_host, None);
+
+    i.principal_is_bridge = true;
+    i.declared_attestation = Some("bridge-secret");
+    let classified = classify(&i).expect("the secret channel names no host");
+    assert_eq!(classified.client, ClientKind::Harness);
+    assert_eq!(classified.attestation, ClientAttestation::BridgeSecret);
+    assert_eq!(classified.evidence.attested_host, None);
 }
 
 #[test]

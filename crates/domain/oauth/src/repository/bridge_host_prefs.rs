@@ -8,7 +8,11 @@
 //!   hosts means every default host is enabled, so disabling one for a user
 //!   with no such rows first records the instance's other default hosts as
 //!   enabled, in one transaction. An opt-in host (see [`InstanceHosts`]) is
-//!   enabled only by its own row and never counts towards that heuristic.
+//!   enabled only by its own row and never counts towards that heuristic. The
+//!   last-host guard counts only hosts the bridge configures
+//!   ([`ConfigOwner::Bridge`]): a host that configures itself is one the bridge
+//!   never lists, so it cannot be what keeps a bridge user's last host
+//!   disableable.
 //! - `bridge_user_host_model_prefs`: an optional per-host wire-protocol filter.
 //!   A row's presence is the override (an empty `model_protocols` array means
 //!   "all models"); absence means the host's built-in default applies. Kept in
@@ -30,7 +34,7 @@ use systemprompt_traits::{BridgeHostFilterMigration, RepositoryError};
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::UserId;
-use systemprompt_models::bridge::host::{HostKind, InstanceHosts};
+use systemprompt_models::bridge::host::{ConfigOwner, HostKind, InstanceHosts};
 
 use crate::error::OauthResult;
 
@@ -61,12 +65,22 @@ impl EnabledHostPrefs {
 
 /// Outcome of [`BridgeHostPrefsRepository::set_enabled`].
 ///
-/// "No enabled rows" means every host, so a write that would leave none
-/// enabled cannot be stored and is refused rather than silently enabling all.
+/// "No enabled rows" means every host, so a write that would leave no
+/// bridge-configured host enabled cannot be stored and is refused rather than
+/// silently enabling all.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HostPrefWrite {
     Written,
     WouldDisableAll,
+}
+
+// Why: Postgres may hold a row a newer build wrote; an id this build cannot
+// parse still counts as a choice, as `EnabledHostPrefs::unknown_enabled_row`
+// has it.
+fn is_bridge_configured(raw: &str) -> bool {
+    raw.parse::<HostKind>()
+        .ok()
+        .is_none_or(|host| host.config_owner() == ConfigOwner::Bridge)
 }
 
 fn known_host(user_id: &UserId, table: &'static str, raw: &str) -> Option<HostKind> {
@@ -161,7 +175,7 @@ impl BridgeHostPrefsRepository {
                     .filter(|h| *h != host.as_str())
                     .collect()
             };
-            if remaining.is_empty() {
+            if !remaining.iter().any(|raw| is_bridge_configured(raw)) {
                 return Ok(HostPrefWrite::WouldDisableAll);
             }
             if stored_defaults.is_empty() {

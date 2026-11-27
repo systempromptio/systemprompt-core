@@ -108,10 +108,13 @@ fn an_external_marketplace_ref_raises_the_manifest_floor() {
     use systemprompt_models::bridge::manifest::{
         EXTERNAL_MARKETPLACE_REF_MIN_BRIDGE, manifest_min_bridge_version,
     };
-    let floor = manifest_min_bridge_version(&[
-        marketplace_with_source_ref(None),
-        marketplace_with_source_ref(Some("b2c-agent-plugins@1.10.0")),
-    ]);
+    let floor = manifest_min_bridge_version(
+        &[
+            marketplace_with_source_ref(None),
+            marketplace_with_source_ref(Some("b2c-agent-plugins@1.10.0")),
+        ],
+        std::iter::empty(),
+    );
 
     assert_eq!(floor, EXTERNAL_MARKETPLACE_REF_MIN_BRIDGE);
     assert_eq!(floor, semver::Version::new(0, 63, 0));
@@ -122,10 +125,60 @@ fn a_manifest_without_a_ref_keeps_the_default_floor() {
     use systemprompt_models::bridge::manifest::{manifest_min_bridge_version, min_bridge_version};
 
     assert_eq!(
-        manifest_min_bridge_version(&[marketplace_with_source_ref(None)]),
+        manifest_min_bridge_version(&[marketplace_with_source_ref(None)], std::iter::empty()),
         min_bridge_version()
     );
-    assert_eq!(manifest_min_bridge_version(&[]), min_bridge_version());
+    assert_eq!(
+        manifest_min_bridge_version(&[], std::iter::empty()),
+        min_bridge_version()
+    );
+}
+
+#[test]
+fn a_host_that_configures_itself_raises_the_manifest_floor() {
+    use systemprompt_models::bridge::host::{ConfigOwner, HostKind};
+    use systemprompt_models::bridge::manifest::{
+        HOST_OWNED_HOST_MIN_BRIDGE, manifest_min_bridge_version, min_bridge_version,
+    };
+
+    for host in HostKind::ALL {
+        let floor = manifest_min_bridge_version(&[], [host]);
+        match host.config_owner() {
+            ConfigOwner::Bridge => assert_eq!(floor, min_bridge_version(), "{host}"),
+            ConfigOwner::Host => assert_eq!(floor, HOST_OWNED_HOST_MIN_BRIDGE, "{host}"),
+        }
+    }
+    assert!(
+        !bridge_version_is_supported("0.87.0", &HOST_OWNED_HOST_MIN_BRIDGE),
+        "a 0.87 bridge has no such host id and must be told to upgrade"
+    );
+    assert!(bridge_version_is_supported(
+        "0.88.0",
+        &HOST_OWNED_HOST_MIN_BRIDGE
+    ));
+}
+
+#[test]
+fn a_bridge_below_the_floor_is_told_to_upgrade_before_it_reads_a_host_it_cannot_parse() {
+    let mut envelope = envelope_requiring(Some("999.0.0"));
+    let mut value: serde_json::Value =
+        serde_json::from_str(&envelope.payload).expect("payload is json");
+    value["enabled_hosts"] = serde_json::json!(["claude-code", "a-host-of-a-later-release"]);
+    envelope.payload = value.to_string();
+    assert!(matches!(
+        decode_payload(&envelope),
+        Err(ManifestError::BridgeTooOld { .. })
+    ));
+
+    value["min_bridge_version"] = serde_json::Value::Null;
+    envelope.payload = value.to_string();
+    assert!(
+        matches!(
+            decode_payload(&envelope),
+            Err(ManifestError::PayloadParse(_))
+        ),
+        "without the floor the same manifest is a bare parse error"
+    );
 }
 
 #[test]

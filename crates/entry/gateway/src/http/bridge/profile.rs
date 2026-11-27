@@ -95,6 +95,11 @@ pub async fn set_host_model_filter(
     let (claims, _user) = authenticate_bridge(&state.authenticator, &headers).await?;
     let Json(body) = body.map_err(BridgeError::InvalidBody)?;
 
+    let instance = state.host.services.view().config().instance_hosts();
+    if body.model_protocols.is_some() && !instance.enabled.contains(&body.host_id) {
+        return Err(BridgeError::HostDisabled(body.host_id).into());
+    }
+
     let normalized = body
         .model_protocols
         .as_ref()

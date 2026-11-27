@@ -18,7 +18,9 @@ use serde::{Deserialize, Serialize};
 /// In-process executor, the HTTP proxy tapping an external server, a
 /// `tool_result` block replayed in a `/v1/messages` history, or a client
 /// host's tool-completion hook (`PostToolUse` for Claude Code and Cowork;
-/// `OpenCode`'s own hook).
+/// `OpenCode`'s own hook). A host with no hook vantage point of its own
+/// (`harness`) has no value here: [`ExecutionSource::from_hook_host`] is
+/// `None` for it, never another host's.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecutionSource {
@@ -60,13 +62,13 @@ impl ExecutionSource {
     }
 
     #[must_use]
-    pub const fn from_hook_host(host: crate::bridge::host::HostKind) -> Self {
+    pub const fn from_hook_host(host: crate::bridge::host::HostKind) -> Option<Self> {
         match host.product() {
-            crate::bridge::host::HostProduct::OpenCode => Self::HookOpenCode,
+            crate::bridge::host::HostProduct::OpenCode => Some(Self::HookOpenCode),
             crate::bridge::host::HostProduct::Claude
             | crate::bridge::host::HostProduct::Codex
-            | crate::bridge::host::HostProduct::Hermes
-            | crate::bridge::host::HostProduct::Harness => Self::HookClaudeCode,
+            | crate::bridge::host::HostProduct::Hermes => Some(Self::HookClaudeCode),
+            crate::bridge::host::HostProduct::Harness => None,
         }
     }
 }

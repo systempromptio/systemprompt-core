@@ -2,7 +2,12 @@
 //! per-plugin hook token and a per-host token each open exactly the routes
 //! their surface is read from, and nothing else.
 
+use base64::Engine as _;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use hmac::digest::KeyInit as _;
+use hmac::{Hmac, Mac as _};
 use http::Uri;
+use sha2::{Digest as _, Sha256};
 use systemprompt_bridge::ids::{LoopbackSecret, PluginId, ProxySecret};
 use systemprompt_bridge::proxy::credential::{
     LoopbackCredential, Rejection, RouteClass, authenticate, classify_route, credentialed_hosts,
@@ -34,6 +39,18 @@ fn host(id: HostKind) -> String {
         .expect("the bridge owns this host's configuration")
         .as_str()
         .to_owned()
+}
+
+// Why: the bridge refuses to derive a token for a host that configures
+// itself, so the test computes the HMAC the bridge would have computed —
+// SHA-256 of the secret as the key, the scope label as the message — to hold
+// a credential the bridge never issues.
+fn derived_outside_the_bridge(secret: &str, host: HostKind) -> String {
+    let mut key = hmac::digest::Key::<Hmac<Sha256>>::default();
+    key[..32].copy_from_slice(&Sha256::digest(secret.as_bytes()));
+    let mut mac = Hmac::<Sha256>::new(&key);
+    mac.update(format!("host:{}", host.as_str()).as_bytes());
+    URL_SAFE_NO_PAD.encode(mac.finalize().into_bytes())
 }
 
 fn proxy_path(s: &str) -> ProxyPath {
@@ -312,5 +329,44 @@ fn no_credential_authenticates_as_a_host_that_owns_its_configuration() {
                 "{route:?}"
             );
         }
+    }
+}
+
+#[test]
+fn a_correctly_derived_harness_token_is_rejected_on_every_route_class() {
+    for kind in credentialed_hosts() {
+        assert_eq!(
+            derived_outside_the_bridge(SECRET, kind),
+            host(kind),
+            "the outside derivation is the bridge's own, so the token below is a real one: {kind}"
+        );
+    }
+
+    let token = derived_outside_the_bridge(SECRET, HostKind::Harness);
+    assert!(
+        !verify(&token, &secret(), &TokenScope::Host(HostKind::Harness)),
+        "the right HMAC under the right secret is still no credential"
+    );
+    for route in [RouteClass::Inference, RouteClass::Mcp, RouteClass::Otel] {
+        assert_eq!(
+            authenticate(&token, &secret(), &route),
+            Err(Rejection::SecretMismatch),
+            "{route:?}"
+        );
+    }
+    assert_eq!(
+        authenticate(&token, &secret(), &RouteClass::Other),
+        Err(Rejection::SecretMismatch),
+        "not even recognised as a host token presented on the wrong route"
+    );
+    for route in [
+        RouteClass::Hook(Some(plugin("harness"))),
+        RouteClass::Hook(None),
+    ] {
+        assert_eq!(
+            authenticate(&token, &secret(), &route),
+            Err(Rejection::ScopeMismatch),
+            "{route:?}"
+        );
     }
 }

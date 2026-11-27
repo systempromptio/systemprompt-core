@@ -263,9 +263,7 @@ impl ServicesConfig {
             app.validate(name)?;
         }
 
-        for (key, agent) in &self.external_agents {
-            agent.validate(key)?;
-        }
+        external_agent::validate_catalog(&self.external_agents)?;
 
         self.resolve_catalog(&CatalogContext::default())
             .map(drop)
