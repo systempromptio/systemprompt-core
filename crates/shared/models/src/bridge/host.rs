@@ -133,6 +133,23 @@ impl HostKind {
         }
     }
 
+    // Why: a bridge released before a host joined this vocabulary parses every
+    // host id in the manifest strictly, so it fails a manifest naming that
+    // host. `None` is a host every supported bridge already parses.
+    #[must_use]
+    pub const fn min_bridge_version(self) -> Option<semver::Version> {
+        match self {
+            Self::ClaudeCode
+            | Self::ClaudeDesktop
+            | Self::Codex
+            | Self::CodexCli
+            | Self::OpenCode
+            | Self::OpenCodeCli
+            | Self::Hermes => None,
+            Self::Harness => Some(semver::Version::new(0, 88, 0)),
+        }
+    }
+
     // Why: Claude Code and Claude Desktop are one product but keep separate
     // configuration (managed settings file versus policy hive), so only the
     // Codex and OpenCode pairs share a written config tree.
@@ -162,6 +179,11 @@ impl HostKind {
 
 /// The hosts an instance serves, and the opt-in subset that reaches only the
 /// users who turn it on.
+///
+/// A served host whose [`HostKind::config_owner`] is [`ConfigOwner::Host`]
+/// also reaches only the users who turn it on, whether or not `opt_in` names
+/// it: the "served to every user by default" rule is about the hosts the
+/// bridge configures.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct InstanceHosts {
     pub enabled: Vec<HostKind>,

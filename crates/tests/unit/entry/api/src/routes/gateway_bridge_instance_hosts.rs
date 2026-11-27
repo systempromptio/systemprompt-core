@@ -7,17 +7,18 @@
 //! (kebab-case); `default_enabled: false` keeps an enabled host but makes it
 //! opt-in. `host_extensions` is additive capability a host-owned host alone
 //! may declare, and the manifest route carries it only for a host the user
-//! has enabled.
+//! has enabled. A host that configures itself reaches a user only through
+//! that user's own enabled row, and a key that names no host is refused.
 
 use systemprompt_gateway_entry::http::bridge::manifest::hosts;
 use systemprompt_identifiers::ExternalAgentId;
 use systemprompt_manifest::services::ServicesConfig;
 use systemprompt_manifest::services::external_agent::{ExternalAgentConfig, ExternalAgentKind};
+use systemprompt_marketplace_entry::http::managed::consumer::instance_serves;
 use systemprompt_models::bridge::host::{ConfigOwner, HostKind};
 use systemprompt_models::bridge::ids::HostExtensionId;
 use systemprompt_models::bridge::manifest::{
-    HOST_OWNED_HOST_MIN_BRIDGE, bridge_version_is_supported, manifest_min_bridge_version,
-    min_bridge_version,
+    bridge_version_is_supported, manifest_min_bridge_version, min_bridge_version,
 };
 use systemprompt_models::feedback::EvaluatorClient;
 use systemprompt_oauth::repository::EnabledHostPrefs;
@@ -42,6 +43,12 @@ fn keyed_entry(key: &str, id: &str, enabled: bool) -> (ExternalAgentId, External
 
 fn catalog_entry(id: &str, enabled: bool) -> (ExternalAgentId, ExternalAgentConfig) {
     keyed_entry(id, id, enabled)
+}
+
+fn harness_floor() -> semver::Version {
+    HostKind::Harness
+        .min_bridge_version()
+        .expect("harness names the first bridge that parses it")
 }
 
 fn bridge_configured() -> Vec<HostKind> {
@@ -185,13 +192,32 @@ fn the_per_user_manifest_names_harness_only_on_an_instance_that_declares_it() {
     );
 
     let declared = declaring(&[("harness", true)]);
-    let enabled_hosts = hosts::user_enabled_hosts(&no_rows, &declared.instance_hosts());
-    assert!(enabled_hosts.contains(&HostKind::Harness));
+    assert_eq!(
+        hosts::user_enabled_hosts(&no_rows, &declared.instance_hosts()),
+        bridge_configured(),
+        "declaring harness changes nothing for a user who has not turned it on"
+    );
+
+    let turned_on = EnabledHostPrefs {
+        hosts: vec![HostKind::Harness],
+        unknown_enabled_row: false,
+    };
+    assert_eq!(
+        hosts::user_enabled_hosts(&turned_on, &ServicesConfig::default().instance_hosts()),
+        bridge_configured(),
+        "a stored harness row names nothing on an instance that withholds the host"
+    );
+    let enabled_hosts = hosts::user_enabled_hosts(&turned_on, &declared.instance_hosts());
+    assert_eq!(
+        enabled_hosts,
+        HostKind::ALL.to_vec(),
+        "turning harness on adds it and switches no bridge host off"
+    );
     let protocols = hosts::host_model_protocols_for(Vec::new(), &declared.instance_hosts());
     let extensions = hosts::host_extensions_for(&declared, &enabled_hosts);
     let floor =
         manifest_min_bridge_version(&[], hosts::named(&enabled_hosts, &protocols, &extensions));
-    assert_eq!(floor, HOST_OWNED_HOST_MIN_BRIDGE);
+    assert_eq!(floor, harness_floor());
     assert!(
         !bridge_version_is_supported("0.87.0", &floor),
         "a bridge that cannot parse the host id gets the upgrade-required refusal"
@@ -241,18 +267,23 @@ fn a_stored_model_filter_for_a_withheld_host_stays_out_of_the_manifest() {
     );
     assert_eq!(
         manifest_min_bridge_version(&[], hosts::named(&[], &carried, &Default::default())),
-        HOST_OWNED_HOST_MIN_BRIDGE,
+        harness_floor(),
         "a host named only by a filter key still raises the floor"
     );
 }
 
-// Why: consumer authorization admits a plan or session binding for `host`
-// only when an instance-enabled host accepts it; this is that predicate.
-fn instance_serves(services: &ServicesConfig, host: EvaluatorClient) -> bool {
-    services
-        .instance_enabled_hosts()
-        .iter()
-        .any(|enabled| host.accepts(*enabled))
+#[test]
+fn a_host_named_only_by_an_extension_key_still_raises_the_floor() {
+    let extensions = [(HostKind::Harness, vec![extension("drive")])]
+        .into_iter()
+        .collect();
+    assert_eq!(
+        manifest_min_bridge_version(
+            &[],
+            hosts::named(&[HostKind::ClaudeCode], &Default::default(), &extensions)
+        ),
+        harness_floor()
+    );
 }
 
 #[test]
@@ -273,6 +304,13 @@ fn consumer_authorization_for_harness_follows_the_instance_declaration() {
         &ServicesConfig::default(),
         EvaluatorClient::ClaudeCode
     ));
+    assert!(
+        !instance_serves(
+            &declaring(&[("claude_code", false)]),
+            EvaluatorClient::ClaudeCode
+        ),
+        "a bridge-configured host the instance switched off is refused too"
+    );
 }
 
 fn extension(id: &str) -> HostExtensionId {
@@ -340,7 +378,7 @@ fn the_manifest_carries_extensions_only_for_a_host_the_user_has_enabled() {
 
 #[test]
 fn only_a_host_that_configures_itself_may_declare_extensions() {
-    for id in ["codex_cli", "claude_desktop", "hermes", "cursor"] {
+    for id in ["codex_cli", "claude_desktop", "hermes"] {
         let mut services = ServicesConfig::default();
         services
             .external_agents
@@ -350,7 +388,7 @@ fn only_a_host_that_configures_itself_may_declare_extensions() {
             .expect_err("extensions on a host the bridge configures mean nothing");
         assert!(
             err.to_string()
-                .contains("names no host that configures itself"),
+                .contains("names a host the bridge configures"),
             "{id}: {err}"
         );
         assert!(
@@ -358,6 +396,43 @@ fn only_a_host_that_configures_itself_may_declare_extensions() {
             "{id}: an unvalidated tree still projects no extension for it"
         );
     }
+}
+
+#[test]
+fn a_catalog_key_that_names_no_host_fails_validation() {
+    for key in ["cursor", "harnes", "codex_cl", "claude_code_cli"] {
+        for enabled in [true, false] {
+            let services = declaring(&[(key, enabled)]);
+            let err = services
+                .validate()
+                .expect_err("an entry nothing reads must not validate");
+            let message = err.to_string();
+            assert!(
+                message.contains(&format!("key '{key}' names no host")),
+                "{message}"
+            );
+            assert!(message.contains("claude_code"), "{message}");
+            assert!(message.contains("harness"), "{message}");
+        }
+    }
+
+    let mistyped_off = declaring(&[("codex_cl", false)]);
+    assert!(
+        mistyped_off
+            .instance_enabled_hosts()
+            .contains(&HostKind::CodexCli),
+        "the host the operator meant to switch off is still served, which is why the tree is \
+         refused"
+    );
+
+    let mut with_extensions = ServicesConfig::default();
+    with_extensions
+        .external_agents
+        .extend([with_extensions("cursor", &["drive"])]);
+    let err = with_extensions
+        .validate()
+        .expect_err("the key is refused before its extensions are read");
+    assert!(err.to_string().contains("names no host"), "{err}");
 }
 
 #[test]
