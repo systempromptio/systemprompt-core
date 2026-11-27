@@ -167,6 +167,46 @@ fn read_last_sync_reads_new_field() {
     );
 }
 
+// Why: a newer bridge may have written the record before a rollback; the
+// binary that is left must still install and uninstall from it.
+#[test]
+fn read_last_sync_drops_a_host_this_binary_does_not_know() {
+    let dir = tempdir();
+    let path = dir.join("last-sync.json");
+    fs::write(
+        &path,
+        r#"{"manifest_version":"2026-04-22T10:00:00Z-abcdef01","enabled_hosts":["claude-code","a-host-of-a-later-release","hermes"]}"#,
+    )
+    .unwrap();
+    let s = read_last_sync(&path)
+        .expect("an unknown host id does not fail the read")
+        .expect("found");
+    assert_eq!(s.enabled_hosts, [HostKind::ClaudeCode, HostKind::Hermes]);
+    assert!(
+        s.manifest_version.is_some(),
+        "the rest of the record is kept"
+    );
+
+    fs::write(&path, r#"{"enabled_hosts":"claude-code"}"#).unwrap();
+    assert!(
+        matches!(read_last_sync(&path), Err(ReplayStateError::Parse { .. })),
+        "a record of the wrong shape is still corrupt"
+    );
+}
+
+#[test]
+fn a_written_record_reads_back_with_every_host_it_named() {
+    let dir = tempdir();
+    let path = dir.join("last-sync.json");
+    let written = LastSyncState {
+        enabled_hosts: HostKind::ALL.to_vec(),
+        ..LastSyncState::default()
+    };
+    fs::write(&path, serde_json::to_vec(&written).unwrap()).unwrap();
+    let s = read_last_sync(&path).expect("valid file").expect("found");
+    assert_eq!(s.enabled_hosts, HostKind::ALL.to_vec());
+}
+
 #[test]
 fn read_last_sync_missing_file_yields_none() {
     let dir = tempdir();
