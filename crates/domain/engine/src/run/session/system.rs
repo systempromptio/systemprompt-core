@@ -5,11 +5,13 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::config::Loaded;
 use crate::prompt::system::{
     self, Environment, ExtensionSection, InstructionFile, NamedEntry, ShellInUse, SystemInput,
 };
 use crate::prompt::{agents, notices, tool_names};
 use crate::store::MessageWithParts;
+use systemprompt_identifiers::ModelId;
 
 use super::attachments::slash;
 use super::run::StepContext;
@@ -17,20 +19,24 @@ use crate::run::directory::prompt_shell;
 use crate::run::extension::PromptContext;
 use crate::run::tools::registry::ToolBox;
 
-pub(crate) fn prompt(
-    ctx: &StepContext,
-    toolbox: &ToolBox,
-    history: &[MessageWithParts],
-) -> Vec<String> {
-    let config = &ctx.config;
-    let instructions: Vec<InstructionFile<'_>> = config
+fn instruction_files(config: &Loaded) -> Vec<InstructionFile<'_>> {
+    config
         .instructions
         .iter()
         .map(|file| InstructionFile {
             path: &file.path,
             text: &file.text,
         })
-        .collect();
+        .collect()
+}
+
+pub(crate) fn prompt(
+    ctx: &StepContext,
+    toolbox: &ToolBox,
+    history: &[MessageWithParts],
+) -> Vec<String> {
+    let config = &ctx.config;
+    let instructions = instruction_files(config);
     let skills: Vec<NamedEntry<'_>> = if toolbox.has(tool_names::SKILL) {
         config
             .skills
@@ -62,10 +68,11 @@ pub(crate) fn prompt(
     });
     let date = chrono::Local::now().format("%Y-%m-%d (%A)").to_string();
     let governed_by = ctx.inner.governed.governed_by();
+    let model_id = ModelId::new(ctx.model.id.as_str());
     let step = PromptContext {
         session_id: &ctx.session.id,
         agent: &ctx.agent.name,
-        model_id: &ctx.model.id,
+        model_id: &model_id,
         directory: &ctx.session.directory,
         subagent: ctx.session.parent_id.is_some(),
     };
@@ -87,7 +94,7 @@ pub(crate) fn prompt(
             platform: std::env::consts::OS,
             shell,
             date: &date,
-            model_id: &ctx.model.id,
+            model_id: &model_id,
         },
         instructions: &instructions,
         extension_sections: &extension_sections,

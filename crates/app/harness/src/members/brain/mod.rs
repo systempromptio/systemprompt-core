@@ -3,7 +3,8 @@
 //!
 //! - [`client`]: [`BrainClient`], one account's brain routes (facts, their
 //!   timelines and why-views, subjects, entering and governing facts, disputes,
-//!   proposals), called with the account's JWT through [`systemprompt_device::client::with_jwt`].
+//!   proposals), called with the account's JWT through
+//!   [`systemprompt_device::client::with_jwt`].
 //! - [`error`]: [`BrainError`], how the instance's answers map to failures; a
 //!   brain the instance did not enable is [`BrainError::Disabled`].
 //! - [`service`]: [`BrainService`], the brain of the applied instance as the

@@ -1,8 +1,9 @@
 //! The retry policy as pure functions. The loop that waits and resends belongs
 //! to the caller.
 //!
-//! [`delay`](crate::llm::retry::delay) takes a 1-based attempt: the server's wait
-//! when given (capped at [`MAX_RETRY_AFTER`](crate::llm::retry::MAX_RETRY_AFTER)),
+//! [`delay`](crate::llm::retry::delay) takes a 1-based attempt: the server's
+//! wait when given (capped at
+//! [`MAX_RETRY_AFTER`](crate::llm::retry::MAX_RETRY_AFTER)),
 //! else [`BASE_DELAY`](crate::llm::retry::BASE_DELAY) doubled per attempt up to
 //! [`MAX_DELAY`](crate::llm::retry::MAX_DELAY), without jitter.
 //! [`retry_after`](crate::llm::retry::retry_after) reads `retry-after-ms`

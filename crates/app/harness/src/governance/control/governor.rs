@@ -75,9 +75,9 @@ impl Governor for Governance {
         let Some(instance) = self.current() else {
             return Err(GovernError::NotSignedIn);
         };
-        if !instance.offers(&call.model_id) {
+        if !instance.offers(call.model_id.as_str()) {
             return Err(GovernError::ModelNotOffered {
-                model: call.model_id.clone(),
+                model: call.model_id.to_string(),
             });
         }
         self.remember_directory(call.session_id.as_str(), &call.directory);

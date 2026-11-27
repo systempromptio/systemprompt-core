@@ -17,10 +17,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 pub use config::{ManagerConfig, ServerConfig, ServerSpec, ServerStatus, StatusMap};
-use systemprompt_traits::BackgroundTasks;
 use parking_lot::Mutex;
 use serde_json::Value;
 use state::{ConnectSettings, Shared, Slot, State};
+use systemprompt_traits::BackgroundTasks;
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
@@ -113,7 +113,9 @@ impl McpManager {
             .servers
             .get(name)
             .map(|slot| slot.config.clone())
-            .ok_or_else(|| McpError::UnknownServer(name.to_owned()))?;
+            .ok_or_else(|| McpError::UnknownServer {
+                server: name.to_owned(),
+            })?;
         if !config.enabled {
             return Ok(());
         }
@@ -169,7 +171,9 @@ impl McpManager {
             let entry = state
                 .catalog
                 .get(qualified_name)
-                .ok_or_else(|| McpError::UnknownTool(qualified_name.to_owned()))?;
+                .ok_or_else(|| McpError::UnknownTool {
+                    tool: qualified_name.to_owned(),
+                })?;
             let server = entry.server.clone();
             let tool = entry.name.clone();
             let client = state
@@ -178,7 +182,9 @@ impl McpManager {
                 .and_then(|slot| slot.client.clone());
             drop(state);
             (
-                client.ok_or_else(|| McpError::NotConnected(server.clone()))?,
+                client.ok_or_else(|| McpError::NotConnected {
+                    server: server.clone(),
+                })?,
                 server,
                 tool,
             )

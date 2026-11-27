@@ -24,9 +24,9 @@ use systemprompt_models::bridge::instance::{BridgeDiscovery, DISCOVERY_CONTRACT}
 use systemprompt_models::bridge::session::{Capabilities, Health, SessionPatRequest};
 use url::Url;
 
-use crate::client::client::SpClient;
 use crate::client::error::{ClientError, Incompatibility, excerpt};
 use crate::client::http::{DEFAULT_TIMEOUT, SMALL_BODY, decode, exchange, failure, protocol};
+use crate::client::instance::SpClient;
 
 const DISCOVERY_ENDPOINT: &str = "GET /.well-known/systemprompt-bridge";
 const CAPABILITIES_ENDPOINT: &str = "GET /v1/auth/bridge/capabilities";

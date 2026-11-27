@@ -3,9 +3,9 @@
 //!
 //! Every call takes a fresh enough JWT from the account's
 //! [`CredentialSource`](systemprompt_device::client::CredentialSource)
-//! through [`with_jwt`](systemprompt_device::client::with_jwt), which mints once more and retries
-//! when the instance refuses the token. Ids go into the path as single
-//! segments; queries are built from typed values.
+//! through [`with_jwt`](systemprompt_device::client::with_jwt), which mints
+//! once more and retries when the instance refuses the token. Ids go into the
+//! path as single segments; queries are built from typed values.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

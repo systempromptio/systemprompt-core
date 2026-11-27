@@ -13,16 +13,16 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use systemprompt_traits::{CancellationToken, OwnedTask};
 use systemprompt_device::protocol::names::native_session_id;
 use systemprompt_engine::run::Verdict;
 use systemprompt_identifiers::PluginId;
 use systemprompt_identifiers::engine::SessionId;
 use systemprompt_models::bridge::hook_events::{HOOK_TIMEOUT_MS, HookEvent, VERDICT_TIMEOUT_MS};
+use systemprompt_traits::{CancellationToken, OwnedTask};
 use tokio::sync::mpsc;
 
+use crate::governance::control::{SessionBinding, Shared};
 use crate::governance::error::GovernanceError;
-use crate::governance::governance::{SessionBinding, Shared};
 use crate::governance::hooks::hook_token;
 use crate::governance::instance::Instance;
 

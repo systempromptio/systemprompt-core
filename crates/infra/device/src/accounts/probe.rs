@@ -6,7 +6,7 @@
 
 use crate::client::SpClient;
 
-use crate::accounts::accounts::Accounts;
+use crate::accounts::handle::Accounts;
 
 /// What an address turned out to be.
 #[derive(Debug, Clone, PartialEq, Eq)]

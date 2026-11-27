@@ -10,8 +10,8 @@
 
 use std::time::Duration;
 
-use chrono::{DateTime, TimeDelta, Utc};
 use crate::client::Freshness;
+use chrono::{DateTime, TimeDelta, Utc};
 
 pub const RETRY_EVERY: Duration = Duration::from_secs(30);
 

@@ -18,7 +18,7 @@ use crate::protocol::Jwt;
 use crate::protocol::ids::AccountId;
 use async_trait::async_trait;
 
-use crate::accounts::accounts::Accounts;
+use crate::accounts::handle::Accounts;
 
 impl Accounts {
     #[must_use]

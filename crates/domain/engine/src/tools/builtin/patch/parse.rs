@@ -51,8 +51,10 @@ pub(super) enum PatchError {
         hunk: usize,
         expected: String,
     },
-    #[error("{0}")]
-    Invalid(String),
+    #[error("`%% update {path}` has no hunks")]
+    NoHunks { path: String },
+    #[error("a hunk in {path} changes nothing; every hunk needs a - or + line")]
+    IdleHunk { path: String },
     #[error("{path}: the anchor `{anchor}` of hunk {hunk} was not found")]
     AnchorNotFound {
         path: String,
@@ -111,9 +113,7 @@ fn check_updates(ops: &[FileOp]) -> Result<(), PatchError> {
             continue;
         };
         if hunks.is_empty() && rename_to.is_none() {
-            return Err(PatchError::Invalid(format!(
-                "`%% update {path}` has no hunks"
-            )));
+            return Err(PatchError::NoHunks { path: path.clone() });
         }
         let idle = |hunk: &Hunk| {
             hunk.lines
@@ -121,9 +121,7 @@ fn check_updates(ops: &[FileOp]) -> Result<(), PatchError> {
                 .all(|line| matches!(line, HunkLine::Keep(_)))
         };
         if hunks.iter().any(idle) {
-            return Err(PatchError::Invalid(format!(
-                "a hunk in {path} changes nothing; every hunk needs a - or + line"
-            )));
+            return Err(PatchError::IdleHunk { path: path.clone() });
         }
     }
     Ok(())

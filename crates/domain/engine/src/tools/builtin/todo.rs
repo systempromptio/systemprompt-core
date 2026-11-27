@@ -7,9 +7,9 @@ use std::fmt;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_identifiers::engine::SessionId;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use systemprompt_identifiers::engine::SessionId;
 
 use crate::tools::contract::{Tool, ToolContext, ToolOutput};
 use crate::tools::error::ToolError;

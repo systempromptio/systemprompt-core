@@ -10,8 +10,8 @@ use crate::protocol::ids::AccountId;
 use crate::protocol::manifest::Manifest;
 use crate::view::InstanceSummary;
 
-use crate::accounts::accounts::Accounts;
 use crate::accounts::error::AccountsError;
+use crate::accounts::handle::Accounts;
 use crate::accounts::keys;
 
 impl Accounts {

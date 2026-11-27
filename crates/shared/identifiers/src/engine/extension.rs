@@ -5,9 +5,9 @@
 //! An id is 1 to 64 characters of `a-z`, `0-9` and single hyphens, starting
 //! with a letter and not ending with a hyphen. Ids read from a manifest are
 //! validated with `parse`; an extension names its own id with
-//! [`extension_id!`](crate::engine::extension_id), which checks the literal while
-//! compiling, so a malformed id fails the build and the result needs no error
-//! handling.
+//! [`extension_id!`](crate::engine::extension_id), which checks the literal
+//! while compiling, so a malformed id fails the build and the result needs no
+//! error handling.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -124,9 +124,9 @@ macro_rules! extension_id {
     ($value:literal) => {{
         const LITERAL: $crate::engine::ExtensionLiteral =
             match $crate::engine::ExtensionLiteral::new($value) {
-            ::core::option::Option::Some(literal) => literal,
-            ::core::option::Option::None => ::core::panic!("not a well-formed extension id"),
-        };
+                ::core::option::Option::Some(literal) => literal,
+                ::core::option::Option::None => ::core::panic!("not a well-formed extension id"),
+            };
         LITERAL.id()
     }};
 }

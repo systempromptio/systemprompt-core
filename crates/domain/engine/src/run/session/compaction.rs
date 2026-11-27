@@ -26,6 +26,7 @@ use super::run::StepContext;
 use super::step::{put_message, put_part, store_usage};
 use crate::run::error::EngineError;
 use crate::run::governor::{ModelCall, Purpose};
+use systemprompt_identifiers::ModelId;
 
 const MIN_HEADROOM: u64 = 16_000;
 const HEADROOM_PERCENT: u64 = 15;
@@ -114,7 +115,12 @@ fn summary_request(
 
 async fn write_boundary(ctx: &StepContext, auto: bool) -> Result<MessageId, EngineError> {
     let session_id = ctx.session.id.clone();
-    let mut boundary = UserMessage::new(session_id.clone(), COMPACTION.name, &ctx.model.id);
+    let mut boundary = UserMessage::new(
+        ctx.inner.store.ids(),
+        session_id.clone(),
+        COMPACTION.name,
+        &ctx.model.id,
+    );
     boundary.system = true;
     let boundary_id = boundary.id.clone();
     let stored = crate::store::Message::User(boundary);
@@ -123,6 +129,7 @@ async fn write_boundary(ctx: &StepContext, auto: bool) -> Result<MessageId, Engi
         .run(move |store| store.upsert_message(&stored))
         .await?;
     let part = Part::new(
+        ctx.inner.store.ids(),
         session_id,
         boundary_id.clone(),
         PartBody::Compaction { auto },
@@ -138,7 +145,7 @@ async fn summarise(
 ) -> Result<Option<Collected>, EngineError> {
     let call = ModelCall {
         session_id: ctx.session.id.clone(),
-        model_id: ctx.model.id.clone(),
+        model_id: ModelId::new(ctx.model.id.as_str()),
         purpose: Purpose::Compaction,
         directory: ctx.session.directory.clone(),
     };
@@ -173,6 +180,7 @@ async fn write_summary(
 ) -> Result<(), EngineError> {
     let session_id = ctx.session.id.clone();
     let mut summary = AssistantMessage::new(
+        ctx.inner.store.ids(),
         session_id.clone(),
         boundary.clone(),
         COMPACTION.name,
@@ -187,12 +195,21 @@ async fn write_summary(
         text: collected.text.trim().to_owned(),
         synthetic: false,
     };
-    put_part(&ctx.inner, Part::new(session_id, summary.id.clone(), text)).await
+    put_part(
+        &ctx.inner,
+        Part::new(ctx.inner.store.ids(), session_id, summary.id.clone(), text),
+    )
+    .await
 }
 
 async fn write_resume(ctx: &StepContext) -> Result<(), EngineError> {
     let session_id = ctx.session.id.clone();
-    let mut resume = UserMessage::new(session_id.clone(), &ctx.agent.name, &ctx.model.id);
+    let mut resume = UserMessage::new(
+        ctx.inner.store.ids(),
+        session_id.clone(),
+        &ctx.agent.name,
+        &ctx.model.id,
+    );
     resume.system = true;
     let resume_id = resume.id.clone();
     let stored = crate::store::Message::User(resume);
@@ -204,7 +221,11 @@ async fn write_resume(ctx: &StepContext) -> Result<(), EngineError> {
         text: CONTINUE_AFTER_COMPACTION.to_owned(),
         synthetic: true,
     };
-    put_part(&ctx.inner, Part::new(session_id, resume_id, body)).await
+    put_part(
+        &ctx.inner,
+        Part::new(ctx.inner.store.ids(), session_id, resume_id, body),
+    )
+    .await
 }
 
 fn tail_start(live: &[&MessageWithParts], window: u64, steered: &HashSet<MessageId>) -> usize {

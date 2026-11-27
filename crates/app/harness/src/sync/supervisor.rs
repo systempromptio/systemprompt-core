@@ -7,10 +7,10 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_traits::OwnedTask;
 use systemprompt_device::accounts::AccountsSnapshot;
 use systemprompt_device::protocol::ids::AccountId;
 use systemprompt_device::view::{AccountStatus, AccountView, KeyFingerprint, SyncStatus};
+use systemprompt_traits::OwnedTask;
 use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 

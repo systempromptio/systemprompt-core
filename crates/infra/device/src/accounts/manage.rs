@@ -15,8 +15,8 @@ use std::collections::HashSet;
 use crate::client::SpClient;
 use crate::protocol::ids::{AccountId, InstanceKey};
 
-use crate::accounts::accounts::Accounts;
 use crate::accounts::error::AccountsError;
+use crate::accounts::handle::Accounts;
 use crate::accounts::slug::unique_slug;
 use crate::accounts::store::StoreFile;
 

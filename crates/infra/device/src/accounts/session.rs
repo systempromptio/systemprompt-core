@@ -19,7 +19,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use tokio::sync::broadcast;
 
-use crate::accounts::accounts::Accounts;
+use crate::accounts::handle::Accounts;
 use crate::accounts::renewal::Renewal;
 use crate::accounts::schedule::satisfies;
 use crate::accounts::state::State;

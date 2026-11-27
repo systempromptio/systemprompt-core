@@ -8,12 +8,12 @@
 
 use std::sync::Arc;
 
-use futures_util::future::join_all;
 use crate::prompt::{notices, tool_names};
 use crate::store::{JsonMap, MessageId, ToolState, now_ms};
-use systemprompt_traits::CancellationToken;
 use crate::tools::{PermissionGate, PermissionRequest, ToolContext};
+use futures_util::future::join_all;
 use serde_json::Value;
+use systemprompt_traits::CancellationToken;
 
 use super::gate::Gate;
 use super::hooks::Observer;

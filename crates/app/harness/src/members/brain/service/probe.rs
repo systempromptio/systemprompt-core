@@ -7,8 +7,8 @@
 
 use std::time::Duration;
 
-use async_trait::async_trait;
 use crate::extension::{BackgroundService, CancellationToken};
+use async_trait::async_trait;
 
 use super::{BrainService, BrainStatus};
 use crate::members::brain::client::{BrainClient, FactQuery};

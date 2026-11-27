@@ -5,11 +5,11 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use futures_util::StreamExt;
-use systemprompt_identifiers::engine::CallId;
 use crate::llm::{Event, FinishReason, Request, Usage};
 use crate::store::{MessageId, Part, PartBody, PartId, StoreError, ToolState};
+use futures_util::StreamExt;
 use serde_json::{Map, Value, json};
+use systemprompt_identifiers::engine::CallId;
 
 use super::model_call::{self, Attempts};
 use super::run::StepContext;
@@ -95,7 +95,12 @@ impl<'a> Collector<'a> {
     }
 
     fn part(&self, body: PartBody) -> Part {
-        Part::new(self.ctx.session.id.clone(), self.message_id.clone(), body)
+        Part::new(
+            self.ctx.inner.store.ids(),
+            self.ctx.session.id.clone(),
+            self.message_id.clone(),
+            body,
+        )
     }
 
     async fn put(&self, part: Part) -> Result<(), EngineError> {

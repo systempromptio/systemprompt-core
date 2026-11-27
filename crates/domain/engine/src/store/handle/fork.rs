@@ -10,10 +10,12 @@ use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::store::change::Change;
 use crate::store::error::{Result, not_found};
-use crate::store::id::{MessageId, PartId, SessionId, column, now_ms, optional_param, param};
+use crate::store::handle::Store;
+use crate::store::id::{
+    IdClock, MessageId, PartId, SessionId, column, now_ms, optional_param, param,
+};
 use crate::store::model::{DiffSummary, Message, Session};
 use crate::store::rows::{insert_session, load_session, query_messages, write_message};
-use crate::store::store::Store;
 
 const PART_COPIES: &str = "SELECT ordinal, kind, payload, created_at, updated_at FROM part \
      WHERE message_id = ?1 ORDER BY ordinal, id";
@@ -39,7 +41,7 @@ impl Store {
             }
             let now = now_ms();
             let fork = Session {
-                id: SessionId::mint(),
+                id: SessionId::mint(self.ids()),
                 parent_id: None,
                 revert: None,
                 summary: DiffSummary::default(),
@@ -49,7 +51,7 @@ impl Store {
                 ..source
             };
             insert_session(transaction, &fork)?;
-            let copied = copy_messages(transaction, id, before, &fork.id)?;
+            let copied = copy_messages(transaction, self.ids(), id, before, &fork.id)?;
             Self::touch_project(transaction, &fork.project_id, now)?;
             tracing::debug!(source = %id, fork = %fork.id, messages = copied, "session forked");
             changes.push(Change::SessionCreated(Box::new(fork.clone())));
@@ -79,6 +81,7 @@ fn ensure_in_session(
 
 fn copy_messages(
     connection: &Connection,
+    ids: &IdClock,
     source: &SessionId,
     before: Option<&MessageId>,
     fork_id: &SessionId,
@@ -91,10 +94,10 @@ fn copy_messages(
     let mut renamed: HashMap<MessageId, MessageId> = HashMap::with_capacity(messages.len());
     for message in messages {
         let old_id = message.id().clone();
-        let new_id = MessageId::mint();
+        let new_id = MessageId::mint(ids);
         let copy = retarget(message, &new_id, fork_id, &renamed);
         write_message(connection, &copy)?;
-        copy_parts(connection, &old_id, &new_id, fork_id)?;
+        copy_parts(connection, ids, &old_id, &new_id, fork_id)?;
         renamed.insert(old_id, new_id);
     }
     Ok(renamed.len())
@@ -125,6 +128,7 @@ fn retarget(
 
 fn copy_parts(
     connection: &Connection,
+    ids: &IdClock,
     from: &MessageId,
     to: &MessageId,
     session_id: &SessionId,
@@ -142,7 +146,7 @@ fn copy_parts(
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
     for part in parts {
-        let part_id = PartId::mint();
+        let part_id = PartId::mint(ids);
         connection.execute(
             INSERT_PART_COPY,
             params![

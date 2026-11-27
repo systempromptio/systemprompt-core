@@ -18,7 +18,6 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use crate::extension::AppliedInstance;
 use crate::projection::Applied;
 use arc_swap::ArcSwapOption;
-use systemprompt_traits::CancellationToken;
 use indexmap::IndexMap;
 use parking_lot::Mutex;
 use systemprompt_device::client::CredentialSource;
@@ -27,6 +26,7 @@ use systemprompt_device::protocol::origin::normalize_instance_url;
 use systemprompt_engine::run::extension::EnabledExtensions;
 use systemprompt_identifiers::NativeSessionId;
 use systemprompt_identifiers::engine::SessionId;
+use systemprompt_traits::CancellationToken;
 use tokio::sync::broadcast;
 use url::Url;
 

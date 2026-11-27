@@ -1,9 +1,9 @@
 //! The session identifiers as SQLite values.
 //!
-//! The identifier types live in `harness-ids` and are re-exported here
-//! unchanged. Neither crate can implement `rusqlite`'s traits for the other's
-//! types, so ids cross into SQL through `param` / `optional_param` and come
-//! back out through `column` / `optional_column`, which parse and reject a
+//! The identifier types live in `systemprompt-identifiers` and are re-exported
+//! here unchanged. Neither crate can implement `rusqlite`'s traits for the
+//! other's types, so ids cross into SQL through `param` / `optional_param` and
+//! come back out through `column` / `optional_column`, which parse and reject a
 //! malformed value.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -11,9 +11,11 @@
 
 use std::str::FromStr;
 
-pub use systemprompt_identifiers::engine::{CallId, IdError, MessageId, PartId, ProjectId, SessionId, now_ms};
 use rusqlite::Row;
 use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ToSql, ToSqlOutput, ValueRef};
+pub use systemprompt_identifiers::engine::{
+    CallId, IdClock, IdError, MessageId, PartId, ProjectId, SessionId, now_ms,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct IdParam<'a>(&'a str);

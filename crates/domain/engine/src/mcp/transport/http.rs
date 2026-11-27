@@ -172,7 +172,7 @@ impl Shared {
             self.sink.deliver(reply);
             return Ok(());
         }
-        Err(McpError::ContentType(content_type))
+        Err(McpError::ContentType { content_type })
     }
 
     fn listen(self: &Arc<Self>) {

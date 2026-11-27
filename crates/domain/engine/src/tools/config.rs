@@ -8,8 +8,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::tools::builtin::TodoSink;
 use crate::tools::shell::BackgroundJobs;
-use crate::tools::tools::TodoSink;
 use crate::tools::truncate::OutputLimits;
 
 /// How shell commands run. `path` replaces the detected shell (a path, or a

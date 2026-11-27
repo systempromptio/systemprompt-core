@@ -6,11 +6,11 @@
 
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use crate::config::Loaded;
 use crate::prompt::engine_tools::{SKILL_DESCRIPTION, skill_content, skill_schema};
 use crate::prompt::tool_names::SKILL;
 use crate::tools::{PermissionRequest, Tool, ToolContext, ToolError, ToolOutput};
+use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{Value, json};
 

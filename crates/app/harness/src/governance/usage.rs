@@ -5,8 +5,8 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use chrono::{DateTime, Utc};
-use systemprompt_engine::llm::Usage;
 use parking_lot::Mutex;
+use systemprompt_engine::llm::Usage;
 
 /// What the instance's gateway carried since the instance was applied.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

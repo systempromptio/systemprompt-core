@@ -21,7 +21,7 @@ use systemprompt_traits::OwnedTask;
 use tokio::runtime::Handle;
 use tokio_util::sync::CancellationToken;
 
-use crate::accounts::accounts::{Accounts, Inner};
+use crate::accounts::handle::{Accounts, Inner};
 use crate::accounts::schedule::{renewal_delay, retry_delay};
 
 const RENEWAL_TASK: &str = "session-renewal";

@@ -7,10 +7,10 @@
 use std::fmt;
 use std::sync::Arc;
 
-use systemprompt_identifiers::engine::ExtensionId;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value};
+use systemprompt_identifiers::engine::ExtensionId;
 use tokio::sync::watch;
 
 /// The shell's preference store as extensions reach it.

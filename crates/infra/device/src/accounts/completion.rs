@@ -20,8 +20,8 @@ use systemprompt_models::bridge::gateway::WhoamiResponse;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use crate::accounts::accounts::Accounts;
 use crate::accounts::error::AccountsError;
+use crate::accounts::handle::Accounts;
 use crate::accounts::keys;
 use crate::accounts::probe::label_for;
 use crate::accounts::signin::{Reached, until_cancelled};

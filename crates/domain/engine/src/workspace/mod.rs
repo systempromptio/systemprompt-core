@@ -19,19 +19,19 @@
 mod diff;
 mod format;
 mod paths;
+mod services;
 mod snapshot;
 mod vcs;
 mod watch;
-mod workspace;
 
 pub use diff::{DiffSummary, FileDiff, FileStatus, LineStats, file_diff, line_stats, unified_diff};
 pub use format::{
     FormatError, Formatter, FormatterConfig, FormatterSpec, ResolvedFormatter, builtin_formatters,
 };
+pub use services::{PruneSchedule, Workspace, WorkspaceOptions};
 pub use snapshot::{
     DiffTarget, PrunePolicy, PruneReport, SnapshotError, SnapshotId, SnapshotInfo, SnapshotOptions,
     SnapshotStore,
 };
 pub use vcs::{VcsError, VcsInfo, VcsStatus};
 pub use watch::{FileEvent, FileEventKind, FileWatcher, WatchError, WatchOptions};
-pub use workspace::{PruneSchedule, Workspace, WorkspaceOptions};

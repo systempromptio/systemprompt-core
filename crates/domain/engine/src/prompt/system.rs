@@ -22,6 +22,8 @@
 
 use std::path::Path;
 
+use systemprompt_identifiers::ModelId;
+
 use crate::prompt::base::CORE_PROMPT;
 use crate::prompt::notices::POLICY_DENIAL_PREFIX;
 use crate::prompt::shell::ShellKind;
@@ -59,7 +61,7 @@ pub struct Environment<'a> {
     pub platform: &'a str,
     pub shell: Option<ShellInUse<'a>>,
     pub date: &'a str,
-    pub model_id: &'a str,
+    pub model_id: &'a ModelId,
 }
 
 /// The shell the shell tool runs, and the program that provides it.

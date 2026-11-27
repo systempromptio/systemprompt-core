@@ -18,7 +18,7 @@ use crate::protocol::OneTimeCode;
 use crate::view::{SignInFailure, SignInOutcome};
 use tokio_util::sync::CancellationToken;
 
-use crate::accounts::accounts::Accounts;
+use crate::accounts::handle::Accounts;
 use crate::accounts::signin::{Reached, until_cancelled};
 use crate::accounts::state::BrowserAttempt;
 

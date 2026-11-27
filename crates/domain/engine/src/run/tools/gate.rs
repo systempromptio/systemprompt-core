@@ -9,13 +9,13 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use async_trait::async_trait;
 use crate::config::{Action, AgentDef, Loaded, Rule, Ruleset};
-use systemprompt_identifiers::engine::PermissionId;
 use crate::store::SessionId;
-use systemprompt_traits::CancellationToken;
 use crate::tools::{PermissionGate, PermissionRequest, ToolError};
+use async_trait::async_trait;
 use parking_lot::Mutex;
+use systemprompt_identifiers::engine::PermissionId;
+use systemprompt_traits::CancellationToken;
 use tokio::sync::OnceCell;
 
 use crate::run::events::{PermissionAsk, Reply};
@@ -75,7 +75,7 @@ impl Gate {
 
     async fn ask_user(&self, request: &PermissionRequest) -> Result<(), ToolError> {
         let ask = PermissionAsk {
-            id: PermissionId::mint(),
+            id: PermissionId::mint(self.inner.store.ids()),
             session: self.session.clone(),
             call_id: self.governed.call_id.clone(),
             tool: self.governed.tool.clone(),

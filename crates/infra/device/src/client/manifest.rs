@@ -25,11 +25,11 @@ use systemprompt_models::ApiPaths;
 use systemprompt_models::bridge::manifest::SignedManifestEnvelope;
 use systemprompt_models::bridge::session::PubkeyResponse;
 
-use crate::client::client::SpClient;
 use crate::client::error::{ClientError, Incompatibility};
 use crate::client::http::{
     DEFAULT_TIMEOUT, SMALL_BODY, decode, decode_error, exchange, failure, protocol,
 };
+use crate::client::instance::SpClient;
 
 const MANIFEST_ENDPOINT: &str = "GET /v1/bridge/manifest";
 const PUBKEY_ENDPOINT: &str = "GET /v1/bridge/pubkey";

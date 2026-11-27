@@ -34,8 +34,8 @@ pub enum McpError {
     Unauthorized,
     #[error("the server answered HTTP {status}")]
     Status { status: u16 },
-    #[error("the server answered with unexpected content type {0:?}")]
-    ContentType(String),
+    #[error("the server answered with unexpected content type {content_type:?}")]
+    ContentType { content_type: String },
     #[error("HTTP request to the server failed")]
     Http(#[source] reqwest::Error),
     #[error("invalid JSON in a server message")]
@@ -54,18 +54,18 @@ pub enum McpError {
     Header { name: String },
     #[error("the header source failed")]
     HeaderSource(#[source] BoxError),
-    #[error("unsupported protocol version {0:?}")]
-    ProtocolVersion(String),
+    #[error("unsupported protocol version {version:?}")]
+    ProtocolVersion { version: String },
     #[error("protocol violation: {0}")]
     Protocol(&'static str),
     #[error("connecting timed out after {}s", .0.as_secs())]
     ConnectTimeout(Duration),
-    #[error("unknown tool {0}")]
-    UnknownTool(String),
-    #[error("unknown server {0}")]
-    UnknownServer(String),
-    #[error("server {0} is not connected")]
-    NotConnected(String),
+    #[error("unknown tool {tool}")]
+    UnknownTool { tool: String },
+    #[error("unknown server {server}")]
+    UnknownServer { server: String },
+    #[error("server {server} is not connected")]
+    NotConnected { server: String },
     #[error("no tokio runtime is running")]
     NoRuntime(#[source] tokio::runtime::TryCurrentError),
 }

@@ -7,8 +7,8 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+pub mod accounts;
+pub mod client;
 pub mod protocol;
 pub mod secure;
-pub mod client;
-pub mod accounts;
 pub mod view;

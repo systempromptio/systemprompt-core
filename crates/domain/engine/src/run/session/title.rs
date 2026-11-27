@@ -11,6 +11,7 @@ use crate::llm::{Message, Request};
 use crate::prompt::agents::TITLE;
 use crate::prompt::generate::{TITLE_MAX_CHARS, TITLE_PROMPT, clean_title, title_request};
 use crate::store::SessionId;
+use systemprompt_identifiers::ModelId;
 use systemprompt_traits::CancellationToken;
 
 use super::model_call;
@@ -74,7 +75,7 @@ async fn generate(
             request.system = vec![prompt];
             request.messages = vec![Message::user_text(title_request(&job.text))];
             request.params.max_output = Some(TITLE_MAX_OUTPUT);
-            ask_model(inner, job, chosen, &request, cancel).await
+            ask_model(inner, job, ModelId::new(chosen), &request, cancel).await
         },
         Err(error) => {
             tracing::debug!(session = %job.session_id, error = %error, "no model for the title");
@@ -101,7 +102,7 @@ async fn generate(
 async fn ask_model(
     inner: &Inner,
     job: &TitleJob,
-    model_id: String,
+    model_id: ModelId,
     request: &Request,
     cancel: &CancellationToken,
 ) -> Option<String> {

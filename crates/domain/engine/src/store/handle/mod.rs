@@ -21,6 +21,7 @@ use tokio::sync::broadcast;
 
 use crate::store::change::Change;
 use crate::store::error::{Result, StoreError};
+use crate::store::id::IdClock;
 use crate::store::schema;
 
 const CHANGE_CAPACITY: usize = 1024;
@@ -45,6 +46,7 @@ struct Inner {
     reader: Option<Mutex<Connection>>,
     changes: broadcast::Sender<Change>,
     location: String,
+    ids: IdClock,
 }
 
 impl fmt::Debug for Store {
@@ -101,8 +103,13 @@ impl Store {
                 reader: reader.map(Mutex::new),
                 changes,
                 location,
+                ids: IdClock::new(),
             }),
         }
+    }
+
+    pub fn ids(&self) -> &IdClock {
+        &self.inner.ids
     }
 
     pub fn subscribe(&self) -> broadcast::Receiver<Change> {

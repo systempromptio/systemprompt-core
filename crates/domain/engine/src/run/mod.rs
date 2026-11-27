@@ -37,6 +37,7 @@ mod options;
 mod session;
 mod tools;
 
+pub use crate::llm::{Endpoint, ModelSpec, Protocol, Usage};
 pub use engine::Engine;
 pub use error::{EngineError, ErrorKind};
 pub use events::{
@@ -48,12 +49,11 @@ pub use extension::{
     ExtensionTool, GovernorObserver, ResolveError, ResponseHead, Review, ToolReviewer,
 };
 pub use governor::{
-    GovernError, Governor, McpSpec, ModelCall, NullGovernor, Purpose, ResponseAction, SessionEvent,
-    ToolCall, ToolOutcome, UserPrompt, Verdict,
+    GovernError, Governor, McpSpec, ModelCall, Purpose, ResponseAction, SessionEvent, ToolCall,
+    ToolOutcome, UserPrompt, Verdict,
 };
-pub use systemprompt_identifiers::engine::{CallId, ExtensionId, PermissionId, QuestionId};
-pub use crate::llm::{Endpoint, ModelSpec, Protocol, Usage};
 pub use options::EngineOptions;
 pub use session::{
     Admitted, AttachmentInput, CommandInfo, CommandInput, CommandOutcome, Delivery, PromptInput,
 };
+pub use systemprompt_identifiers::engine::{CallId, ExtensionId, PermissionId, QuestionId};

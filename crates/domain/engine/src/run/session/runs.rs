@@ -7,8 +7,8 @@
 use std::collections::HashMap;
 
 use crate::store::SessionId;
-use systemprompt_traits::CancellationToken;
 use parking_lot::Mutex;
+use systemprompt_traits::CancellationToken;
 use tokio::sync::broadcast;
 
 use super::inbox::Inbox;

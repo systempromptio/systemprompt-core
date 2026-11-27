@@ -1,12 +1,12 @@
 //! The instance-side extension contract.
 //!
 //! A feature that talks to an instance is an [`SpExtension`]: a
-//! `Default`-constructed type named in the registration list [`REGISTERED`] and
-//! built at startup by [`SpExtensions::registered`]. Each contribution method
-//! receives the [`SpContext`] the composition root built: the accounts, the
-//! instance HTTP client, the paths, the extension's own settings, the shared
-//! handles and the instance's enablement. An extension contributes its engine
-//! half, [`ManifestApplier`]s that follow the applied instance, and
+//! `Default`-constructed type named in the composition's registration list and
+//! built at startup by [`SpExtensions::from_registrations`]. Each contribution
+//! method receives the [`SpContext`] the composition root built: the accounts,
+//! the instance HTTP client, the paths, the extension's own settings, the
+//! shared handles and the instance's enablement. An extension contributes its
+//! engine half, [`ManifestApplier`]s that follow the applied instance, and
 //! [`BackgroundService`]s the composition root runs as owned tasks;
 //! it never spawns work itself.
 //!
@@ -19,10 +19,10 @@
 
 mod applier;
 mod context;
+mod contract;
 mod discovery;
 mod enablement;
 mod error;
-mod extension;
 mod handles;
 mod policy;
 mod register;
@@ -31,14 +31,13 @@ mod settings;
 
 pub use applier::{AppliedInstance, ApplyError, ManifestApplier, ManifestAppliers};
 pub use context::{HostInfo, SpContext, SpPaths};
+pub use contract::SpExtension;
 pub use discovery::SpExtensions;
 pub use enablement::Enablement;
 pub use error::ExtensionError;
-pub use extension::SpExtension;
 pub use handles::Handles;
-pub use systemprompt_traits::CancellationToken;
 pub use policy::ExtensionPolicy;
-pub use register::{REGISTERED, SpExtensionRegistration};
+pub use register::SpExtensionRegistration;
 pub use service::BackgroundService;
 pub use settings::{ExtensionSettings, SettingsAccess, SettingsError};
 pub use systemprompt_engine::run::extension::{
@@ -46,3 +45,4 @@ pub use systemprompt_engine::run::extension::{
 };
 pub use systemprompt_identifiers::engine::ExtensionId;
 pub use systemprompt_identifiers::extension_id;
+pub use systemprompt_traits::CancellationToken;

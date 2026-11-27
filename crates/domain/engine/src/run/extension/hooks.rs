@@ -6,9 +6,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+use crate::llm::{Endpoint, ResponseHead};
 use async_trait::async_trait;
 use systemprompt_identifiers::engine::ExtensionId;
-use crate::llm::{Endpoint, ResponseHead};
 
 use crate::run::governor::{ModelCall, SessionEvent, ToolCall, ToolOutcome, UserPrompt};
 

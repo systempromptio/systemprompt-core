@@ -6,9 +6,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use futures_util::StreamExt;
 use crate::llm::retry::{self, Retry};
 use crate::llm::{Event, EventStream, LlmError, ModelResponse, Request, Usage};
+use futures_util::StreamExt;
 use systemprompt_traits::CancellationToken;
 
 use crate::run::error::EngineError;

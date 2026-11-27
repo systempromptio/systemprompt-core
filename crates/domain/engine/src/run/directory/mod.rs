@@ -16,10 +16,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use crate::config::Loaded;
 use crate::lsp::LspManager;
 use crate::mcp::{ManagerConfig, McpManager, StatusMap};
-use systemprompt_traits::CancellationToken;
 use crate::tools::{ShellSpec, Tool};
 use crate::workspace::Workspace;
 use parking_lot::RwLock;
+use systemprompt_traits::CancellationToken;
 use tokio::sync::{Mutex, broadcast, watch};
 
 use convert::{builtin_agents, builtin_tools, lsp_config, mcp_servers};

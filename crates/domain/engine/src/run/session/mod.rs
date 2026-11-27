@@ -14,6 +14,7 @@ pub(crate) mod commands;
 pub(crate) mod compaction;
 pub(crate) mod history;
 pub(crate) mod inbox;
+pub(crate) mod job_notice;
 pub(crate) mod meta;
 pub(crate) mod model_call;
 pub(crate) mod revert;

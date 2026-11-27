@@ -15,8 +15,8 @@ pub enum FrameError {
     NonAsciiHeader,
     #[error("frame header has no Content-Length")]
     MissingLength,
-    #[error("frame Content-Length {0:?} is not a number")]
-    InvalidLength(String),
+    #[error("frame Content-Length {value:?} is not a number")]
+    InvalidLength { value: String },
     #[error("frame of {0} bytes exceeds the limit")]
     TooLarge(usize),
     #[error("frame header is longer than 8 KiB")]
@@ -92,7 +92,9 @@ fn parse_header(raw: &[u8]) -> Result<usize, FrameError> {
         if name.trim().eq_ignore_ascii_case("content-length") {
             let value = value.trim();
             let Ok(parsed) = value.parse::<usize>() else {
-                return Err(FrameError::InvalidLength(value.to_owned()));
+                return Err(FrameError::InvalidLength {
+                    value: value.to_owned(),
+                });
             };
             length = Some(parsed);
         }

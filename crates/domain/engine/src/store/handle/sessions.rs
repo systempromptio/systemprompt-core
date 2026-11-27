@@ -8,10 +8,12 @@ use rusqlite::{Connection, params};
 
 use crate::store::change::Change;
 use crate::store::error::{Result, not_found};
-use crate::store::id::{ProjectId, SessionId, column, now_ms, optional_column, optional_param, param};
+use crate::store::handle::Store;
+use crate::store::id::{
+    ProjectId, SessionId, column, now_ms, optional_column, optional_param, param,
+};
 use crate::store::model::{DiffSummary, NewSession, RevertMarker, Session};
 use crate::store::rows::{insert_session, load_session, query_sessions, update_session_row};
-use crate::store::store::Store;
 
 const SESSION_TREE: &str = "WITH RECURSIVE tree(id, depth) AS ( \
        SELECT id, 0 FROM session WHERE id = ?1 \
@@ -28,7 +30,7 @@ impl Store {
         self.write(|transaction, changes| {
             let now = now_ms();
             let session = Session {
-                id: SessionId::mint(),
+                id: SessionId::mint(self.ids()),
                 project_id: new.project_id,
                 parent_id: new.parent_id,
                 directory: new.directory,

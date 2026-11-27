@@ -7,10 +7,10 @@ use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use systemprompt_engine::config::{Layout, Paths};
-use systemprompt_identifiers::engine::ExtensionId;
 use systemprompt_device::accounts::Accounts;
 use systemprompt_device::client::HttpClient;
+use systemprompt_engine::config::{Layout, Paths};
+use systemprompt_identifiers::engine::ExtensionId;
 
 use crate::extension::enablement::Enablement;
 use crate::extension::handles::Handles;

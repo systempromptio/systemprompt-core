@@ -7,11 +7,11 @@
 //! See <https://systemprompt.io> for licensing details.
 
 pub mod config;
-pub mod store;
 pub mod llm;
-pub mod tools;
-pub mod mcp;
-pub mod workspace;
 pub mod lsp;
+pub mod mcp;
 pub mod prompt;
 pub mod run;
+pub mod store;
+pub mod tools;
+pub mod workspace;

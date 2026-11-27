@@ -15,18 +15,18 @@
 
 mod change;
 mod error;
+mod handle;
 mod id;
 mod model;
 mod rows;
 mod schema;
-mod store;
 
 pub use change::Change;
 pub use error::{Result, StoreError};
-pub use id::{CallId, IdError, MessageId, PartId, ProjectId, SessionId, now_ms};
+pub use handle::Store;
+pub use id::{CallId, IdClock, IdError, MessageId, PartId, ProjectId, SessionId, now_ms};
 pub use model::{
     AssistantMessage, Attachment, DiffSummary, FinishReason, JsonMap, Message, MessageError,
     MessageErrorKind, MessagePage, MessageWithParts, NewSession, Part, PartBody, Project,
     RevertMarker, Role, Session, Todo, TodoPriority, TodoStatus, ToolState, Usage, UserMessage,
 };
-pub use store::Store;

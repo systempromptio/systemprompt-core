@@ -11,10 +11,10 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_engine::run::extension::ExtensionTool;
-use systemprompt_engine::tools::{PermissionRequest, Tool, ToolContext, ToolError, ToolOutput};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
+use systemprompt_engine::run::extension::ExtensionTool;
+use systemprompt_engine::tools::{PermissionRequest, Tool, ToolContext, ToolError, ToolOutput};
 
 use super::operations::{Dispute, Lookup, Propose, Why};
 use super::render::failure_text;

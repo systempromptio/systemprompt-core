@@ -6,10 +6,10 @@
 
 use std::sync::Arc;
 
-use async_trait::async_trait;
 use crate::prompt::engine_tools::{TASK_DESCRIPTION, task_schema};
 use crate::prompt::tool_names::TASK;
 use crate::tools::{PermissionRequest, Tool, ToolContext, ToolError, ToolOutput};
+use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{Value, json};
 

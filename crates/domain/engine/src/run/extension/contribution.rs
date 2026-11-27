@@ -8,8 +8,9 @@ use std::fmt;
 use std::path::Path;
 use std::sync::Arc;
 
-use systemprompt_identifiers::engine::{ExtensionId, SessionId};
 use crate::tools::Tool;
+use systemprompt_identifiers::ModelId;
+use systemprompt_identifiers::engine::{ExtensionId, SessionId};
 
 /// A tool an extension adds beside the built-ins.
 ///
@@ -66,7 +67,7 @@ pub struct PromptSection {
 pub struct PromptContext<'a> {
     pub session_id: &'a SessionId,
     pub agent: &'a str,
-    pub model_id: &'a str,
+    pub model_id: &'a ModelId,
     pub directory: &'a Path,
     pub subagent: bool,
 }

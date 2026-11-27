@@ -1,7 +1,7 @@
 //! The Drive as agent tools (search, list, read, propose an edit, create,
-//! comment): each asks the gate under `drive` and answers `crate::members::drive::agent`'s
-//! text. `Tool` is the engine's `dyn` contract, hence `#[async_trait]` on its
-//! impl.
+//! comment): each asks the gate under `drive` and answers
+//! `crate::members::drive::agent`'s text. `Tool` is the engine's `dyn`
+//! contract, hence `#[async_trait]` on its impl.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -14,9 +14,9 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use systemprompt_engine::tools::{PermissionRequest, Tool, ToolContext, ToolError, ToolOutput};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
+use systemprompt_engine::tools::{PermissionRequest, Tool, ToolContext, ToolError, ToolOutput};
 
 use self::read::{List, Read, Search};
 use self::write::{Comment, Create, Propose};

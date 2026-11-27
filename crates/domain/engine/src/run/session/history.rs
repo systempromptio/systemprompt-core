@@ -7,11 +7,11 @@
 
 use std::collections::HashSet;
 
-use systemprompt_identifiers::engine::{CallId, MessageId};
 use crate::llm::{Attachment, Content, Message};
 use crate::prompt::{compaction, notices};
 use crate::store::{MessageWithParts, PartBody, ToolState};
 use serde_json::Value;
+use systemprompt_identifiers::engine::{CallId, MessageId};
 
 use super::attachments::{decode, parse_data_url};
 use super::meta::CompactionMark;

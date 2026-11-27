@@ -1,6 +1,5 @@
 //! Admitting prompts: resolving agent and model, writing the user message,
 //! telling the Governor, starting a run or holding the prompt in the inbox.
-//! Background job notices come in the same way.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,19 +7,16 @@
 use std::sync::Arc;
 
 use crate::config::{AgentDef, Loaded};
-use crate::prompt::notices::{self, BackgroundJob};
 use crate::store::{
     Message, MessageId, MessagePage, Part, PartBody, Session, SessionId, UserMessage,
 };
-use crate::tools::{JobReport, JobState};
 
 use super::run::{self, TurnMode};
 use super::{Admission, Admit, Admitted, Delivery, PromptInput, attachments, meta, revert, title};
 use crate::run::error::EngineError;
 use crate::run::governor::UserPrompt;
 use crate::run::inner::Inner;
-
-const TRUNCATED_TAIL_BYTES: usize = 8 * 1024;
+use systemprompt_identifiers::ModelId;
 
 pub(crate) async fn prompt(
     inner: &Arc<Inner>,
@@ -172,13 +168,25 @@ pub(crate) async fn write_user(
     admission: &Admission,
     steered: bool,
 ) -> Result<MessageId, EngineError> {
-    let mut message = UserMessage::new(session_id.clone(), &admission.agent, &admission.model);
+    let mut message = UserMessage::new(
+        inner.store.ids(),
+        session_id.clone(),
+        &admission.agent,
+        &admission.model,
+    );
     message.system = admission.system;
     let message_id = message.id.clone();
     let parts: Vec<Part> = admission
         .parts
         .iter()
-        .map(|body| Part::new(session_id.clone(), message_id.clone(), body.clone()))
+        .map(|body| {
+            Part::new(
+                inner.store.ids(),
+                session_id.clone(),
+                message_id.clone(),
+                body.clone(),
+            )
+        })
         .collect();
     let stored = Message::User(message);
     inner
@@ -200,7 +208,7 @@ pub(crate) async fn write_user(
             message_id: message_id.clone(),
             text: admission.text.clone(),
             agent: admission.agent.clone(),
-            model_id: admission.model.clone(),
+            model_id: ModelId::new(admission.model.as_str()),
             directory: admission.directory.clone(),
         };
         inner.governed.user_prompt(&prompt).await;
@@ -232,64 +240,5 @@ async fn maybe_title(inner: &Arc<Inner>, session_id: &SessionId, admission: &Adm
     if prompts == 1 {
         let (text, model) = (admission.text.clone(), admission.model.clone());
         title::spawn(inner, session_id.clone(), session.directory, text, model);
-    }
-}
-
-pub(crate) async fn job_finished(inner: &Arc<Inner>, report: JobReport) -> Result<(), EngineError> {
-    let session_id = report.job.session_id.clone();
-    let key = session_id.clone();
-    let Some(session) = inner.db.run(move |store| store.get_session(&key)).await? else {
-        return Ok(());
-    };
-    let key = session_id.clone();
-    let recent = inner
-        .db
-        .run(move |store| store.messages(&key, &MessagePage::latest(50)))
-        .await?;
-    let last = recent
-        .iter()
-        .rev()
-        .find_map(|message| message.message.as_user());
-    let agent = last
-        .map(|user| user.agent.clone())
-        .or_else(|| session.agent.clone());
-    let model = last
-        .map(|user| user.model.clone())
-        .or_else(|| session.model.clone());
-    let (Some(agent), Some(model)) = (agent, model) else {
-        tracing::debug!(
-            session = %session_id,
-            job = %report.job.id,
-            "background job ended in a session without prompts"
-        );
-        return Ok(());
-    };
-    let notice = notices::background_job_finished(&BackgroundJob {
-        id: &report.job.id,
-        command: &report.job.command,
-        exit_code: exit_code(&report),
-        output: &report.tail,
-        output_truncated: report.tail.len() >= TRUNCATED_TAIL_BYTES,
-    });
-    let admission = Admission {
-        agent,
-        model,
-        parts: vec![PartBody::Text {
-            text: notice.clone(),
-            synthetic: true,
-        }],
-        text: notice,
-        system: true,
-        delivery: Delivery::Steer,
-        directory: session.directory.clone(),
-    };
-    admit(inner, &session_id, admission).await?;
-    Ok(())
-}
-
-const fn exit_code(report: &JobReport) -> Option<i32> {
-    match report.job.state {
-        JobState::Exited => report.job.exit_code,
-        JobState::Running | JobState::TimedOut | JobState::Killed => None,
     }
 }

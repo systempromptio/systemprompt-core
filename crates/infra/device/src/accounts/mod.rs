@@ -15,12 +15,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-mod accounts;
 mod browser;
 mod browser_sign_in;
 mod completion;
 mod device_tokens;
 mod error;
+mod handle;
 mod key_trust;
 mod keys;
 mod manage;
@@ -37,10 +37,10 @@ mod store;
 mod summary;
 mod sync_state;
 
-pub use accounts::{Accounts, AccountsConfig, computer_name};
 pub use browser::{Browser, BrowserError};
 pub use browser_sign_in::{BrowserSignIn, SignInCancel};
 pub use error::AccountsError;
+pub use handle::{Accounts, AccountsConfig, computer_name};
 pub use probe::{ProbeResult, ProbedInstance};
 pub use session::Renewed;
 pub use snapshot::{AccountsSnapshot, PendingKeyOffer};

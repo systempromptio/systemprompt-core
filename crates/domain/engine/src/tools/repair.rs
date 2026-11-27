@@ -123,7 +123,8 @@ fn check(schema: &Value, value: &mut Value, at: &str) -> Result<(), ToolError> {
     match kind {
         "object" => check_object(schema, value, at),
         "array" => check_array(schema, value, at),
-        "integer" | "number" => check_number(schema, value, at, kind == "integer"),
+        "integer" => check_number(schema, value, at, true),
+        "number" => check_number(schema, value, at, false),
         "boolean" if !value.is_boolean() => Err(ToolError::invalid(format!(
             "{} must be true or false",
             field(at)

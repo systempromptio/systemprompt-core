@@ -13,8 +13,8 @@ use crate::extension::service::BackgroundService;
 
 /// A feature on the instance side of the app.
 ///
-/// `Default`-constructed from the registration list
-/// [`REGISTERED`](crate::extension::REGISTERED) and held as `dyn SpExtension`.
+/// `Default`-constructed from the composition's registration list and held as
+/// `dyn SpExtension`.
 /// Only `metadata` is required. The composition root first calls `provide` on
 /// every resolved extension, each after the extensions it depends on (insert
 /// the handles the extension shares with its shell half and with others into

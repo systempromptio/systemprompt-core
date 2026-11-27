@@ -2,9 +2,9 @@
 //!
 //! [`Governance`] holds the applied instance (its projection snapshot, the
 //! client that reaches it, the source of its session tokens and the extensions
-//! it enabled) and implements [`systemprompt_engine::run::Governor`]: every model call
-//! and tool decision of the engine passes through it, and it serves the
-//! instance's extension enablement. [`GovernanceExtension`] is the required
+//! it enabled) and implements [`systemprompt_engine::run::Governor`]: every
+//! model call and tool decision of the engine passes through it, and it serves
+//! the instance's extension enablement. [`GovernanceExtension`] is the required
 //! extension around it: its engine half observes session moments, prompts and
 //! finished tools ([`GovernanceTelemetry`]), its instance half follows the
 //! applied instance ([`GovernanceApplier`]).
@@ -33,9 +33,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
+mod control;
 mod error;
 mod extension;
-mod governance;
 mod hooks;
 mod instance;
 mod mcp;
@@ -43,8 +43,8 @@ mod models;
 mod telemetry;
 mod usage;
 
+pub use control::{Governance, GovernanceTelemetry, InstanceParts, SessionBinding};
 pub use error::GovernanceError;
 pub use extension::{GovernanceApplier, GovernanceExtension};
-pub use governance::{Governance, GovernanceTelemetry, InstanceParts, SessionBinding};
 pub use hooks::HookApi;
 pub use usage::UsageTotals;

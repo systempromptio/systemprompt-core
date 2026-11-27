@@ -9,10 +9,10 @@ use rusqlite::{Connection, params};
 
 use crate::store::change::Change;
 use crate::store::error::{Result, not_found};
+use crate::store::handle::Store;
 use crate::store::id::{ProjectId, SessionId, column, now_ms, optional_column, param};
 use crate::store::model::Project;
 use crate::store::rows::{insert_project, load_project, query_projects};
-use crate::store::store::Store;
 
 impl Store {
     pub fn ensure_project(&self, worktree: &Path, name: &str) -> Result<Project> {
@@ -24,7 +24,7 @@ impl Store {
             }
             let now = now_ms();
             let project = Project {
-                id: ProjectId::mint(),
+                id: ProjectId::mint(self.ids()),
                 worktree: worktree.to_path_buf(),
                 name: name.to_owned(),
                 created_at: now,

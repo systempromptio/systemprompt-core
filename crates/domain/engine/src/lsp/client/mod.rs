@@ -22,9 +22,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64};
 
-use systemprompt_traits::{CancellationToken, OwnedTask};
 use parking_lot::Mutex;
 use serde_json::Value;
+use systemprompt_traits::{CancellationToken, OwnedTask};
 use tokio::process::{Child, ChildStderr, ChildStdin, ChildStdout};
 use tokio::sync::{mpsc, watch};
 use tracing::{debug, trace};
