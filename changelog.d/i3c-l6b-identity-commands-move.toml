@@ -11,7 +11,7 @@ text = "A `cli` feature with `cli::{users, keys, bridge}`: the `UsersCommands`, 
 [[crate]]
 name = "systemprompt-cli"
 section = "Breaking"
-text = "`admin::{users, keys, bridge}` and `AdminCommands::{Users, Keys, Bridge}` are removed (now in `systemprompt-identity-entry`'s `cli` feature). `kernel::ConfirmArgs` and `shared::ConfirmArgs` are removed: use `systemprompt_extension::cli::ConfirmArgs`. `config::migrate::data::apply_with` takes the bridge host-filter port."
+text = "`admin::{users, keys, bridge}` and `AdminCommands::{Users, Keys, Bridge}` are removed (they live in `systemprompt-identity-entry`'s `cli` feature). `kernel::ConfirmArgs` and `shared::ConfirmArgs` are removed: use `systemprompt_extension::cli::ConfirmArgs`. `config::migrate::data::apply_with` takes the bridge host-filter port."
 
 [[crate]]
 name = "systemprompt-extension"
