@@ -133,7 +133,10 @@ WHERE NOT EXISTS (
 CREATE OR REPLACE VIEW report_content_engagement_hourly AS
 SELECT src.bucket, src.content_id, src.session_id, src.views, src.time_on_page_sum_ms
 FROM content_engagement_rollup_hourly src
-JOIN report_clean_traffic c ON c.session_id = src.session_id;
+JOIN report_clean_traffic c ON c.session_id = src.session_id
+WHERE NOT EXISTS (
+    SELECT 1 FROM users d WHERE d.id = src.user_id AND d.status = 'deleted'
+);
 
 -- `person` is a user-level filter: `users` carries only `is_bot` and
 -- `is_scanner`, not the session predicate `is_human_traffic` states over the

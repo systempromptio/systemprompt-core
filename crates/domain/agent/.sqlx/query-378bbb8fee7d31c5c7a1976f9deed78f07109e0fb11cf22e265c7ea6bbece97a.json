@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT context_id, name FROM report_user_contexts WHERE context_id = ANY($1)",
+  "query": "SELECT context_id, name FROM report_user_contexts WHERE context_id = ANY($1) AND user_id = $2",
   "describe": {
     "columns": [
       {
@@ -28,7 +28,8 @@
     ],
     "parameters": {
       "Left": [
-        "TextArray"
+        "TextArray",
+        "Text"
       ]
     },
     "nullable": [
@@ -36,5 +37,5 @@
       true
     ]
   },
-  "hash": "5bc029c13ccd81658215d0709737e19d340445d7e664a546565f9d3ce9afd79b"
+  "hash": "378bbb8fee7d31c5c7a1976f9deed78f07109e0fb11cf22e265c7ea6bbece97a"
 }

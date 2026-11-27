@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "CLI session"
+text = "A stored CLI session whose context is stale or whose ownership cannot be read drops that context before a replacement is issued, so a failed issue leaves the session contextless instead of saving the unverified context."

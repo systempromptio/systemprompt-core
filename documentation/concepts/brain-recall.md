@@ -46,11 +46,11 @@ Every step reads the declarations the plane holds; the knob named at a step is t
 
 ## What is measured, and how
 
-The measurement rig lives in the Astound installation (`deploy/loadtest/brain`): a generated corpus of clients, projects, people and their facts at three scales (3k, 30k and 300k facts), eight personas with different held keys, a golden set of prompts per recall class, and `eval.py`, which runs every prompt through the admin simulator and, for a sample, through the gateway itself, and stores each run as a row of `brain_eval_runs` (the Evals tab of `/admin/brain`) with the declared hash it ran under. The bars are the memory report's §6.2 set: recall by class (named subject, paraphrase, temporal, cross-entity), precision at three, negative cleanliness (a prompt about something the persona may not see injects only org or pinned facts), leaks (zero, always), simulator-to-gateway parity, deadline rate, the latency the recall adds at p50 and p95, determinism across repeated runs, and capture throughput.
+The measurement uses a generated corpus of clients, projects, people and their facts at three scales (3k, 30k and 300k facts), eight personas with different held keys, a golden set of prompts per recall class, and `eval.py`, which runs every prompt through the admin simulator and, for a sample, through the gateway itself, and stores each run as a row of `brain_eval_runs` (the Evals tab of `/admin/brain`) with the declared hash it ran under. The bars are the memory report's §6.2 set: recall by class (named subject, paraphrase, temporal, cross-entity), precision at three, negative cleanliness (a prompt about something the persona may not see injects only org or pinned facts), leaks (zero, always), simulator-to-gateway parity, deadline rate, the latency the recall adds at p50 and p95, determinism across repeated runs, and capture throughput.
 
-Where the recall path stands on core `03abde55c` with the Astound declaration (runs 46, 50 and 49 of `brain_eval_runs`):
+Where the recall path stands, measured with one installation's recall declaration at each scale:
 
-| bar | target | 3k (run 46) | 30k (run 50) | 300k (run 49) |
+| bar | target | 3k | 30k | 300k |
 |---|---|---|---|---|
 | recall, named subject | ≥ 0.95 | 1.00 | 1.00 | 0.98 |
 | recall, paraphrase | ≥ 0.80 | 0.94 | 0.64 | 0.44 |
