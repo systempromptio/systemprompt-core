@@ -57,7 +57,9 @@ pub mod analytics;
 pub mod background_tasks;
 pub mod backoff;
 pub mod bridge_host_filters;
-pub use background_tasks::{BackgroundTasks, DrainOutcome, OwnedTask};
+pub use background_tasks::{
+    BackgroundTasks, CancellationToken, DrainOutcome, OwnedTask, TaskError,
+};
 pub mod cache_epoch;
 pub use cache_epoch::{CacheDomain, CacheEpochView, CacheEpochs};
 pub mod provider_tokens;
