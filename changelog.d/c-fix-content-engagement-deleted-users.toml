@@ -1,0 +1,4 @@
+[root]
+section = "Fixed"
+area = "Analytics reports"
+text = "`report_content_engagement_hourly` excludes engagement rows of deleted users, like every other report view."
