@@ -109,6 +109,30 @@ fn initial_evidence(
     }
 }
 
+fn attest_host(
+    declared: Option<ClientKind>,
+    mut evidence: ClientEvidence,
+) -> Result<(ClientKind, ClientEvidence), ClassificationRejection> {
+    let Some(host) = declared else {
+        return Err(ClassificationRejection::HostTokenWithoutClient {
+            evidence: Box::new(evidence),
+        });
+    };
+    let mut packagings = host.hosts().peekable();
+    if packagings.peek().is_none() {
+        return Err(ClassificationRejection::HostTokenForClientWithoutHost {
+            evidence: Box::new(evidence),
+        });
+    }
+    if packagings.any(|packaging| packaging.config_owner() == ConfigOwner::Host) {
+        return Err(ClassificationRejection::HostTokenForHostOwnedClient {
+            evidence: Box::new(evidence),
+        });
+    }
+    evidence.attested_host = Some(host);
+    Ok((host, evidence))
+}
+
 pub fn classify(input: &ClassificationInput<'_>) -> Result<Classified, ClassificationRejection> {
     let marker = native_marker(input.body);
     let ua = ua_product(input.user_agent);
@@ -152,23 +176,8 @@ pub fn classify(input: &ClassificationInput<'_>) -> Result<Classified, Classific
 
     let (client, source) = match channel {
         Some(Channel::HostToken) => {
-            let Some(host) = declared else {
-                return Err(ClassificationRejection::HostTokenWithoutClient {
-                    evidence: Box::new(evidence),
-                });
-            };
-            let mut packagings = host.hosts().peekable();
-            if packagings.peek().is_none() {
-                return Err(ClassificationRejection::HostTokenForClientWithoutHost {
-                    evidence: Box::new(evidence),
-                });
-            }
-            if packagings.any(|packaging| packaging.config_owner() == ConfigOwner::Host) {
-                return Err(ClassificationRejection::HostTokenForHostOwnedClient {
-                    evidence: Box::new(evidence),
-                });
-            }
-            evidence.attested_host = Some(host);
+            let (host, attested) = attest_host(declared, evidence)?;
+            evidence = attested;
             (host, ClientAttestation::HostToken)
         },
         _ => declared
