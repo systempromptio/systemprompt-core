@@ -1,7 +1,7 @@
 //! A gateway route's every def is confined to the gateway path it claims: a
 //! def outside the claim or under a built-in gateway prefix is refused by the
 //! kernel's re-check of a forged handoff, and gateway defs join the
-//! route-conflict check (K-SEC4-2).
+//! route-conflict check.
 
 use systemprompt_api::services::middleware::{MountError, recheck};
 use systemprompt_extension::admitted::AdmittedGatewayRoute;

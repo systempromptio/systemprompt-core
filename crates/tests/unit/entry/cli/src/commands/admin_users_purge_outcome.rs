@@ -1,6 +1,6 @@
 //! An incomplete purge fails `admin users delete --purge` and carries its
 //! output, so a script checking the exit code is not told the purge
-//! succeeded; a complete purge succeeds (K-SEC4-8).
+//! succeeded; a complete purge succeeds.
 
 use systemprompt_extension::cli::CommandError;
 use systemprompt_identifiers::{ExtensionId, UserId};

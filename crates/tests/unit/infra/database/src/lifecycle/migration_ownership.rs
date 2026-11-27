@@ -3,7 +3,7 @@
 //! reference, a read and a mutation of the member's own table are not; a
 //! migration recorded as applied is not judged; a pending `DO` block is
 //! logged once per migration as unjudged at either standing, while an install
-//! member's `CALL` is refused (K-SEC4-4, N4).
+//! member's `CALL` is refused.
 
 use std::sync::Arc;
 

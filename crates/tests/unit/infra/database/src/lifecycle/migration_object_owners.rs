@@ -2,7 +2,7 @@
 //! member that creates it (core before install, then declarative schema
 //! before migrations): an install member's re-create of such an object another
 //! member creates is refused, so it never becomes the object's owner, and its
-//! later alter or drop of the object stays refused (K-SEC6-1, K-SEC6-2).
+//! later alter or drop of the object stays refused.
 
 use std::sync::Arc;
 

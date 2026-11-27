@@ -4,7 +4,7 @@
 //! yields to a core create, and that owner's own create is then refused. A
 //! member with a tombstoned migration keeps its object records. An install
 //! schema that does not parse, and an install view, materialized view or
-//! rule reading a kernel ledger, are refused (K-SEC9-1/2/3/4).
+//! rule reading a kernel ledger, are refused.
 
 use std::sync::Arc;
 

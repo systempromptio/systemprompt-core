@@ -1,5 +1,4 @@
-//! Standing in provide, slot and governance resolution (Stage 3 contract
-//! amendments 210–214): a member with install standing reads only the
+//! Standing in provide, slot and governance resolution: a member with install standing reads only the
 //! host-sealed seeds `reserved::INSTALL_SEEDS` lists and none of another
 //! member's sealed provides, in its provide fns, slot entries and governance
 //! factories alike, so a forged install asking for the messaging dispatcher,

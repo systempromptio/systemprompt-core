@@ -4,7 +4,7 @@
 //! keeps an object its code no longer creates, so a retired table's trigger
 //! records leave with it, and an install member sharing a core record's id
 //! does not inherit it. A held-back member's and an absent member's records
-//! keep their objects (K-SEC8-2, K-SEC8-4, K-SEC8-7).
+//! keep their objects.
 
 use std::sync::Arc;
 

@@ -21,8 +21,8 @@ use systemprompt_test_fixtures::{
 };
 use tower::ServiceExt;
 
-const LOGIN: &str = "/kfix7-login";
-const PAGE: &str = "kfix7-public-page";
+const LOGIN: &str = "/site-auth-login";
+const PAGE: &str = "site-auth-public-page";
 
 struct SiteAuthMember;
 

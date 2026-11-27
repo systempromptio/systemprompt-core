@@ -1,7 +1,7 @@
 //! The composition confines a gateway route's defs to its claimed gateway
 //! path with the same primitive the kernel's re-check uses: a def outside the
 //! claim or under a built-in gateway prefix is refused, and every def of the
-//! reference composition's gateway routes lies within its claim (K-SEC4-2).
+//! reference composition's gateway routes lies within its claim.
 
 use systemprompt_extension::RouteGroup;
 use systemprompt_extension::router::{

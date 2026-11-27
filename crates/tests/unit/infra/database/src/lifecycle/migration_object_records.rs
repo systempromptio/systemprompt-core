@@ -3,12 +3,12 @@
 //! view, sequence and index, and `CREATE TABLE ... AS` creates a table, so
 //! each is judged as the object it names. An install records the owner of
 //! every non-table object in `schema_object_owners`, so a member outside the
-//! composition keeps its objects (K-SEC7-1, K-SEC7-4). An install deletes a
+//! composition keeps its objects. An install deletes a
 //! judged member's record of an object its SQL no longer creates and an
 //! install-standing record, table or object, of a judged owner for a name a
 //! core member's SQL creates, on the full and the settled path; a core create
 //! of an absent member's recorded table is refused and leaves its record,
-//! rows and purge record in place (K-SEC8-2, K-SEC8-4, K-SEC9-1, K-SEC9-7).
+//! rows and purge record in place.
 
 use std::sync::Arc;
 

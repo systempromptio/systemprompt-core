@@ -3,8 +3,7 @@
 //! The headless adapters that start and observe sessions in other agents,
 //! shared with the server's agent runs.
 //!
-//! The crate declares no items yet. Its contents arrive in stage S7 of the
-//! harness programme.
+//! The crate declares no items.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.

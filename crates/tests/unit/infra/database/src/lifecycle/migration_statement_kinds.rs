@@ -1,7 +1,7 @@
 //! Every statement kind the reader attributes to a table, an index, an
 //! object or a schema is judged against its owner, and an install member's
 //! SQL the parser cannot attribute is refused; each refusal has an own-object
-//! control (K-SEC5-2).
+//! control.
 
 use std::sync::Arc;
 
