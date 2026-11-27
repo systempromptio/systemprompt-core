@@ -7531,6 +7531,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-mobile"
+version = "0.87.0"
+
+[[package]]
 name = "systemprompt-models"
 version = "0.87.0"
 dependencies = [

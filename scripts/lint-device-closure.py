@@ -2,8 +2,8 @@
 """Keep the server kernel and the device crates apart above the shared layer.
 
 The device crates (`systemprompt-device`, `-machine`, `-engine`, `-proxy`,
-`-hosts`, `-drive`, `-runner`, `-harness`) are composed into the binary on a
-user's machine; the server kernel (the `kernel` rows of scripts/units.txt)
+`-hosts`, `-drive`, `-runner`, `-harness`, `-mobile`) are composed into the
+binary on a user's machine or phone; the server kernel (the `kernel` rows of scripts/units.txt)
 is composed into an instance. Each side has a closure: the crates it reaches
 over production edges. The two closures meet only in `crates/shared/*`:
 
@@ -46,6 +46,7 @@ DEVICE = (
     "systemprompt-drive",
     "systemprompt-runner",
     "systemprompt-harness",
+    "systemprompt-mobile",
 )
 SHARED = "shared"
 FACADE = "facade"

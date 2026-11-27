@@ -84,6 +84,8 @@ JOBS = {
         "fmt": Rule("always", "Format"),
         "build": Rule("any", "Build"),
         "build-no-engine": Rule("any", "Build (no document engine)"),
+        "phone-android": Rule("any", "Phone targets (Android)"),
+        "phone-ios": Rule("any", "Phone targets (iOS)"),
         "compositions": Rule("any", "Compositions"),
         "migrator": Rule("any", "Test migrator"),
         "test-tools": Rule("fields", "Test tools ({})", ("archive_sets",), matrix_field="archive_sets"),

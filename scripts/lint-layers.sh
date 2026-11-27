@@ -38,7 +38,7 @@
 #      (services manifest and profile), so the bridge, which links only
 #      `systemprompt-models`, never pulls the codecs or the manifest in.
 #   6. The device crates sit at their layers. DEVICE_LAYERS below places each
-#      of the eight at `infra`, `domain` or `app`, and one found anywhere
+#      of them at `infra`, `domain` or `app`, and one found anywhere
 #      else fails. Rules 1 to 3 judge them like every other crate, so the
 #      device-domain crates are peers of each other and of the server's domain
 #      crates, under the same empty LEGACY_DOMAIN_EDGES. That no server kernel
@@ -103,7 +103,7 @@ deps = production_edges(pkgs)
 LEGACY_DOMAIN_EDGES = set()
 
 # The device crates and the layer each sits at; lint-device-closure.py judges
-# the same eight (scripts/test-lint-device-closure.py holds the two lists equal).
+# the same crates (scripts/test-lint-device-closure.py holds the two lists equal).
 DEVICE_LAYERS = {
     "systemprompt-device": "infra",
     "systemprompt-machine": "infra",
@@ -113,6 +113,7 @@ DEVICE_LAYERS = {
     "systemprompt-drive": "domain",
     "systemprompt-runner": "domain",
     "systemprompt-harness": "app",
+    "systemprompt-mobile": "app",
 }
 misplaced = [
     f"  {name} ({layer[name]}): a device crate of the {expected} layer"

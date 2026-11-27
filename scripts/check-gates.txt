@@ -37,6 +37,7 @@ check-headers
 lint-layers
 lint-kernel-deps
 lint-device-closure
+lint-phone-closure
 lint-capability-cfg
 lint-domain-protocol-deps
 lint-capability-deps

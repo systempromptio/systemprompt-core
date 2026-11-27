@@ -171,6 +171,10 @@ lint-kernel-deps:
 lint-device-closure:
     python3 ./scripts/lint-device-closure.py
 
+# Reject the phone binding crate reaching an engine, proxy, host, machine, drive, runner or server crate
+lint-phone-closure:
+    python3 ./scripts/lint-phone-closure.py
+
 # Reject a capability feature cfg anywhere but a mod declaration or the facade
 lint-capability-cfg:
     python3 ./scripts/lint-capability-cfg.py

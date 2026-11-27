@@ -162,6 +162,8 @@ scripts/*
 !scripts/test-lint-kernel-deps.py
 !scripts/lint-device-closure.py
 !scripts/test-lint-device-closure.py
+!scripts/lint-phone-closure.py
+!scripts/test-lint-phone-closure.py
 !scripts/lint-hidden-constructors.py
 !scripts/test-lint-hidden-constructors.py
 !scripts/lint-no-inventory.py

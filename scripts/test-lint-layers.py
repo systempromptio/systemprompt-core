@@ -33,11 +33,12 @@ DEVICE_LAYERS = {
     "systemprompt-drive": "domain",
     "systemprompt-runner": "domain",
     "systemprompt-harness": "app",
+    "systemprompt-mobile": "app",
 }
 
 
 def device_packages(edges=None, layers=None):
-    """The eight device crates at their layers; `edges` adds dependencies and `layers` moves a crate."""
+    """The device crates at their layers; `edges` adds dependencies and `layers` moves a crate."""
     edges = edges or {}
     placed = DEVICE_LAYERS | (layers or {})
     return [package(name, placed[name], [dep(d) for d in edges.get(name, ())]) for name in DEVICE_LAYERS]
