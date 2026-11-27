@@ -6,7 +6,7 @@ crates, one top-level module per crate, and the order those crates depended in
 is now the order of the modules:
 
   systemprompt-engine   config, store, llm, tools, mcp, workspace, lsp, prompt, run
-  systemprompt-harness  projection, extension, governance, members, sync
+  systemprompt-harness  projection, extension, governance, members, sync, command
 
 A module names only the modules before it. The four members of
 `systemprompt-harness` (`members/*`) share one place in its order.
@@ -40,7 +40,7 @@ ORDERS = {
     ),
     "crates/app/harness/src": (
         "systemprompt_harness",
-        ("projection", "extension", "governance", "members", "sync"),
+        ("projection", "extension", "governance", "members", "sync", "command"),
     ),
 }
 

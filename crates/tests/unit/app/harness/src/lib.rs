@@ -5,6 +5,8 @@
 //! - Test: `crates/tests/unit/app/harness/src/projection/`
 
 #[cfg(test)]
+mod command;
+#[cfg(test)]
 mod extension;
 #[cfg(test)]
 mod governance;

@@ -1,0 +1,9 @@
+mod args_tests;
+mod control_tests;
+mod dispatch_tests;
+mod event_tests;
+mod exit_tests;
+mod login_tests;
+mod permission_tests;
+mod run_tests;
+mod support;

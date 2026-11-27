@@ -1,6 +1,7 @@
-//! The device's names for the routes it calls beside the bridge routes, each
-//! the `systemprompt_models::ApiPaths` constant of the same route, relative to
-//! the instance base URL or its origin.
+//! The device's names for the routes it calls beside the bridge routes.
+//!
+//! Each is the `systemprompt_models::ApiPaths` constant of the same route,
+//! relative to the instance base URL or its origin.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
