@@ -71,7 +71,7 @@ impl ToolUsageReportRepository {
                 MAX(last_at) as "last_used!"
             FROM report_tool_usage_hourly
             WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2 AND server_name ILIKE $3
-              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
+              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode', 'hook_harness')
             GROUP BY tool_name, server_name
             ORDER BY CASE WHEN SUM(execution_count) > 0
                 THEN COALESCE(SUM(execution_count) FILTER (WHERE status = 'success'), 0)::float / SUM(execution_count)::float
@@ -107,7 +107,7 @@ impl ToolUsageReportRepository {
                 MAX(last_at) as "last_used!"
             FROM report_tool_usage_hourly
             WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2 AND server_name ILIKE $3
-              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
+              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode', 'hook_harness')
             GROUP BY tool_name, server_name
             ORDER BY COALESCE(SUM(exec_sum_ms)::numeric / NULLIF(SUM(exec_n), 0), 0) DESC
             LIMIT $4
@@ -141,7 +141,7 @@ impl ToolUsageReportRepository {
                 MAX(last_at) as "last_used!"
             FROM report_tool_usage_hourly
             WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2 AND server_name ILIKE $3
-              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
+              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode', 'hook_harness')
             GROUP BY tool_name, server_name
             ORDER BY SUM(execution_count) DESC
             LIMIT $4
@@ -174,7 +174,7 @@ impl ToolUsageReportRepository {
                 MAX(last_at) as "last_used!"
             FROM report_tool_usage_hourly
             WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
+              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode', 'hook_harness')
             GROUP BY tool_name, server_name
             ORDER BY CASE WHEN SUM(execution_count) > 0
                 THEN COALESCE(SUM(execution_count) FILTER (WHERE status = 'success'), 0)::float / SUM(execution_count)::float
@@ -208,7 +208,7 @@ impl ToolUsageReportRepository {
                 MAX(last_at) as "last_used!"
             FROM report_tool_usage_hourly
             WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
+              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode', 'hook_harness')
             GROUP BY tool_name, server_name
             ORDER BY COALESCE(SUM(exec_sum_ms)::numeric / NULLIF(SUM(exec_n), 0), 0) DESC
             LIMIT $3
@@ -240,7 +240,7 @@ impl ToolUsageReportRepository {
                 MAX(last_at) as "last_used!"
             FROM report_tool_usage_hourly
             WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
+              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode', 'hook_harness')
             GROUP BY tool_name, server_name
             ORDER BY SUM(execution_count) DESC
             LIMIT $3

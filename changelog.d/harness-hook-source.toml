@@ -1,0 +1,14 @@
+[root]
+section = "Breaking"
+area = "Hosts"
+text = "`ExecutionSource` gains `HookHarness` (`hook_harness`), the vantage point of a tool result a harness device reports through its hook, and `ExecutionSource::from_hook_host` returns it for `HostKind::Harness`. `mcp_tool_executions.source` and `mcp_artifacts.source` admit the value (mcp migration `022_execution_source_hook_harness`), and the tool usage report leaves a harness built-in tool, recorded under the server name `hook_harness`, out of the tool list and the overview totals as it does for every other source. Migrate an exhaustive `match` over `ExecutionSource` by adding the arm."
+
+[[crate]]
+name = "systemprompt-models"
+section = "Breaking"
+text = "`mcp::ExecutionSource` gains `HookHarness` (`hook_harness`); `ExecutionSource::ALL` has six values. `ExecutionSource::from_hook_host` maps `HostKind::Harness` to `HookHarness`. Migrate an exhaustive `match` by adding the arm."
+
+[[crate]]
+name = "systemprompt-mcp"
+section = "Changed"
+text = "`mcp_tool_executions.source` and `mcp_artifacts.source` admit `hook_harness` (migration `022_execution_source_hook_harness`, measured at 250 ms for its slowest statement over 300000 rows in each table). `ToolUsageReportRepository` leaves rows whose server name is `hook_harness` out of `list_tools` and `overview_tool_metrics`, as it does for every other execution source."

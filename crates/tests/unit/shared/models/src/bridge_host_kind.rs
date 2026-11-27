@@ -199,32 +199,41 @@ fn the_opencode_alias_is_gone_from_the_evaluator_wire() {
 fn hook_host_execution_source_follows_the_product() {
     assert_eq!(
         ExecutionSource::from_hook_host(HostKind::OpenCode),
-        Some(ExecutionSource::HookOpenCode)
+        ExecutionSource::HookOpenCode
     );
     assert_eq!(
         ExecutionSource::from_hook_host(HostKind::OpenCodeCli),
-        Some(ExecutionSource::HookOpenCode)
+        ExecutionSource::HookOpenCode
     );
     assert_eq!(
         ExecutionSource::from_hook_host(HostKind::ClaudeCode),
-        Some(ExecutionSource::HookClaudeCode)
+        ExecutionSource::HookClaudeCode
     );
     assert_eq!(
         ExecutionSource::from_hook_host(HostKind::CodexCli),
-        Some(ExecutionSource::HookClaudeCode)
+        ExecutionSource::HookClaudeCode
+    );
+    assert_eq!(
+        ExecutionSource::from_hook_host(HostKind::Harness),
+        ExecutionSource::HookHarness
     );
 }
 
 #[test]
-fn a_host_with_no_hook_vantage_point_borrows_no_other_hosts_source() {
-    assert_eq!(ExecutionSource::from_hook_host(HostKind::Harness), None);
+fn the_harness_hook_source_is_its_own_and_no_other_hosts() {
+    assert_eq!(ExecutionSource::HookHarness.as_str(), "hook_harness");
+    assert_eq!(
+        ExecutionSource::parse("hook_harness"),
+        Some(ExecutionSource::HookHarness)
+    );
+    assert!(ExecutionSource::ALL.contains(&ExecutionSource::HookHarness));
+    assert!(!ExecutionSource::HookHarness.is_server_observed());
     for host in HostKind::ALL {
-        if host.config_owner() == ConfigOwner::Bridge {
-            assert!(
-                ExecutionSource::from_hook_host(host).is_some(),
-                "{host} reports tool results through a hook the platform records"
-            );
-        }
+        assert_eq!(
+            ExecutionSource::from_hook_host(host) == ExecutionSource::HookHarness,
+            host.config_owner() == ConfigOwner::Host,
+            "{host}: only a host that configures itself reports as hook_harness"
+        );
     }
 }
 

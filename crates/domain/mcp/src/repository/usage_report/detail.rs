@@ -239,7 +239,7 @@ impl ToolUsageReportRepository {
                 COALESCE(SUM(execution_count) FILTER (WHERE status = 'success'), 0)::bigint as "successful!"
             FROM report_tool_usage_hourly
             WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2
-              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')
+              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode', 'hook_harness')
             "#,
             start,
             end

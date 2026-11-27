@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS mcp_artifacts (
     artifact_type VARCHAR(100) NOT NULL,
     title VARCHAR(500),
     source VARCHAR(32) NOT NULL DEFAULT 'in_process'
-        CHECK (source IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')),
+        CHECK (source IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode', 'hook_harness')),
     last_seen_source VARCHAR(32),
     data JSONB NOT NULL,
     metadata JSONB,

@@ -127,11 +127,15 @@ fn execution_source_round_trips_and_maps_hosts() {
     }
     assert_eq!(
         ExecutionSource::from_hook_host(HostKind::OpenCode),
-        Some(ExecutionSource::HookOpenCode)
+        ExecutionSource::HookOpenCode
     );
     assert_eq!(
         ExecutionSource::from_hook_host(HostKind::ClaudeCode),
-        Some(ExecutionSource::HookClaudeCode)
+        ExecutionSource::HookClaudeCode
+    );
+    assert_eq!(
+        ExecutionSource::from_hook_host(HostKind::Harness),
+        ExecutionSource::HookHarness
     );
     assert!(ExecutionSource::Proxy.is_server_observed());
     assert!(!ExecutionSource::Gateway.is_server_observed());

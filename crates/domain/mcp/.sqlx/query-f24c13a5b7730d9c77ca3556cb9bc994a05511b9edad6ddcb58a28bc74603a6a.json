@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                tool_name as \"tool_name!\",\n                server_name as \"server_name!\",\n                SUM(execution_count)::bigint as \"execution_count!\",\n                COALESCE(SUM(execution_count) FILTER (WHERE status = 'success'), 0)::bigint as \"success_count!\",\n                COALESCE((SUM(exec_sum_ms)::numeric / NULLIF(SUM(exec_n), 0))::float8, 0) as \"avg_time!\",\n                MAX(last_at) as \"last_used!\"\n            FROM report_tool_usage_hourly\n            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2 AND server_name ILIKE $3\n              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')\n            GROUP BY tool_name, server_name\n            ORDER BY COALESCE(SUM(exec_sum_ms)::numeric / NULLIF(SUM(exec_n), 0), 0) DESC\n            LIMIT $4\n            ",
+  "query": "\n            SELECT\n                tool_name as \"tool_name!\",\n                server_name as \"server_name!\",\n                SUM(execution_count)::bigint as \"execution_count!\",\n                COALESCE(SUM(execution_count) FILTER (WHERE status = 'success'), 0)::bigint as \"success_count!\",\n                COALESCE((SUM(exec_sum_ms)::numeric / NULLIF(SUM(exec_n), 0))::float8, 0) as \"avg_time!\",\n                MAX(last_at) as \"last_used!\"\n            FROM report_tool_usage_hourly\n            WHERE bucket >= date_trunc('hour', $1::timestamptz, 'UTC') AND bucket < $2\n              AND server_name NOT IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode', 'hook_harness')\n            GROUP BY tool_name, server_name\n            ORDER BY SUM(execution_count) DESC\n            LIMIT $3\n            ",
   "describe": {
     "columns": [
       {
@@ -54,7 +54,6 @@
       "Left": [
         "Timestamptz",
         "Timestamptz",
-        "Text",
         "Int8"
       ]
     },
@@ -67,5 +66,5 @@
       null
     ]
   },
-  "hash": "9fb62f44b74c0034de4f3f94e8779bb4de569d8b3dbe5beb3cce02560f30ee0e"
+  "hash": "f24c13a5b7730d9c77ca3556cb9bc994a05511b9edad6ddcb58a28bc74603a6a"
 }

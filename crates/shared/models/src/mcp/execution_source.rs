@@ -18,9 +18,9 @@ use serde::{Deserialize, Serialize};
 /// In-process executor, the HTTP proxy tapping an external server, a
 /// `tool_result` block replayed in a `/v1/messages` history, or a client
 /// host's tool-completion hook (`PostToolUse` for Claude Code and Cowork;
-/// `OpenCode`'s own hook). A host with no hook vantage point of its own
-/// (`harness`) has no value here: [`ExecutionSource::from_hook_host`] is
-/// `None` for it, never another host's.
+/// `OpenCode`'s own hook; the hook a harness device reports). The stored
+/// strings are the `source` CHECK of `mcp_tool_executions` and
+/// `mcp_artifacts`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecutionSource {
@@ -29,15 +29,17 @@ pub enum ExecutionSource {
     Gateway,
     HookClaudeCode,
     HookOpenCode,
+    HookHarness,
 }
 
 impl ExecutionSource {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::InProcess,
         Self::Proxy,
         Self::Gateway,
         Self::HookClaudeCode,
         Self::HookOpenCode,
+        Self::HookHarness,
     ];
 
     #[must_use]
@@ -48,6 +50,7 @@ impl ExecutionSource {
             Self::Gateway => "gateway",
             Self::HookClaudeCode => "hook_claude_code",
             Self::HookOpenCode => "hook_opencode",
+            Self::HookHarness => "hook_harness",
         }
     }
 
@@ -62,13 +65,13 @@ impl ExecutionSource {
     }
 
     #[must_use]
-    pub const fn from_hook_host(host: crate::bridge::host::HostKind) -> Option<Self> {
+    pub const fn from_hook_host(host: crate::bridge::host::HostKind) -> Self {
         match host.product() {
-            crate::bridge::host::HostProduct::OpenCode => Some(Self::HookOpenCode),
+            crate::bridge::host::HostProduct::OpenCode => Self::HookOpenCode,
             crate::bridge::host::HostProduct::Claude
             | crate::bridge::host::HostProduct::Codex
-            | crate::bridge::host::HostProduct::Hermes => Some(Self::HookClaudeCode),
-            crate::bridge::host::HostProduct::Harness => None,
+            | crate::bridge::host::HostProduct::Hermes => Self::HookClaudeCode,
+            crate::bridge::host::HostProduct::Harness => Self::HookHarness,
         }
     }
 }

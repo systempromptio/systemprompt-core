@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS mcp_tool_executions (
     actor_id TEXT,
     ai_tool_call_id VARCHAR(255),
     source VARCHAR(32) NOT NULL DEFAULT 'in_process'
-        CHECK (source IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode')),
+        CHECK (source IN ('in_process', 'proxy', 'gateway', 'hook_claude_code', 'hook_opencode', 'hook_harness')),
     correlation VARCHAR(16) NOT NULL DEFAULT 'exact' CHECK (correlation IN ('exact', 'inferred')),
     payload_sha256 CHAR(64),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

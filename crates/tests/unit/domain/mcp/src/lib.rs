@@ -40,6 +40,10 @@ mod error_display;
 #[cfg(test)]
 mod error_from;
 #[cfg(test)]
+mod execution_source_check_db;
+#[cfg(test)]
+mod execution_source_schema;
+#[cfg(test)]
 mod extension;
 #[cfg(test)]
 mod harness;
