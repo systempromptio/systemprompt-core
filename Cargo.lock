@@ -6862,6 +6862,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-device"
+version = "0.87.0"
+
+[[package]]
 name = "systemprompt-documents"
 version = "0.87.0"
 dependencies = [
@@ -6896,6 +6900,14 @@ dependencies = [
  "tracing",
  "urlencoding",
 ]
+
+[[package]]
+name = "systemprompt-drive"
+version = "0.87.0"
+
+[[package]]
+name = "systemprompt-engine"
+version = "0.87.0"
 
 [[package]]
 name = "systemprompt-events"
@@ -7184,6 +7196,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-harness"
+version = "0.87.0"
+
+[[package]]
+name = "systemprompt-hosts"
+version = "0.87.0"
+
+[[package]]
 name = "systemprompt-identifiers"
 version = "0.87.0"
 dependencies = [
@@ -7324,6 +7344,10 @@ dependencies = [
  "tracing-subscriber",
  "uuid",
 ]
+
+[[package]]
+name = "systemprompt-machine"
+version = "0.87.0"
 
 [[package]]
 name = "systemprompt-manifest"
@@ -7665,6 +7689,14 @@ dependencies = [
  "systemprompt-identifiers",
  "thiserror 2.0.21",
 ]
+
+[[package]]
+name = "systemprompt-proxy"
+version = "0.87.0"
+
+[[package]]
+name = "systemprompt-runner"
+version = "0.87.0"
 
 [[package]]
 name = "systemprompt-runtime"

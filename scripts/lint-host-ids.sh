@@ -3,8 +3,8 @@
 #
 # `HostKind` (crates/shared/models/src/bridge/host.rs) is the vocabulary the
 # gateway and the bridge share: `claude-code`, `claude-desktop`, `codex`,
-# `codex-cli`, `opencode`, `opencode-cli`, `hermes`. Every other site derives
-# the string through `HostKind::as_str`, and the web tree imports it from
+# `codex-cli`, `opencode`, `opencode-cli`, `hermes`, `harness`. Every other
+# site derives the string through `HostKind::as_str`, and the web tree imports it from
 # `bin/bridge/web/js/utils/host-ids.js`, the one hand-written mirror (a Rust
 # test holds it equal to `HostKind::ALL`). A literal anywhere else is a second
 # table that drifts when a host is added, which is how `codex` and
@@ -26,16 +26,18 @@ gate_scope_parse "$@"
 set -- "${GATE_ARGS[@]}"
 cd "$GATE_ROOT"
 
-ids='claude-code|claude-desktop|codex|codex-cli|opencode|opencode-cli|hermes'
+ids='claude-code|claude-desktop|codex|codex-cli|opencode|opencode-cli|hermes|harness'
 pattern="\"(${ids})\""
 
 canonical="crates/shared/models/src/bridge/host.rs"
 mirror="bin/bridge/web/js/utils/host-ids.js"
 
 allowlist=$(cat <<'LIST'
-crates/shared/models/src/origin/mod.rs|claude-code claude-desktop codex opencode hermes|ClientKind wire values, CHECKed by ai_requests.client_kind; a wire client cannot tell app from CLI
+crates/shared/models/src/origin/mod.rs|claude-code claude-desktop codex opencode hermes harness|ClientKind wire values, CHECKed by ai_requests.client_kind; a wire client cannot tell app from CLI
 crates/shared/models/src/origin/mod.rs|claude-code claude-desktop|User-Agent product tokens parsed by ClientKind::from_ua_product
 crates/shared/models/src/origin/mod.rs|opencode|User-Agent product token parsed by ClientKind::from_ua_product
+crates/shared/models/src/origin/mod.rs|harness|User-Agent product token parsed by ClientKind::from_ua_product
+crates/app/agent-runs/src/runner/mod.rs|harness|Debug field naming the agent-run harness source, which is not a host
 crates/app/agent-runs/src/host/codex_cli/mod.rs|codex|the `codex` executable the headless runner spawns
 bin/bridge/src/integration/codex/config.rs|codex|the `codex` executable looked up on PATH
 bin/bridge/src/integration/opencode/config.rs|opencode|the `opencode` executable looked up on PATH

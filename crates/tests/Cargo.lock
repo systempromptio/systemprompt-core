@@ -12287,6 +12287,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-scripted-instance"
+version = "0.0.11"
+dependencies = [
+ "anyhow",
+ "axum",
+ "clap",
+ "serde",
+ "serde_json",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-wire",
+ "thiserror 2.0.21",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "systemprompt-security"
 version = "0.87.0"
 dependencies = [

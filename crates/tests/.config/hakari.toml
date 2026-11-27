@@ -21,6 +21,7 @@ platforms = [
 # no server stack; they stay free of the hack. Mirrors
 # scripts/bridge-native-crates.txt (checked by scripts/lint-native-test-deps.sh).
 workspace-members = [
+    "systemprompt-scripted-instance",
     "systemprompt-bridge-activity-tests",
     "systemprompt-bridge-auth-session-tests",
     "systemprompt-bridge-auth-tests",

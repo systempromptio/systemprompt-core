@@ -29,6 +29,8 @@ pub enum DesiredError {
     Facts(Arc<ProfileFactsError>),
     #[error(transparent)]
     Render(Arc<HostAppError>),
+    #[error(transparent)]
+    HostOwned(#[from] crate::proxy::scoped_token::HostOwnsConfig),
 }
 
 impl ProbeEnv {
@@ -81,7 +83,7 @@ impl ProbeEnv {
             .facts
             .as_ref()
             .map_err(|e| DesiredError::Facts(Arc::clone(e)))?;
-        host.desired(&facts.inputs_for(host.profile_identity()))
+        host.desired(&facts.inputs_for(host.profile_identity())?)
             .map_err(|e| DesiredError::Render(Arc::new(e)))
     }
 }

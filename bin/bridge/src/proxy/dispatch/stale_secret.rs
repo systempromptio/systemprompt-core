@@ -71,13 +71,8 @@ pub(super) fn remediation_for(
         return StaleSecretRemedy::ReapplyProfile;
     }
     let ours = crate::ids::LoopbackSecret::new(ctx.secret.as_ref().as_str());
-    let bridge_desktop_fp = secret::fingerprint(
-        crate::proxy::scoped_token::host_token(
-            &ours,
-            systemprompt_models::bridge::host::HostKind::ClaudeDesktop,
-        )
-        .as_str(),
-    );
+    let bridge_desktop_fp =
+        secret::fingerprint(crate::proxy::scoped_token::desktop_host_token(&ours).as_str());
     let policy_fp = (ctx.deps.desktop_policy_key_fp)();
     stale_secret_remedy(true, presented_fp, &bridge_desktop_fp, policy_fp.as_deref())
 }

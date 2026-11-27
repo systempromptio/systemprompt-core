@@ -37,6 +37,15 @@ pub(super) async fn emit_hosts(
     };
     for (index, emitter) in emitters.iter().enumerate() {
         let host_id = emitter.host_id();
+        if !host_sync::writes_for(*emitter) {
+            tracing::warn!(
+                target: "bridge::sync::host",
+                host = host_id.as_str(),
+                emitter = emitter.emitter_id(),
+                "host owns its configuration; emitter skipped"
+            );
+            continue;
+        }
         bridge
             .sync_progress
             .report(&crate::progress::SyncProgress::new(

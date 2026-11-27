@@ -5,11 +5,13 @@
 use http::Uri;
 use systemprompt_bridge::ids::{LoopbackSecret, PluginId, ProxySecret};
 use systemprompt_bridge::proxy::credential::{
-    LoopbackCredential, Rejection, RouteClass, authenticate, classify_route,
+    LoopbackCredential, Rejection, RouteClass, authenticate, classify_route, credentialed_hosts,
 };
 use systemprompt_bridge::proxy::forward::path::ProxyPath;
-use systemprompt_bridge::proxy::scoped_token::{hook_token, host_token};
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_bridge::proxy::scoped_token::{
+    HostOwnsConfig, TokenScope, hook_token, host_token, verify,
+};
+use systemprompt_models::bridge::host::{ConfigOwner, HostKind};
 
 const SECRET: &str = "loopback-secret-0123456789abcdef0123456789abcdef";
 
@@ -29,6 +31,7 @@ fn hook(id: &str) -> String {
 
 fn host(id: HostKind) -> String {
     host_token(&LoopbackSecret::new(SECRET), id)
+        .expect("the bridge owns this host's configuration")
         .as_str()
         .to_owned()
 }
@@ -128,6 +131,7 @@ fn a_host_token_opens_inference_mcp_and_otel_but_not_hooks_or_other_routes() {
 #[test]
 fn a_host_token_minted_under_another_secret_is_no_credential_at_all() {
     let token = host_token(&LoopbackSecret::new("another-secret"), HostKind::Hermes)
+        .expect("the bridge owns this host's configuration")
         .as_str()
         .to_owned();
     for route in [
@@ -224,6 +228,7 @@ fn derived_tokens_are_stable_per_scope_and_distinct_across_scopes_and_secrets() 
             &LoopbackSecret::new("another-secret"),
             HostKind::ClaudeDesktop
         )
+        .expect("the bridge owns this host's configuration")
         .as_str(),
         "rotating the secret invalidates every derived token"
     );
@@ -231,4 +236,81 @@ fn derived_tokens_are_stable_per_scope_and_distinct_across_scopes_and_secrets() 
         !hook("acme").contains(SECRET),
         "a derived token never carries the secret"
     );
+}
+
+#[test]
+fn no_host_token_is_derived_for_a_host_that_owns_its_configuration() {
+    let secret = LoopbackSecret::new(SECRET);
+    for kind in HostKind::ALL {
+        match kind.config_owner() {
+            ConfigOwner::Bridge => assert!(host_token(&secret, kind).is_ok(), "{kind}"),
+            ConfigOwner::Host => {
+                assert_eq!(
+                    host_token(&secret, kind),
+                    Err(HostOwnsConfig(kind)),
+                    "{kind}"
+                );
+            },
+        }
+    }
+    assert_eq!(
+        host_token(&secret, HostKind::Harness),
+        Err(HostOwnsConfig(HostKind::Harness))
+    );
+    assert!(
+        HostOwnsConfig(HostKind::Harness)
+            .to_string()
+            .contains("harness")
+    );
+}
+
+#[test]
+fn the_proxy_recognises_a_host_token_only_for_bridge_configured_hosts() {
+    let recognised: Vec<HostKind> = credentialed_hosts().collect();
+    let expected: Vec<HostKind> = HostKind::ALL
+        .into_iter()
+        .filter(|kind| kind.config_owner() == ConfigOwner::Bridge)
+        .collect();
+    assert_eq!(recognised, expected);
+    assert!(
+        !recognised.contains(&HostKind::Harness),
+        "harness presents no loopback credential"
+    );
+    for kind in recognised {
+        let token = host(kind);
+        for route in [RouteClass::Inference, RouteClass::Mcp, RouteClass::Otel] {
+            assert_eq!(
+                authenticate(&token, &secret(), &route),
+                Ok(LoopbackCredential::Host(kind)),
+                "{kind} on {route:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn no_credential_authenticates_as_a_host_that_owns_its_configuration() {
+    let harness = TokenScope::Host(HostKind::Harness);
+    let mut presented: Vec<String> = credentialed_hosts().map(host).collect();
+    presented.push(SECRET.to_owned());
+    presented.push(hook("harness"));
+    for token in &presented {
+        assert!(
+            !verify(token, &secret(), &harness),
+            "no token verifies under a scope the bridge never issues"
+        );
+        for route in [
+            RouteClass::Hook(Some(plugin("harness"))),
+            RouteClass::Inference,
+            RouteClass::Mcp,
+            RouteClass::Otel,
+            RouteClass::Other,
+        ] {
+            assert_ne!(
+                authenticate(token, &secret(), &route),
+                Ok(LoopbackCredential::Host(HostKind::Harness)),
+                "{route:?}"
+            );
+        }
+    }
 }

@@ -1,12 +1,12 @@
 [root]
 section = "Breaking"
 area = "Hosts"
-text = "`HostKind` gains `Harness` (`harness`), a desktop app (`HostProduct::Harness`) that speaks both the Anthropic Messages and the OpenAI Chat Completions wire; `HostKind::ALL` has eight ids. `ClientKind` gains `Harness`, so `x-systemprompt-client: harness` and the User-Agent product `harness` attribute a request to it, and `EvaluatorClient` gains `Harness`, so a consumer device may fetch installation plans and bind sessions for `host=harness`. An instance enables `harness` like every other host unless `external_agents.harness.enabled` is `false`, and a bridge built against 0.87 cannot parse a manifest that names it: upgrade bridges with the gateway or disable the host. Migrate an exhaustive `match` over `HostKind`, `HostProduct`, `ClientKind` or `EvaluatorClient` by adding the arm."
+text = "`HostKind` gains `Harness` (`harness`), a desktop app (`HostProduct::Harness`) that speaks both the Anthropic Messages and the OpenAI Chat Completions wire; `HostKind::ALL` has eight ids. `HostKind::config_owner()` names who writes a host's configuration and holds its loopback credential: `ConfigOwner::Host` for `harness`, `ConfigOwner::Bridge` for every other host. `ClientKind` gains `Harness`, so `x-systemprompt-client: harness` and the User-Agent product `harness` attribute a request to it, and `EvaluatorClient` gains `Harness`, so a consumer device may fetch installation plans and bind sessions for `host=harness`. An instance enables `harness` like every other host unless `external_agents.harness.enabled` is `false`, and a bridge built against 0.87 cannot parse a manifest that names it: upgrade bridges with the gateway or disable the host. Migrate an exhaustive `match` over `HostKind`, `HostProduct`, `ClientKind` or `EvaluatorClient` by adding the arm."
 
 [[crate]]
 name = "systemprompt-models"
 section = "Breaking"
-text = "`bridge::host::HostKind` and `HostProduct` gain `Harness` (`harness`, a desktop app), `origin::ClientKind` gains `Harness` (declarable, User-Agent product `harness`) and `feedback::EvaluatorClient` gains `Harness`. Migrate an exhaustive `match` by adding the arm."
+text = "`bridge::host::HostKind` and `HostProduct` gain `Harness` (`harness`, a desktop app), `bridge::host` gains `ConfigOwner { Bridge, Host }` and `HostKind::config_owner()` (`Host` for `harness`, `Bridge` for every other host), `origin::ClientKind` gains `Harness` (declarable, User-Agent product `harness`) and `feedback::EvaluatorClient` gains `Harness`. Migrate an exhaustive `match` by adding the arm."
 
 [[crate]]
 name = "systemprompt-agent-runs"

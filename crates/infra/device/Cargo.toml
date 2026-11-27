@@ -1,0 +1,22 @@
+[package]
+name = "systemprompt-device"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Device-side sign-in, keyrings, configuration and policy stores, manifest sync and acceptance for systemprompt.io."
+readme = "README.md"
+include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md"]
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

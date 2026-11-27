@@ -10,8 +10,6 @@
 
 use std::collections::BTreeMap;
 
-use systemprompt_models::bridge::host::HostKind;
-
 use super::error::MdmError;
 use crate::ids::{HostToken, LoopbackSecret};
 
@@ -89,7 +87,7 @@ pub struct PolicyInputs<'a> {
 
 #[must_use]
 pub fn desktop_host_token(secret: &LoopbackSecret) -> HostToken {
-    crate::proxy::scoped_token::host_token(secret, HostKind::ClaudeDesktop)
+    crate::proxy::scoped_token::desktop_host_token(secret)
 }
 
 // Why: Claude Desktop budgets a gateway model at 200k unless its id carries

@@ -1,10 +1,12 @@
 //! The facts every host's settings are rendered from, assembled once.
 //!
 //! The repair path, the sync writers and the probe all render a host's
-//! profile from [`ProfileGenInputs`]; [`ProfileFacts::inputs_for`] is the only
-//! place those inputs are built, so what the probe expects is exactly what a
-//! writer would write. It sits below the host integrations so the machine
-//! policy writers here can use it too.
+//! profile from [`ProfileGenInputs`]; [`ProfileFacts::inputs_for`] and its
+//! Claude Desktop form [`ProfileFacts::desktop_inputs`] are the only places
+//! those inputs are built, so what the probe expects is exactly what a
+//! writer would write. A host that owns its configuration has no inputs:
+//! [`ProfileFacts::inputs_for`] refuses it. It sits below the host
+//! integrations so the machine policy writers here can use it too.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -17,6 +19,7 @@ use systemprompt_models::bridge::host::HostKind;
 use crate::gateway::types::BridgeProfile;
 use crate::ids::{HostToken, LoopbackSecret};
 use crate::install::mdm::policy::McpServerEntry;
+use crate::proxy::scoped_token::HostOwnsConfig;
 
 /// Inputs a host renders its profile from.
 ///
@@ -140,8 +143,20 @@ impl ProfileFacts {
         Ok(crate::gateway::manifest::decode_payload(&fragment.envelope)?.host_model_protocols)
     }
 
+    pub fn inputs_for(&self, host: HostKind) -> Result<ProfileGenInputs, HostOwnsConfig> {
+        let host_token = crate::proxy::scoped_token::host_token(&self.secret, host)?;
+        Ok(self.render(host, host_token))
+    }
+
     #[must_use]
-    pub fn inputs_for(&self, host: HostKind) -> ProfileGenInputs {
+    pub fn desktop_inputs(&self) -> ProfileGenInputs {
+        self.render(
+            HostKind::ClaudeDesktop,
+            crate::proxy::scoped_token::desktop_host_token(&self.secret),
+        )
+    }
+
+    fn render(&self, host: HostKind, host_token: HostToken) -> ProfileGenInputs {
         let clients = crate::gateway::model_view::HostClients::for_host(host, &self.overrides);
         let headers = inference_headers(host, &self.overrides);
         let (mut models, mut model_limits, model_names, default_model, gateway_org) =
@@ -177,7 +192,7 @@ impl ProfileFacts {
         }
         ProfileGenInputs {
             gateway_base_url: self.gateway_base_url.clone(),
-            host_token: crate::proxy::scoped_token::host_token(&self.secret, host),
+            host_token,
             models,
             model_limits,
             model_names,

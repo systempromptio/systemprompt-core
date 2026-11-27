@@ -20,6 +20,8 @@ members = [
     "crates/infra/governance",
     "crates/infra/cloud",
     "crates/infra/loader",
+    "crates/infra/device",
+    "crates/infra/machine",
     # Domain layer
     "crates/domain/users",
     "crates/domain/oauth",
@@ -35,6 +37,11 @@ members = [
     "crates/domain/teams",
     "crates/domain/notifications",
     "crates/domain/brain",
+    "crates/domain/engine",
+    "crates/domain/proxy",
+    "crates/domain/hosts",
+    "crates/domain/drive",
+    "crates/domain/runner",
     # Application layer
     "crates/app/runtime",
     "crates/app/mcp-host",
@@ -45,6 +52,7 @@ members = [
     "crates/app/gateway",
     "crates/app/documents",
     "crates/app/issues",
+    "crates/app/harness",
     # Entry layer
     "crates/entry/api",
     "crates/entry/cli",
@@ -350,6 +358,8 @@ systemprompt-security = { path = "crates/infra/security", version = "0.87.0" }
 systemprompt-governance = { path = "crates/infra/governance", version = "0.87.0" }
 systemprompt-cloud = { path = "crates/infra/cloud", version = "0.87.0" }
 systemprompt-loader = { path = "crates/infra/loader", version = "0.87.0" }
+systemprompt-device = { path = "crates/infra/device", version = "0.87.0" }
+systemprompt-machine = { path = "crates/infra/machine", version = "0.87.0" }
 systemprompt-users = { path = "crates/domain/users", version = "0.87.0" }
 systemprompt-oauth = { path = "crates/domain/oauth", version = "0.87.0" }
 systemprompt-files = { path = "crates/domain/files", version = "0.87.0" }
@@ -364,6 +374,11 @@ systemprompt-slack = { path = "crates/domain/slack", version = "0.87.0" }
 systemprompt-teams = { path = "crates/domain/teams", version = "0.87.0" }
 systemprompt-notifications = { path = "crates/domain/notifications", version = "0.87.0" }
 systemprompt-brain = { path = "crates/domain/brain", version = "0.87.0" }
+systemprompt-engine = { path = "crates/domain/engine", version = "0.87.0" }
+systemprompt-proxy = { path = "crates/domain/proxy", version = "0.87.0" }
+systemprompt-hosts = { path = "crates/domain/hosts", version = "0.87.0" }
+systemprompt-drive = { path = "crates/domain/drive", version = "0.87.0" }
+systemprompt-runner = { path = "crates/domain/runner", version = "0.87.0" }
 systemprompt-runtime = { path = "crates/app/runtime", version = "0.87.0" }
 systemprompt-mcp-host = { path = "crates/app/mcp-host", version = "0.87.0" }
 systemprompt-scheduler = { path = "crates/app/scheduler", version = "0.87.0" }
@@ -373,6 +388,7 @@ systemprompt-oauth-issuance = { path = "crates/app/oauth-issuance", version = "0
 systemprompt-gateway = { path = "crates/app/gateway", version = "0.87.0" }
 systemprompt-documents = { path = "crates/app/documents", version = "0.87.0" }
 systemprompt-issues = { path = "crates/app/issues", version = "0.87.0" }
+systemprompt-harness = { path = "crates/app/harness", version = "0.87.0" }
 systemprompt-api = { path = "crates/entry/api", version = "0.87.0" }
 systemprompt-cli = { path = "crates/entry/cli", version = "0.87.0" }
 systemprompt-slack-entry = { path = "crates/entry/slack", version = "0.87.0" }

@@ -5,14 +5,15 @@
 //! gateway itself and only receives skill/plugin sync from here — and it is
 //! still listed on the Agents card.
 //!
-//! `harness` is enabled the same way, but the bridge neither writes nor syncs
-//! anything for it and does not list it: the app reads and verifies the
-//! signed manifest itself. [`is_unmanaged`] names such a host.
+//! A host that owns its configuration ([`ConfigOwner::Host`]) is enabled the
+//! same way, but the bridge neither writes nor syncs anything for it and does
+//! not list it: the app reads and verifies the signed manifest itself. No
+//! such host is a sync-only agent.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{ConfigOwner, HostKind};
 
 use super::agent_health::{
     AgentAction, AgentReason, AgentState, AgentVerdict, ApplyFailure, apply_failed,
@@ -33,15 +34,10 @@ pub const SYNC_ONLY_AGENTS: &[SyncOnlyAgent] = &[SyncOnlyAgent {
     icon: HostKind::ClaudeCode.as_str(),
 }];
 
-pub const UNMANAGED_HOSTS: &[HostKind] = &[HostKind::Harness];
-
-#[must_use]
-pub fn is_unmanaged(host: HostKind) -> bool {
-    UNMANAGED_HOSTS.contains(&host)
-}
-
 pub fn sync_only_agents() -> impl Iterator<Item = &'static SyncOnlyAgent> {
-    SYNC_ONLY_AGENTS.iter()
+    SYNC_ONLY_AGENTS
+        .iter()
+        .filter(|agent| agent.id.config_owner() == ConfigOwner::Bridge)
 }
 
 #[must_use]

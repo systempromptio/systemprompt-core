@@ -22,7 +22,7 @@ use systemprompt_bridge::wire::first_run::{
 use systemprompt_bridge::wire::hosts::{
     HostEntryPayload, HostHealthPayload, HostsPayload, ProxyPayload,
 };
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{ConfigOwner, HostKind};
 
 fn json_of<T: serde::Serialize>(v: &T) -> Value {
     serde_json::to_value(v).expect("payload serialises")
@@ -473,7 +473,7 @@ fn every_fixture_host_entry_carries_exactly_the_wire_key_set() {
 fn every_fixture_lists_exactly_the_known_hosts() {
     let mut expected: Vec<&str> = HostKind::ALL
         .into_iter()
-        .filter(|kind| !systemprompt_bridge::integration::sync_only::is_unmanaged(*kind))
+        .filter(|kind| kind.config_owner() == ConfigOwner::Bridge)
         .map(HostKind::as_str)
         .collect();
     expected.sort_unstable();

@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use systemprompt_models::bridge::host::{HostAppKind, HostKind, HostProduct};
+use systemprompt_models::bridge::host::{ConfigOwner, HostAppKind, HostKind, HostProduct};
 use systemprompt_models::bridge::manifest::SignedManifest;
 use systemprompt_models::feedback::EvaluatorClient;
 use systemprompt_models::mcp::ExecutionSource;
@@ -69,6 +69,41 @@ fn packaging_and_product_split_the_pairs() {
     assert_eq!(hermes, [HostKind::Hermes]);
     let harness: Vec<HostKind> = HostProduct::Harness.hosts().collect();
     assert_eq!(harness, [HostKind::Harness]);
+}
+
+#[test]
+fn the_bridge_owns_every_configuration_but_the_harness_apps() {
+    assert_eq!(HostKind::Harness.config_owner(), ConfigOwner::Host);
+    let host_owned: Vec<HostKind> = HostKind::ALL
+        .into_iter()
+        .filter(|host| host.config_owner() == ConfigOwner::Host)
+        .collect();
+    assert_eq!(host_owned, [HostKind::Harness]);
+    let bridge_owned: Vec<HostKind> = HostKind::ALL
+        .into_iter()
+        .filter(|host| host.config_owner() == ConfigOwner::Bridge)
+        .collect();
+    assert_eq!(
+        bridge_owned,
+        [
+            HostKind::ClaudeCode,
+            HostKind::ClaudeDesktop,
+            HostKind::Codex,
+            HostKind::CodexCli,
+            HostKind::OpenCode,
+            HostKind::OpenCodeCli,
+            HostKind::Hermes,
+        ]
+    );
+    for host in HostKind::ALL {
+        if let Some(sibling) = host.shares_config_with() {
+            assert_eq!(
+                sibling.config_owner(),
+                host.config_owner(),
+                "{host} and {sibling} read one configuration tree, so one party owns it"
+            );
+        }
+    }
 }
 
 #[test]

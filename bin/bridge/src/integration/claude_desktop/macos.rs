@@ -184,7 +184,7 @@ pub(crate) fn managed_policy_state(
             };
         },
     };
-    let inputs = facts.inputs_for(systemprompt_models::bridge::host::HostKind::ClaudeDesktop);
+    let inputs = facts.desktop_inputs();
     let desired: Result<DesiredProfile, DesiredError> = match super::reg_profile::desired(&inputs) {
         Ok(desired) => Ok(desired),
         Err(error) => {

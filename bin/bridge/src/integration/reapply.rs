@@ -62,6 +62,8 @@ pub enum ProfileInputsError {
     BridgeProfile(#[source] crate::auth::profile::ProfileFetchError),
     #[error(transparent)]
     Facts(#[from] ProfileFactsError),
+    #[error(transparent)]
+    HostOwned(#[from] crate::proxy::scoped_token::HostOwnsConfig),
 }
 
 pub async fn build_profile_inputs(
@@ -95,7 +97,7 @@ pub async fn build_profile_inputs(
         Some(&bridge.warn_once),
     )?;
     facts.profile = Some(server_profile);
-    Ok(facts.inputs_for(host.profile_identity()))
+    Ok(facts.inputs_for(host.profile_identity())?)
 }
 
 /// Whether the user asked for this repair.

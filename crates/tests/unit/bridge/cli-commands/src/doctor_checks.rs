@@ -117,7 +117,8 @@ fn host_profile_secret_doctor_reports_stale_opencode_credentials_then_a_repaired
         std::fs::create_dir_all(profile.parent().expect("profile parent"))
             .expect("opencode config directory");
         let host = HostKind::OpenCode;
-        let stale_token = host_token(&LoopbackSecret::new("retired-loopback-secret"), host);
+        let stale_token = host_token(&LoopbackSecret::new("retired-loopback-secret"), host)
+            .expect("the bridge owns this host's configuration");
         let token_file = profile.with_file_name("systemprompt.token");
         let doc = serde_json::json!({
             "providers": { "systemprompt": {
@@ -169,7 +170,8 @@ fn host_profile_secret_doctor_reports_stale_opencode_credentials_then_a_repaired
             stale.detail
         );
 
-        let live_token = host_token(&live_secret, host);
+        let live_token =
+            host_token(&live_secret, host).expect("the bridge owns this host's configuration");
         write_profile(live_token.as_str());
         let wrong_port = check_host_profile_secrets(&env).expect("port mismatch is diagnosed");
         assert_eq!(wrong_port.status, Status::Fail);

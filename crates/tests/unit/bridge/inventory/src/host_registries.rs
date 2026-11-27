@@ -10,7 +10,7 @@ use systemprompt_bridge::integration::{
 };
 use systemprompt_bridge::probe_cache::StartMenuCache;
 use systemprompt_bridge::{host_sync, register_host_app};
-use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::host::{ConfigOwner, HostKind};
 
 fn desktop_offered() -> bool {
     cfg!(any(target_os = "macos", target_os = "windows"))
@@ -42,7 +42,7 @@ fn known_hosts_cover_every_local_and_sync_only_agent() {
     let mut known: Vec<HostKind> = HostKind::ALL
         .into_iter()
         .filter(|kind| desktop_offered() || *kind != HostKind::ClaudeDesktop)
-        .filter(|kind| !systemprompt_bridge::integration::sync_only::is_unmanaged(*kind))
+        .filter(|kind| kind.config_owner() == ConfigOwner::Bridge)
         .collect();
     known.sort_unstable();
     assert_eq!(
@@ -64,7 +64,7 @@ fn host_sync_registry_contains_builtins() {
     let ids: Vec<HostKind> = host_sync::registry().iter().map(|s| s.host_id()).collect();
     for expected in HostKind::ALL
         .into_iter()
-        .filter(|kind| !systemprompt_bridge::integration::sync_only::is_unmanaged(*kind))
+        .filter(|kind| kind.config_owner() == ConfigOwner::Bridge)
     {
         assert!(
             host_sync::registry()
@@ -170,6 +170,112 @@ impl HostApp for ShadowCodexHost {
 }
 
 register_host_app!(ShadowCodexHost, priority = 100);
+
+struct SelfConfiguringHost {
+    id: HostKind,
+    profile_identity: HostKind,
+    display_name: &'static str,
+}
+
+impl HostApp for SelfConfiguringHost {
+    fn id(&self) -> HostKind {
+        self.id
+    }
+    fn profile_identity(&self) -> HostKind {
+        self.profile_identity
+    }
+    fn display_name(&self) -> &'static str {
+        self.display_name
+    }
+    fn probe(&self, _env: &ProbeEnv) -> HostAppSnapshot {
+        absent_snapshot(self.id, self.display_name)
+    }
+    fn desired(&self, _inputs: &ProfileGenInputs) -> Result<DesiredProfile, HostAppError> {
+        Ok(DesiredProfile::new())
+    }
+    fn app_installed(&self, _start_menu: &StartMenuCache) -> AppInstallState {
+        AppInstallState::NotInstalled
+    }
+    fn generate_profile(
+        &self,
+        _inputs: &ProfileGenInputs,
+    ) -> Result<GeneratedProfile, HostAppError> {
+        Ok(empty_profile())
+    }
+    fn install_profile(
+        &self,
+        _path: &str,
+        _gate: &systemprompt_bridge::elevation_gate::ElevationGate,
+    ) -> Result<ProfileInstalled, HostAppError> {
+        Ok(ProfileInstalled::ok())
+    }
+    fn install_action_label(&self) -> &'static str {
+        "install"
+    }
+}
+
+static REGISTERED_HARNESS: SelfConfiguringHost = SelfConfiguringHost {
+    id: HostKind::Harness,
+    profile_identity: HostKind::Harness,
+    display_name: "Registered Harness",
+};
+static HERMES_WITH_HARNESS_IDENTITY: SelfConfiguringHost = SelfConfiguringHost {
+    id: HostKind::Hermes,
+    profile_identity: HostKind::Harness,
+    display_name: "Hermes With Harness Identity",
+};
+
+register_host_app!(REGISTERED_HARNESS, priority = 100);
+register_host_app!(HERMES_WITH_HARNESS_IDENTITY, priority = 100);
+
+#[test]
+fn a_registration_for_a_host_that_owns_its_configuration_is_refused() {
+    assert!(
+        find_host_by_id(HostKind::Harness).is_none(),
+        "a crate registering a host app for harness must not make it enrollable"
+    );
+    assert!(matches!(
+        resolve_host(HostKind::Harness),
+        ResolvedHost::Unmanaged(HostKind::Harness)
+    ));
+    let hermes = find_host_by_id(HostKind::Hermes).expect("the built-in hermes host remains");
+    assert_ne!(
+        hermes.display_name(),
+        "Hermes With Harness Identity",
+        "a registration whose profile would carry a harness credential is refused, \
+         whatever id it registers under"
+    );
+    assert!(
+        host_apps()
+            .iter()
+            .all(|host| host.profile_identity().config_owner() == ConfigOwner::Bridge),
+        "no listed host app renders a profile for a host that owns its configuration"
+    );
+}
+
+#[test]
+fn every_host_that_owns_its_configuration_is_unmanaged_and_unserved() {
+    for id in HostKind::ALL
+        .into_iter()
+        .filter(|kind| kind.config_owner() == ConfigOwner::Host)
+    {
+        assert!(
+            matches!(resolve_host(id), ResolvedHost::Unmanaged(resolved) if resolved == id),
+            "{id}"
+        );
+        assert!(find_host_by_id(id).is_none(), "{id} has no host app");
+        assert!(
+            SYNC_ONLY_AGENTS.iter().all(|agent| agent.id != id),
+            "{id} is not a sync-only agent"
+        );
+        assert!(
+            host_sync::registry()
+                .iter()
+                .all(|emitter| emitter.host_id() != id && !emitter.serves(id)),
+            "no sync emitter writes for {id}"
+        );
+    }
+}
 
 #[test]
 fn an_externally_registered_host_is_discoverable_and_shadows_the_builtin() {
