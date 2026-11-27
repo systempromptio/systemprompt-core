@@ -538,6 +538,43 @@ fn an_attestation_header_from_a_non_bridge_principal_is_a_400() {
 }
 
 #[test]
+fn a_host_token_for_a_client_the_bridge_holds_no_credential_for_is_a_400() {
+    for (client, reason) in [
+        ("harness", "configures itself"),
+        ("pi", "requires a client the bridge configures a host for"),
+        (
+            "other",
+            "requires a client the bridge configures a host for",
+        ),
+    ] {
+        let mut headers = headers_with(CLIENT_ATTESTATION, "host-token");
+        headers.insert(
+            CLIENT_KIND,
+            HeaderValue::from_str(client).expect("header value"),
+        );
+        let attribution = AttributionHeaders::capture(&headers);
+        let mut partial = test_partial();
+        let RejectionError {
+            status, message, ..
+        } = classify_client(&attribution, true, b"{}", &mut partial)
+            .expect_err("the bridge principal itself is refused");
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{client}");
+        assert!(message.contains(reason), "{client}: {message}");
+        assert_eq!(partial.origin.client, ClientKind::Other, "{client}");
+        assert_eq!(
+            partial.origin.attestation,
+            ClientAttestation::None,
+            "{client}"
+        );
+        let evidence = partial
+            .evidence
+            .expect("the rejected row keeps its evidence");
+        assert_eq!(evidence.declared_client.as_deref(), Some(client));
+        assert_eq!(evidence.attested_host, None, "{client}");
+    }
+}
+
+#[test]
 fn a_well_formed_declaration_sets_the_declared_tier() {
     let headers = headers_with(CLIENT_KIND, "pi");
     let attribution = AttributionHeaders::capture(&headers);

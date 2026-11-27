@@ -25,7 +25,10 @@
 //! entry whose key names a host that configures itself may declare any, and
 //! each id is a kebab-case [`HostExtensionId`] refused at load when malformed.
 //!
-//! [`validate_catalog`] refuses an entry whose key differs from its `id`, and
+//! [`validate_catalog`] refuses an entry whose key names no host (`harnes`,
+//! `Harness`): such an entry would be read by nothing, so an `enabled: false`
+//! under a mistyped key would leave its host served. It also refuses an entry
+//! whose key differs from its `id`, and
 //! two entries whose keys name one host (`codex_cli` beside `codex-cli`):
 //! which of the two would supply `enabled` and the signed extension list is
 //! otherwise an accident of map order.
@@ -74,9 +77,27 @@ pub fn external_agent_host(key: &ExternalAgentId) -> Option<HostKind> {
     key.as_str().replace('_', "-").parse().ok()
 }
 
+fn named_host(key: &ExternalAgentId) -> Result<HostKind, ServicesValidationError> {
+    external_agent_host(key).ok_or_else(|| {
+        let known: Vec<String> = HostKind::ALL
+            .iter()
+            .map(|host| host.as_str().replace('-', "_"))
+            .collect();
+        ServicesValidationError::invalid_field(
+            ValidationSubject::named("External agent", key.as_str()),
+            format!(
+                "key '{}' names no host; expected one of {}",
+                key.as_str(),
+                known.join(", ")
+            ),
+        )
+    })
+}
+
 impl ExternalAgentConfig {
     pub fn validate(&self, key: &ExternalAgentId) -> Result<(), ServicesValidationError> {
         let subject = || ValidationSubject::named("External agent", key.as_str());
+        let host = named_host(key)?;
         if self.id.as_str() != key.as_str() {
             return Err(ServicesValidationError::invalid_field(
                 subject(),
@@ -90,11 +111,11 @@ impl ExternalAgentConfig {
         if self.extensions.is_empty() {
             return Ok(());
         }
-        if external_agent_host(key).is_none_or(|host| host.config_owner() != ConfigOwner::Host) {
+        if host.config_owner() != ConfigOwner::Host {
             return Err(ServicesValidationError::invalid_field(
                 subject(),
                 format!(
-                    "extensions are declared but '{}' names no host that configures itself",
+                    "extensions are declared but '{}' names a host the bridge configures",
                     key.as_str()
                 ),
             ));
@@ -122,9 +143,7 @@ pub fn validate_catalog(
         if let Some(agent) = agents.get(key) {
             agent.validate(key)?;
         }
-        let Some(host) = external_agent_host(key) else {
-            continue;
-        };
+        let host = named_host(key)?;
         if let Some(other) = by_host.insert(host, key) {
             return Err(ServicesValidationError::invalid_field(
                 ValidationSubject::named("External agent", key.as_str()),

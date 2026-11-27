@@ -57,6 +57,8 @@ pub enum ClassificationRejection {
     HostTokenWithoutClient { evidence: Box<ClientEvidence> },
     #[error("host-token attestation is not issued for a client that configures itself")]
     HostTokenForHostOwnedClient { evidence: Box<ClientEvidence> },
+    #[error("host-token attestation requires a client the bridge configures a host for")]
+    HostTokenForClientWithoutHost { evidence: Box<ClientEvidence> },
 }
 
 impl ClassificationRejection {
@@ -67,7 +69,8 @@ impl ClassificationRejection {
             | Self::AttestationNotFromBridge { evidence }
             | Self::MalformedAttestation { evidence }
             | Self::HostTokenWithoutClient { evidence }
-            | Self::HostTokenForHostOwnedClient { evidence } => evidence,
+            | Self::HostTokenForHostOwnedClient { evidence }
+            | Self::HostTokenForClientWithoutHost { evidence } => evidence,
         }
     }
 }
@@ -154,10 +157,13 @@ pub fn classify(input: &ClassificationInput<'_>) -> Result<Classified, Classific
                     evidence: Box::new(evidence),
                 });
             };
-            if host
-                .hosts()
-                .any(|packaging| packaging.config_owner() == ConfigOwner::Host)
-            {
+            let mut packagings = host.hosts().peekable();
+            if packagings.peek().is_none() {
+                return Err(ClassificationRejection::HostTokenForClientWithoutHost {
+                    evidence: Box::new(evidence),
+                });
+            }
+            if packagings.any(|packaging| packaging.config_owner() == ConfigOwner::Host) {
                 return Err(ClassificationRejection::HostTokenForHostOwnedClient {
                     evidence: Box::new(evidence),
                 });

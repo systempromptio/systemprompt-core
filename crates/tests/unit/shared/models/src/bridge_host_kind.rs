@@ -3,8 +3,7 @@ use std::collections::BTreeMap;
 use systemprompt_models::bridge::host::{ConfigOwner, HostAppKind, HostKind, HostProduct};
 use systemprompt_models::bridge::ids::HostExtensionId;
 use systemprompt_models::bridge::manifest::{
-    HOST_OWNED_HOST_MIN_BRIDGE, SignedManifest, bridge_version_is_supported,
-    manifest_min_bridge_version, min_bridge_version,
+    SignedManifest, bridge_version_is_supported, manifest_min_bridge_version, min_bridge_version,
 };
 use systemprompt_models::feedback::EvaluatorClient;
 use systemprompt_models::mcp::ExecutionSource;
@@ -230,8 +229,27 @@ fn a_host_with_no_hook_vantage_point_borrows_no_other_hosts_source() {
 }
 
 #[test]
-fn a_manifest_naming_a_host_owned_host_requires_a_bridge_that_knows_it() {
-    assert_eq!(HOST_OWNED_HOST_MIN_BRIDGE, semver::Version::new(0, 88, 0));
+fn a_manifest_naming_a_host_requires_the_first_bridge_that_parses_it() {
+    assert_eq!(
+        HostKind::Harness.min_bridge_version(),
+        Some(semver::Version::new(0, 88, 0))
+    );
+    for host in HostKind::ALL {
+        let required = manifest_min_bridge_version(&[], [host]);
+        match host.min_bridge_version() {
+            Some(first) => {
+                assert!(first > min_bridge_version(), "{host}");
+                assert_eq!(required, first, "{host}: the floor is the host's own");
+            },
+            None => assert_eq!(required, min_bridge_version(), "{host}"),
+        }
+        if host.config_owner() == ConfigOwner::Host {
+            assert!(
+                host.min_bridge_version().is_some(),
+                "{host}: no bridge released before a host that configures itself can parse it"
+            );
+        }
+    }
     let bridge_owned = HostKind::ALL
         .into_iter()
         .filter(|host| host.config_owner() == ConfigOwner::Bridge);
@@ -246,7 +264,19 @@ fn a_manifest_naming_a_host_owned_host_requires_a_bridge_that_knows_it() {
     );
 
     let floor = manifest_min_bridge_version(&[], [HostKind::ClaudeCode, HostKind::Harness]);
-    assert_eq!(floor, HOST_OWNED_HOST_MIN_BRIDGE);
+    assert_eq!(
+        Some(&floor),
+        HostKind::Harness.min_bridge_version().as_ref()
+    );
+    assert_eq!(
+        manifest_min_bridge_version(&[], HostKind::ALL),
+        HostKind::ALL
+            .into_iter()
+            .filter_map(HostKind::min_bridge_version)
+            .max()
+            .expect("a host with a floor"),
+        "naming several hosts requires the newest of their floors"
+    );
     assert!(
         !bridge_version_is_supported("0.87.0", &floor),
         "a 0.87 bridge cannot parse the host id and must be told to upgrade"

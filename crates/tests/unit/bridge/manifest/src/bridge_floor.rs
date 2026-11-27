@@ -137,25 +137,57 @@ fn a_manifest_without_a_ref_keeps_the_default_floor() {
 #[test]
 fn a_host_that_configures_itself_raises_the_manifest_floor() {
     use systemprompt_models::bridge::host::{ConfigOwner, HostKind};
-    use systemprompt_models::bridge::manifest::{
-        HOST_OWNED_HOST_MIN_BRIDGE, manifest_min_bridge_version, min_bridge_version,
-    };
+    use systemprompt_models::bridge::manifest::{manifest_min_bridge_version, min_bridge_version};
 
     for host in HostKind::ALL {
         let floor = manifest_min_bridge_version(&[], [host]);
         match host.config_owner() {
             ConfigOwner::Bridge => assert_eq!(floor, min_bridge_version(), "{host}"),
-            ConfigOwner::Host => assert_eq!(floor, HOST_OWNED_HOST_MIN_BRIDGE, "{host}"),
+            ConfigOwner::Host => assert_eq!(
+                Some(floor),
+                host.min_bridge_version(),
+                "{host}: the floor is the first bridge that parses this host"
+            ),
         }
     }
+    let harness = HostKind::Harness
+        .min_bridge_version()
+        .expect("harness joined the vocabulary in a known release");
     assert!(
-        !bridge_version_is_supported("0.87.0", &HOST_OWNED_HOST_MIN_BRIDGE),
+        !bridge_version_is_supported("0.87.0", &harness),
         "a 0.87 bridge has no such host id and must be told to upgrade"
     );
-    assert!(bridge_version_is_supported(
-        "0.88.0",
-        &HOST_OWNED_HOST_MIN_BRIDGE
-    ));
+    assert!(bridge_version_is_supported("0.88.0", &harness));
+}
+
+// Why: a release cut from this tree parses every host in `HostKind::ALL`, so
+// its own version must meet each host's floor; a host whose floor is ahead of
+// the workspace version is one this build parses but would refuse a manifest
+// for, and is listed here until the version bump lands.
+const FLOORS_AHEAD_OF_THIS_BUILD: [systemprompt_models::bridge::host::HostKind; 1] =
+    [systemprompt_models::bridge::host::HostKind::Harness];
+
+#[test]
+fn this_bridge_meets_the_floor_of_every_host_it_can_parse() {
+    use systemprompt_bridge::brand::COMPAT_VERSION;
+    use systemprompt_models::bridge::host::HostKind;
+
+    let unmet: Vec<HostKind> = HostKind::ALL
+        .into_iter()
+        .filter(|host| {
+            host.min_bridge_version()
+                .is_some_and(|floor| !bridge_version_is_supported(COMPAT_VERSION, &floor))
+        })
+        .collect();
+    for host in &unmet {
+        assert!(
+            FLOORS_AHEAD_OF_THIS_BUILD.contains(host),
+            "bridge {COMPAT_VERSION} parses {host} but is below its floor {:?}: it would refuse \
+             every manifest naming the host, or a released bridge at the floor would fail to \
+             parse it",
+            host.min_bridge_version()
+        );
+    }
 }
 
 #[test]

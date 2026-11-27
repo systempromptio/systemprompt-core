@@ -11,6 +11,13 @@
 //! [`MANIFEST_SCHEMA_VERSION`] of the consuming bridge, which then refuses
 //! with an upgrade message instead of a signature error.
 //!
+//! A bridge parses every host id a manifest names against the closed
+//! [`HostKind`] vocabulary of its own release, so a manifest naming a host
+//! added later fails its parse. [`manifest_min_bridge_version`] therefore
+//! requires, for each named host, the first bridge able to parse it
+//! ([`HostKind::min_bridge_version`]), which turns that parse failure into the
+//! same upgrade-required refusal.
+//!
 //! `host_extensions` maps a host id to the extension ids the instance
 //! enables for that host (a client compiled with optional feature extensions
 //! turns on only those named; an absent host or an empty map enables none).
@@ -42,7 +49,7 @@ use std::collections::BTreeMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::bridge::host::{ConfigOwner, HostKind};
+use crate::bridge::host::HostKind;
 pub use crate::bridge::ids::{HostExtensionId, ManifestSignature};
 use crate::bridge::manifest_version::ManifestVersion;
 use crate::bridge::update_policy::AutoUpdatePolicy;
@@ -75,21 +82,12 @@ pub const fn min_bridge_version() -> semver::Version {
 // into the bridge's upgrade-required refusal.
 pub const EXTERNAL_MARKETPLACE_REF_MIN_BRIDGE: semver::Version = semver::Version::new(0, 63, 0);
 
-// Why: a bridge before 0.88 parses every host id in the manifest against a
-// closed vocabulary that has no host-owned host, so a manifest naming one
-// fails its parse; requiring 0.88 turns that into the bridge's
-// upgrade-required refusal.
-pub const HOST_OWNED_HOST_MIN_BRIDGE: semver::Version = semver::Version::new(0, 88, 0);
-
 #[must_use]
 pub fn manifest_min_bridge_version(
     marketplaces: &[ManifestMarketplace],
     named_hosts: impl IntoIterator<Item = HostKind>,
 ) -> semver::Version {
     let floor = min_bridge_version();
-    let names_host_owned = named_hosts
-        .into_iter()
-        .any(|host| host.config_owner() == ConfigOwner::Host);
     let carries_ref = marketplaces
         .iter()
         .flat_map(|marketplace| &marketplace.external_marketplaces)
@@ -104,10 +102,10 @@ pub fn manifest_min_bridge_version(
     if carries_opencode {
         required = required.max(OPENCODE_V2_MIN_BRIDGE);
     }
-    if names_host_owned {
-        required = required.max(HOST_OWNED_HOST_MIN_BRIDGE);
-    }
-    required
+    named_hosts
+        .into_iter()
+        .filter_map(HostKind::min_bridge_version)
+        .fold(required, Ord::max)
 }
 
 #[must_use]
