@@ -341,6 +341,29 @@ ed25519-dalek = { version = "3", default-features = false }
 serde_jcs = "0.2"
 
 
+# Device crates (engine, device, harness, drive), lifted from the harness
+# repository at a214511 with the versions it resolved.
+# Why: rusqlite 0.39 is the release whose libsqlite3-sys is the 0.37 the
+# lockfile already holds through sqlx; a newer rusqlite links a second SQLite.
+rusqlite = { version = "0.39", features = ["bundled"] }
+parking_lot = "0.13"
+jsonc-parser = { version = "0.34", features = ["serde"] }
+httpdate = "1"
+dunce = "1.0"
+ignore = "0.4"
+similar = "2"
+which = "8"
+notify-debouncer-mini = "0.7"
+unicode-normalization = "0.1"
+hostname = "0.4"
+keyring-core = "1"
+windows-native-keyring-store = "1"
+windows-sys = "0.61"
+security-framework = { version = "3.7", default-features = false }
+aws-lc-rs = { version = "1.19", default-features = false, features = ["aws-lc-sys"] }
+core-foundation = "0.10"
+
+
 # Internal workspace crates (use workspace = true in dependencies)
 systemprompt-identifiers = { path = "crates/shared/identifiers", version = "0.87.0" }
 systemprompt-provider-contracts = { path = "crates/shared/provider-contracts", version = "0.87.0" }

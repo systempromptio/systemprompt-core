@@ -14,6 +14,45 @@ description = "Device-side sign-in, keyrings, configuration and policy stores, m
 readme = "README.md"
 include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md"]
 
+[dependencies]
+async-trait.workspace = true
+base64.workspace = true
+chrono.workspace = true
+ed25519-dalek = { workspace = true, features = ["pkcs8"] }
+hostname.workspace = true
+parking_lot.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+systemprompt-identifiers.workspace = true
+systemprompt-models.workspace = true
+systemprompt-traits.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+url.workspace = true
+uuid.workspace = true
+zeroize.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+keyring-core.workspace = true
+windows-native-keyring-store.workspace = true
+windows-sys = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+    "Win32_Security_Cryptography",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Threading",
+] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+aws-lc-rs.workspace = true
+core-foundation.workspace = true
+security-framework.workspace = true
+
 [lints]
 workspace = true
 
