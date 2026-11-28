@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use clap::Parser;
+use systemprompt_models::bridge::manifest::HostExtensionId;
 use systemprompt_scripted_instance::{
     ManifestFault, ManifestFixture, ModelFixture, ModelScript, PluginFixture, ScriptedInstance,
     TestPat, VerdictScript,
@@ -27,6 +28,10 @@ fn seeded_document(value: &str) -> Result<SeededDocument, String> {
         }),
         _ => Err("expected <PATH>=<FILE>: the Drive path, then the local file".to_owned()),
     }
+}
+
+fn host_extension(value: &str) -> Result<HostExtensionId, String> {
+    HostExtensionId::try_new(value).map_err(|error| error.to_string())
 }
 
 #[derive(Debug, Parser)]
@@ -93,6 +98,21 @@ struct Cli {
         help = "Start the Drive store with a document at PATH holding the bytes of FILE"
     )]
     documents: Vec<SeededDocument>,
+
+    #[arg(
+        long,
+        value_name = "FILE",
+        help = "Sign with the keys in FILE, writing new ones there when it does not exist"
+    )]
+    keys: Option<PathBuf>,
+
+    #[arg(
+        long = "extension",
+        value_name = "ID",
+        value_parser = host_extension,
+        help = "Enable the host extension ID for the harness host in the manifest"
+    )]
+    extensions: Vec<HostExtensionId>,
 }
 
 #[tokio::main]
@@ -132,6 +152,10 @@ async fn main() -> anyhow::Result<()> {
         Some(fault) => manifest.with_fault(fault),
         None => manifest,
     };
+    let manifest = cli
+        .extensions
+        .into_iter()
+        .fold(manifest, ManifestFixture::with_extension);
     let mut builder = ScriptedInstance::builder()
         .port(cli.port)
         .manifest(manifest)
@@ -143,6 +167,9 @@ async fn main() -> anyhow::Result<()> {
     }
     if let Some(pat) = cli.pat {
         builder = builder.pat(TestPat::new(pat));
+    }
+    if let Some(path) = cli.keys {
+        builder = builder.keys(path);
     }
     for document in cli.documents {
         let bytes = std::fs::read(&document.file)

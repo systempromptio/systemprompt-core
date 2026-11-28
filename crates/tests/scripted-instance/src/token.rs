@@ -1,15 +1,28 @@
-//! The keys a started instance generates, and the test tokens it signs
-//! with them: compact EdDSA JWTs for sessions and hook calls.
+//! The keys a started instance generates or loads from a key file, and the
+//! test tokens it signs with them: compact EdDSA JWTs for sessions and hook
+//! calls.
+//!
+//! A key file holds the three 32-byte seeds in order (manifest, rotated,
+//! tokens). It is written owner-only through the device crate's private file
+//! helper the first time a path is used, and read back on every later start,
+//! so a restart signs with the keys an app pinned at the first.
 
 use std::fmt;
+use std::path::Path;
 
 use base64::Engine;
 use base64::engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD};
 use chrono::Utc;
 use ed25519_dalek::{Signature, Signer, SigningKey};
 use serde_json::{Map, Value, json};
+use systemprompt_device::secure::{read_optional, write_private};
+
+use crate::error::ScriptedInstanceError;
 
 pub(crate) const TOKEN_TTL_SECS: i64 = 3_600;
+
+const SEED_LEN: usize = 32;
+const KEY_FILE_LEN: usize = SEED_LEN * 3;
 
 pub(crate) const SESSION_USE: &str = "session";
 pub(crate) const HOOK_USE: &str = "hook";
@@ -38,6 +51,46 @@ impl Keys {
             rotated: key(),
             tokens: key(),
         }
+    }
+
+    pub(crate) fn load_or_generate(path: &Path) -> Result<Self, ScriptedInstanceError> {
+        let key_file = |source| ScriptedInstanceError::KeyFile {
+            path: path.to_path_buf(),
+            source,
+        };
+        if let Some(bytes) = read_optional(path).map_err(key_file)? {
+            return Self::from_seeds(&bytes).ok_or_else(|| {
+                ScriptedInstanceError::KeyFileMalformed {
+                    path: path.to_path_buf(),
+                    expected: KEY_FILE_LEN,
+                    found: bytes.len(),
+                }
+            });
+        }
+        let keys = Self::generate();
+        write_private(path, &keys.seeds()).map_err(key_file)?;
+        Ok(keys)
+    }
+
+    fn from_seeds(bytes: &[u8]) -> Option<Self> {
+        let seeds: &[u8; KEY_FILE_LEN] = bytes.try_into().ok()?;
+        let key = |index: usize| {
+            let start = index * SEED_LEN;
+            let seed: [u8; SEED_LEN] = seeds[start..start + SEED_LEN].try_into().ok()?;
+            Some(SigningKey::from_bytes(&seed))
+        };
+        Some(Self {
+            manifest: key(0)?,
+            rotated: key(1)?,
+            tokens: key(2)?,
+        })
+    }
+
+    fn seeds(&self) -> Vec<u8> {
+        [&self.manifest, &self.rotated, &self.tokens]
+            .iter()
+            .flat_map(|key| key.to_bytes())
+            .collect()
     }
 
     pub(crate) const fn manifest_key(&self, rotated: bool) -> &SigningKey {

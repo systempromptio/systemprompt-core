@@ -1,6 +1,7 @@
 //! The instance and its builder.
 
 use std::net::{Ipv4Addr, SocketAddr};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -36,6 +37,7 @@ pub struct ScriptedInstanceBuilder {
     script: ModelScript,
     title_reply: Option<String>,
     documents: Vec<(String, Vec<u8>)>,
+    keys: Option<PathBuf>,
     port: u16,
 }
 
@@ -88,12 +90,25 @@ impl ScriptedInstanceBuilder {
         self
     }
 
+    /// Signs with the keys held in the file at `path`, writing freshly
+    /// generated ones there owner-only when it does not exist yet, in place of
+    /// new keys on every start. Two starts with the same file serve the same
+    /// manifest key, so an app that pinned the first still trusts the second.
+    pub fn keys(mut self, path: impl Into<PathBuf>) -> Self {
+        self.keys = Some(path.into());
+        self
+    }
+
     pub fn port(mut self, port: u16) -> Self {
         self.port = port;
         self
     }
 
     pub async fn start(self) -> Result<ScriptedInstance, ScriptedInstanceError> {
+        let keys = match &self.keys {
+            Some(path) => Keys::load_or_generate(path)?,
+            None => Keys::generate(),
+        };
         let port = self.port;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, port))
             .await
@@ -105,7 +120,7 @@ impl ScriptedInstanceBuilder {
         let base_url = format!("http://{addr}");
         let state = Arc::new(InstanceState {
             base_url: base_url.clone(),
-            keys: Keys::generate(),
+            keys,
             hook_secret: format!("{:032x}", rand::random::<u128>()),
             arrivals: watch::Sender::new(0),
             codes: Mutex::new(Vec::new()),
