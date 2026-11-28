@@ -12,7 +12,7 @@ use systemprompt_parity_compare::ledger::HARNESS_VS_EXPECTED;
 use systemprompt_parity_compare::{
     Classifications, Difference, LedgerRow, ScenarioScript, build, differences, digest,
 };
-use systemprompt_scripted_instance::{RecordedBody, Route};
+use systemprompt_scripted_instance::{RecordedBody, RequestRecord, Route};
 
 use crate::drive::RunOutput;
 use crate::host::PROJECT_DIR;
@@ -37,6 +37,12 @@ fn workspace(scenario: &Scenario, output: &RunOutput) -> anyhow::Result<Value> {
     Ok(json!({ "tree_digest": digest::tree(&after), "changed": digest::changed(&before, &after) }))
 }
 
+/// A model request the engine made for a step: on a model route and not
+/// answered as a session-title call.
+pub(crate) fn is_step_call(record: &RequestRecord) -> bool {
+    matches!(record.route, Route::Messages | Route::ChatCompletions) && record.purpose.is_none()
+}
+
 /// Normalises a run, compares it and classifies the differences.
 pub fn judge(
     scenario: &Scenario,
@@ -48,7 +54,7 @@ pub fn judge(
     let recorded: Vec<RecordedRequest> = output
         .requests
         .iter()
-        .filter(|record| matches!(record.route, Route::Messages | Route::ChatCompletions))
+        .filter(|record| is_step_call(record))
         .map(|record| RecordedRequest {
             body: body(record),
             unscripted: record.unscripted,

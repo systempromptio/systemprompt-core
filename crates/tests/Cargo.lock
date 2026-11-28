@@ -11428,16 +11428,10 @@ name = "systemprompt-golden-runner"
 version = "0.0.11"
 dependencies = [
  "anyhow",
- "axum",
- "base64 0.23.1",
- "ed25519-dalek 3.0.0",
- "rand 0.10.3",
  "reqwest",
- "serde_jcs",
  "serde_json",
  "systemprompt-device",
  "systemprompt-harness",
- "systemprompt-models",
  "systemprompt-parity-compare",
  "systemprompt-scripted-instance",
  "systemprompt-traits",

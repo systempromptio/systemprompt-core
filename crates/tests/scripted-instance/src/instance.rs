@@ -33,6 +33,7 @@ pub struct ScriptedInstanceBuilder {
     models: Vec<ModelFixture>,
     verdict: VerdictScript,
     script: ModelScript,
+    title_reply: Option<String>,
     port: u16,
 }
 
@@ -67,6 +68,16 @@ impl ScriptedInstanceBuilder {
         self
     }
 
+    /// Answers every session-title call with `reply`: a model request that
+    /// advertises no tool and carries one user message, and that no aside
+    /// recognises. It takes no turn, is recorded with the purpose
+    /// [`Aside::TITLE`](crate::Aside::TITLE) and is never unscripted. Without
+    /// it a title call is an ordinary request and takes the next turn.
+    pub fn title_reply(mut self, reply: impl Into<String>) -> Self {
+        self.title_reply = Some(reply.into());
+        self
+    }
+
     pub fn port(mut self, port: u16) -> Self {
         self.port = port;
         self
@@ -96,6 +107,7 @@ impl ScriptedInstanceBuilder {
             models: self.models,
             verdict: self.verdict,
             script: self.script,
+            title_reply: self.title_reply,
             requests: Mutex::new(Vec::new()),
             consumed_turns: AtomicUsize::new(0),
             consumer: Mutex::default(),

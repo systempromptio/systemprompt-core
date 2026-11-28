@@ -15,7 +15,7 @@ use crate::model::ModelFixture;
 use crate::record::{RecordedBody, RequestRecord, Route};
 use crate::routes::consumer::ConsumerStore;
 use crate::routes::drive::DriveStore;
-use crate::script::{ModelScript, Turn};
+use crate::script::{Aside, ModelScript, Respond, Turn};
 use crate::token::Keys;
 use crate::user::{TestPat, TestUser};
 use crate::verdict::VerdictScript;
@@ -28,6 +28,7 @@ pub(crate) struct InstanceState {
     pub(crate) models: Vec<ModelFixture>,
     pub(crate) verdict: VerdictScript,
     pub(crate) script: ModelScript,
+    pub(crate) title_reply: Option<String>,
     pub(crate) base_url: String,
     pub(crate) keys: Keys,
     pub(crate) hook_secret: String,
@@ -117,7 +118,19 @@ impl InstanceState {
                     Some(aside.purpose.clone()),
                 )
             },
-            None => (self.next_turn(request), None),
+            None => match self.title_reply.as_ref() {
+                Some(reply) if guard::is_title_call(request) => {
+                    let answer = Turn {
+                        respond: vec![Respond::Text(reply.clone())],
+                        ..Turn::default()
+                    };
+                    (
+                        Decision::Turn(Box::new(answer)),
+                        Some(Aside::TITLE.to_owned()),
+                    )
+                },
+                _ => (self.next_turn(request), None),
+            },
         }
     }
 

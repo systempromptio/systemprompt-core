@@ -5,12 +5,14 @@ use systemprompt_device::accounts::Accounts;
 use systemprompt_device::client::{Freshness, HttpClient, SpClient};
 use systemprompt_device::protocol::Jwt;
 use systemprompt_device::protocol::ids::AccountId;
+use systemprompt_golden_runner::drive::GOVERNANCE_PLUGIN;
 use systemprompt_golden_runner::host::host;
-use systemprompt_golden_runner::relay::Relay;
 use systemprompt_harness::command::{
     Composition, DataRoot, HeadlessHost, LoginReport, LoginRequest, login, read_token,
 };
-use systemprompt_scripted_instance::{ModelFixture, ModelScript, ScriptedInstance};
+use systemprompt_scripted_instance::{
+    ManifestFixture, ModelFixture, ModelScript, PluginFixture, ScriptedInstance,
+};
 use tempfile::TempDir;
 
 pub(crate) const MODEL: &str = "scripted-model";
@@ -21,11 +23,10 @@ pub(crate) fn http() -> HttpClient {
     HttpClient::new("scripted-instance-tests").unwrap()
 }
 
-/// A scripted instance behind the title relay, and a data root signed in to
-/// it through the headless `login`.
+/// A scripted instance that answers the title call and lists a governance
+/// plugin, and a data root signed in to it through the headless `login`.
 pub(crate) struct Signed {
     pub(crate) instance: ScriptedInstance,
-    pub(crate) relay: Relay,
     pub(crate) host: HeadlessHost,
     pub(crate) root: PathBuf,
     pub(crate) report: LoginReport,
@@ -38,8 +39,13 @@ pub(crate) struct Signed {
 impl Signed {
     pub(crate) async fn start(script: ModelScript) -> Self {
         let instance = ScriptedInstance::builder()
+            .manifest(
+                ManifestFixture::minimal()
+                    .with_plugin(PluginFixture::governance(GOVERNANCE_PLUGIN)),
+            )
             .models([ModelFixture::messages(MODEL)])
             .script(script)
+            .title_reply(TITLE)
             .start()
             .await
             .unwrap();
@@ -47,9 +53,6 @@ impl Signed {
     }
 
     pub(crate) async fn sign_in(instance: ScriptedInstance) -> Self {
-        let relay = Relay::start(instance.base_url(), TITLE, "claude")
-            .await
-            .unwrap();
         let dir = tempfile::tempdir().unwrap();
         let host = host(dir.path());
         let root = dir.path().join("root");
@@ -57,7 +60,7 @@ impl Signed {
         let report = login(
             &host,
             LoginRequest {
-                instance: relay.url().to_owned(),
+                instance: instance.base_url().to_owned(),
                 token,
                 fingerprint: None,
                 data_root: Some(root.clone()),
@@ -70,7 +73,6 @@ impl Signed {
         let client = accounts.client(&account).unwrap();
         Self {
             instance,
-            relay,
             host,
             root,
             report,

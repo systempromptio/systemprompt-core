@@ -15,7 +15,7 @@ use crate::support::{instance, signed_in};
 const DIGEST: &str = "b3bb6c15ade34221806687bae4d2ff5ccaaf56ab24911bc7859d88dd8c3b9fa4";
 const REVISION: &str = "802c1429-27ed-4274-afd9-51e2ed79ea79";
 
-fn enrolment() -> SelfEnrollRequest {
+pub(crate) fn enrolment() -> SelfEnrollRequest {
     SelfEnrollRequest {
         fingerprint: "SHA256:ab/cd+ef".to_owned(),
         label: "a test device".to_owned(),

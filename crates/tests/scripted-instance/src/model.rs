@@ -1,7 +1,9 @@
 //! The models an instance advertises, each with the context window the
-//! model list and the profile report for it.
+//! model list and the profile report for it, and the client family it is
+//! served to.
 
 use systemprompt_identifiers::ModelId;
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_wire::WireProtocol;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -38,5 +40,16 @@ impl ModelFixture {
     pub const fn context_window(mut self, tokens: u64) -> Self {
         self.context_window = Some(tokens);
         self
+    }
+
+    /// The client family core's gateway lists a model of this protocol to:
+    /// what the manifest's `host_model_protocols` and a profile provider's
+    /// `clients` name.
+    pub const fn family(&self) -> ClientFamily {
+        match self.protocol {
+            WireProtocol::Anthropic => ClientFamily::Claude,
+            WireProtocol::OpenAiChat | WireProtocol::OpenAiResponses => ClientFamily::OpenAi,
+            WireProtocol::Gemini => ClientFamily::Gemini,
+        }
     }
 }

@@ -21,6 +21,8 @@ const fn stop_reason(stop: StopReason) -> &'static str {
     match stop {
         StopReason::End => "end_turn",
         StopReason::ToolUse => "tool_use",
+        StopReason::MaxTokens => "max_tokens",
+        StopReason::ContentFilter => "refusal",
     }
 }
 

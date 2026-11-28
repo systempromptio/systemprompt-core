@@ -4,7 +4,9 @@ use serde_json::Value;
 use systemprompt_harness::command::{
     Answers, EventWriter, ExitStatus, PermissionMode, RunRequest, run,
 };
-use systemprompt_scripted_instance::{Expect, ModelScript, Respond, StopReason, Turn, Usage};
+use systemprompt_scripted_instance::{
+    Aside, Expect, ModelScript, Respond, StopReason, Turn, Usage,
+};
 use systemprompt_traits::CancellationToken;
 
 use crate::fixture::Signed;
@@ -66,6 +68,12 @@ async fn one_prompt_is_answered_through_the_governed_engine() {
     assert_eq!(text, ANSWER);
     assert_eq!(signed.instance.unconsumed_turns(), 0);
     assert!(signed.instance.unscripted_requests().is_empty());
-    assert_eq!(signed.relay.title_calls(), 1);
+    let titles = signed
+        .instance
+        .requests()
+        .into_iter()
+        .filter(|record| record.purpose.as_deref() == Some(Aside::TITLE))
+        .count();
+    assert_eq!(titles, 1);
     signed.accounts.shutdown();
 }

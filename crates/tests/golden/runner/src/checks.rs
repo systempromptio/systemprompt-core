@@ -10,7 +10,7 @@ use systemprompt_parity_compare::{CallStatus, Message, ScenarioScript, Transcrip
 use systemprompt_scripted_instance::Route;
 
 use crate::drive::RunOutput;
-use crate::outcome::body;
+use crate::outcome::{body, is_step_call};
 use crate::scenario::Scenario;
 
 fn exit_name(status: ExitStatus) -> &'static str {
@@ -120,9 +120,7 @@ pub(crate) fn harness_checks(
     // order the model issued the calls (the corpus's rule for the trace).
     verdicts.sort_by_key(|(order, _)| *order);
     let verdicts: Vec<Value> = verdicts.into_iter().map(|(_, tool)| tool).collect();
-    let first_model = during
-        .iter()
-        .position(|record| matches!(record.route, Route::Messages | Route::ChatCompletions));
+    let first_model = during.iter().position(|record| is_step_call(record));
     let refreshes = first_model.map_or(0, |first| {
         during[first..]
             .iter()

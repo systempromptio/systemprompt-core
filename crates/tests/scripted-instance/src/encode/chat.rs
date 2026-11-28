@@ -18,6 +18,8 @@ const fn finish_reason(stop: StopReason) -> &'static str {
     match stop {
         StopReason::End => "stop",
         StopReason::ToolUse => "tool_calls",
+        StopReason::MaxTokens => "length",
+        StopReason::ContentFilter => "content_filter",
     }
 }
 

@@ -1,14 +1,18 @@
-//! What an enrolled device calls: enrolment, plugin bundle files, receipts
-//! and session bindings, over an in-memory store.
+//! What an enrolled device calls: enrolment, plugin bundle files,
+//! installation plans, receipts and session bindings, over an in-memory
+//! store.
 //!
-//! Enrolment and bundle files take the session token. Receipts and session
-//! bindings take the device credential enrolment issued. A receipt posted
-//! again and a binding posted again answer as they did the first time.
+//! Enrolment and bundle files take the session token. Plans, receipts and
+//! session bindings take the device credential enrolment issued. A plan is
+//! served for a published plugin fixture, for the harness host only. A receipt
+//! posted again and a binding posted again answer as they did the first time.
 
 use std::sync::Arc;
 
 use axum::Json;
-use axum::extract::{Path, State};
+use std::collections::BTreeMap;
+
+use axum::extract::{Path, Query, State};
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
@@ -19,6 +23,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::bridge::consumer::SessionBinding;
 use systemprompt_models::bridge::gateway::{SelfEnrollRequest, SelfEnrollResponse};
+use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::feedback::receipts::{
     ConsumerReceiptRequest, ConsumerReceiptResponse, ReceiptAcknowledgement, SessionBindingRequest,
 };
@@ -29,6 +34,7 @@ use crate::state::{InstanceState, lock};
 const DEVICE_ID_PREFIX: &str = "scripted-device-";
 const DEVICE_ID_FINGERPRINT_CHARS: usize = 16;
 const OCTET_STREAM: &str = "application/octet-stream";
+const HOST_QUERY: &str = "host";
 
 #[derive(Debug, Default)]
 pub(crate) struct ConsumerStore {
@@ -97,6 +103,39 @@ pub(crate) async fn plugin_file(
             StatusCode::NOT_FOUND,
             "the manifest fixture has no such bundle file",
         ),
+    }
+}
+
+pub(crate) async fn plan(
+    State(state): State<Arc<InstanceState>>,
+    headers: HeaderMap,
+    Path((resource, publication)): Path<(String, String)>,
+    Query(query): Query<BTreeMap<String, String>>,
+) -> Response {
+    if let Err(refused) = enrolled(&state, &headers) {
+        return refused;
+    }
+    if query.get(HOST_QUERY).map(String::as_str) != Some(HostKind::Harness.as_str()) {
+        return refuse(
+            StatusCode::NOT_FOUND,
+            "the scripted instance serves plans for the harness host only",
+        );
+    }
+    let Some(plugin) = state.manifest.publication(&resource, &publication) else {
+        return refuse(
+            StatusCode::NOT_FOUND,
+            "the manifest fixture publishes no such resource",
+        );
+    };
+    match plugin.plan() {
+        Ok(plan) => Json(plan).into_response(),
+        Err(error) => {
+            tracing::error!(%error, "a published fixture does not form a plan");
+            refuse(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "the published fixture does not form a plan",
+            )
+        },
     }
 }
 

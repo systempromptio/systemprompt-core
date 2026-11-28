@@ -10,9 +10,8 @@
 //! signed manifest and its key, the model list and profile, both model
 //! protocols as scripted streams, the hook client, hook token, telemetry
 //! and verdict routes, the heartbeat, device enrolment, plugin bundle
-//! files, receipts, session bindings and the Drive sync feed. Every request
-//! is recorded, the ones no route answers included. Installation plans are
-//! not served: a plan request is recorded and refused.
+//! files, installation plans, receipts, session bindings and the Drive sync
+//! feed. Every request is recorded, the ones no route answers included.
 //!
 //! Routes and header names are taken from the linked core crates
 //! (`systemprompt_models::ApiPaths`, `systemprompt_identifiers::headers`)

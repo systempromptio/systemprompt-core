@@ -39,7 +39,7 @@ async fn the_minimal_manifest_is_acceptable_as_a_first_manifest() {
     assert!(is_newer(&manifest.manifest_version, None));
     assert_eq!(manifest.enabled_hosts, vec![HostKind::Harness]);
     let families = manifest.model_families(HostKind::Harness).unwrap();
-    assert_eq!(families, ["anthropic", "openai-chat"]);
+    assert_eq!(families, ["claude", "openai"]);
 }
 
 #[tokio::test]

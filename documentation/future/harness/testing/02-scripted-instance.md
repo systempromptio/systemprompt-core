@@ -14,13 +14,14 @@ Starting point for the model half: core's `mock-inference` test crate, which alr
 | Sign-in | The device-link URL, code exchange, PAT to session | Issues test tokens signed with a key the builder generates. The loopback-callback and paste-code flows both complete without a browser |
 | Identity | `whoami` | The scripted user |
 | Manifest | The signed manifest, with `ETag` and `304` | Signed with the builder's Ed25519 key over the canonical payload string. The builder can serve a stale version, a future `not_before`, a wrong user, a changed key, or a bad signature, to exercise acceptance and key trust |
-| Model list | `/v1/models` and the profile | From the builder; per-host protocol filter honoured |
+| Model list | `/v1/models` and the profile | From the builder. The manifest's `host_model_protocols` names the client families of the models (`claude`, `openai`, `gemini`), as core's gateway writes it; the profile lists one configured provider per family serving that family's models |
 | Model calls | `/v1/messages`, `/v1/chat/completions` | Scripted streams (section 3) |
 | Hook token | The OAuth client and `client_credentials` exchange | Test tokens |
 | Telemetry | `hooks/track` | Recorded |
 | Verdict | `hooks/govern` | Scripted per tool: allow, deny with a reason, delay beyond the budget, or error |
 | Heartbeat | The heartbeat route | Recorded |
-| Bundles and runtime files | Plugin bundle fetch; plans; receipts | Served from the builder; receipts recorded |
+| Device enrolment | `POST` the bridge device route | Issues a device credential (`Route::DeviceEnrolment`); plans, receipts and session bindings take it |
+| Bundles and runtime files | Plugin bundle fetch; plans; receipts; session bindings | Bundle files from the manifest fixture's plugins; a plan for a published plugin, for the harness host, laid out as core's marketplace lays one out; receipts and bindings recorded and acknowledged (a repeat answers as the first did) |
 | Documents | The Drive routes the harness uses | An in-memory store |
 
 Routes and headers are taken from the linked core crates' constants, never spelled again here. Section 2.3 lists the four that have no constant yet.
@@ -60,14 +61,15 @@ The types:
 
 | Type | Shape |
 |---|---|
-| `ScriptedInstanceBuilder` | `user`, `pat`, `manifest`, `models`, `verdict`, `script`, `port` (default 0, an ephemeral port; always loopback), `start` |
+| `ScriptedInstanceBuilder` | `user`, `pat`, `manifest`, `models`, `verdict`, `script`, `title_reply` (section 3.1), `port` (default 0, an ephemeral port; always loopback), `start` |
 | `ScriptedInstance` | The calls above, plus `addr` and read access to each fixture it was built with |
 | `TestUser` | Typed user id, optional tenant id, email, display name, roles |
-| `ManifestFixture`, `ManifestFault` | `minimal()`, `with_fault`. Faults: `StaleVersion`, `FutureNotBefore`, `WrongUser`, `ChangedKey`, `BadSignature` |
-| `ModelFixture` | A typed model id and a wire protocol (core's `WireProtocol`; there is no local protocol enum); `messages(id)`, `chat(id)`, `on(id, protocol)`, `named(display)` |
+| `ManifestFixture`, `ManifestFault` | `minimal()`, `with_fault`, `with_plugin`. Faults: `StaleVersion`, `FutureNotBefore`, `WrongUser`, `ChangedKey`, `BadSignature` |
+| `PluginFixture` | `new(id)`, `governance(id)` (owns the governance hooks, so the harness mints a hook token and asks for verdicts), `file(path, bytes)`, `published()` (a managed publication: the manifest entry names it and its plan is served). The entry's digests are derived from the files; a plugin manifest is served when the fixture brings none |
+| `ModelFixture` | A typed model id and a wire protocol (core's `WireProtocol`; there is no local protocol enum); `messages(id)`, `chat(id)`, `on(id, protocol)`, `named(display)`, `context_window(tokens)`, `family()` (core's `ClientFamily` for the protocol) |
 | `VerdictScript`, `Verdict` | A default verdict and a map from logical tool name to verdict. `Allow`, `Deny { reason }`, `Delay { millis }`, `Error { status }`. File shape: `{"default": <verdict>, "tools": {"<name>": <verdict>}}` |
-| `ModelScript`, `Turn`, `Expect`, `Respond`, `ToolCall`, `StopReason`, `Usage`, `TurnFault` | Section 3 |
-| `RequestRecord`, `RecordedBody`, `Route` | Sequence number, route, method, path, query, headers, body (`Empty`, `Json`, `Bytes`), and whether it was unscripted. `Route` is a closed enum of the surfaces in section 1, with `Unrouted` for anything else |
+| `ModelScript`, `Turn`, `Expect`, `Respond`, `ToolCall`, `StopReason`, `Usage`, `TurnFault`, `Aside` | Section 3 |
+| `RequestRecord`, `RecordedBody`, `Route` | Sequence number, route, method, path, query, headers, body (`Empty`, `Json`, `Bytes`), whether it was unscripted, and the `purpose` of a model call answered beside the turns (`Aside::TITLE` for a title call). `Route` is a closed enum of the surfaces in section 1 (`DeviceEnrolment`, `PluginBundle`, `Plan`, `Receipt`, `SessionBinding`, `Drive` among them), with `Unrouted` for anything else |
 | `Event` | `Heartbeat`, `Telemetry`, `Verdict`, `ModelCall`, `ManifestFetch`, `Receipt`, `Route(Route)` |
 | `ScriptedInstanceError` | Typed: bind, serve, join, read, parse, `NotImplemented`, `WaitTimedOut` |
 
@@ -77,7 +79,7 @@ Every scripted structure refuses unknown keys, so a misspelt key in a scenario f
 
 A verdict is scripted **per tool, not per call**. A scenario that needs a sequence of verdicts for one tool needs a wider type; the lane that writes the first such scenario requests it.
 
-The binary: `systemprompt-scripted-instance [--port N] [--script turns.json] [--verdicts verdicts.json] [--messages-model ID]... [--chat-model ID]...`. It prints one JSON line with `base_url` and `pat` on standard output, logs to standard error, and serves until interrupted.
+The binary: `systemprompt-scripted-instance [--port N] [--script turns.json] [--verdicts verdicts.json] [--messages-model ID]... [--chat-model ID]... [--context-window TOKENS] [--title-reply TEXT] [--governance-plugin ID]`. It prints one JSON line with `base_url` and `pat` on standard output, logs to standard error, and serves until interrupted.
 
 ### 2.1 What exists at the end of S0
 
@@ -129,8 +131,16 @@ A script is an ordered list of turns. Each turn matches the next model request a
 - **Tool names are logical.** A script names tools by a neutral name; a per-product map translates to the name that product advertises (`03-golden-scenarios.md` section 3). The same script drives the harness and the reference agent.
 - **`expect` is a guard, not a full match.** It checks that the request is the one the turn was written for (the right tool results are present, a required tool is advertised). A request that does not satisfy the next turn's guard fails the test with both shown.
 - **Chunking is part of the script when it matters.** A tool call may carry `argument_chunks`: how its arguments are split across stream events, to exercise partial-argument assembly.
-- **Faults.** A turn may carry one `fault` in place of a normal answer: `{"status": 429}` (any of `401`, `429`, `500`, `529`), `{"close_after_events": 2}`, `{"stall_ms": 5000}`, or `"malformed_event"`.
+- **Stops.** `stop` is `end`, `tool_use`, `max_tokens` (Messages `max_tokens`, Chat `length`) or `content_filter` (Messages `refusal`, Chat `content_filter`). It defaults to `tool_use` when the turn has a tool call, else `end`.
+- **Faults.** A turn may carry one `fault` in place of, or around, a normal answer: `{"status": 429}` (any status; a protocol-shaped error body and `retry-after-ms: 1`), `{"close_after_events": 2}`, `{"stall_ms": 5000}` (the answer, then silence before the terminal frames), `"malformed_event"`, `"context_overflow"` (400 with the body each provider sends when the prompt does not fit: Messages `prompt is too long: N tokens > W maximum`, Chat `context_length_exceeded`; `W` is the model's advertised window), or `{"headers_after_ms": 5000}` (the whole response, status line included, is held that long, then the turn answers; the turn is taken on arrival, so a client that times out and retries reaches the next turn). Every fault takes its turn.
 - **No default.** A request with no remaining turn is refused and recorded as unscripted.
+
+### 3.1 Calls beside the turns
+
+A product makes some model calls outside its steps, whose place among the turns is not fixed. Two ways answer them without taking a turn; each records the request with its `purpose` and never counts it unscripted:
+
+- **`title_reply(text)`** on the builder answers every session-title call: a model request that advertises no tool and carries exactly one message besides system ones, from the user. A golden scenario's `[title_call] text` is passed here. Without it a title call is an ordinary request and takes the next turn. Compaction requests also advertise no tools but carry the conversation, so they stay ordinary turns.
+- **`asides`** in `turns.json` (`{"purpose", "system_contains", "respond"}`) answer a request whose system prompt contains the fragment. An aside is checked before the title reply.
 
 ## 4. What it deliberately is not
 

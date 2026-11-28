@@ -174,7 +174,7 @@ async fn a_credential_the_instance_did_not_issue_is_refused() {
 }
 
 #[tokio::test]
-async fn an_unserved_route_is_recorded_and_refused() {
+async fn an_unserved_route_and_a_plan_without_a_device_are_recorded_and_refused() {
     let instance = instance(ModelScript::empty()).await;
     let url = format!("{}/not/a/route?x=1", instance.base_url());
     assert_eq!(reqwest::get(url).await.unwrap().status().as_u16(), 404);
@@ -183,7 +183,7 @@ async fn an_unserved_route_is_recorded_and_refused() {
         instance.base_url(),
         ApiPaths::CONSUMER_RESOURCES
     );
-    assert_eq!(reqwest::get(plan).await.unwrap().status().as_u16(), 404);
+    assert_eq!(reqwest::get(plan).await.unwrap().status().as_u16(), 401);
 
     let requests = instance.requests();
     assert_eq!(requests[0].route, Route::Unrouted);

@@ -2,6 +2,10 @@
 //! protocol of the route called. The recording layer admits the request
 //! and takes its turn; a request without a credential gets none.
 
+use std::sync::Arc;
+use std::time::Duration;
+
+use axum::extract::State;
 use axum::http::header::{CACHE_CONTROL, CONTENT_TYPE};
 use axum::http::{HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
@@ -9,9 +13,10 @@ use axum::{Extension, Json};
 use serde_json::Value;
 use systemprompt_wire::WireProtocol;
 
+use super::sync;
 use crate::encode::{self, Call};
 use crate::script::TurnFault;
-use crate::state::{Admitted, Decision};
+use crate::state::{Admitted, Decision, InstanceState};
 
 const EVENT_STREAM: &str = "text/event-stream";
 const JSON: &str = "application/json";
@@ -23,15 +28,43 @@ const UNNAMED_MODEL: &str = "scripted-model";
 const RETRY_AFTER_MS: &str = "retry-after-ms";
 const RETRY_NOW: &str = "1";
 
-pub(crate) async fn messages(Extension(admitted): Extension<Admitted>) -> Response {
-    answer(&admitted, WireProtocol::Anthropic)
+pub(crate) async fn messages(
+    State(state): State<Arc<InstanceState>>,
+    Extension(admitted): Extension<Admitted>,
+) -> Response {
+    held(&admitted).await;
+    answer(&state, &admitted, WireProtocol::Anthropic)
 }
 
-pub(crate) async fn chat(Extension(admitted): Extension<Admitted>) -> Response {
-    answer(&admitted, WireProtocol::OpenAiChat)
+pub(crate) async fn chat(
+    State(state): State<Arc<InstanceState>>,
+    Extension(admitted): Extension<Admitted>,
+) -> Response {
+    held(&admitted).await;
+    answer(&state, &admitted, WireProtocol::OpenAiChat)
 }
 
-fn answer(admitted: &Admitted, protocol: WireProtocol) -> Response {
+async fn held(admitted: &Admitted) {
+    if let Some(Decision::Turn(turn)) = &admitted.decision
+        && let Some(TurnFault::HeadersAfterMs(millis)) = turn.fault
+    {
+        tokio::time::sleep(Duration::from_millis(millis)).await;
+    }
+}
+
+fn window(state: &InstanceState, request: &Value) -> u64 {
+    let named = request.get("model").and_then(Value::as_str);
+    state
+        .models
+        .iter()
+        .find(|model| Some(model.id.as_str()) == named)
+        .or_else(|| state.models.first())
+        .map_or(u64::from(sync::LIMITS.context_window), |model| {
+            u64::from(sync::limits(model).context_window)
+        })
+}
+
+fn answer(state: &InstanceState, admitted: &Admitted, protocol: WireProtocol) -> Response {
     let error = |status: StatusCode, message: &str| {
         let body = encode::error_body(protocol, status.as_u16(), message);
         (status, Json(body)).into_response()
@@ -62,6 +95,10 @@ fn answer(admitted: &Admitted, protocol: WireProtocol) -> Response {
         return refused;
     }
     let request = admitted.json();
+    if turn.fault == Some(TurnFault::ContextOverflow) {
+        let body = encode::overflow_body(protocol, window(state, request));
+        return (StatusCode::BAD_REQUEST, Json(body)).into_response();
+    }
     let call = Call {
         protocol,
         model: request

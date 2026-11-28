@@ -12,7 +12,9 @@ use axum::response::{IntoResponse, Response};
 use serde_json::{Value, json};
 use systemprompt_models::bridge::heartbeat::HeartbeatResponse;
 use systemprompt_models::bridge::instance::WindowStatus;
-use systemprompt_models::bridge::profile::{AdvertisedLimits, BridgeProfileResponse};
+use systemprompt_models::bridge::profile::{
+    AdvertisedLimits, BridgeProfileResponse, ProviderHealth,
+};
 use systemprompt_models::bridge::session::PubkeyResponse;
 
 use super::{holds_model_credential, refuse, session, unauthorized};
@@ -21,15 +23,17 @@ use crate::state::InstanceState;
 use crate::{manifest, token};
 
 const OPENAI_FORMAT: &str = "openai";
+const PROVIDER_PREFIX: &str = "scripted-";
+const PLATFORM_CREDENTIAL: &str = "platform";
 const MIN_CLIENT_VERSION: &str = "0.0.0";
-const LIMITS: AdvertisedLimits = AdvertisedLimits {
+pub(crate) const LIMITS: AdvertisedLimits = AdvertisedLimits {
     context_window: 200_000,
     max_output_tokens: 8_192,
 };
 
 // Why: the profile carries a window as `u32`; a fixture above that reads as
 // the widest window the profile can name.
-fn limits(model: &ModelFixture) -> AdvertisedLimits {
+pub(crate) fn limits(model: &ModelFixture) -> AdvertisedLimits {
     AdvertisedLimits {
         context_window: model
             .context_window
@@ -38,6 +42,31 @@ fn limits(model: &ModelFixture) -> AdvertisedLimits {
             }),
         max_output_tokens: LIMITS.max_output_tokens,
     }
+}
+
+/// One configured provider per client family, serving that family's models,
+/// as core's gateway lists the providers of a profile.
+fn providers(models: &[ModelFixture]) -> Vec<ProviderHealth> {
+    let mut families: Vec<_> = models.iter().map(ModelFixture::family).collect();
+    families.sort_unstable_by_key(|family| family.as_tag());
+    families.dedup();
+    families
+        .into_iter()
+        .map(|family| ProviderHealth {
+            name: format!("{PROVIDER_PREFIX}{family}"),
+            credential: PLATFORM_CREDENTIAL.to_owned(),
+            clients: vec![family],
+            configured: true,
+            models: models
+                .iter()
+                .filter(|model| model.family() == family)
+                .map(|model| model.id.as_str().to_owned())
+                .collect(),
+            config_issue: None,
+            display_name: None,
+            personal_key: false,
+        })
+        .collect()
 }
 
 pub(crate) async fn pubkey(State(state): State<Arc<InstanceState>>) -> Json<PubkeyResponse> {
@@ -128,7 +157,7 @@ pub(crate) async fn profile(
             .first()
             .map(|model| model.id.as_str().to_owned()),
         organization_uuid: None,
-        providers: Vec::new(),
+        providers: providers(&state.models),
         model_limits: state
             .models
             .iter()

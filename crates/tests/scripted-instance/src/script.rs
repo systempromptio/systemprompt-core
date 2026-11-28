@@ -127,11 +127,17 @@ pub struct ToolCall {
     pub argument_chunks: Vec<String>,
 }
 
+/// How a turn's answer ends. `MaxTokens` and `ContentFilter` are the stops
+/// a provider sends when the output limit is reached and when it refuses
+/// (Messages `max_tokens` / `refusal`, Chat Completions `length` /
+/// `content_filter`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StopReason {
     End,
     ToolUse,
+    MaxTokens,
+    ContentFilter,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -141,6 +147,13 @@ pub struct Usage {
     pub output: u32,
 }
 
+/// What a turn does in place of, or around, its answer.
+///
+/// `ContextOverflow` answers 400 with the body each provider sends when the
+/// prompt does not fit the model's context window. `HeadersAfterMs` holds
+/// the whole response, status line included, for that long and then answers
+/// the turn; the turn is taken when the request arrives, so a client that
+/// gives up first and retries reaches the next turn.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TurnFault {
@@ -148,4 +161,6 @@ pub enum TurnFault {
     CloseAfterEvents(u32),
     StallMs(u64),
     MalformedEvent,
+    ContextOverflow,
+    HeadersAfterMs(u64),
 }

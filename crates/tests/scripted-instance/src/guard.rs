@@ -1,6 +1,7 @@
 //! The guard of a turn: whether a model request is the one the turn was
-//! written for, and the system prompt an aside is recognised by. It reads
-//! both request shapes, Messages and Chat Completions.
+//! written for, the system prompt an aside is recognised by, and whether a
+//! request is a session-title call. It reads both request shapes, Messages
+//! and Chat Completions.
 
 use serde_json::Value;
 
@@ -25,6 +26,21 @@ pub(crate) fn check(expect: &Expect, request: &Value) -> Result<(), String> {
          and carries tool results {results:?}",
         expect.tools_include, expect.tool_results
     ))
+}
+
+/// The corpus's rule for a session-title call: no tool advertised and
+/// exactly one message besides system ones, from the user.
+pub(crate) fn is_title_call(request: &Value) -> bool {
+    let mut conversation = list(request, "messages").iter().filter(|message| {
+        !matches!(
+            message.get("role").and_then(Value::as_str),
+            Some("system" | "developer")
+        )
+    });
+    let only_user = conversation
+        .next()
+        .is_some_and(|first| first.get("role").and_then(Value::as_str) == Some("user"));
+    list(request, "tools").is_empty() && only_user && conversation.next().is_none()
 }
 
 pub(crate) fn system_text(request: &Value) -> String {

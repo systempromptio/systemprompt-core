@@ -48,6 +48,7 @@ pub(crate) fn router(state: Arc<InstanceState>) -> Router {
             ApiPaths::BRIDGE_PLUGIN_FILE_ROUTE,
             get(consumer::plugin_file),
         )
+        .route(ApiPaths::CONSUMER_BUNDLE_ROUTE, get(consumer::plan))
         .route(ApiPaths::CONSUMER_RECEIPTS, post(consumer::receipt))
         .route(
             ApiPaths::CONSUMER_SESSION_BINDINGS,

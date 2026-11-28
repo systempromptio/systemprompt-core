@@ -3,7 +3,9 @@
 //! The payload is core's `SignedManifest`, canonicalised and signed with
 //! the instance's Ed25519 key over the exact payload string. It lists the
 //! fixture's plugins, each with the digests of the bundle files the
-//! instance serves for it; the minimal fixture has none.
+//! instance serves for it; the minimal fixture has none. The harness's model
+//! filter names the client families of the fixture's models, as core's
+//! gateway writes it.
 
 use std::sync::PoisonError;
 use std::sync::atomic::Ordering;
@@ -63,6 +65,16 @@ impl ManifestFixture {
     }
 }
 
+impl ManifestFixture {
+    pub(crate) fn publication(&self, resource: &str, publication: &str) -> Option<&PluginFixture> {
+        self.plugins.iter().find(|held| {
+            held.published
+                && held.resource_id().as_str() == resource
+                && held.publication_id().as_str() == publication
+        })
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ManifestFault {
     StaleVersion,
@@ -112,7 +124,7 @@ pub(crate) fn serve(state: &InstanceState) -> Result<ServedManifest, FixtureErro
         let mut tags: Vec<&str> = state
             .models
             .iter()
-            .map(|model| model.protocol.as_tag())
+            .map(|model| model.family().as_tag())
             .collect();
         tags.sort_unstable();
         tags.dedup();

@@ -8,7 +8,9 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use clap::Parser;
-use systemprompt_scripted_instance::{ModelFixture, ModelScript, ScriptedInstance, VerdictScript};
+use systemprompt_scripted_instance::{
+    ManifestFixture, ModelFixture, ModelScript, PluginFixture, ScriptedInstance, VerdictScript,
+};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -37,6 +39,20 @@ struct Cli {
         help = "The context window advertised for every model"
     )]
     context_window: Option<u64>,
+
+    #[arg(
+        long,
+        value_name = "TEXT",
+        help = "The reply to every session-title call, which then takes no turn"
+    )]
+    title_reply: Option<String>,
+
+    #[arg(
+        long,
+        value_name = "PLUGIN_ID",
+        help = "List a plugin that owns the governance hooks, so verdicts are asked"
+    )]
+    governance_plugin: Option<String>,
 }
 
 #[tokio::main]
@@ -68,11 +84,20 @@ async fn main() -> anyhow::Result<()> {
             None => model,
         });
 
-    let instance = ScriptedInstance::builder()
+    let manifest = match cli.governance_plugin {
+        Some(id) => ManifestFixture::minimal().with_plugin(PluginFixture::governance(id)),
+        None => ManifestFixture::minimal(),
+    };
+    let mut builder = ScriptedInstance::builder()
         .port(cli.port)
+        .manifest(manifest)
         .models(models)
         .verdict(verdict)
-        .script(script)
+        .script(script);
+    if let Some(reply) = cli.title_reply {
+        builder = builder.title_reply(reply);
+    }
+    let instance = builder
         .start()
         .await
         .context("failed to start the scripted instance")?;

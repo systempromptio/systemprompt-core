@@ -3,8 +3,9 @@
 //! section 4.
 //!
 //! For each scenario and protocol: a fresh scripted instance loaded with the
-//! scenario's turns and verdicts, a [`relay`] in front of it that answers the
-//! session-title call, a fresh data root signed in with
+//! scenario's turns and verdicts, its `[title_call]` reply as the instance's
+//! title reply and a plugin owning the governance hooks, a fresh data root
+//! signed in with
 //! `systemprompt_harness::command::login`, the fixture copied to a fresh
 //! workspace outside the data root with one modification time, and
 //! `run_controlled` driven in process with the scenario's answers and
@@ -15,7 +16,6 @@ mod checks;
 pub mod drive;
 pub mod host;
 pub mod outcome;
-pub mod relay;
 pub mod scenario;
 mod watch;
 

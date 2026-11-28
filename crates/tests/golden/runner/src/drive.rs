@@ -20,17 +20,20 @@ use systemprompt_harness::command::{
 };
 use systemprompt_parity_compare::Mark;
 use systemprompt_scripted_instance::{
-    ModelFixture, ModelScript, RequestRecord, ScriptedInstance, VerdictScript,
+    Aside, ManifestFixture, ModelFixture, ModelScript, PluginFixture, RequestRecord,
+    ScriptedInstance, VerdictScript,
 };
 use systemprompt_traits::CancellationToken;
 use tokio::sync::mpsc;
 
 use crate::host::host;
-use crate::relay::Relay;
 use crate::scenario::Scenario;
 use crate::watch::{LineSink, Watcher};
 
 pub const MODEL: &str = "scripted-model";
+/// The plugin that owns the governance hooks, so the harness asks for a
+/// verdict on every call its rules allow.
+pub const GOVERNANCE_PLUGIN: &str = "governance";
 const RUN_TIMEOUT: Duration = Duration::from_secs(60);
 const SYNC_TIMEOUT: Duration = Duration::from_secs(30);
 const FIXTURE_MTIME: Duration = Duration::from_secs(1_700_000_000);
@@ -127,9 +130,13 @@ async fn instance(
         None => VerdictScript::allow_all(),
     };
     Ok(ScriptedInstance::builder()
+        .manifest(
+            ManifestFixture::minimal().with_plugin(PluginFixture::governance(GOVERNANCE_PLUGIN)),
+        )
         .models([model])
         .script(ModelScript::from_json(turns)?)
         .verdict(verdict)
+        .title_reply(&scenario.title_reply)
         .start()
         .await?)
 }
@@ -144,12 +151,6 @@ pub async fn drive(
     let dir = tempfile::tempdir_in(scratch)?;
     let turns = scenario.turns(protocol)?;
     let instance = instance(scenario, protocol, &turns).await?;
-    let family = if protocol == "chat" {
-        "openai"
-    } else {
-        "claude"
-    };
-    let relay = Relay::start(instance.base_url(), &scenario.title_reply, family).await?;
     let host = host(dir.path());
     let root = dir.path().join("root");
     std::fs::create_dir_all(root.join("config"))?;
@@ -165,7 +166,7 @@ pub async fn drive(
     let signed = login(
         &host,
         LoginRequest {
-            instance: relay.url().to_owned(),
+            instance: instance.base_url().to_owned(),
             token,
             fingerprint: None,
             data_root: Some(root.clone()),
@@ -183,7 +184,7 @@ pub async fn drive(
         prompts: vec![scenario.messages.first().cloned().unwrap_or_default()],
         workspace: workspace.clone(),
         permission_mode: PermissionMode::parse(&scenario.mode).context("permission mode")?,
-        answers: Answers::parse(&scenario.answers().to_string())?,
+        answers: Answers::default(),
         model: None,
         agent: None,
         data_root: Some(root),
@@ -203,15 +204,20 @@ pub async fn drive(
         watcher.watch(received),
     );
     let left_running = left_running(&workspace).await;
+    let requests = instance.requests();
+    let title_calls = requests
+        .iter()
+        .filter(|record| record.purpose.as_deref() == Some(Aside::TITLE))
+        .count();
     Ok(RunOutput {
         left_running,
         report,
         events: watcher.events,
         marks: watcher.marks,
-        requests: instance.requests(),
+        requests,
         requests_before_run,
         unconsumed_turns: instance.unconsumed_turns(),
-        title_calls: relay.title_calls(),
+        title_calls,
         workspace,
         turns,
         dir,

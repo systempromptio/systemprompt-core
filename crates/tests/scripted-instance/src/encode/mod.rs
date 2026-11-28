@@ -64,7 +64,8 @@ pub(crate) fn stream_steps(turn: &Turn, call: Call<'_>) -> Vec<Step> {
             .chain(std::iter::once(MALFORMED_FRAME.to_owned()))
             .map(Step::Frame)
             .collect(),
-        Some(TurnFault::Status(_)) | None => frames.into_iter().map(Step::Frame).collect(),
+        Some(TurnFault::Status(_) | TurnFault::ContextOverflow | TurnFault::HeadersAfterMs(_))
+        | None => frames.into_iter().map(Step::Frame).collect(),
     }
 }
 
@@ -83,7 +84,8 @@ pub(crate) fn buffered_steps(turn: &Turn, call: Call<'_>) -> Vec<Step> {
             ]
         },
         Some(TurnFault::MalformedEvent) => vec![Step::Frame(MALFORMED_BODY.to_owned())],
-        Some(TurnFault::Status(_)) | None => vec![Step::Frame(body)],
+        Some(TurnFault::Status(_) | TurnFault::ContextOverflow | TurnFault::HeadersAfterMs(_))
+        | None => vec![Step::Frame(body)],
     }
 }
 
@@ -141,6 +143,32 @@ pub(crate) fn argument_chunks(call: &ToolCall) -> Vec<String> {
         vec![call.input.to_string()]
     } else {
         call.argument_chunks.clone()
+    }
+}
+
+/// The 400 body each provider sends when the prompt does not fit: the
+/// phrasing the Messages API and the Chat Completions API use.
+pub(crate) fn overflow_body(protocol: WireProtocol, window: u64) -> Value {
+    let asked = window.saturating_add(1);
+    match protocol {
+        WireProtocol::OpenAiChat => serde_json::json!({
+            "error": {
+                "message": format!(
+                    "This model's maximum context length is {window} tokens. However, your \
+                     messages resulted in {asked} tokens. Please reduce the length of the messages."
+                ),
+                "type": "invalid_request_error",
+                "param": "messages",
+                "code": "context_length_exceeded",
+            },
+        }),
+        _ => serde_json::json!({
+            "type": "error",
+            "error": {
+                "type": "invalid_request_error",
+                "message": format!("prompt is too long: {asked} tokens > {window} maximum"),
+            },
+        }),
     }
 }
 

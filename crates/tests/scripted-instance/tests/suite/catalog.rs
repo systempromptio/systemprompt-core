@@ -1,3 +1,4 @@
+use systemprompt_models::providers::ClientFamily;
 use systemprompt_scripted_instance::{ModelFixture, ScriptedInstance};
 
 use crate::support::signed_in;
@@ -46,4 +47,35 @@ async fn a_window_wider_than_the_profile_can_name_is_capped_there() {
     let profile = client.profile(&session.jwt).await.unwrap();
     let limits = profile.model_limits.values().next().unwrap();
     assert_eq!(limits.context_window, u32::MAX);
+}
+
+#[tokio::test]
+async fn the_profile_lists_one_configured_provider_per_client_family() {
+    let instance = ScriptedInstance::builder()
+        .models([
+            ModelFixture::messages("m-a"),
+            ModelFixture::chat("m-b"),
+            ModelFixture::messages("m-c"),
+        ])
+        .start()
+        .await
+        .unwrap();
+    let (client, session) = signed_in(&instance).await;
+    let profile = client.profile(&session.jwt).await.unwrap();
+    let served: Vec<(Vec<ClientFamily>, Vec<String>, bool)> = profile
+        .providers
+        .into_iter()
+        .map(|provider| (provider.clients, provider.models, provider.configured))
+        .collect();
+    assert_eq!(
+        served,
+        [
+            (
+                vec![ClientFamily::Claude],
+                vec!["m-a".to_owned(), "m-c".to_owned()],
+                true
+            ),
+            (vec![ClientFamily::OpenAi], vec!["m-b".to_owned()], true),
+        ]
+    );
 }
