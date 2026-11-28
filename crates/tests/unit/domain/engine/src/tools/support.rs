@@ -39,6 +39,7 @@ pub(crate) fn context(root: &Path, gate: Arc<Recorder>) -> ToolContext {
         gate,
         observer: None,
         progress: None,
+        files: systemprompt_engine::tools::FileLocks::default(),
     }
 }
 

@@ -81,6 +81,7 @@ impl Tool for EditTool {
         let path = resolve(&ctx.cwd, &input.path);
         guard_external(ctx, &path, "Edit").await?;
         let shown = display_path(&path, &ctx.worktree);
+        let _locked = ctx.files.lock([path.as_path()]).await;
         let existing = read_existing(&path).await?;
         let change = plan(existing.as_deref(), &input, &shown)?;
 

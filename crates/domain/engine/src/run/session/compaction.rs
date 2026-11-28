@@ -9,7 +9,7 @@
 use std::collections::HashSet;
 
 use crate::llm::tokens::{estimate_message, estimate_request};
-use crate::llm::{Message, Request};
+use crate::llm::{LlmError, Message, Request};
 use crate::prompt::agents::COMPACTION;
 use crate::prompt::compaction::{
     COMPACTION_PROMPT, CONTINUE_AFTER_COMPACTION, request as compaction_request,
@@ -149,7 +149,9 @@ async fn summarise(
         purpose: Purpose::Compaction,
         directory: ctx.session.directory.clone(),
     };
-    let outcome = model_call::collect_text(&ctx.inner, &call, request, &ctx.cancel).await;
+    let outcome = model_call::collect_text(&ctx.inner, &call, request, &ctx.cancel)
+        .await
+        .and_then(refuse_cut_off);
     if let Ok(collected) = &outcome
         && !collected.text.trim().is_empty()
     {
@@ -171,6 +173,20 @@ async fn summarise(
         },
         Err(error) => Err(error),
     }
+}
+
+fn refuse_cut_off(collected: Collected) -> Result<Collected, EngineError> {
+    if !collected.cut_off() {
+        return Ok(collected);
+    }
+    let reason = match collected.finish {
+        Some(crate::llm::FinishReason::ContentFilter) => "a content filter",
+        _ => "the output limit",
+    };
+    Err(EngineError::Model(LlmError::Provider {
+        kind: None,
+        message: format!("the compaction summary stopped at {reason} before it was finished"),
+    }))
 }
 
 async fn write_summary(

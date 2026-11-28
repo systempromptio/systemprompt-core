@@ -193,6 +193,7 @@ impl Invocation<'_> {
             gate,
             observer: Some(Arc::new(observer)),
             progress: Some(progress),
+            files: ctx.inner.files.clone(),
         }
     }
 }

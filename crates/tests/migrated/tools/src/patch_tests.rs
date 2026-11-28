@@ -553,7 +553,6 @@ async fn the_diff_of_a_file_with_a_byte_order_mark_does_not_invent_a_first_line_
 
 #[cfg(unix)]
 #[tokio::test]
-#[ignore = "parity ledger: a write that fails part-way does not report the changes already made"]
 async fn a_failed_write_reports_what_already_landed_and_which_path_failed() {
     use std::os::unix::fs::PermissionsExt as _;
     let project = Project::new();
@@ -589,7 +588,6 @@ async fn an_added_file_overwrites_an_existing_one() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "parity ledger: concurrent patches of one file are not serialised and can lose a change"]
 async fn concurrent_patches_of_one_file_are_serialised() {
     let project = Project::new();
     let body: String = (0..16).map(|index| format!("line{index}\n")).collect();

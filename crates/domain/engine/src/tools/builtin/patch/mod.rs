@@ -29,13 +29,15 @@ use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use self::parse::parse;
+use std::path::PathBuf;
+
+use self::parse::{FileOp, parse};
 use self::plan::{Change, Planned, plan};
 use crate::tools::contract::{Tool, ToolContext, ToolOutput};
 use crate::tools::diff::{counts, unified};
 use crate::tools::error::ToolError;
 use crate::tools::files::{ask_edit, remove_file, with_notes, write_file};
-use crate::tools::path::guard_external;
+use crate::tools::path::{guard_external, resolve};
 use crate::tools::repair::parse_input;
 
 /// Applies multi-file patches.
@@ -91,6 +93,8 @@ impl Tool for PatchTool {
     async fn run(&self, input: Value, ctx: &ToolContext) -> Result<ToolOutput, ToolError> {
         let input: Input = parse_input(&self.schema(), input)?;
         let ops = parse(&input.patch).map_err(|err| ToolError::malformed("", err))?;
+        let paths = op_paths(&ops, ctx);
+        let _locked = ctx.files.lock(paths.iter().map(PathBuf::as_path)).await;
         let plans = plan(ops, ctx).await?;
 
         for planned in &plans {
@@ -130,6 +134,20 @@ impl Tool for PatchTool {
     }
 }
 
+fn op_paths(ops: &[FileOp], ctx: &ToolContext) -> Vec<PathBuf> {
+    ops.iter()
+        .flat_map(|op| match op {
+            FileOp::Add { path, .. } | FileOp::Delete { path } => vec![path.as_str()],
+            FileOp::Update {
+                path, rename_to, ..
+            } => std::iter::once(path.as_str())
+                .chain(rename_to.as_deref())
+                .collect(),
+        })
+        .map(|path| resolve(&ctx.cwd, path))
+        .collect()
+}
+
 // JSON: one metadata entry per changed file, stored with the call and rendered
 // by the shell.
 async fn write_plans(
@@ -138,16 +156,29 @@ async fn write_plans(
 ) -> Result<(Vec<String>, Vec<Value>), ToolError> {
     let mut notes: Vec<String> = Vec::new();
     let mut files: Vec<Value> = Vec::new();
+    let mut landed: Vec<&str> = Vec::new();
     for planned in plans {
         let note = match (&planned.change, &planned.target) {
-            (Change::Deleted, _) => remove_file(ctx, &planned.path).await?,
-            (_, Some((target, _))) => {
-                let note = write_file(ctx, target, &planned.bytes).await?;
-                remove_file(ctx, &planned.path).await?;
+            (Change::Deleted, _) => remove_file(ctx, &planned.path)
+                .await
+                .map_err(|err| half_applied(&landed, &planned.shown, err))?,
+            (_, Some((target, shown))) => {
+                let note = write_file(ctx, target, &planned.bytes)
+                    .await
+                    .map_err(|err| half_applied(&landed, shown, err))?;
+                landed.push(shown);
+                remove_file(ctx, &planned.path)
+                    .await
+                    .map_err(|err| half_applied(&landed, &planned.shown, err))?;
                 note
             },
-            (_, None) => write_file(ctx, &planned.path, &planned.bytes).await?,
+            (_, None) => write_file(ctx, &planned.path, &planned.bytes)
+                .await
+                .map_err(|err| half_applied(&landed, &planned.shown, err))?,
         };
+        if planned.target.is_none() {
+            landed.push(&planned.shown);
+        }
         notes.extend(note);
         let (additions, deletions) = counts(&planned.old, &planned.new);
         let change = match planned.change {
@@ -164,4 +195,19 @@ async fn write_plans(
         }));
     }
     Ok((notes, files))
+}
+
+fn half_applied(landed: &[&str], failed: &str, error: ToolError) -> ToolError {
+    let done = if landed.is_empty() {
+        "nothing had been changed yet".to_owned()
+    } else {
+        format!("already changed: {}", landed.join(", "))
+    };
+    ToolError::caused(
+        format!(
+            "the patch stopped part-way at {failed} ({error}); {done}. Re-read these files before \
+             retrying"
+        ),
+        error,
+    )
 }

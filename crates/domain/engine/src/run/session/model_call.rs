@@ -7,7 +7,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::llm::retry::{self, Retry};
-use crate::llm::{Event, EventStream, LlmError, ModelResponse, Request, Usage};
+use crate::llm::{Event, EventStream, FinishReason, LlmError, ModelResponse, Request, Usage};
 use futures_util::StreamExt;
 use systemprompt_traits::CancellationToken;
 
@@ -140,6 +140,16 @@ pub(crate) async fn backoff(
 pub(crate) struct Collected {
     pub(crate) text: String,
     pub(crate) usage: Usage,
+    pub(crate) finish: Option<FinishReason>,
+}
+
+impl Collected {
+    pub(crate) const fn cut_off(&self) -> bool {
+        matches!(
+            self.finish,
+            Some(FinishReason::Length | FinishReason::ContentFilter)
+        )
+    }
 }
 
 pub(crate) async fn collect_text(
@@ -157,6 +167,7 @@ pub(crate) async fn collect_text(
             match item {
                 Ok(Event::TextDelta(text)) => collected.text.push_str(&text),
                 Ok(Event::Usage(usage)) => collected.usage = usage,
+                Ok(Event::Finish { reason }) => collected.finish = Some(reason),
                 Ok(_) => {},
                 Err(error) => {
                     failure = Some(error);
