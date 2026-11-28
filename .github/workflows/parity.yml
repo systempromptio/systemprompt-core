@@ -56,7 +56,13 @@ jobs:
 
       - name: The environment holds no provider credential
         run: |
-          found=$(env | cut -d= -f1 | grep -iE '(^|_)(ANTHROPIC|OPENAI|GEMINI|GOOGLE_API|GOOGLE_GENERATIVE|VERTEX|AZURE|AWS_|BEDROCK|OPENROUTER|MISTRAL|GROQ|XAI|DEEPSEEK|COHERE|OLLAMA|OPENCODE)' || true)
+          # A provider name alone is not a credential: the runner image sets
+          # AZURE_EXTENSION_DIR for the Azure CLI. A credential is a provider
+          # name together with a key, token, secret or credential suffix, or a
+          # cloud identity variable.
+          found=$(env | cut -d= -f1 \
+            | grep -iE '(^|_)(ANTHROPIC|OPENAI|GEMINI|GOOGLE|VERTEX|AZURE|AWS|BEDROCK|OPENROUTER|MISTRAL|GROQ|XAI|DEEPSEEK|COHERE|OLLAMA|OPENCODE)' \
+            | grep -iE '(KEY|TOKEN|SECRET|CREDENTIAL|PASSWORD|_ID)$|^GOOGLE_APPLICATION_CREDENTIALS$|^AWS_PROFILE$|^AWS_ROLE_ARN$' || true)
           if [ -n "$found" ]; then
             echo "provider variables are set in this job; the parity job runs with none:" >&2
             echo "$found" >&2
