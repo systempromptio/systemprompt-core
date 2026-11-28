@@ -112,7 +112,7 @@ impl EngineError {
             | Self::InvalidDataUrl => ErrorKind::InvalidInput,
             Self::SessionNotFound { .. } | Self::MessageNotFound { .. } => ErrorKind::NotFound,
             Self::Busy { .. } => ErrorKind::Busy,
-            Self::Store(_) => ErrorKind::Storage,
+            Self::Store(error) => store_kind(error),
             Self::Config { .. } => ErrorKind::Config,
             Self::Snapshot(_) => ErrorKind::Workspace,
             Self::Mcp(_) => ErrorKind::Unavailable,
@@ -144,6 +144,36 @@ impl EngineError {
             LlmError::Aborted => Self::Aborted,
             other => Self::Model(other),
         }
+    }
+}
+
+/// A missing row is not found; a broken constraint, a bad statement and data
+/// the engine wrote wrongly are defects; only the database itself failing
+/// (opening, migrating, locking, input and output) is a storage failure.
+const fn store_kind(error: &StoreError) -> ErrorKind {
+    match error {
+        StoreError::NotFound { .. } => ErrorKind::NotFound,
+        StoreError::Sqlite(error) => sqlite_kind(error),
+        StoreError::Json(_) | StoreError::Id(_) | StoreError::NotText { .. } => ErrorKind::Internal,
+        StoreError::CreateDir { .. }
+        | StoreError::CreateFile { .. }
+        | StoreError::Open { .. }
+        | StoreError::FutureSchema { .. }
+        | StoreError::Migration { .. }
+        | StoreError::Corrupt { .. } => ErrorKind::Storage,
+    }
+}
+
+const fn sqlite_kind(error: &rusqlite::Error) -> ErrorKind {
+    match error {
+        rusqlite::Error::SqliteFailure(failure, _) => match failure.code {
+            rusqlite::ErrorCode::ConstraintViolation
+            | rusqlite::ErrorCode::TypeMismatch
+            | rusqlite::ErrorCode::ApiMisuse
+            | rusqlite::ErrorCode::ParameterOutOfRange => ErrorKind::Internal,
+            _ => ErrorKind::Storage,
+        },
+        _ => ErrorKind::Internal,
     }
 }
 

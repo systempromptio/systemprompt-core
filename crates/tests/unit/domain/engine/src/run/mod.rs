@@ -4,6 +4,7 @@ mod attachment_tests;
 mod compaction_tests;
 mod delivery_tests;
 mod denial_tests;
+mod error_tests;
 mod extension_tests;
 mod governed_tests;
 mod output_limit_tests;

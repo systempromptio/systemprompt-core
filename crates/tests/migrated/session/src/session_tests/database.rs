@@ -168,7 +168,6 @@ fn a_database_held_by_another_writer_is_a_storage_failure_and_usable_afterwards(
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "parity ledger: every store error is classed as a storage failure, a broken constraint and an unknown id included"]
 async fn a_broken_constraint_and_an_unknown_id_are_not_storage_failures() {
     let scripted = Scripted::start(Vec::new()).await;
     let store = scripted.engine.store();
