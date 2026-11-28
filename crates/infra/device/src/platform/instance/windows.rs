@@ -1,8 +1,11 @@
 //! Windows: a named pipe whose name is derived from the data root.
 //!
-//! The pipe is created as the first and only instance of its name, refuses
-//! remote clients, and carries a protected DACL that grants access to its
-//! owner alone. A launch connects at identification level, so a process that
+//! The primary claims the name by creating its first instance, and every
+//! instance refuses remote clients and carries a protected DACL that grants
+//! access to its owner alone. Each launch is served on an instance of its own:
+//! once a launch connects, a fresh instance takes over the listening, so no
+//! instance outlives its launch and nothing one launch left on a pipe reaches
+//! the next. A launch connects at identification level, so a process that
 //! took the name first learns who called and can do nothing as them.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -15,6 +18,7 @@
 
 use std::ffi::c_void;
 use std::io;
+use std::mem;
 use std::path::{Path, PathBuf};
 use std::ptr::null_mut;
 
@@ -41,6 +45,10 @@ const NAME_DIGEST_BYTES: usize = 16;
 const OWNER_ONLY: &str = "D:P(A;;GA;;;OW)";
 
 const SDDL_REVISION: u32 = 1;
+
+// Why: one instance serves a launch while the next listens, and an instance
+// whose launch stalled closes only once its cancelled read has completed.
+const INSTANCES: usize = 3;
 
 struct Descriptor(*mut c_void);
 
@@ -89,7 +97,7 @@ fn pipe_name(data_root: &Path) -> PathBuf {
 }
 
 // Why: a launch that lost the lock can arrive before the primary has created
-// its pipe, or while the pipe's one instance is serving another launch.
+// its pipe, or while every instance of the pipe is taken by another launch.
 async fn connect(name: &Path) -> Result<NamedPipeClient, InstanceError> {
     let deadline = Instant::now() + CONNECT_WAIT;
     loop {
@@ -115,28 +123,36 @@ async fn connect(name: &Path) -> Result<NamedPipeClient, InstanceError> {
     }
 }
 
+// Why: the first instance must find the name free, so a process that took it
+// first is an error and not a pipe shared with a stranger; later instances
+// join the name the primary already owns.
+fn create(name: &Path, first: bool) -> Result<NamedPipeServer, InstanceError> {
+    let descriptor =
+        owner_only().map_err(|source| InstanceError::io("describe the access of", name, source))?;
+    let mut attributes = SECURITY_ATTRIBUTES {
+        nLength: size_of::<SECURITY_ATTRIBUTES>() as u32,
+        lpSecurityDescriptor: descriptor.0,
+        bInheritHandle: 0,
+    };
+    // SAFETY: the attributes are a live SECURITY_ATTRIBUTES whose descriptor
+    // stays allocated until `descriptor` drops after the call, and Windows
+    // copies the descriptor into the pipe it creates.
+    let server = unsafe {
+        ServerOptions::new()
+            .first_pipe_instance(first)
+            .reject_remote_clients(true)
+            .max_instances(INSTANCES)
+            .create_with_security_attributes_raw(name, (&raw mut attributes).cast())
+    }
+    .map_err(|source| InstanceError::io("create", name, source))?;
+    drop(descriptor);
+    Ok(server)
+}
+
 impl Transport for Endpoint {
     fn bind(data_root: &Path) -> Result<Self, InstanceError> {
         let name = pipe_name(data_root);
-        let descriptor = owner_only()
-            .map_err(|source| InstanceError::io("describe the access of", &name, source))?;
-        let mut attributes = SECURITY_ATTRIBUTES {
-            nLength: size_of::<SECURITY_ATTRIBUTES>() as u32,
-            lpSecurityDescriptor: descriptor.0,
-            bInheritHandle: 0,
-        };
-        // SAFETY: the attributes are a live SECURITY_ATTRIBUTES whose descriptor
-        // stays allocated until `descriptor` drops after the call, and Windows
-        // copies the descriptor into the pipe it creates.
-        let server = unsafe {
-            ServerOptions::new()
-                .first_pipe_instance(true)
-                .reject_remote_clients(true)
-                .max_instances(1)
-                .create_with_security_attributes_raw(&name, (&raw mut attributes).cast())
-        }
-        .map_err(|source| InstanceError::io("create", &name, source))?;
-        drop(descriptor);
+        let server = create(&name, true)?;
         Ok(Self { server, name })
     }
 
@@ -145,11 +161,11 @@ impl Transport for Endpoint {
             .connect()
             .await
             .map_err(|source| InstanceError::io("await a launch on", &self.name, source))?;
-        let served = frame::serve(&mut self.server).await;
-        self.server
-            .disconnect()
-            .map_err(|source| InstanceError::io("disconnect", &self.name, source))?;
-        served.map_err(|source| InstanceError::Rejected { source })
+        let listening = create(&self.name, false)?;
+        let mut launch = mem::replace(&mut self.server, listening);
+        frame::serve(&mut launch)
+            .await
+            .map_err(|source| InstanceError::Rejected { source })
     }
 
     async fn send(data_root: &Path, hand_off: &HandOff) -> Result<(), InstanceError> {
