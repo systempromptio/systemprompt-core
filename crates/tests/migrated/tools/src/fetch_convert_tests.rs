@@ -254,7 +254,6 @@ async fn child_lists_indent_from_their_parent_marker() {
 }
 
 #[tokio::test]
-#[ignore = "parity ledger: truncate_output cuts the converted page at the byte limit and can leave an opened code fence without its closing fence"]
 async fn a_code_block_with_no_room_for_its_fence_leaves_no_open_fence() {
     for quoted in [false, true] {
         for spare in 0..24 {

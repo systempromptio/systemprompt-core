@@ -88,13 +88,77 @@ fn cut(text: &str, limits: OutputLimits, keep: Keep) -> Cut {
     if keep == Keep::Tail {
         chosen.reverse();
     }
-    let kept_lines = chosen.len();
+    let mut kept_lines = chosen.len();
+    let mut kept = chosen.concat();
+    if keep == Keep::Head {
+        close_fence(&mut kept, &mut kept_lines, limits);
+    }
     Cut {
-        kept: chosen.concat(),
+        kept,
         truncated: true,
         kept_lines,
         total_lines,
         total_bytes,
+    }
+}
+
+/// A code fence opened in kept text and not closed in it.
+#[derive(Debug)]
+struct OpenFence {
+    start: usize,
+    prefix: String,
+    marker: String,
+}
+
+fn open_fence(text: &str) -> Option<OpenFence> {
+    let mut open: Option<OpenFence> = None;
+    let mut start = 0;
+    for line in text.split_inclusive('\n') {
+        let body = line.trim_end_matches(['\n', '\r']);
+        let content = body.trim_start_matches(['>', ' ']);
+        if let Some(fence @ ('`' | '~')) = content.chars().next() {
+            let run = content.chars().take_while(|&c| c == fence).count();
+            if run >= 3 {
+                match &open {
+                    None => {
+                        open = Some(OpenFence {
+                            start,
+                            prefix: body[..body.len() - content.len()].to_owned(),
+                            marker: content[..run].to_owned(),
+                        });
+                    },
+                    Some(opened)
+                        if opened.marker.starts_with(fence)
+                            && run >= opened.marker.len()
+                            && content[run..].trim().is_empty() =>
+                    {
+                        open = None;
+                    },
+                    Some(_) => {},
+                }
+            }
+        }
+        start += line.len();
+    }
+    open
+}
+
+fn close_fence(kept: &mut String, kept_lines: &mut usize, limits: OutputLimits) {
+    let Some(open) = open_fence(kept) else {
+        return;
+    };
+    let mut closing = String::new();
+    if !kept.ends_with('\n') {
+        closing.push('\n');
+    }
+    closing.push_str(&open.prefix);
+    closing.push_str(&open.marker);
+    closing.push('\n');
+    if kept.len() + closing.len() <= limits.max_bytes && *kept_lines < limits.max_lines {
+        kept.push_str(&closing);
+    } else {
+        kept.truncate(open.start);
+        *kept_lines = kept.lines().count();
     }
 }
 
