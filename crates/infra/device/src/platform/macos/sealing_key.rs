@@ -15,7 +15,7 @@ use zeroize::Zeroizing;
 
 use super::passwords::{Insertion, add, read, remove};
 use super::status::{keystore, unavailable};
-use crate::secure::error::SecureError;
+use crate::secure::SecureError;
 
 const ACCOUNT: &str = "aes-256-gcm";
 const KEY_LEN: usize = 32;

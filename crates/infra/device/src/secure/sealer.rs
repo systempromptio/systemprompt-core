@@ -1,7 +1,7 @@
-//! Sealing secrets for the current user: DPAPI on Windows, the login keychain
-//! on macOS (`KeychainSealer`), a process-memory store for tests.
-//! Elsewhere the platform sealer is a disabled memory sealer that reports
-//! itself unavailable, so no secret is ever kept there outside tests.
+//! Sealing secrets for the current user. The platform's sealer is DPAPI on
+//! Windows, a login keychain key on macOS, and on Linux a key the Secret
+//! Service or the kernel keyring holds, or this process alone where the
+//! machine has no keyring. A process-memory sealer exists for tests.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,6 +13,7 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 use zeroize::Zeroizing;
 
+use crate::platform::{Native, Platform};
 use crate::secure::error::SecureError;
 
 /// Seals secrets so that only the current user, through this app, can open
@@ -29,84 +30,8 @@ pub trait Sealer: Send + Sync + fmt::Debug {
 }
 
 #[must_use]
-#[cfg_attr(
-    not(any(windows, target_os = "macos")),
-    expect(
-        unused_variables,
-        reason = "the app id scopes DPAPI and the keychain, which exist only on Windows and macOS"
-    )
-)]
 pub fn platform_sealer(app_id: &str) -> Arc<dyn Sealer> {
-    #[cfg(windows)]
-    {
-        Arc::new(DpapiSealer::new(app_id.as_bytes()))
-    }
-    #[cfg(target_os = "macos")]
-    {
-        Arc::new(crate::secure::mac::KeychainSealer::new(app_id))
-    }
-    #[cfg(not(any(windows, target_os = "macos")))]
-    {
-        Arc::new(MemorySealer::disabled())
-    }
-}
-
-/// DPAPI in the current-user scope (`CryptProtectData` / `CryptUnprotectData`),
-/// bound to an app-specific entropy blob and never prompting.
-#[cfg(windows)]
-#[derive(Debug, Clone)]
-pub struct DpapiSealer {
-    entropy: Vec<u8>,
-}
-
-#[cfg(windows)]
-impl DpapiSealer {
-    const PROBE: &'static [u8] = b"sp-secure availability probe";
-
-    #[must_use]
-    pub fn new(entropy: &[u8]) -> Self {
-        Self {
-            entropy: entropy.to_vec(),
-        }
-    }
-}
-
-#[cfg(windows)]
-impl Sealer for DpapiSealer {
-    fn seal(&self, plaintext: &[u8]) -> Result<Vec<u8>, SecureError> {
-        crate::secure::win::dpapi_protect(plaintext, &self.entropy)
-            .map_err(|source| SecureError::Unavailable { source })
-    }
-
-    fn open(&self, ciphertext: &[u8]) -> Result<Zeroizing<Vec<u8>>, SecureError> {
-        if ciphertext.is_empty() {
-            return Err(SecureError::Empty);
-        }
-        crate::secure::win::dpapi_unprotect(ciphertext, &self.entropy).map_err(|source| {
-            if crate::secure::win::is_foreign_ciphertext(&source) {
-                SecureError::Rejected { source }
-            } else {
-                SecureError::Unavailable { source }
-            }
-        })
-    }
-
-    fn available(&self) -> bool {
-        let sealed = match self.seal(Self::PROBE) {
-            Ok(sealed) => sealed,
-            Err(e) => {
-                tracing::warn!(error = %e, "DPAPI cannot seal for this user");
-                return false;
-            },
-        };
-        match self.open(&sealed) {
-            Ok(opened) => opened.as_slice() == Self::PROBE,
-            Err(e) => {
-                tracing::warn!(error = %e, "DPAPI cannot open what it sealed for this user");
-                false
-            },
-        }
-    }
+    Native::sealer(app_id)
 }
 
 const MEMORY_MAGIC: &[u8; 8] = b"spmem01\0";
@@ -118,8 +43,8 @@ const MEMORY_CIPHERTEXT_LEN: usize = MEMORY_MAGIC.len() + 2 * ID_LEN;
 /// and nothing touches disk.
 ///
 /// Only [`MemorySealer::for_tests`] reports `available() == true`.
-/// [`MemorySealer::disabled`] is the platform sealer where neither DPAPI nor
-/// the keychain exists: it refuses to seal or open anything.
+/// [`MemorySealer::disabled`] refuses to seal or open anything, as a machine
+/// whose secure store cannot be used does.
 pub struct MemorySealer {
     enabled: bool,
     id: [u8; ID_LEN],

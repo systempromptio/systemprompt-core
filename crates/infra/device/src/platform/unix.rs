@@ -1,145 +1,111 @@
-//! The platform-specific parts of a write: link refusal, owner-only creation of
-//! the staged file, the replacing rename, and verification of the resulting
-//! access.
+//! Owner-only files on macOS and Linux: mode `0600` for a file and `0700`
+//! for a directory, owned by the user the process runs as, and never reached
+//! through a symbolic link (`O_NOFOLLOW` on every open).
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::fs::{self, File};
+use std::fs::{self, File, Metadata};
 use std::io;
+use std::os::unix::fs::{MetadataExt as _, OpenOptionsExt as _, PermissionsExt as _};
 use std::path::Path;
 
-use super::Access;
-use crate::secure::error::SecureError;
+use nix::errno::Errno;
+use nix::fcntl::OFlag;
+use nix::unistd::Uid;
 
-pub(super) fn is_link(metadata: &fs::Metadata) -> bool {
-    #[cfg(windows)]
-    if crate::secure::win::is_reparse_point(metadata) {
-        return true;
-    }
+use crate::secure::SecureError;
+
+const FILE_MODE: u32 = 0o600;
+const DIRECTORY_MODE: u32 = 0o700;
+const MODE_BITS: u32 = 0o777;
+
+pub(super) fn is_link(metadata: &Metadata) -> bool {
     metadata.file_type().is_symlink()
 }
 
-pub(super) fn refuse_link(path: &Path) -> Result<(), SecureError> {
-    match fs::symlink_metadata(path) {
-        Ok(metadata) if is_link(&metadata) => Err(SecureError::Link {
-            path: path.to_path_buf(),
-        }),
-        Ok(_) => Ok(()),
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
-        Err(source) => Err(SecureError::io("inspect", path, source)),
-    }
-}
-
-#[cfg(windows)]
-pub(super) fn create_temp(temp: &Path, access: Access) -> Result<File, SecureError> {
-    match access {
-        Access::Private => {
-            let owner = crate::secure::win::current_sid().map_err(|source| SecureError::Acl {
-                path: temp.to_path_buf(),
-                source,
-            })?;
-            crate::secure::win::create_private(temp, &owner)
-                .map_err(|source| SecureError::io("create private temporary file", temp, source))
-        },
-        Access::Shared => fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(temp)
-            .map_err(|source| SecureError::io("create temporary file", temp, source)),
-    }
-}
-
-#[cfg(not(windows))]
-pub(super) fn create_temp(temp: &Path, access: Access) -> Result<File, SecureError> {
-    let mut options = fs::OpenOptions::new();
-    options.write(true).create_new(true);
-    #[cfg(unix)]
-    if access == Access::Private {
-        use std::os::unix::fs::OpenOptionsExt as _;
-        options.mode(0o600);
-    }
-    let file = options
-        .open(temp)
-        .map_err(|source| SecureError::io("create temporary file", temp, source))?;
-    #[cfg(unix)]
-    if access == Access::Private {
-        use std::os::unix::fs::PermissionsExt as _;
-        file.set_permissions(fs::Permissions::from_mode(0o600))
-            .map_err(|source| SecureError::io("restrict temporary file", temp, source))?;
-    }
+pub(super) fn create_owner_only(path: &Path) -> Result<File, SecureError> {
+    let file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(FILE_MODE)
+        .custom_flags(OFlag::O_NOFOLLOW.bits())
+        .open(path)
+        .map_err(|source| SecureError::io("create temporary file", path, source))?;
+    file.set_permissions(fs::Permissions::from_mode(FILE_MODE))
+        .map_err(|source| SecureError::io("restrict temporary file", path, source))?;
     Ok(file)
 }
 
-// Why: Windows refuses to replace a file another handle holds open without
-// FILE_SHARE_DELETE (an antivirus scan, the search indexer), and those handles
-// close within moments.
-#[cfg(windows)]
-pub(super) fn replace(temp: &Path, path: &Path) -> Result<(), SecureError> {
-    const BACKOFF_MS: [u64; 5] = [50, 80, 120, 160, 200];
-    for delay in BACKOFF_MS {
-        match crate::secure::win::move_replace(temp, path) {
-            Ok(()) => return Ok(()),
-            Err(e) if crate::secure::win::is_transient_replace_error(&e) => {
-                tracing::debug!(
-                    error = %e,
-                    path = %path.display(),
-                    delay_ms = delay,
-                    "replace refused; retrying"
-                );
-                std::thread::sleep(std::time::Duration::from_millis(delay));
-            },
-            Err(source) => return Err(SecureError::io("replace", path, source)),
-        }
+// Why: POSIX answers an `O_NOFOLLOW` open whose last component is a symbolic
+// link with ELOOP, which `std::io::ErrorKind` does not name on stable.
+pub(super) fn open_unfollowed(path: &Path) -> Result<Option<File>, SecureError> {
+    let opened = fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(OFlag::O_NOFOLLOW.bits())
+        .open(path);
+    match opened {
+        Ok(file) => Ok(Some(file)),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
+        Err(e) if e.raw_os_error() == Some(Errno::ELOOP as i32) => Err(SecureError::Link {
+            path: path.to_path_buf(),
+        }),
+        Err(source) => Err(SecureError::io("read", path, source)),
     }
-    crate::secure::win::move_replace(temp, path)
-        .map_err(|source| SecureError::io("replace after retries", path, source))
 }
 
-#[cfg(not(windows))]
-pub(super) fn replace(temp: &Path, path: &Path) -> Result<(), SecureError> {
-    fs::rename(temp, path).map_err(|source| SecureError::io("replace", path, source))
-}
-
-pub(super) fn verify_access(path: &Path, access: Access) -> Result<(), SecureError> {
-    if access == Access::Shared {
+pub(super) fn replace(staged: &Path, path: &Path) -> Result<(), SecureError> {
+    fs::rename(staged, path).map_err(|source| SecureError::io("replace", path, source))?;
+    let Some(parent) = path.parent().filter(|dir| !dir.as_os_str().is_empty()) else {
         return Ok(());
-    }
-    #[cfg(windows)]
-    {
-        let acl_error = |source: io::Error| SecureError::Acl {
-            path: path.to_path_buf(),
-            source,
-        };
-        let owner = crate::secure::win::current_sid().map_err(acl_error)?;
-        let file = File::open(path).map_err(|source| SecureError::io("open", path, source))?;
-        crate::secure::win::verify_private(&file, &owner).map_err(acl_error)?;
-    }
-    #[cfg(unix)]
-    verify_mode(path, 0o600)?;
-    Ok(())
-}
-
-#[cfg(unix)]
-pub(super) fn verify_mode(path: &Path, mode: u32) -> Result<(), SecureError> {
-    use std::os::unix::fs::PermissionsExt as _;
-    let metadata = fs::metadata(path).map_err(|source| SecureError::io("inspect", path, source))?;
-    if metadata.permissions().mode() & 0o777 == mode {
-        Ok(())
-    } else {
-        Err(SecureError::Acl {
-            path: path.to_path_buf(),
-            source: io::Error::new(
-                io::ErrorKind::PermissionDenied,
-                format!("mode is not {mode:o}"),
-            ),
-        })
-    }
-}
-
-#[cfg(unix)]
-pub(super) fn sync_directory(parent: &Path) -> Result<(), SecureError> {
+    };
     File::open(parent)
         .and_then(|dir| dir.sync_all())
         .map_err(|source| SecureError::io("flush directory", parent, source))
+}
+
+pub(super) fn verify_owner_only(path: &Path) -> Result<(), SecureError> {
+    let metadata = unfollowed_metadata(path)?;
+    if !metadata.is_file() {
+        return Err(access(path, "not a regular file"));
+    }
+    verify_private(path, &metadata, FILE_MODE)
+}
+
+pub(super) fn restrict_directory(path: &Path) -> Result<(), SecureError> {
+    fs::set_permissions(path, fs::Permissions::from_mode(DIRECTORY_MODE))
+        .map_err(|source| SecureError::io("restrict directory", path, source))?;
+    let metadata = unfollowed_metadata(path)?;
+    if !metadata.is_dir() {
+        return Err(access(path, "not a directory"));
+    }
+    verify_private(path, &metadata, DIRECTORY_MODE)
+}
+
+fn unfollowed_metadata(path: &Path) -> Result<Metadata, SecureError> {
+    let metadata =
+        fs::symlink_metadata(path).map_err(|source| SecureError::io("inspect", path, source))?;
+    if is_link(&metadata) {
+        return Err(SecureError::Link {
+            path: path.to_path_buf(),
+        });
+    }
+    Ok(metadata)
+}
+
+fn verify_private(path: &Path, metadata: &Metadata, mode: u32) -> Result<(), SecureError> {
+    if metadata.mode() & MODE_BITS != mode {
+        return Err(access(path, "mode is not owner-only"));
+    }
+    if metadata.uid() != Uid::effective().as_raw() {
+        return Err(access(path, "owned by another user"));
+    }
+    Ok(())
+}
+
+fn access(path: &Path, reason: &'static str) -> SecureError {
+    SecureError::Acl {
+        path: path.to_path_buf(),
+        source: io::Error::new(io::ErrorKind::PermissionDenied, reason),
+    }
 }

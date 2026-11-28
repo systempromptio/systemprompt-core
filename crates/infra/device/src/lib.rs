@@ -9,6 +9,7 @@
 
 pub mod accounts;
 pub mod client;
+pub mod platform;
 pub mod protocol;
 pub mod secure;
 pub mod view;

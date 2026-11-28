@@ -9,7 +9,7 @@ use std::io;
 
 use security_framework::base::Error;
 
-use crate::secure::error::SecureError;
+use crate::secure::SecureError;
 
 // Why: the Security framework reports `OSStatus` codes (SecBase.h) that the
 // safe bindings do not name; these are the ones that mean "no such item",

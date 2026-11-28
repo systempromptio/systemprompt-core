@@ -14,8 +14,7 @@ use zeroize::{Zeroize as _, Zeroizing};
 
 use super::sealing_key::{self, KEY_ABSENT, KeyError};
 use super::status::unavailable;
-use crate::secure::error::SecureError;
-use crate::secure::sealer::Sealer;
+use crate::secure::{Sealer, SecureError};
 
 const MAGIC: &[u8; 6] = b"spkc2\0";
 const HEADER_LEN: usize = MAGIC.len() + NONCE_LEN;

@@ -5,14 +5,12 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::fs;
-use std::io::{self, Write as _};
+use std::fs::{self, File};
+use std::io::{self, Read as _, Write as _};
 use std::path::{Path, PathBuf};
 
-use super::platform::{create_temp, refuse_link, replace, verify_access};
-#[cfg(unix)]
-use super::platform::{sync_directory, verify_mode};
 use super::{Access, WriteOutcome};
+use crate::platform::{Native, Platform};
 use crate::secure::error::SecureError;
 
 pub fn write_private(path: &Path, bytes: &[u8]) -> Result<(), SecureError> {
@@ -35,18 +33,13 @@ pub fn write_atomic(path: &Path, bytes: &[u8], access: Access) -> Result<(), Sec
     refuse_link(parent)?;
     refuse_link(path)?;
     let temp = temp_path(parent, path)?;
-    let staged = stage(&temp, bytes, access).and_then(|()| replace(&temp, path));
+    let staged = stage(&temp, bytes, access).and_then(|()| Native::replace(&temp, path));
     if let Err(e) = staged {
         remove_leftover(&temp);
         return Err(e);
     }
     verify_contents(path, bytes)?;
-    verify_access(path, access)?;
-    // Why: on Windows MOVEFILE_WRITE_THROUGH already returns only once the rename
-    // is on disk; elsewhere the directory entry is flushed separately.
-    #[cfg(unix)]
-    sync_directory(parent)?;
-    Ok(())
+    verify_access(path, access)
 }
 
 pub fn write_if_changed(
@@ -84,29 +77,48 @@ pub fn remove_if_exists(path: &Path) -> Result<bool, SecureError> {
 
 pub fn read_optional(path: &Path) -> Result<Option<Vec<u8>>, SecureError> {
     refuse_link(path)?;
-    match fs::read(path) {
-        Ok(bytes) => Ok(Some(bytes)),
-        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
-        Err(source) => Err(SecureError::io("read", path, source)),
-    }
+    let Some(mut file) = Native::open_unfollowed(path)? else {
+        return Ok(None);
+    };
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes)
+        .map_err(|source| SecureError::io("read", path, source))?;
+    Ok(Some(bytes))
 }
 
 pub fn ensure_private_dir(path: &Path) -> Result<(), SecureError> {
     fs::create_dir_all(path).map_err(|source| SecureError::io("create directory", path, source))?;
     refuse_link(path)?;
-    #[cfg(windows)]
-    crate::secure::win::protect_directory(path).map_err(|source| SecureError::Acl {
-        path: path.to_path_buf(),
-        source,
-    })?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt as _;
-        fs::set_permissions(path, fs::Permissions::from_mode(0o700))
-            .map_err(|source| SecureError::io("restrict directory", path, source))?;
-        verify_mode(path, 0o700)?;
+    Native::restrict_directory(path)
+}
+
+fn refuse_link(path: &Path) -> Result<(), SecureError> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) if Native::is_link(&metadata) => Err(SecureError::Link {
+            path: path.to_path_buf(),
+        }),
+        Ok(_) => Ok(()),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(source) => Err(SecureError::io("inspect", path, source)),
     }
-    Ok(())
+}
+
+fn verify_access(path: &Path, access: Access) -> Result<(), SecureError> {
+    match access {
+        Access::Private => Native::verify_owner_only(path),
+        Access::Shared => Ok(()),
+    }
+}
+
+fn create_staged(temp: &Path, access: Access) -> Result<File, SecureError> {
+    match access {
+        Access::Private => Native::create_owner_only(temp),
+        Access::Shared => fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(temp)
+            .map_err(|source| SecureError::io("create temporary file", temp, source)),
+    }
 }
 
 fn parent_dir(path: &Path) -> Result<&Path, SecureError> {
@@ -140,7 +152,7 @@ fn temp_path(parent: &Path, path: &Path) -> Result<PathBuf, SecureError> {
 }
 
 fn stage(temp: &Path, bytes: &[u8], access: Access) -> Result<(), SecureError> {
-    let mut file = create_temp(temp, access)?;
+    let mut file = create_staged(temp, access)?;
     file.write_all(bytes)
         .map_err(|source| SecureError::io("write", temp, source))?;
     file.sync_all()
