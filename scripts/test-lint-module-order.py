@@ -13,7 +13,7 @@ from fixture_tree import GateFixture  # noqa: E402
 ENGINE = "crates/domain/engine/src"
 HARNESS = "crates/app/harness/src"
 ENGINE_ORDER = ("config", "store", "llm", "tools", "mcp", "workspace", "lsp", "prompt", "run")
-HARNESS_ORDER = ("projection", "extension", "governance", "members", "sync")
+HARNESS_ORDER = ("projection", "extension", "governance", "members", "sync", "command")
 
 
 class ModuleOrder(GateFixture):
