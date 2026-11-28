@@ -8,7 +8,7 @@ use serde_json::json;
 use systemprompt_parity_compare::ledger::HARNESS_VS_EXPECTED;
 use systemprompt_parity_compare::reference::{self, Table};
 use systemprompt_parity_compare::{
-    Classifications, LedgerRow, ScenarioScript, build, differences, digest,
+    Classifications, Ledger, LedgerRow, ScenarioScript, build, differences, digest,
 };
 
 #[test]
@@ -66,6 +66,46 @@ fn a_difference_the_reviewed_file_does_not_name_is_unclassified() {
     )
     .unwrap();
     assert!(unowned.check().is_err(), "a gap needs an owner stage");
+}
+
+#[test]
+fn a_row_takes_its_worst_class_and_the_ledger_totals_each_comparison() {
+    let reviewed: Classifications = toml::from_str(
+        r#"
+        [[entry]]
+        scenario = "01-x"
+        path = "a"
+        class = "intended"
+        reason = "by design"
+
+        [[entry]]
+        scenario = "01-x"
+        path = "b"
+        class = "defect"
+        reason = "the harness is wrong"
+        "#,
+    )
+    .unwrap();
+    let found = differences(&json!({ "a": 1, "b": 1 }), &json!({ "a": 2, "b": 2 }), &[]);
+    let differs = LedgerRow::classify("01-x", "messages", HARNESS_VS_EXPECTED, found, &reviewed);
+    assert_eq!(differs.verdict(), "defect");
+    let same = LedgerRow::classify("01-x", "chat", HARNESS_VS_EXPECTED, Vec::new(), &reviewed);
+    assert_eq!(same.verdict(), "same");
+    let failed = LedgerRow::failed("02-y", "chat", HARNESS_VS_EXPECTED, "no trace".to_owned());
+    assert_eq!(failed.verdict(), "error");
+    let ledger = Ledger {
+        rows: vec![differs, same, failed],
+    };
+    let written: serde_json::Value = serde_json::from_str(&ledger.json().unwrap()).unwrap();
+    let totals = &written["totals"][HARNESS_VS_EXPECTED];
+    assert_eq!(
+        totals["runs"],
+        json!({ "defect": 1, "error": 1, "same": 1 })
+    );
+    assert_eq!(totals["differences"], json!({ "defect": 1, "intended": 1 }));
+    assert_eq!(written["rows"][0]["verdict"], json!("defect"));
+    let read: Ledger = serde_json::from_str(&ledger.json().unwrap()).unwrap();
+    assert_eq!(read.rows, ledger.rows);
 }
 
 #[test]
@@ -135,4 +175,96 @@ fn a_reference_export_reduces_to_the_trace_with_logical_names() {
     assert_eq!(trace["steps"][3]["digest"], json!(digest::text("one")));
     assert_eq!(trace["steps"][4]["tool_results"], json!(["t1"]));
     assert_eq!(trace["session"]["messages"], json!(4));
+}
+
+#[test]
+fn a_reference_export_keeps_errors_truncation_asks_compaction_and_todos() {
+    let dir = tempfile::tempdir().unwrap();
+    let run = dir.path();
+    std::fs::write(
+        run.join("session.json"),
+        json!({
+            "info": { "id": "root" },
+            "messages": [
+                { "type": "user", "id": "u1", "text": "Go." },
+                { "type": "assistant", "id": "a1", "finish": "tool-calls", "content": [
+                    { "type": "tool", "id": "t1", "name": "shell", "state": {
+                        "status": "error", "input": { "command": "echo x" },
+                        "error": { "type": "permission.rejected", "message": "Not now." } } },
+                    { "type": "tool", "id": "t2", "name": "write", "state": {
+                        "status": "error", "input": { "path": "s/a.txt", "content": "x" },
+                        "error": { "type": "permission.rejected", "message": "Permission denied: edit" } } },
+                    { "type": "tool", "id": "t3", "name": "read", "state": {
+                        "status": "completed", "input": { "path": "a.txt" },
+                        "content": [{ "type": "text", "text": "cut" }], "metadata": { "truncated": true } } },
+                    { "type": "tool", "id": "t4", "name": "todowrite", "state": {
+                        "status": "completed", "input": { "todos": [{ "content": "one", "status": "pending" }] },
+                        "content": "ok" } },
+                ] },
+                { "type": "user", "id": "u2", "text": "More." },
+                { "type": "compaction", "id": "c1", "reason": "auto", "summary": "## Goal" },
+                { "type": "assistant", "id": "a2", "finish": "stop", "content": [{ "type": "text", "text": "Done." }] },
+            ],
+        })
+        .to_string(),
+    )
+    .unwrap();
+    let tools_body = json!([{ "name": "read" }]);
+    let requests = [
+        json!({ "status": 200, "body": { "tools": tools_body, "messages": [] } }),
+        json!({ "status": 200, "body": { "tools": tools_body, "messages": [] } }),
+        json!({ "status": 200, "body": { "tools": tools_body, "messages": [] } }),
+    ];
+    let lines: Vec<String> = requests.iter().map(ToString::to_string).collect();
+    std::fs::write(run.join("requests.jsonl"), lines.join("\n")).unwrap();
+    std::fs::write(
+        run.join("run.json"),
+        json!({
+            "actions": [{ "do": "prompt", "message": 2, "on": "idle", "index": 1 }],
+            "asks": [{ "index": 1, "request": { "source": { "id": "t1" } },
+                       "reply": { "decision": "reject", "message": "Not now." } }],
+        })
+        .to_string(),
+    )
+    .unwrap();
+    let tools = Path::new(env!("CARGO_MANIFEST_DIR")).join("../reference/tools.json");
+    let table = Table::parse(&std::fs::read_to_string(tools).unwrap()).unwrap();
+    assert_eq!(table.dropped("shell"), ["description".to_owned()]);
+    let transcript = reference::transcript(run, &table).unwrap();
+    let script = ScenarioScript::parse(
+        &json!({ "turns": [
+            { "respond": [
+                { "tool_call": { "id": "t1" } }, { "tool_call": { "id": "t2" } },
+                { "tool_call": { "id": "t3" } }, { "tool_call": { "id": "t4" } },
+            ] },
+            { "respond": [{ "text": "## Goal" }] },
+            { "respond": [{ "text": "Done." }] },
+        ] })
+        .to_string(),
+    )
+    .unwrap();
+    let trace = build::trace(&transcript, &script, "messages", json!({}));
+    let steps = trace["steps"].as_array().unwrap();
+    let find = |call: &str, kind: &str| {
+        steps
+            .iter()
+            .find(|step| step["call"] == json!(call) && step["kind"] == json!(kind))
+            .unwrap()
+            .clone()
+    };
+    assert_eq!(find("t1", "permission")["outcome"], json!("rejected"));
+    assert_eq!(find("t1", "tool_result")["status"], json!("rejected"));
+    assert_eq!(find("t1", "tool_result")["digest"], json!(digest::text("Not now.")));
+    assert_eq!(find("t2", "permission")["outcome"], json!("denied_by_rule"));
+    assert_eq!(find("t2", "tool_result")["status"], json!("denied"));
+    assert_eq!(find("t3", "tool_result")["truncated"], json!(true));
+    let kinds: Vec<&str> = steps.iter().map(|step| step["kind"].as_str().unwrap()).collect();
+    let prompt = kinds.iter().position(|kind| *kind == "user_message").unwrap();
+    assert_eq!(kinds[prompt + 1], "model_request");
+    assert_eq!(steps[prompt + 1]["purpose"], json!("compaction"));
+    assert_eq!(kinds[prompt + 2], "compaction");
+    assert_eq!(
+        trace["session"]["todos"],
+        json!([{ "content": "one", "status": "pending" }])
+    );
 }

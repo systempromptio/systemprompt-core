@@ -11,6 +11,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::compare::Difference;
 
+/// The classes from mildest to worst: a row's verdict is the worst class
+/// among its differences.
+const SEVERITY: [&str; 6] = [
+    "same",
+    "intended",
+    "reference-defect",
+    "gap",
+    "defect",
+    "unclassified",
+];
+
 pub const CLASSES: [&str; 6] = [
     "same",
     "intended",
@@ -179,6 +190,21 @@ impl LedgerRow {
         }
     }
 
+    /// One word for the row: `error` for a run that could not be compared,
+    /// `same` for one with no difference, otherwise the worst class among
+    /// its differences.
+    pub fn verdict(&self) -> &'static str {
+        if self.result == "error" {
+            return "error";
+        }
+        SEVERITY
+            .iter()
+            .rev()
+            .find(|class| self.entries.iter().any(|entry| entry.class == **class))
+            .copied()
+            .unwrap_or("same")
+    }
+
     pub fn unclassified(&self) -> Vec<&Entry> {
         self.entries
             .iter()
@@ -190,6 +216,26 @@ impl LedgerRow {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Ledger {
     pub rows: Vec<LedgerRow>,
+}
+
+/// One comparison's counts: its rows by verdict and its differences by class.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct Totals {
+    pub runs: BTreeMap<String, usize>,
+    pub differences: BTreeMap<String, usize>,
+}
+
+#[derive(Serialize)]
+struct Judged<'a> {
+    #[serde(flatten)]
+    row: &'a LedgerRow,
+    verdict: &'static str,
+}
+
+#[derive(Serialize)]
+struct Written<'a> {
+    totals: BTreeMap<String, Totals>,
+    rows: Vec<Judged<'a>>,
 }
 
 impl Ledger {
@@ -212,6 +258,35 @@ impl Ledger {
             }
         }
         counts
+    }
+
+    /// The counts of each comparison the ledger holds, by its name.
+    pub fn totals(&self) -> BTreeMap<String, Totals> {
+        let mut totals: BTreeMap<String, Totals> = BTreeMap::new();
+        for row in &self.rows {
+            let of = totals.entry(row.comparison.clone()).or_default();
+            *of.runs.entry(row.verdict().to_owned()).or_default() += 1;
+            for entry in &row.entries {
+                *of.differences.entry(entry.class.clone()).or_default() += 1;
+            }
+        }
+        totals
+    }
+
+    /// `ledger.json`: the totals, then every row with its verdict.
+    pub fn json(&self) -> anyhow::Result<String> {
+        let written = Written {
+            totals: self.totals(),
+            rows: self
+                .rows
+                .iter()
+                .map(|row| Judged {
+                    row,
+                    verdict: row.verdict(),
+                })
+                .collect(),
+        };
+        Ok(serde_json::to_string_pretty(&written)?)
     }
 
     pub fn markdown(&self) -> String {
@@ -264,7 +339,7 @@ impl Ledger {
 
     pub fn write(&self, dir: &Path) -> anyhow::Result<()> {
         std::fs::create_dir_all(dir)?;
-        std::fs::write(dir.join("ledger.json"), serde_json::to_string_pretty(self)?)?;
+        std::fs::write(dir.join("ledger.json"), self.json()?)?;
         std::fs::write(dir.join("ledger.md"), self.markdown())?;
         Ok(())
     }

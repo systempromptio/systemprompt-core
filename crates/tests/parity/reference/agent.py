@@ -123,6 +123,8 @@ class Server:
 
     def __init__(self, agent, cwd, env, log_path):
         self.agent = agent
+        self.cwd = cwd
+        self.env = env
         self.out_path = log_path + ".stdout"
         self.out = open(self.out_path, "w", encoding="utf-8")
         self.log = open(log_path, "w", encoding="utf-8")

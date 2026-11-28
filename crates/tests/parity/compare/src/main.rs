@@ -7,18 +7,20 @@
 //! ```
 //!
 //! `--runs` is the runner's output (`<scenario>/<protocol>/row.json` and
-//! `trace.json`); `--reference` the reference runner's `--out`. Exits 1
+//! `trace.json`); `--reference` the reference runner's `--out`. The two
+//! traces of every compared run are written to
+//! `<out>/traces/<scenario>/<protocol>/{harness,reference}.json`. Exits 1
 //! when any difference is unclassified or any run failed.
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use anyhow::Context as _;
-use serde_json::Value;
+use serde_json::{Value, json};
 use systemprompt_parity_compare::ledger::HARNESS_VS_REFERENCE;
 use systemprompt_parity_compare::reference::{self, Table};
 use systemprompt_parity_compare::{
-    Classifications, Ledger, LedgerRow, ScenarioScript, build, differences,
+    Classifications, Ledger, LedgerRow, ScenarioScript, build, differences, digest,
 };
 
 struct Options {
@@ -68,38 +70,138 @@ fn name(path: &Path) -> String {
         .unwrap_or_default()
 }
 
+/// The workspace the reference agent left, digested as the runner digests
+/// the harness's: against the scenario's fixture.
+fn reference_workspace(fixture: &Path, exported: &Path) -> anyhow::Result<Value> {
+    let before = digest::files(&fixture.join("workspace"), &[])?;
+    let after = digest::files(&exported.join("workspace"), &[".git"])?;
+    Ok(json!({ "tree_digest": digest::tree(&after), "changed": digest::changed(&before, &after) }))
+}
+
+/// The harness's trace of a run and the reference agent's trace of the same
+/// scenario and protocol.
+fn traces(
+    run: &Path,
+    exported: &Path,
+    fixture: &Path,
+    protocol: &str,
+) -> anyhow::Result<(Value, Value)> {
+    let harness: Value = serde_json::from_str(&std::fs::read_to_string(run.join("trace.json"))?)?;
+    anyhow::ensure!(!harness.is_null(), "the harness run left no trace");
+    let table = Table::parse(&std::fs::read_to_string(
+        fixture.join("../../../parity/reference/tools.json"),
+    )?)?;
+    let script = ScenarioScript::parse(&std::fs::read_to_string(run.join("turns.json"))?)?;
+    let transcript = reference::transcript(exported, &table)?;
+    let mut theirs = build::trace(
+        &transcript,
+        &script,
+        protocol,
+        reference_workspace(fixture, exported)?,
+    );
+    let mut harness = harness;
+    if let Some(steps) = harness.get_mut("steps") {
+        drop_unmapped_input(steps, &table);
+    }
+    if harness.pointer("/session/jobs").is_some() {
+        theirs["session"]["jobs"] = reference_jobs(exported);
+    }
+    Ok((harness, theirs))
+}
+
+/// Removes from every `tool_call` step's input, subagent steps included, the
+/// fields the reference table maps to nothing: the reference tool takes no
+/// such field, so its side can never carry one.
+fn drop_unmapped_input(steps: &mut Value, table: &Table) {
+    for step in steps.as_array_mut().into_iter().flatten() {
+        if step.get("kind").and_then(Value::as_str) == Some("tool_call") {
+            let tool = step
+                .get("tool")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_owned();
+            if let Some(input) = step.get_mut("input").and_then(Value::as_object_mut) {
+                for field in table.dropped(&tool) {
+                    input.remove(field);
+                }
+            }
+        }
+        if let Some(nested) = step.get_mut("steps") {
+            drop_unmapped_input(nested, table);
+        }
+    }
+}
+
+/// The final state of each background job the reference agent listed at the
+/// end of the run (`jobs.json`), in the harness trace's vocabulary.
+fn reference_jobs(exported: &Path) -> Value {
+    let Ok(text) = std::fs::read_to_string(exported.join("jobs.json")) else {
+        return Value::Null;
+    };
+    let Ok(listed) = serde_json::from_str::<Value>(&text) else {
+        return Value::Null;
+    };
+    listed
+        .get("data")
+        .and_then(Value::as_array)
+        .map_or(Value::Null, |jobs| {
+            jobs.iter()
+                .map(|job| match job.get("status").and_then(Value::as_str) {
+                    Some("running") => json!("running"),
+                    Some("killed" | "aborted" | "cancelled" | "interrupted") => json!("killed"),
+                    Some(other) => json!(other),
+                    None => Value::Null,
+                })
+                .collect()
+        })
+}
+
+fn keep(dir: &Path, harness: &Value, theirs: &Value) -> anyhow::Result<()> {
+    std::fs::create_dir_all(dir)?;
+    std::fs::write(
+        dir.join("harness.json"),
+        serde_json::to_string_pretty(harness)?,
+    )?;
+    std::fs::write(
+        dir.join("reference.json"),
+        serde_json::to_string_pretty(theirs)?,
+    )?;
+    Ok(())
+}
+
+/// The harness-to-reference row of one run; none where the reference runner
+/// exported no session for it.
 fn reference_row(
     run: &Path,
+    options: &Options,
     reference: &Path,
     scenarios: &Path,
     reviewed: &Classifications,
-) -> anyhow::Result<Option<LedgerRow>> {
+) -> Option<LedgerRow> {
     let protocol = name(run);
     let scenario = run.parent().map(name).unwrap_or_default();
     let exported = reference.join(&scenario).join(&protocol);
     if !exported.join("session.json").is_file() {
-        return Ok(None);
+        return None;
     }
-    let harness: Value = serde_json::from_str(&std::fs::read_to_string(run.join("trace.json"))?)?;
-    let table = Table::parse(&std::fs::read_to_string(
-        scenarios.join("../../parity/reference/tools.json"),
-    )?)?;
-    let script = ScenarioScript::parse(&std::fs::read_to_string(run.join("turns.json"))?)?;
-    let transcript = reference::transcript(&exported, &table)?;
-    let trace = build::trace(
-        &transcript,
-        &script,
-        &protocol,
-        harness["workspace"].clone(),
+    let compared = traces(run, &exported, &scenarios.join(&scenario), &protocol).and_then(
+        |(harness, theirs)| {
+            let kept = options.out.join("traces").join(&scenario).join(&protocol);
+            keep(&kept, &harness, &theirs)?;
+            Ok(differences(&harness, &theirs, &[]))
+        },
     );
-    let found = differences(&harness, &trace, &[]);
-    Ok(Some(LedgerRow::classify(
-        &scenario,
-        &protocol,
-        HARNESS_VS_REFERENCE,
-        found,
-        reviewed,
-    )))
+    Some(match compared {
+        Ok(found) => {
+            LedgerRow::classify(&scenario, &protocol, HARNESS_VS_REFERENCE, found, reviewed)
+        },
+        Err(error) => LedgerRow::failed(
+            &scenario,
+            &protocol,
+            HARNESS_VS_REFERENCE,
+            format!("{error:#}"),
+        ),
+    })
 }
 
 fn gather(options: &Options) -> anyhow::Result<Ledger> {
@@ -111,7 +213,7 @@ fn gather(options: &Options) -> anyhow::Result<Ledger> {
                 serde_json::from_str(&std::fs::read_to_string(run.join("row.json"))?)?;
             ledger.rows.push(row);
             if let (Some(reference), Some(scenarios)) = (&options.reference, &options.scenarios)
-                && let Some(row) = reference_row(&run, reference, scenarios, &reviewed)?
+                && let Some(row) = reference_row(&run, options, reference, scenarios, &reviewed)
             {
                 ledger.rows.push(row);
             }
