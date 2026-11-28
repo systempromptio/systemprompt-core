@@ -1,7 +1,9 @@
 //! The run loop: one driver per busy session that takes turns until its inbox
-//! is empty, and the turn itself, which takes steps until the model stops, the
-//! agent's step limit is reached, or the run is aborted. Each step's answer is
-//! capped by the agent's output limit, held under the model's ceiling.
+//! is empty (an interrupted run stores the steers it held for the next turn
+//! and drops its queued prompts), and the turn itself, which takes steps until
+//! the model stops, the agent's step limit is reached, or the run is aborted.
+//! Each step's answer is capped by the agent's output limit, held under the
+//! model's ceiling.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -65,6 +67,11 @@ pub(crate) async fn drive(inner: Arc<Inner>, session_id: SessionId, mode: TurnMo
                 TurnMode::Compact => compact_now(&inner, &session_id, &cancel).await,
             };
             if let Err(error) = result {
+                report(&inner, &session_id, &error);
+            }
+            if cancel.is_cancelled()
+                && let Err(error) = admit::deliver_steers(&inner, &session_id).await
+            {
                 report(&inner, &session_id, &error);
             }
         }

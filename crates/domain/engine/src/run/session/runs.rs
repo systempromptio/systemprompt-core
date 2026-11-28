@@ -153,7 +153,7 @@ impl Runs {
         let mut map = self.map.lock();
         match map.get_mut(session) {
             Some(entry) => {
-                entry.inbox.clear();
+                entry.inbox.drop_queued();
                 entry.cancel.cancel();
                 true
             },

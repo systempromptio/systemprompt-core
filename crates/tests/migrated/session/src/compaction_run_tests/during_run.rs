@@ -198,7 +198,6 @@ async fn steers_sent_before_a_failing_compaction_are_still_delivered() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "parity ledger: an interrupt clears the inbox, so steers held behind a compaction are dropped"]
 async fn steers_held_behind_an_interrupted_compaction_reach_the_next_turn() {
     let scripted = Scripted::start(vec![
         stalled(text_turn("SUMMARY never finished"), 1500),
