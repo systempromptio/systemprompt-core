@@ -1,11 +1,13 @@
 //! A scenario directory read into what the runner needs: its settings from
 //! `scenario.toml`, its messages from `prompt.txt`, its script with the
-//! placeholders of the POSIX shell family resolved.
+//! placeholders resolved in the dialect of the shell the harness runs commands
+//! with on this system.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::Context as _;
+use systemprompt_engine::tools::{Dialect, ShellSpec};
 use toml::{Table, Value};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -121,14 +123,19 @@ impl Scenario {
         let actions = tables(&toml, "action")
             .map(action)
             .collect::<anyhow::Result<_>>()?;
+        let dialect = match ShellSpec::detect(None).kind.dialect() {
+            Dialect::Posix => "posix",
+            Dialect::PowerShell => "powershell",
+            Dialect::Cmd => "cmd",
+        };
         let commands = toml
             .get("command")
             .and_then(Value::as_table)
             .into_iter()
             .flatten()
             .filter_map(|(name, dialects)| {
-                let posix = dialects.as_table().and_then(|table| text(table, "posix"))?;
-                Some((name.clone(), posix))
+                let command = dialects.as_table().and_then(|table| text(table, dialect))?;
+                Some((name.clone(), command))
             })
             .collect();
         let end = toml
@@ -176,7 +183,8 @@ impl Scenario {
         Self::load(&Self::corpus().join(id))
     }
 
-    /// `{{protocol}}` and every `{{command.<name>}}` with its POSIX entry.
+    /// `{{protocol}}` and every `{{command.<name>}}` with its entry for the
+    /// shell the harness detects.
     pub fn substitutions(&self, protocol: &str) -> Vec<(String, String)> {
         let mut pairs = vec![("{{protocol}}".to_owned(), protocol.to_owned())];
         pairs.extend(

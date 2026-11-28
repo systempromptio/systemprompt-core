@@ -17,10 +17,9 @@
 )]
 
 use std::ffi::c_void;
-use std::io;
-use std::mem;
 use std::path::{Path, PathBuf};
 use std::ptr::null_mut;
+use std::{io, mem};
 
 use sha2::{Digest as _, Sha256};
 use tokio::net::windows::named_pipe::{

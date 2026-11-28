@@ -199,8 +199,9 @@ impl GlobSearch<'_> {
     }
 }
 
-// Why: a Windows verbatim prefix (`\\?\`) holds a glob character, so a prefix is
-// literal, and only the text as written is split, never the home or root path.
+// Why: a Windows verbatim prefix (`\\?\`) holds a glob character, so a prefix
+// is literal, and only the text as written is split, never the home or root
+// path.
 fn split_glob(written: &str) -> (PathBuf, String) {
     let prefix = match Path::new(written).components().next() {
         Some(Component::Prefix(prefix)) => prefix.as_os_str().len(),

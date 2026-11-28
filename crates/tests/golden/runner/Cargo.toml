@@ -20,6 +20,7 @@ anyhow = { workspace = true }
 reqwest = { workspace = true }
 serde_json = { workspace = true }
 systemprompt-device = { workspace = true }
+systemprompt-engine = { workspace = true }
 systemprompt-harness = { workspace = true }
 systemprompt-parity-compare = { path = "../../parity/compare" }
 systemprompt-scripted-instance = { path = "../../scripted-instance" }

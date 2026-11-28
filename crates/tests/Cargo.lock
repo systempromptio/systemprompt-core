@@ -11431,6 +11431,7 @@ dependencies = [
  "reqwest",
  "serde_json",
  "systemprompt-device",
+ "systemprompt-engine",
  "systemprompt-harness",
  "systemprompt-parity-compare",
  "systemprompt-scripted-instance",

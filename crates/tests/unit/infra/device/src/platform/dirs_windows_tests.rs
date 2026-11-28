@@ -43,9 +43,11 @@ fn the_machine_data_directory_is_programdata() -> TestResult {
     Ok(())
 }
 
+type Lookup<'a> = &'a dyn Fn(&str) -> Option<OsString>;
+
 #[test]
 fn an_unset_or_relative_variable_names_no_directory() {
-    let cases: [&dyn Fn(&str) -> Option<OsString>; 2] = [&unset, &relative];
+    let cases: [Lookup<'_>; 2] = [&unset, &relative];
     for variables in cases {
         let environment = Environment::new(None, variables);
         assert!(matches!(
