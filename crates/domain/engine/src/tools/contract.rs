@@ -17,6 +17,7 @@ use serde_json::{Map, Value};
 use systemprompt_identifiers::engine::{CallId, MessageId, SessionId};
 use tokio_util::sync::CancellationToken;
 
+use crate::tools::builtin::FileLocks;
 use crate::tools::error::ToolError;
 
 /// A capability the model can call, held by the engine as `dyn Tool`.
@@ -149,6 +150,7 @@ pub struct ToolContext {
     pub gate: Arc<dyn PermissionGate>,
     pub observer: Option<Arc<dyn FileObserver>>,
     pub progress: Option<Arc<dyn Progress>>,
+    pub files: FileLocks,
 }
 
 impl fmt::Debug for ToolContext {

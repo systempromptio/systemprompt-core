@@ -31,8 +31,8 @@ mod truncate;
 use std::sync::Arc;
 
 pub use builtin::{
-    EditTool, FetchTool, GlobTool, GrepTool, PatchTool, ReadTool, TodoItem, TodoPriority, TodoSink,
-    TodoStatus, TodoTool, WriteTool,
+    EditTool, FetchTool, FileLocks, GlobTool, GrepTool, PatchTool, ReadTool, TodoItem,
+    TodoPriority, TodoSink, TodoStatus, TodoTool, WriteTool,
 };
 pub use config::{FetchConfig, ReadLimits, SearchLimits, ShellConfig, ToolsConfig};
 pub use contract::{

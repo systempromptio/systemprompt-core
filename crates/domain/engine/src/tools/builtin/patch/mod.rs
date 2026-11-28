@@ -33,7 +33,6 @@ use std::path::PathBuf;
 
 use self::parse::{FileOp, parse};
 use self::plan::{Change, Planned, plan};
-use super::lock::lock_files;
 use crate::tools::contract::{Tool, ToolContext, ToolOutput};
 use crate::tools::diff::{counts, unified};
 use crate::tools::error::ToolError;
@@ -95,7 +94,7 @@ impl Tool for PatchTool {
         let input: Input = parse_input(&self.schema(), input)?;
         let ops = parse(&input.patch).map_err(|err| ToolError::malformed("", err))?;
         let paths = op_paths(&ops, ctx);
-        let _locked = lock_files(paths.iter().map(PathBuf::as_path)).await;
+        let _locked = ctx.files.lock(paths.iter().map(PathBuf::as_path)).await;
         let plans = plan(ops, ctx).await?;
 
         for planned in &plans {

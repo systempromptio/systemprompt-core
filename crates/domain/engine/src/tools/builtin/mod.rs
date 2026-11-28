@@ -19,6 +19,7 @@ pub use edit::EditTool;
 pub use fetch::FetchTool;
 pub use glob::GlobTool;
 pub use grep::GrepTool;
+pub use lock::FileLocks;
 pub use patch::PatchTool;
 pub use read::ReadTool;
 pub use todo::{TodoItem, TodoPriority, TodoSink, TodoStatus, TodoTool};

@@ -16,7 +16,7 @@ use crate::config::{Layout, Loaded, Paths, Ruleset, Settings};
 use crate::llm::{ModelSpec, Transport};
 use crate::mcp::ClientInfo;
 use crate::store::{Session, SessionId, Store, StoreError};
-use crate::tools::{BackgroundJobs, TodoSink};
+use crate::tools::{BackgroundJobs, FileLocks, TodoSink};
 use crate::workspace::{PrunePolicy, PruneSchedule, Workspace, WorkspaceOptions};
 use parking_lot::{Mutex, RwLock};
 use systemprompt_traits::{BackgroundTasks, CancellationToken};
@@ -58,6 +58,7 @@ pub(crate) struct Inner {
     pub(crate) todos: Arc<dyn TodoSink>,
     pub(crate) tasks: BackgroundTasks,
     pub(crate) closing: CancellationToken,
+    pub(crate) files: FileLocks,
     dirs: tokio::sync::Mutex<HashMap<PathBuf, Arc<DirState>>>,
     workspaces: Mutex<HashMap<PathBuf, Workspace>>,
     rules: Mutex<HashMap<SessionId, Ruleset>>,
@@ -93,6 +94,7 @@ impl Inner {
             todos,
             tasks,
             closing: CancellationToken::new(),
+            files: FileLocks::default(),
             dirs: tokio::sync::Mutex::new(HashMap::new()),
             workspaces: Mutex::new(HashMap::new()),
             rules: Mutex::new(HashMap::new()),
