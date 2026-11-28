@@ -5,6 +5,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use crate::error::McpDomainResult;
+use crate::repository::is_unique_violation_on;
 mod intent;
 mod queries;
 mod span;
@@ -26,6 +27,19 @@ use systemprompt_models::RequestContext;
 fn extract_trace_id(ctx: &RequestContext) -> Option<String> {
     let trace_id = ctx.trace_id();
     (!trace_id.as_str().is_empty()).then(|| trace_id.to_string())
+}
+
+const AI_TOOL_CALL_ID_INDEX: &str = "idx_mcp_tool_executions_ai_tool_call_id";
+const EXECUTION_ID_KEY: &str = "mcp_tool_executions_pkey";
+
+/// What inserting an execution row ended as.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExecutionInsert {
+    Inserted,
+    /// Another row already carries the request's `ai_tool_call_id`.
+    CallIdHeld,
+    /// A row with this `mcp_execution_id` already exists.
+    ExecutionIdHeld,
 }
 
 #[derive(Debug, Clone)]
@@ -232,6 +246,30 @@ impl ToolUsageRepository {
             span::emit(sink.as_ref(), mcp_execution_id, subject, result);
         }
         Ok(())
+    }
+
+    /// Inserts an execution, reporting a row another vantage point already
+    /// wrote for the same call id or execution id as an outcome, not an error.
+    pub async fn insert_execution_with_id(
+        &self,
+        mcp_execution_id: &McpExecutionId,
+        request: &ToolExecutionRequest,
+        result: &ToolExecutionResult,
+        correlation: Correlation,
+    ) -> McpDomainResult<ExecutionInsert> {
+        match self
+            .log_execution_sync_with_id(mcp_execution_id, request, result, correlation)
+            .await
+        {
+            Ok(()) => Ok(ExecutionInsert::Inserted),
+            Err(e) if is_unique_violation_on(&e, AI_TOOL_CALL_ID_INDEX) => {
+                Ok(ExecutionInsert::CallIdHeld)
+            },
+            Err(e) if is_unique_violation_on(&e, EXECUTION_ID_KEY) => {
+                Ok(ExecutionInsert::ExecutionIdHeld)
+            },
+            Err(e) => Err(e),
+        }
     }
 
     pub async fn mark_correlated(

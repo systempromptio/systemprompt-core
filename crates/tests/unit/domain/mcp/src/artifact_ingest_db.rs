@@ -371,3 +371,80 @@ async fn typed_error_result_keeps_declared_shape_title_ui_resource_and_client_ar
     assert!(stored.has_ui_resource);
     assert!(stored.is_error);
 }
+
+// The gateway and a device hook report one call within milliseconds of each
+// other; whichever inserts second must join the first's rows, not fail.
+#[tokio::test]
+async fn two_vantage_points_racing_on_one_call_end_as_one_execution_and_one_artifact() {
+    let db = test_db_pool().await;
+    let ingest = Arc::new(ArtifactIngest::from_db(
+        &db,
+        systemprompt_governance::policy::secrets::SecretScannerCell::default(),
+    ));
+
+    for _ in 0..16 {
+        let session = unique("sess");
+        let user = caller();
+        let call = AiToolCallId::new(unique("toolu"));
+        let gateway = request(
+            CallToolResult::success(vec![ContentBlock::text("raced")]),
+            &session,
+            &user,
+            Some(&call),
+            ExecutionSource::Gateway,
+        );
+        let hook = request(
+            CallToolResult::success(vec![ContentBlock::text("raced")]),
+            &session,
+            &user,
+            Some(&call),
+            ExecutionSource::HookHarness,
+        );
+
+        let (a, b) = {
+            let (ia, ib) = (Arc::clone(&ingest), Arc::clone(&ingest));
+            let ta = tokio::spawn(async move { ia.ingest(gateway).await });
+            let tb = tokio::spawn(async move { ib.ingest(hook).await });
+            (ta.await.unwrap(), tb.await.unwrap())
+        };
+        let a = a.expect("the gateway sighting is ingested");
+        let b = b.expect("the hook sighting is ingested");
+
+        assert_eq!(a.mcp_execution_id, b.mcp_execution_id);
+        assert_eq!(a.artifact_id, b.artifact_id);
+        assert!(
+            a.created != b.created,
+            "exactly one sighting creates the artifact"
+        );
+
+        let executions: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM mcp_tool_executions WHERE ai_tool_call_id = $1",
+        )
+        .bind(call.as_str())
+        .fetch_one(db.pool().as_ref())
+        .await
+        .unwrap();
+        assert_eq!(executions, 1);
+        let artifacts: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM mcp_artifacts WHERE mcp_execution_id = $1")
+                .bind(a.mcp_execution_id.as_str())
+                .fetch_one(db.pool().as_ref())
+                .await
+                .unwrap();
+        assert_eq!(artifacts, 1);
+
+        let stored = ingest
+            .artifacts()
+            .find_owned(&a.artifact_id, &user)
+            .await
+            .unwrap()
+            .expect("artifact stored");
+        let (first, second) = if a.created {
+            (ExecutionSource::Gateway, ExecutionSource::HookHarness)
+        } else {
+            (ExecutionSource::HookHarness, ExecutionSource::Gateway)
+        };
+        assert_eq!(stored.source(), first);
+        assert_eq!(stored.last_seen_source.as_deref(), Some(second.as_str()));
+    }
+}
