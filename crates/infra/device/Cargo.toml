@@ -41,7 +41,7 @@ nix.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 aws-lc-rs.workspace = true
-dbus-secret-service-keyring-store.workspace = true
+dbus-secret-service-keyring-store = { workspace = true, optional = true }
 keyring-core.workspace = true
 linux-keyutils-keyring-store.workspace = true
 
@@ -61,6 +61,12 @@ windows-sys = { workspace = true, features = [
 aws-lc-rs.workspace = true
 core-foundation.workspace = true
 security-framework.workspace = true
+
+[features]
+# The desktop session's Secret Service as the first Linux keyring. It links
+# libdbus, so a static or headless build leaves it off and keeps the kernel
+# keyring.
+secret-service = ["dep:dbus-secret-service-keyring-store"]
 
 [lints]
 workspace = true

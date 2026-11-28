@@ -33,13 +33,25 @@ impl Keyring {
 
     pub(super) fn open(self) -> Result<KeyringStore, SecureError> {
         let store: Arc<keyring_core::CredentialStore> = match self {
-            Self::SecretService => {
-                dbus_secret_service_keyring_store::Store::new().map_err(absent)?
-            },
+            Self::SecretService => secret_service()?,
             Self::Kernel => linux_keyutils_keyring_store::Store::new().map_err(absent)?,
         };
         Ok(KeyringStore::new(self.name(), store))
     }
+}
+
+#[cfg(feature = "secret-service")]
+fn secret_service() -> Result<Arc<keyring_core::CredentialStore>, SecureError> {
+    let store: Arc<keyring_core::CredentialStore> =
+        dbus_secret_service_keyring_store::Store::new().map_err(absent)?;
+    Ok(store)
+}
+
+#[cfg(not(feature = "secret-service"))]
+fn secret_service() -> Result<Arc<keyring_core::CredentialStore>, SecureError> {
+    Err(SecureError::Unavailable {
+        source: io::Error::other("this build links no Secret Service client"),
+    })
 }
 
 pub(super) fn keeps_ciphertext(error: SecureError) -> SecureError {
