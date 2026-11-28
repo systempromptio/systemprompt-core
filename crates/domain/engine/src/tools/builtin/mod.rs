@@ -9,6 +9,7 @@ mod fetch;
 mod glob;
 mod grep;
 mod html;
+mod lock;
 mod patch;
 mod read;
 mod todo;

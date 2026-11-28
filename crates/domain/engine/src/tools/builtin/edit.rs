@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+use super::lock::lock_files;
 use crate::tools::contract::{Tool, ToolContext, ToolOutput};
 use crate::tools::diff::{counts, unified};
 use crate::tools::error::ToolError;
@@ -81,6 +82,7 @@ impl Tool for EditTool {
         let path = resolve(&ctx.cwd, &input.path);
         guard_external(ctx, &path, "Edit").await?;
         let shown = display_path(&path, &ctx.worktree);
+        let _locked = lock_files([path.as_path()]).await;
         let existing = read_existing(&path).await?;
         let change = plan(existing.as_deref(), &input, &shown)?;
 

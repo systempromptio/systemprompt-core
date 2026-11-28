@@ -589,7 +589,6 @@ async fn an_added_file_overwrites_an_existing_one() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "parity ledger: concurrent patches of one file are not serialised and can lose a change"]
 async fn concurrent_patches_of_one_file_are_serialised() {
     let project = Project::new();
     let body: String = (0..16).map(|index| format!("line{index}\n")).collect();

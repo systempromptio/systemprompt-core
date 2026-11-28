@@ -1,5 +1,5 @@
 use serde_json::json;
-use systemprompt_engine::tools::{EditTool, Tool, ToolError, ToolOutput};
+use systemprompt_engine::tools::{EditTool, PatchTool, Tool, ToolError, ToolOutput};
 
 use crate::tools::support::{invalid_message, put, recorded};
 
@@ -208,4 +208,33 @@ async fn edits_outside_the_worktree_ask_external_directory_first() {
     let asked = gate.asked();
     assert_eq!(asked[0].permission, "external_directory");
     assert_eq!(asked[1].permission, "edit");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn edits_and_patches_of_one_file_under_different_spellings_lose_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let body: String = (0..24).map(|index| format!("token{index}\n")).collect();
+    put(dir.path(), "f.txt", body.as_bytes());
+    let (ctx, _) = recorded(dir.path());
+    let mut handles = Vec::new();
+    for index in 0..24 {
+        let ctx = ctx.clone();
+        handles.push(tokio::spawn(async move {
+            let spelling = if index % 3 == 0 { "./f.txt" } else { "sub/../f.txt" };
+            if index % 2 == 0 {
+                let input = json!({"path": spelling, "old_string": format!("token{index}\n"), "new_string": format!("done{index}\n")});
+                EditTool.run(input, &ctx).await
+            } else {
+                let patch = format!(
+                    "%% begin patch\n%% update {spelling}\n-token{index}\n+done{index}\n%% end patch\n"
+                );
+                PatchTool.run(json!({"patch": patch}), &ctx).await
+            }
+        }));
+    }
+    for handle in handles {
+        handle.await.unwrap().unwrap();
+    }
+    let text = std::fs::read_to_string(dir.path().join("f.txt")).unwrap();
+    assert!(!text.contains("token"), "{text}");
 }

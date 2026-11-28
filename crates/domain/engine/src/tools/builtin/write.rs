@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+use super::lock::lock_files;
 use crate::tools::contract::{Tool, ToolContext, ToolOutput};
 use crate::tools::diff::{counts, unified};
 use crate::tools::error::ToolError;
@@ -56,6 +57,7 @@ impl Tool for WriteTool {
         let path = resolve(&ctx.cwd, &input.path);
         guard_external(ctx, &path, "Write").await?;
         let shown = display_path(&path, &ctx.worktree);
+        let _locked = lock_files([path.as_path()]).await;
         if tokio::fs::metadata(&path)
             .await
             .is_ok_and(|meta| meta.is_dir())

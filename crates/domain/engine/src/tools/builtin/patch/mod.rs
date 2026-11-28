@@ -29,13 +29,16 @@ use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use self::parse::parse;
+use std::path::PathBuf;
+
+use self::parse::{FileOp, parse};
 use self::plan::{Change, Planned, plan};
+use super::lock::lock_files;
 use crate::tools::contract::{Tool, ToolContext, ToolOutput};
 use crate::tools::diff::{counts, unified};
 use crate::tools::error::ToolError;
 use crate::tools::files::{ask_edit, remove_file, with_notes, write_file};
-use crate::tools::path::guard_external;
+use crate::tools::path::{guard_external, resolve};
 use crate::tools::repair::parse_input;
 
 /// Applies multi-file patches.
@@ -91,6 +94,8 @@ impl Tool for PatchTool {
     async fn run(&self, input: Value, ctx: &ToolContext) -> Result<ToolOutput, ToolError> {
         let input: Input = parse_input(&self.schema(), input)?;
         let ops = parse(&input.patch).map_err(|err| ToolError::malformed("", err))?;
+        let paths = op_paths(&ops, ctx);
+        let _locked = lock_files(paths.iter().map(PathBuf::as_path)).await;
         let plans = plan(ops, ctx).await?;
 
         for planned in &plans {
@@ -128,6 +133,20 @@ impl Tool for PatchTool {
         Ok(ToolOutput::new(title, with_notes(summary, &notes))
             .with_metadata(json!({ "diff": diff, "files": files, "diagnostics": notes })))
     }
+}
+
+fn op_paths(ops: &[FileOp], ctx: &ToolContext) -> Vec<PathBuf> {
+    ops.iter()
+        .flat_map(|op| match op {
+            FileOp::Add { path, .. } | FileOp::Delete { path } => vec![path.as_str()],
+            FileOp::Update {
+                path, rename_to, ..
+            } => std::iter::once(path.as_str())
+                .chain(rename_to.as_deref())
+                .collect(),
+        })
+        .map(|path| resolve(&ctx.cwd, path))
+        .collect()
 }
 
 // JSON: one metadata entry per changed file, stored with the call and rendered

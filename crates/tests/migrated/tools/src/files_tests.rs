@@ -251,7 +251,6 @@ async fn writes_to_different_files_proceed_independently() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore = "parity ledger: concurrent edits of one file are not serialised and can lose an edit"]
 async fn concurrent_edits_of_one_file_are_serialised() {
     let project = Project::new();
     let body: String = (0..32).map(|index| format!("token{index}\n")).collect();
