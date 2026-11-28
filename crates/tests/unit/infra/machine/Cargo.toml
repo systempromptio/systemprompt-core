@@ -1,0 +1,14 @@
+[package]
+name = "systemprompt-machine-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-machine crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-machine = { workspace = true }
