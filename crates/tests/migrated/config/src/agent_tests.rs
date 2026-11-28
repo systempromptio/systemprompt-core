@@ -243,19 +243,26 @@ fn a_change_outside_agent_sources_leaves_the_configuration_current() {
 }
 
 #[test]
-fn the_session_rule_layer_sits_above_every_agent_rule() {
+fn a_session_rule_decides_what_the_agent_rules_do_not_deny() {
     let tree = Tree::new();
     tree.project(
-        ".harness/agents/a.md",
-        "---\npermission:\n  shell: deny\n---\nA.\n",
+        ".harness/agents/asks.md",
+        "---\npermission:\n  shell: ask\n---\nAsks.\n",
+    );
+    tree.project(
+        ".harness/agents/denies.md",
+        "---\npermission:\n  shell: deny\n---\nDenies.\n",
     );
     let loaded = tree.load();
-    let agent = loaded.agent("a").unwrap();
     let session = Ruleset::from(vec![systemprompt_engine::config::Rule::new(
         SHELL,
         "ls",
         Action::Allow,
     )]);
-    assert_eq!(loaded.evaluate(agent, &session, SHELL, "ls"), Action::Allow);
-    assert_eq!(loaded.evaluate(agent, &session, SHELL, "rm"), Action::Deny);
+    let asks = loaded.agent("asks").unwrap();
+    assert_eq!(loaded.evaluate(asks, &session, SHELL, "ls"), Action::Allow);
+    assert_eq!(loaded.evaluate(asks, &session, SHELL, "rm"), Action::Ask);
+    let denies = loaded.agent("denies").unwrap();
+    assert_eq!(loaded.evaluate(denies, &session, SHELL, "ls"), Action::Deny);
+    assert_eq!(loaded.evaluate(denies, &session, SHELL, "rm"), Action::Deny);
 }
