@@ -69,9 +69,9 @@ D10 to D49 (crate list, publishing, contract placement, layout, naming, Linux, d
 
 | Stage | State |
 |---|---|
-| S0 Foundations | In progress, wave C. Waves A and B are merged: the eight crate skeletons, the closure gate, the scripted-instance interface, the template scaffold and both inventories exist. Host `harness` is on `future` and its review did not close; wave C is the second fix round (opt-in per instance, D42), the lift's re-pin to `a214511` (D45) and this specification catch-up. Merging the host variant to `next` follows the closed review and is a person's decision |
-| S1 Lift | Not started |
-| S2 Parity and proof | Not started |
+| S0 Foundations | Done. The eight crate skeletons, the closure gate, the scripted-instance interface, the template scaffold, both inventories and the lift's pin at `a214511` are on `future`. Host `harness` is on `future`; merging the host variant to `next` is a person's decision |
+| S1 Lift | In progress, wave D (the consolidated fix round). On `future`: both imports at `a214511`; engine, device, harness and Drive compile on core's types as `systemprompt-engine`, `systemprompt-device`, `systemprompt-harness` and `systemprompt-drive`, with their relocated test crates on the native list; the shell, views, theme, brand and shared crates and both packaging directories are in the template; core's native Windows and macOS job for the device crates and the template's three-system `Harness` workflow are green. Open: the shell's test-crate lint findings; the C++ runtime the shell's toolchain job needs; the shell is still pinned to an older core rev than the template root; exit criteria 2 to 4 are not yet checked. Archiving the harness repository and the MIT relicence are a person's decisions |
+| S2 Parity and proof | Started. Only the scripted-instance crate (`crates/tests/scripted-instance`) exists. No headless `run`, no golden scenarios, no reference runner, no comparator, no migrated batch |
 | S3 Execution environment and sandbox | Not started |
 | S4 Remote runtime and the session record | Not started |
 | S5 Device composition | Not started |
