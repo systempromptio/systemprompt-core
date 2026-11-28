@@ -84,9 +84,13 @@ jobs:
           echo "SCRIPTED_INSTANCE=$tests_target/debug/systemprompt-scripted-instance" >> "$GITHUB_ENV"
 
       # Package sources of this job, all used before the run is isolated:
-      # the runner image's apt mirror (strace) and the release asset below.
-      - name: Install strace
-        run: sudo apt-get install -y --no-install-recommends strace
+      # the runner image's apt mirror (strace, ripgrep) and the release asset
+      # below. Without ripgrep on PATH the reference agent fetches one from
+      # GitHub during the run, which the network guard refuses.
+      - name: Install strace and ripgrep
+        run: |
+          sudo apt-get install -y --no-install-recommends strace ripgrep
+          rg --version
 
       - name: Install the reference agent at the pinned release
         run: |
