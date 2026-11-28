@@ -7,6 +7,8 @@
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
+use crate::workspace::platform;
+
 const FILE_PLACEHOLDER: &str = "$FILE";
 
 pub(super) fn find_marker(
@@ -45,7 +47,7 @@ fn has_suffix_entry(dir: &Path, suffix: &str) -> bool {
 }
 
 pub(super) fn local_bin(start: &Path, command: &str, boundary: Option<&Path>) -> Option<PathBuf> {
-    let names = shim_names(command);
+    let names = platform::shim_names(command);
     for dir in start.ancestors() {
         let bin = dir.join("node_modules").join(".bin");
         if let Some(found) = names
@@ -60,16 +62,6 @@ pub(super) fn local_bin(start: &Path, command: &str, boundary: Option<&Path>) ->
         }
     }
     None
-}
-
-#[cfg(windows)]
-fn shim_names(command: &str) -> Vec<String> {
-    vec![format!("{command}.cmd"), format!("{command}.exe")]
-}
-
-#[cfg(not(windows))]
-fn shim_names(command: &str) -> Vec<String> {
-    vec![command.to_owned()]
 }
 
 pub(super) fn expand_args(args: &[String], file: &Path) -> Vec<OsString> {

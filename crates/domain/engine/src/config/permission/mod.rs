@@ -10,6 +10,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 mod matching;
+mod platform;
 mod ruleset;
 
 use std::fmt;

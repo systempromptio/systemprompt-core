@@ -15,6 +15,7 @@ use ignore::{DirEntry, WalkBuilder};
 use super::layout::{CachedStat, FileEntry, Layout, StatCache, hash_bytes};
 use super::{SnapshotError, SnapshotOptions};
 use crate::workspace::paths::rel_key_under;
+use crate::workspace::platform;
 
 const VCS_DIRS: &[&str] = &[".git", ".hg", ".svn", ".jj"];
 const RACY_WINDOW: Duration = Duration::from_secs(2);
@@ -118,7 +119,7 @@ fn candidate(root: &Path, entry: &DirEntry, options: &SnapshotOptions) -> Option
         path: entry.path().to_path_buf(),
         size: metadata.len(),
         mtime: metadata.modified().ok().map(time_parts),
-        executable: is_executable(&metadata),
+        executable: platform::is_executable(&metadata),
     })
 }
 
@@ -242,15 +243,4 @@ pub(crate) fn time_parts(time: SystemTime) -> (i64, u32) {
             )
         },
     }
-}
-
-#[cfg(unix)]
-fn is_executable(metadata: &fs::Metadata) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-    metadata.permissions().mode() & 0o111 != 0
-}
-
-#[cfg(not(unix))]
-const fn is_executable(_metadata: &fs::Metadata) -> bool {
-    false
 }

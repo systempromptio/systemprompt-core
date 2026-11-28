@@ -6,22 +6,20 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Stdio;
 use std::time::Duration;
 
 use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::{Child, ChildStderr, ChildStdin, Command};
+use tokio::process::{Child, ChildStderr, ChildStdin};
 use tokio::sync::Mutex;
 
 use super::lines::{LineWriter, spawn_line_reader};
-use super::{InboundSink, Transport};
+use super::{InboundSink, Transport, platform};
 use crate::mcp::error::McpError;
 
 const EXIT_GRACE: Duration = Duration::from_secs(2);
-#[cfg(windows)]
-const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 #[derive(Clone, Copy)]
 pub(crate) struct LocalCommand<'a> {
@@ -44,20 +42,17 @@ impl StdioTransport {
         local: LocalCommand<'_>,
         sink: InboundSink,
     ) -> Result<Self, McpError> {
-        let program = resolve_program(local.command, local.env, local.cwd);
-        let mut command = Command::new(&program);
+        let program = platform::resolve_program(local.command, local.env, local.cwd);
+        let mut command = platform::command(&program);
         command
             .args(local.args)
             .envs(local.env)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .kill_on_drop(true);
+            .stderr(Stdio::piped());
         if let Some(cwd) = local.cwd {
             command.current_dir(cwd);
         }
-        #[cfg(windows)]
-        command.creation_flags(CREATE_NO_WINDOW);
         let mut child = command.spawn().map_err(|source| McpError::Spawn {
             command: local.command.to_owned(),
             source,
@@ -84,7 +79,7 @@ impl StdioTransport {
 impl Drop for StdioTransport {
     fn drop(&mut self) {
         if self.child.get_mut().is_some() {
-            kill_tree(self.pid);
+            platform::end_tree(self.pid);
         }
     }
 }
@@ -104,7 +99,7 @@ impl Transport for StdioTransport {
                 .await
                 .is_err()
         {
-            kill_tree(self.pid);
+            platform::end_tree(self.pid);
             if let Err(error) = child.kill().await {
                 tracing::debug!(error = %error, "killing the local server failed");
             }
@@ -134,54 +129,3 @@ async fn log_stderr(server: String, stderr: ChildStderr) {
         }
     }
 }
-
-#[cfg(windows)]
-fn resolve_program(command: &str, env: &BTreeMap<String, String>, cwd: Option<&Path>) -> PathBuf {
-    // Why: CreateProcess neither searches PATHEXT nor finds .cmd/.bat shims such as
-    // npx, so the full path is resolved first.
-    let search_path = env
-        .iter()
-        .find(|(key, _)| key.eq_ignore_ascii_case("PATH"))
-        .map(|(_, value)| value.clone());
-    let found = search_path.map_or_else(
-        || which::which(command),
-        |paths| which::which_in(command, Some(paths), cwd.unwrap_or_else(|| Path::new("."))),
-    );
-    match found {
-        Ok(path) => path,
-        Err(error) => {
-            tracing::debug!(command, error = %error, "could not resolve the command; starting it as given");
-            PathBuf::from(command)
-        },
-    }
-}
-
-#[cfg(not(windows))]
-fn resolve_program(command: &str, _env: &BTreeMap<String, String>, _cwd: Option<&Path>) -> PathBuf {
-    PathBuf::from(command)
-}
-
-#[cfg(windows)]
-fn kill_tree(pid: Option<u32>) {
-    use std::os::windows::process::CommandExt;
-
-    let Some(pid) = pid else { return };
-    let pid = pid.to_string();
-    // Why: killing the direct child leaves the node or python process a shim
-    // started still running. taskkill runs on its own; nothing waits for it, so
-    // a drop never blocks.
-    let started = std::process::Command::new("taskkill")
-        .args(["/PID", pid.as_str(), "/T", "/F"])
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .creation_flags(CREATE_NO_WINDOW)
-        .spawn();
-    match started {
-        Ok(taskkill) => drop(taskkill),
-        Err(error) => tracing::debug!(error = %error, "could not start taskkill"),
-    }
-}
-
-#[cfg(not(windows))]
-const fn kill_tree(_pid: Option<u32>) {}

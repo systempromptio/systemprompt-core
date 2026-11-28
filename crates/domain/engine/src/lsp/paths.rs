@@ -7,7 +7,7 @@
 use std::ffi::OsStr;
 use std::path::{Component, Path, PathBuf};
 
-use crate::lsp::uri;
+use crate::lsp::platform;
 
 const DEFAULT_PATH_EXT: &str = ".COM;.EXE;.BAT;.CMD";
 
@@ -26,13 +26,7 @@ pub(crate) fn normalize(path: &Path) -> PathBuf {
             other => out.push(other.as_os_str()),
         }
     }
-    if cfg!(windows) {
-        let text = out.to_string_lossy();
-        if uri::has_drive(&text) {
-            return PathBuf::from(uri::upper_drive(&text));
-        }
-    }
-    out
+    platform::settle(out)
 }
 
 pub(crate) fn absolutize(base: &Path, path: &Path) -> PathBuf {
@@ -69,12 +63,12 @@ pub(crate) fn find_program(command: &str, search: &ProgramSearch<'_>) -> Option<
         } else {
             search.base.join(as_path)
         };
-        return probe(&candidate, &extensions);
+        return platform::runnable(&candidate, &extensions);
     }
     let dirs = search.path?;
     std::env::split_paths(dirs)
         .filter(|dir| !dir.as_os_str().is_empty())
-        .find_map(|dir| probe(&dir.join(command), &extensions))
+        .find_map(|dir| platform::runnable(&dir.join(command), &extensions))
 }
 
 fn executable_extensions(path_ext: Option<&OsStr>) -> Vec<String> {
@@ -94,39 +88,4 @@ fn executable_extensions(path_ext: Option<&OsStr>) -> Vec<String> {
             }
         })
         .collect()
-}
-
-// Why: on Windows an npm-installed server ships an extensionless shell script
-// beside its .cmd shim, and CreateProcess cannot run the script; only names
-// carrying a PATHEXT extension are runnable.
-fn probe(candidate: &Path, extensions: &[String]) -> Option<PathBuf> {
-    if cfg!(windows) {
-        let known = candidate
-            .extension()
-            .map(|ext| format!(".{}", ext.to_string_lossy().to_ascii_lowercase()))
-            .is_some_and(|ext| extensions.contains(&ext));
-        if known && candidate.is_file() {
-            return Some(candidate.to_path_buf());
-        }
-        extensions.iter().find_map(|ext| {
-            let mut name = candidate.as_os_str().to_owned();
-            name.push(ext);
-            let path = PathBuf::from(name);
-            path.is_file().then_some(path)
-        })
-    } else {
-        is_executable(candidate).then(|| candidate.to_path_buf())
-    }
-}
-
-#[cfg(unix)]
-fn is_executable(path: &Path) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-    std::fs::metadata(path)
-        .is_ok_and(|meta| meta.is_file() && meta.permissions().mode() & 0o111 != 0)
-}
-
-#[cfg(not(unix))]
-fn is_executable(path: &Path) -> bool {
-    path.is_file()
 }

@@ -19,6 +19,7 @@
 mod diff;
 mod format;
 mod paths;
+mod platform;
 mod services;
 mod snapshot;
 mod vcs;

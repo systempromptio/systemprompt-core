@@ -22,6 +22,7 @@ mod error;
 mod files;
 mod matching;
 mod path;
+mod platform;
 mod repair;
 mod shell;
 mod text;

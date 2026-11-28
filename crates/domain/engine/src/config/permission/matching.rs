@@ -5,6 +5,7 @@
 
 use std::path::Path;
 
+use super::platform;
 use crate::config::paths::display_slash;
 
 pub fn inside(dir: &Path) -> String {
@@ -23,12 +24,7 @@ pub fn wildcard(pattern: &str, subject: &str) -> bool {
 }
 
 fn normalize(text: &str) -> Vec<char> {
-    let slashed = text.chars().map(|c| if c == '\\' { '/' } else { c });
-    if cfg!(windows) {
-        slashed.flat_map(char::to_lowercase).collect()
-    } else {
-        slashed.collect()
-    }
+    platform::fold(text.chars().map(|c| if c == '\\' { '/' } else { c }))
 }
 
 fn glob(pattern: &[char], subject: &[char]) -> bool {

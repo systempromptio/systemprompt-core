@@ -10,6 +10,7 @@
 
 mod http;
 mod lines;
+mod platform;
 mod sse;
 mod stdio;
 
