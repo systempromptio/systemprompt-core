@@ -1,7 +1,9 @@
 use systemprompt_engine::run::Reply;
+use systemprompt_engine::store::SessionId;
 use systemprompt_harness::command::{
-    AnswerSource, Answers, Decider, PermissionMode, UnusedAnswers,
+    AnswerSource, Answers, Decider, PermissionMode, UnusedAnswers, WaitingAsks,
 };
+use systemprompt_identifiers::engine::PermissionId;
 
 const REJECT: Reply = Reply::Reject { feedback: None };
 
@@ -132,4 +134,64 @@ fn an_answers_file_may_leave_either_list_out_and_refuses_unknown_keys() {
     assert!(only_permissions.questions.is_empty());
     assert!(Answers::parse(r#"{"permission":[]}"#).is_err());
     assert!(Answers::parse(r#"{"permissions":[{"type":"sometimes"}]}"#).is_err());
+}
+
+fn permission(last: char) -> PermissionId {
+    PermissionId::parse(&format!("per_0000000000001000000000000{last}")).unwrap()
+}
+
+fn session(last: char) -> SessionId {
+    SessionId::parse(&format!("ses_0000000000001000000000000{last}")).unwrap()
+}
+
+#[test]
+fn a_reply_is_routed_to_the_request_with_its_id_whatever_the_order() {
+    let mut waiting = WaitingAsks::default();
+    assert!(waiting.hold(&permission('1'), &session('a')));
+    assert!(waiting.hold(&permission('2'), &session('b')));
+    assert!(waiting.hold(&permission('3'), &session('a')));
+    assert_eq!(waiting.len(), 3);
+
+    assert_eq!(waiting.release(&permission('2')), Some(session('b')));
+    assert_eq!(waiting.release(&permission('1')), Some(session('a')));
+    assert_eq!(waiting.len(), 1);
+    assert_eq!(waiting.release(&permission('3')), Some(session('a')));
+    assert!(waiting.is_empty());
+}
+
+#[test]
+fn a_request_is_held_once_and_answered_once() {
+    let mut waiting = WaitingAsks::default();
+    assert!(waiting.hold(&permission('1'), &session('a')));
+    assert!(!waiting.hold(&permission('1'), &session('a')));
+    assert_eq!(waiting.len(), 1);
+
+    assert_eq!(waiting.release(&permission('1')), Some(session('a')));
+    assert_eq!(waiting.release(&permission('1')), None);
+    assert_eq!(waiting.release(&permission('9')), None);
+}
+
+#[test]
+fn the_requests_left_when_the_stream_ends_come_out_in_the_order_they_were_raised() {
+    let mut waiting = WaitingAsks::default();
+    waiting.hold(&permission('2'), &session('b'));
+    waiting.hold(&permission('1'), &session('a'));
+
+    assert_eq!(
+        waiting.drain(),
+        [
+            (permission('2'), session('b')),
+            (permission('1'), session('a')),
+        ]
+    );
+    assert!(waiting.is_empty());
+    assert!(waiting.drain().is_empty());
+}
+
+#[test]
+fn an_answer_from_the_control_stream_is_named_as_such() {
+    assert_eq!(
+        serde_json::to_value(AnswerSource::Control).unwrap(),
+        "control"
+    );
 }

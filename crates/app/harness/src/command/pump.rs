@@ -6,7 +6,8 @@
 //! of the turn is on the stream before its outcome is read. A feed that lagged
 //! is reported, and after a lag on the engine's feed the requests still
 //! waiting are answered and the run status is read directly, so a dropped
-//! event cannot leave the run waiting.
+//! event cannot leave the run waiting. Under a control feed a permission
+//! request is written and held until the feed replies to it.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -19,15 +20,16 @@ use systemprompt_engine::run::{
     SessionFailure,
 };
 use systemprompt_engine::store::{Change, Message, MessageWithParts, SessionId};
+use systemprompt_identifiers::engine::PermissionId;
 use systemprompt_traits::CancellationToken;
 use tokio::sync::broadcast::error::{RecvError, TryRecvError};
 use tokio::sync::broadcast::{self};
 use tokio::time::Instant;
 
-use crate::command::control::{self, ControlFeed};
+use crate::command::control::{self, ControlError, ControlFeed};
 use crate::command::event::{EventWriter, Feed, RunEvent};
 use crate::command::exit::ExitStatus;
-use crate::command::permission::Decider;
+use crate::command::permission::{Decider, WaitingAsks};
 
 const TITLE_GRACE: Duration = Duration::from_secs(5);
 
@@ -39,6 +41,8 @@ pub(crate) enum PumpError {
     Closed,
     #[error("a control could not be carried out")]
     Engine(#[source] EngineError),
+    #[error("the control stream stopped the run")]
+    Control(#[source] ControlError),
 }
 
 pub(crate) struct Limits<'a> {
@@ -56,6 +60,7 @@ pub(crate) struct Pump<'a, W: Write + Send> {
     pub(crate) engine: &'a Engine,
     pub(crate) root: SessionId,
     pub(crate) decider: &'a mut Decider,
+    pub(crate) waiting: Option<WaitingAsks>,
     pub(crate) out: &'a mut EventWriter<W>,
     pub(crate) feeds: Feeds,
     pub(crate) template: PromptInput,
@@ -86,7 +91,7 @@ impl<W: Write + Send> Pump<'_, W> {
                         break;
                     }
                 },
-                control = control::next(&mut self.feeds.controls) => self.during_turn(control).await?,
+                command = control::next(&mut self.feeds.controls) => self.carry_out(command?).await?,
                 () = limits.cancel.cancelled(), if self.interrupted.is_none() => {
                     self.interrupt(ExitStatus::Aborted);
                 },
@@ -175,8 +180,17 @@ impl<W: Write + Send> Pump<'_, W> {
         }
     }
 
-    fn on_event(&mut self, event: Result<EngineEvent, RecvError>) -> Result<bool, PumpError> {
+    pub(crate) fn on_event(
+        &mut self,
+        event: Result<EngineEvent, RecvError>,
+    ) -> Result<bool, PumpError> {
         match event {
+            Ok(EngineEvent::PermissionResolved { id, .. }) => {
+                if let Some(waiting) = &mut self.waiting {
+                    waiting.release(&id);
+                }
+                Ok(false)
+            },
             Ok(EngineEvent::PermissionAsked(ask)) => self.permission(&ask).map(|()| false),
             Ok(EngineEvent::QuestionAsked(ask)) => self.question(&ask).map(|()| false),
             Ok(event) => self.on_engine(event),
@@ -214,16 +228,34 @@ impl<W: Write + Send> Pump<'_, W> {
     }
 
     fn permission(&mut self, ask: &PermissionAsk) -> Result<(), PumpError> {
+        let held = self
+            .waiting
+            .as_mut()
+            .map(|waiting| waiting.hold(&ask.id, &ask.session));
+        if held == Some(false) {
+            return Ok(());
+        }
         self.emit(&RunEvent::PermissionAsked {
             ask: Box::new(ask.clone()),
         })?;
+        if held.is_some() {
+            return Ok(());
+        }
+        self.answer(&ask.id, &ask.session)
+    }
+
+    pub(crate) fn answer(
+        &mut self,
+        id: &PermissionId,
+        session: &SessionId,
+    ) -> Result<(), PumpError> {
         let (reply, source) = self.decider.permission();
-        if !self.engine.reply_permission(&ask.id, reply.clone()) {
+        if !self.engine.reply_permission(id, reply.clone()) {
             return Ok(());
         }
         self.emit(&RunEvent::PermissionReplied {
-            id: ask.id.clone(),
-            session_id: ask.session.clone(),
+            id: id.clone(),
+            session_id: session.clone(),
             reply,
             source,
         })

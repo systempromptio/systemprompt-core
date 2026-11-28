@@ -2,8 +2,9 @@
 //!
 //! A binary hands over its argument list without the program name, its three
 //! standard streams and a cancellation token it fires on interrupt. `run`
-//! writes its event stream to the output; `login` reads the token from the
-//! input and writes one JSON line. A usage error is written to the error
+//! writes its event stream to the output and, under `--control`, reads its
+//! control stream from the input; `login` reads the token from the input and
+//! writes one JSON line. A usage error is written to the error
 //! stream with the usage text.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
@@ -14,11 +15,12 @@ use std::io::{BufRead, Write};
 use systemprompt_traits::CancellationToken;
 
 use crate::command::args::{Command, parse};
+use crate::command::control::read_controls;
 use crate::command::event::EventWriter;
 use crate::command::exit::ExitStatus;
 use crate::command::host::HeadlessHost;
 use crate::command::login::{login, read_token};
-use crate::command::run::run;
+use crate::command::run::{run, run_controlled};
 use crate::command::usage::{USAGE, UsageError};
 
 /// The three standard streams of an invocation.
@@ -43,7 +45,7 @@ pub async fn execute<R, W, E>(
     cancel: &CancellationToken,
 ) -> ExitStatus
 where
-    R: BufRead + Send,
+    R: BufRead + Send + 'static,
     W: Write + Send,
     E: Write + Send,
 {
@@ -54,12 +56,23 @@ where
     } = streams;
     match parse(args) {
         Err(error) => usage(&mut errors, &error),
-        Ok(Command::Run(args)) => match args.load() {
-            Err(error) => usage(&mut errors, &error),
-            Ok(request) => {
-                let mut out = EventWriter::new(output);
-                Box::pin(run(host, request, cancel, &mut out)).await.status
-            },
+        Ok(Command::Run(args)) => {
+            let controlled = args.control;
+            match args.load() {
+                Err(error) => usage(&mut errors, &error),
+                Ok(request) if controlled => {
+                    let mut out = EventWriter::new(output);
+                    let (controls, _reader) = read_controls(input);
+                    let control = (cancel, controls);
+                    Box::pin(run_controlled(host, request, control, &mut out))
+                        .await
+                        .status
+                },
+                Ok(request) => {
+                    let mut out = EventWriter::new(output);
+                    Box::pin(run(host, request, cancel, &mut out)).await.status
+                },
+            }
         },
         Ok(Command::Login(args)) => match read_token(&mut input) {
             Err(error) => usage(&mut errors, &error),

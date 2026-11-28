@@ -1,8 +1,10 @@
 //! The argument lists of the headless commands.
 //!
 //! `run` and `login` each take named arguments only, as `--name value` or
-//! `--name=value`. [`parse`] is pure; [`RunArgs::load`] then reads the files
-//! a `run` names and checks its workspace.
+//! `--name=value`; `--control` and `--stdin` are switches. `--control` leaves
+//! every permission request to the control stream, so it is refused beside
+//! `--permission-mode` and `--answers`. [`parse`] is pure; [`RunArgs::load`]
+//! then reads the files a `run` names and checks its workspace.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -28,6 +30,7 @@ const AGENT: &str = "--agent";
 const DATA_ROOT: &str = "--data-root";
 const SYNC_TIMEOUT: &str = "--sync-timeout";
 const TIMEOUT: &str = "--timeout";
+const CONTROL: &str = "--control";
 const STDIN: &str = "--stdin";
 const INSTANCE: &str = "--instance";
 const FINGERPRINT: &str = "--fingerprint";
@@ -44,6 +47,8 @@ const RUN_VALUED: [&str; 10] = [
     SYNC_TIMEOUT,
     TIMEOUT,
 ];
+const RUN_SWITCHES: [&str; 1] = [CONTROL];
+const CONTROL_EXCLUDES: [&str; 2] = [PERMISSION_MODE, ANSWERS];
 const LOGIN_VALUED: [&str; 3] = [INSTANCE, FINGERPRINT, DATA_ROOT];
 const LOGIN_SWITCHES: [&str; 1] = [STDIN];
 
@@ -61,6 +66,7 @@ pub struct RunArgs {
     pub workspace: PathBuf,
     pub permission_mode: PermissionMode,
     pub answers: Option<PathBuf>,
+    pub control: bool,
     pub model: Option<String>,
     pub agent: Option<String>,
     pub data_root: Option<PathBuf>,
@@ -96,7 +102,7 @@ where
     let mut args = args.into_iter();
     match args.next().as_deref() {
         None => Err(UsageError::NoCommand),
-        Some(RUN) => parse_run(collect(RUN, args, &RUN_VALUED, &[])?),
+        Some(RUN) => parse_run(collect(RUN, args, &RUN_VALUED, &RUN_SWITCHES)?),
         Some(LOGIN) => parse_login(&collect(LOGIN, args, &LOGIN_VALUED, &LOGIN_SWITCHES)?),
         Some(name) => Err(UsageError::UnknownCommand {
             name: name.to_owned(),
@@ -175,7 +181,21 @@ fn seconds(given: &[Given], flag: &'static str) -> Result<Option<Duration>, Usag
     }
 }
 
+fn has(given: &[Given], flag: &'static str) -> bool {
+    given.iter().any(|entry| entry.flag == flag)
+}
+
 fn parse_run(given: Vec<Given>) -> Result<Command, UsageError> {
+    let control = has(&given, CONTROL);
+    if let Some(other) = CONTROL_EXCLUDES
+        .into_iter()
+        .find(|other| control && has(&given, other))
+    {
+        return Err(UsageError::Conflict {
+            flag: CONTROL,
+            other,
+        });
+    }
     let permission_mode = match single(&given, PERMISSION_MODE)? {
         None => PermissionMode::default(),
         Some(value) => PermissionMode::parse(&value).ok_or(UsageError::Invalid {
@@ -189,6 +209,7 @@ fn parse_run(given: Vec<Given>) -> Result<Command, UsageError> {
         workspace,
         permission_mode,
         answers: single(&given, ANSWERS)?.map(PathBuf::from),
+        control,
         model: single(&given, MODEL)?,
         agent: single(&given, AGENT)?,
         data_root: single(&given, DATA_ROOT)?.map(PathBuf::from),
@@ -213,7 +234,7 @@ fn parse_run(given: Vec<Given>) -> Result<Command, UsageError> {
 }
 
 fn parse_login(given: &[Given]) -> Result<Command, UsageError> {
-    if !given.iter().any(|entry| entry.flag == STDIN) {
+    if !has(given, STDIN) {
         return Err(UsageError::Missing {
             command: LOGIN,
             flag: STDIN,
