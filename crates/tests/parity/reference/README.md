@@ -47,6 +47,39 @@ from the script is a finding for the comparator, not a failure here.
 python3 -m unittest discover -s crates/tests/parity/reference/tests
 ```
 
+## The side-by-side comparison
+
+One command runs both products over the corpus and writes the comparison:
+
+```
+scripts/parity/side-by-side.sh --out <dir> [--cache <dir>] [--agent <path>] \
+  [--reference <dir>] [--only <id or number>]... [--protocol messages|chat]... [--limit <seconds>]
+```
+
+It installs the agent at the workflow's pin (the tag, asset and SHA-256 are
+read from `.github/workflows/parity.yml` and the archive is verified; it is
+kept under `--cache`), builds the scripted instance and `parity-ledger`, runs
+this runner into `<out>/reference`, runs the golden runner for the harness's
+side and copies its runs to `<out>/harness`, and runs `parity-ledger` with
+`compare/classifications.toml`. `--agent` takes an executable of the pinned
+version and skips the download, which is needed anywhere but Linux x64;
+`--reference` takes an export that already exists and skips this runner, as
+the workflow does. It needs no model credential and refuses to start when the
+environment holds a provider variable. The workflow's network namespace and
+trace are not applied.
+
+| Output | What it is |
+|---|---|
+| `<out>/ledger.json` | `totals` per comparison (runs by verdict, differences by class) and one row per scenario, protocol and comparison with its `verdict`: `same`, `intended`, `gap`, `defect`, `reference-defect`, `unclassified`, or `error` |
+| `<out>/ledger.md` | The same as the workflow's summary prints it |
+| `<out>/traces/<scenario id>/<protocol>/` | `reference.json` and `harness.json`, the two normalised traces compared |
+| `<out>/side-by-side.html` | One self-contained page: the totals, a row per run, then each run's two traces beside each other with the differing fields marked and each difference's class and reason |
+| `<out>/summary.tsv` | The page's table, one line per scenario and protocol |
+
+It exits 0 when every difference is classified and none is a defect, 1 when a
+difference is unclassified, a defect is open or a run could not be compared,
+and 2 for a usage or environment problem.
+
 ## How the agent is installed and pinned
 
 By the workflow, not by the runner: the Linux x64 archive of the release of the

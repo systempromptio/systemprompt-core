@@ -2,8 +2,9 @@ name: Parity
 
 # The golden scenarios, run through the pinned and unmodified reference agent
 # with the scripted instance as its model provider, and its transcripts
-# exported for the comparator
-# (documentation/future/harness/testing/03-golden-scenarios.md section 5).
+# exported, then compared with the harness's own runs of the same scenarios
+# and classified into the parity ledger
+# (documentation/future/harness/testing/03-golden-scenarios.md sections 5 and 6).
 #
 # Linux only. No secret and no provider variable is read anywhere in this
 # file, and the run itself happens inside a network namespace that holds
@@ -18,6 +19,7 @@ on:
     paths:
       - ".github/workflows/parity.yml"
       - "crates/tests/parity/**"
+      - "scripts/parity/**"
       - "crates/tests/golden/**"
       - "crates/tests/scripted-instance/**"
 
@@ -161,6 +163,39 @@ jobs:
               notes = "; ".join(([run["reason"]] if run.get("reason") else []) + run.get("findings", []))
               print("| %s | %s | %s | %s |" % (run["scenario"], run["protocol"], run["status"], notes.replace("|", "/")))
           PY
+
+      # The harness's runs of the same scenarios (the golden runner), the
+      # comparison with the export above and the reviewed classifications:
+      # the ledger, and the two products' traces side by side. The step fails
+      # on an unclassified difference, an open defect or a run that could not
+      # be compared. It runs outside the network namespace: the reference
+      # agent is not started again, and the harness's only instance is the
+      # scripted one on loopback.
+      - name: Compare the harness with the reference agent
+        if: ${{ !cancelled() }}
+        run: |
+          scripts/parity/side-by-side.sh \
+            --reference "$RUNNER_TEMP/parity/reference" \
+            --out "$RUNNER_TEMP/parity/side-by-side"
+
+      - name: Ledger
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/parity/side-by-side/ledger.md" ]; then
+            cat "$RUNNER_TEMP/parity/side-by-side/ledger.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: parity-side-by-side
+          path: |
+            ${{ runner.temp }}/parity/side-by-side/ledger.json
+            ${{ runner.temp }}/parity/side-by-side/ledger.md
+            ${{ runner.temp }}/parity/side-by-side/side-by-side.html
+            ${{ runner.temp }}/parity/side-by-side/summary.tsv
+          if-no-files-found: warn
+          retention-days: 14
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()

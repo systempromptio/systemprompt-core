@@ -8,7 +8,7 @@ use serde_json::json;
 use systemprompt_parity_compare::ledger::HARNESS_VS_EXPECTED;
 use systemprompt_parity_compare::reference::{self, Table};
 use systemprompt_parity_compare::{
-    Classifications, LedgerRow, ScenarioScript, build, differences, digest,
+    Classifications, Ledger, LedgerRow, ScenarioScript, build, differences, digest,
 };
 
 #[test]
@@ -66,6 +66,46 @@ fn a_difference_the_reviewed_file_does_not_name_is_unclassified() {
     )
     .unwrap();
     assert!(unowned.check().is_err(), "a gap needs an owner stage");
+}
+
+#[test]
+fn a_row_takes_its_worst_class_and_the_ledger_totals_each_comparison() {
+    let reviewed: Classifications = toml::from_str(
+        r#"
+        [[entry]]
+        scenario = "01-x"
+        path = "a"
+        class = "intended"
+        reason = "by design"
+
+        [[entry]]
+        scenario = "01-x"
+        path = "b"
+        class = "defect"
+        reason = "the harness is wrong"
+        "#,
+    )
+    .unwrap();
+    let found = differences(&json!({ "a": 1, "b": 1 }), &json!({ "a": 2, "b": 2 }), &[]);
+    let differs = LedgerRow::classify("01-x", "messages", HARNESS_VS_EXPECTED, found, &reviewed);
+    assert_eq!(differs.verdict(), "defect");
+    let same = LedgerRow::classify("01-x", "chat", HARNESS_VS_EXPECTED, Vec::new(), &reviewed);
+    assert_eq!(same.verdict(), "same");
+    let failed = LedgerRow::failed("02-y", "chat", HARNESS_VS_EXPECTED, "no trace".to_owned());
+    assert_eq!(failed.verdict(), "error");
+    let ledger = Ledger {
+        rows: vec![differs, same, failed],
+    };
+    let written: serde_json::Value = serde_json::from_str(&ledger.json().unwrap()).unwrap();
+    let totals = &written["totals"][HARNESS_VS_EXPECTED];
+    assert_eq!(
+        totals["runs"],
+        json!({ "defect": 1, "error": 1, "same": 1 })
+    );
+    assert_eq!(totals["differences"], json!({ "defect": 1, "intended": 1 }));
+    assert_eq!(written["rows"][0]["verdict"], json!("defect"));
+    let read: Ledger = serde_json::from_str(&ledger.json().unwrap()).unwrap();
+    assert_eq!(read.rows, ledger.rows);
 }
 
 #[test]
