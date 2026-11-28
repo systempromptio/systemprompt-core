@@ -6,7 +6,8 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use security_framework::os::macos::keychain::SecKeychain;
-use systemprompt_device::secure::{KeychainSealer, Keystore, Sealer, SecureError};
+use systemprompt_device::platform::KeychainSealer;
+use systemprompt_device::secure::{Keystore, Sealer, SecureError};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
