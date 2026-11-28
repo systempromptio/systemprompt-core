@@ -1,0 +1,163 @@
+name: Parity
+
+# The golden scenarios, run through the pinned and unmodified reference agent
+# with the scripted instance as its model provider, and its transcripts
+# exported for the comparator
+# (documentation/future/harness/testing/03-golden-scenarios.md section 5).
+#
+# Linux only. No secret and no provider variable is read anywhere in this
+# file, and the run itself happens inside a network namespace that holds
+# nothing but loopback, under a trace that fails the job if anything in it
+# names an address outside loopback or looks a host up
+# (testing/01-strategy.md section 5).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [next, future]
+    paths:
+      - ".github/workflows/parity.yml"
+      - "crates/tests/parity/**"
+      - "crates/tests/golden/**"
+      - "crates/tests/scripted-instance/**"
+
+concurrency:
+  group: parity-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  RUSTUP_MAX_RETRIES: "10"
+  CARGO_NET_RETRY: "10"
+  CARGO_TERM_COLOR: always
+  RUSTC_WRAPPER: ""
+  SQLX_OFFLINE: "true"
+  # The reference agent (documentation/future/harness/risks-and-decisions.md
+  # D47): OpenCode at tag v2.4.2, commit fc31a485, installed from the release
+  # of that tag. This file is the one place outside the documentation that
+  # names it (D23). The package registry's `latest` is on the older release
+  # line and is not used. The checksum is the Linux x64 asset's entry in that
+  # release's SHA256SUMS; raising the pin is a person's decision.
+  REFERENCE_AGENT_REPOSITORY: anomalyco/opencode
+  REFERENCE_AGENT_TAG: v2.4.2
+  REFERENCE_AGENT_ASSET: opencode-linux-x64.tar.gz
+  REFERENCE_AGENT_SHA256: 452912288f934d1771bd5bd0d8611ba3a6adc3db3ac3333c37facf373770ba66
+  REFERENCE_AGENT_BINARY: opencode
+
+jobs:
+  reference:
+    name: Reference runner
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: The environment holds no provider credential
+        run: |
+          found=$(env | cut -d= -f1 | grep -iE '(^|_)(ANTHROPIC|OPENAI|GEMINI|GOOGLE_API|GOOGLE_GENERATIVE|VERTEX|AZURE|AWS_|BEDROCK|OPENROUTER|MISTRAL|GROQ|XAI|DEEPSEEK|COHERE|OLLAMA|OPENCODE)' || true)
+          if [ -n "$found" ]; then
+            echo "provider variables are set in this job; the parity job runs with none:" >&2
+            echo "$found" >&2
+            exit 1
+          fi
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: crates/tests
+
+      - name: Build the scripted instance
+        run: |
+          cargo build --locked \
+            --manifest-path crates/tests/Cargo.toml \
+            -p systemprompt-scripted-instance \
+            --bin systemprompt-scripted-instance
+          tests_target=$(cargo metadata --manifest-path crates/tests/Cargo.toml --no-deps --format-version 1 | jq -r .target_directory)
+          test -x "$tests_target/debug/systemprompt-scripted-instance"
+          echo "SCRIPTED_INSTANCE=$tests_target/debug/systemprompt-scripted-instance" >> "$GITHUB_ENV"
+
+      # Package sources of this job, all used before the run is isolated:
+      # the runner image's apt mirror (strace) and the release asset below.
+      - name: Install strace
+        run: sudo apt-get install -y --no-install-recommends strace
+
+      - name: Install the reference agent at the pinned release
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/reference-agent"
+          cd "$RUNNER_TEMP/reference-agent"
+          curl --fail --silent --show-error --location --retry 5 \
+            --output "$REFERENCE_AGENT_ASSET" \
+            "https://github.com/$REFERENCE_AGENT_REPOSITORY/releases/download/$REFERENCE_AGENT_TAG/$REFERENCE_AGENT_ASSET"
+          echo "$REFERENCE_AGENT_SHA256  $REFERENCE_AGENT_ASSET" | sha256sum --check --strict -
+          tar -xzf "$REFERENCE_AGENT_ASSET"
+          test -x "$REFERENCE_AGENT_BINARY"
+          echo "REFERENCE_AGENT=$RUNNER_TEMP/reference-agent/$REFERENCE_AGENT_BINARY" >> "$GITHUB_ENV"
+
+      - name: Test the runner's own parts
+        run: python3 -m unittest discover -s crates/tests/parity/reference/tests
+
+      # A new network namespace has one interface, loopback, and no route to
+      # anything else: nothing in it can reach a provider. The trace records
+      # every address the run names, and the next step fails on any that is
+      # not loopback, so an attempt is a failure and not a silent timeout.
+      - name: Run the scenarios through the reference agent
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/parity"
+          sudo unshare --net -- bash -c "
+            ip link set lo up
+            exec sudo -u '#$(id -u)' env -i \
+              PATH='$PATH' HOME='$HOME' LANG=C.UTF-8 \
+              strace -f -qq -e trace=connect,sendto,sendmsg \
+                -o '$RUNNER_TEMP/parity/connect.trace' \
+              python3 crates/tests/parity/reference/run.py \
+                --agent '$REFERENCE_AGENT' \
+                --instance '$SCRIPTED_INSTANCE' \
+                --scenarios crates/tests/golden/scenarios \
+                --out '$RUNNER_TEMP/parity/reference' \
+                --work '$RUNNER_TEMP/parity/work'
+          "
+
+      - name: Nothing reached outside loopback
+        if: always()
+        run: python3 crates/tests/parity/reference/network_guard.py "$RUNNER_TEMP/parity/connect.trace"
+
+      - name: The agent that ran is the pinned one
+        if: always()
+        run: |
+          python3 - "$RUNNER_TEMP/parity/reference/index.json" "$REFERENCE_AGENT_TAG" <<'PY'
+          import json, sys
+          index = json.load(open(sys.argv[1]))
+          version = index["agent"]["version"]
+          print("agent:", version, index["agent"]["sha256"])
+          print("runs:", index["counts"])
+          if sys.argv[2] not in version.split():
+              sys.exit("the agent reports %r, not the pinned %s" % (version, sys.argv[2]))
+          PY
+
+      - name: Summary
+        if: always()
+        run: |
+          python3 - "$RUNNER_TEMP/parity/reference/index.json" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json, sys
+          index = json.load(open(sys.argv[1]))
+          print("### Reference runner\n")
+          print("Agent: `%s`\n" % index["agent"]["version"])
+          print("| Scenario | Protocol | Status | Notes |")
+          print("|---|---|---|---|")
+          for run in index["runs"]:
+              notes = "; ".join(([run["reason"]] if run.get("reason") else []) + run.get("findings", []))
+              print("| %s | %s | %s | %s |" % (run["scenario"], run["protocol"], run["status"], notes.replace("|", "/")))
+          PY
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: parity-reference
+          path: |
+            ${{ runner.temp }}/parity/reference
+            ${{ runner.temp }}/parity/connect.trace
+          if-no-files-found: error
+          retention-days: 14

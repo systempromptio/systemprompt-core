@@ -1,0 +1,93 @@
+{
+  "_": "Logical tool names and input fields (crates/tests/golden/scenarios/README.md) mapped to what the reference agent advertises at the pinned version. A field mapped to null is one the reference tool does not take and is dropped. The runner translates turns.json with this table before the scripted instance loads it; the comparator maps transcripts back with the same table.",
+  "tools": {
+    "read": {
+      "name": "read",
+      "input": {
+        "path": "path",
+        "offset": "offset",
+        "limit": "limit"
+      }
+    },
+    "write": {
+      "name": "write",
+      "input": {
+        "path": "path",
+        "content": "content"
+      }
+    },
+    "edit": {
+      "name": "edit",
+      "input": {
+        "path": "path",
+        "old_string": "oldString",
+        "new_string": "newString",
+        "replace_all": "replaceAll"
+      }
+    },
+    "patch": {
+      "name": "patch",
+      "input": {
+        "patch": "patchText"
+      }
+    },
+    "glob": {
+      "name": "glob",
+      "input": {
+        "pattern": "pattern",
+        "path": "path"
+      }
+    },
+    "grep": {
+      "name": "grep",
+      "input": {
+        "pattern": "pattern",
+        "path": "path",
+        "include": "include"
+      }
+    },
+    "shell": {
+      "name": "shell",
+      "input": {
+        "command": "command",
+        "background": "background",
+        "timeout": "timeout",
+        "workdir": "workdir",
+        "description": null
+      }
+    },
+    "fetch": {
+      "name": "webfetch",
+      "input": {
+        "url": "url",
+        "format": "format"
+      }
+    },
+    "todo": {
+      "name": "todowrite",
+      "input": {
+        "todos": "todos"
+      }
+    },
+    "task": {
+      "name": "subagent",
+      "input": {
+        "agent": "agent",
+        "description": "description",
+        "prompt": "prompt"
+      }
+    }
+  },
+  "permissions": {
+    "_": "Logical permission names of [[permission.rule]] mapped to the reference agent's permission actions.",
+    "read": "read",
+    "edit": "edit",
+    "shell": "shell",
+    "glob": "glob",
+    "grep": "grep",
+    "fetch": "webfetch",
+    "todo": "todowrite",
+    "task": "subagent",
+    "external_directory": "external_directory"
+  }
+}
