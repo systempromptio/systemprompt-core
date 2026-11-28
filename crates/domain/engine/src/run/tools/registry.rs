@@ -54,8 +54,6 @@ impl ToolBox {
             .find(|tool| tool.tool.name() == name)
     }
 
-    /// The skills the skill tool offers: none when the tool is not offered,
-    /// and never one a rule denies by name.
     pub(crate) fn offers_skill(&self, name: &str) -> bool {
         self.skills.iter().any(|skill| skill == name)
     }

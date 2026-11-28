@@ -113,8 +113,6 @@ fn copy_messages(
     Ok(renamed)
 }
 
-/// A reply is settled once it completed or failed; one still running is not
-/// copied.
 fn is_settled(message: &Message) -> bool {
     message
         .as_assistant()

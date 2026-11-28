@@ -26,7 +26,6 @@ use crate::run::session::stream::PendingCall;
 
 const MALFORMED_EXCERPT: usize = 500;
 
-/// The error a call is settled with when the output limit cut its step off.
 pub(crate) const CUT_OFF: &str =
     "the reply reached the output limit before this call was finished, so it was not run";
 
@@ -50,8 +49,6 @@ pub(crate) async fn run_calls(
     join_all(runs).await.into_iter().any(|stop| stop)
 }
 
-/// Settles the calls of a step the output limit cut off without running any
-/// of them: each is recorded as failed with [`CUT_OFF`].
 pub(crate) async fn settle_cut_off(
     ctx: &StepContext,
     message_id: &MessageId,

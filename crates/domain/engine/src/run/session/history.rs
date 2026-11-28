@@ -184,9 +184,6 @@ fn file_content(mime: &str, name: Option<&str>, url: &str) -> Option<Content> {
     })
 }
 
-/// The parts of a failed reply worth sending back: everything up to its last
-/// tool call that ran, so a retry continues from that call's result. A failed
-/// reply in which no tool ran is not sent back at all.
 fn replayable(parts: &[Part]) -> &[Part] {
     let ran = parts.iter().rposition(|part| {
         matches!(

@@ -190,9 +190,6 @@ async fn turn(
     }
 }
 
-/// Whether the reply that just failed already stored output: text, reasoning
-/// or a tool call. Such a reply is not compacted and retried, since the retry
-/// would answer again what the stored output began.
 async fn stored_output(inner: &Inner, session_id: &SessionId) -> Result<bool, EngineError> {
     let key = session_id.clone();
     let latest = inner

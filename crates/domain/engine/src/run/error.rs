@@ -147,9 +147,6 @@ impl EngineError {
     }
 }
 
-/// A missing row is not found; a broken constraint, a bad statement and data
-/// the engine wrote wrongly are defects; only the database itself failing
-/// (opening, migrating, locking, input and output) is a storage failure.
 const fn store_kind(error: &StoreError) -> ErrorKind {
     match error {
         StoreError::NotFound { .. } => ErrorKind::NotFound,

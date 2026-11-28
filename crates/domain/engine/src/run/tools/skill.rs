@@ -22,7 +22,6 @@ pub(crate) struct SkillTool {
 }
 
 impl SkillTool {
-    /// A skill tool that loads only the `offered` skills of `config`.
     pub(crate) const fn new(config: Arc<Loaded>, offered: Vec<String>) -> Self {
         Self { config, offered }
     }

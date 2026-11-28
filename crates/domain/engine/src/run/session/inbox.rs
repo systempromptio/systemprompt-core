@@ -34,8 +34,6 @@ impl Inbox {
         self.items.clear();
     }
 
-    /// Drops the queued prompts and keeps the steers, which an interrupted run
-    /// stores for the next turn.
     pub(crate) fn drop_queued(&mut self) {
         self.items.retain(|item| item.delivery == Delivery::Steer);
     }
