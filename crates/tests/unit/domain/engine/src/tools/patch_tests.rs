@@ -173,3 +173,28 @@ async fn a_path_may_appear_only_once() {
         matches!(err, ToolError::InvalidInput { message } if message.contains("more than once"))
     );
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_rename_whose_source_cannot_be_removed_names_the_written_destination() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let dir = tempfile::tempdir().unwrap();
+    put(dir.path(), "src/a.txt", b"x\n");
+    let src = dir.path().join("src");
+    std::fs::set_permissions(&src, std::fs::Permissions::from_mode(0o555)).unwrap();
+    let probe = std::fs::File::create(src.join("probe"));
+    let result = patch(
+        dir.path(),
+        "%% begin patch\n%% update src/a.txt\n%% rename-to b.txt\n-x\n+y\n%% end patch\n",
+    )
+    .await;
+    std::fs::set_permissions(&src, std::fs::Permissions::from_mode(0o755)).unwrap();
+    if probe.is_ok() {
+        // skip-ok: running as a user that bypasses file modes (root) cannot make the
+        // removal fail
+        return;
+    }
+    let message = result.unwrap_err().to_string();
+    assert!(message.contains("already changed: b.txt"), "{message}");
+    assert!(message.contains("part-way at src/a.txt"), "{message}");
+}

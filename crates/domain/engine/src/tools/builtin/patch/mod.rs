@@ -157,16 +157,29 @@ async fn write_plans(
 ) -> Result<(Vec<String>, Vec<Value>), ToolError> {
     let mut notes: Vec<String> = Vec::new();
     let mut files: Vec<Value> = Vec::new();
+    let mut landed: Vec<&str> = Vec::new();
     for planned in plans {
         let note = match (&planned.change, &planned.target) {
-            (Change::Deleted, _) => remove_file(ctx, &planned.path).await?,
-            (_, Some((target, _))) => {
-                let note = write_file(ctx, target, &planned.bytes).await?;
-                remove_file(ctx, &planned.path).await?;
+            (Change::Deleted, _) => remove_file(ctx, &planned.path)
+                .await
+                .map_err(|err| half_applied(&landed, &planned.shown, err))?,
+            (_, Some((target, shown))) => {
+                let note = write_file(ctx, target, &planned.bytes)
+                    .await
+                    .map_err(|err| half_applied(&landed, shown, err))?;
+                landed.push(shown);
+                remove_file(ctx, &planned.path)
+                    .await
+                    .map_err(|err| half_applied(&landed, &planned.shown, err))?;
                 note
             },
-            (_, None) => write_file(ctx, &planned.path, &planned.bytes).await?,
+            (_, None) => write_file(ctx, &planned.path, &planned.bytes)
+                .await
+                .map_err(|err| half_applied(&landed, &planned.shown, err))?,
         };
+        if planned.target.is_none() {
+            landed.push(&planned.shown);
+        }
         notes.extend(note);
         let (additions, deletions) = counts(&planned.old, &planned.new);
         let change = match planned.change {
@@ -183,4 +196,19 @@ async fn write_plans(
         }));
     }
     Ok((notes, files))
+}
+
+fn half_applied(landed: &[&str], failed: &str, error: ToolError) -> ToolError {
+    let done = if landed.is_empty() {
+        "nothing had been changed yet".to_owned()
+    } else {
+        format!("already changed: {}", landed.join(", "))
+    };
+    ToolError::caused(
+        format!(
+            "the patch stopped part-way at {failed} ({error}); {done}. Re-read these files before \
+             retrying"
+        ),
+        error,
+    )
 }

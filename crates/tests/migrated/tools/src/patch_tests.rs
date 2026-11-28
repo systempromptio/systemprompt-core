@@ -553,7 +553,6 @@ async fn the_diff_of_a_file_with_a_byte_order_mark_does_not_invent_a_first_line_
 
 #[cfg(unix)]
 #[tokio::test]
-#[ignore = "parity ledger: a write that fails part-way does not report the changes already made"]
 async fn a_failed_write_reports_what_already_landed_and_which_path_failed() {
     use std::os::unix::fs::PermissionsExt as _;
     let project = Project::new();
