@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 use serde_json::{Value, json};
+use systemprompt_engine::config::permission::READ;
+use systemprompt_engine::config::{Action, Rule, Ruleset};
 use systemprompt_engine::prompt::notices::POLICY_DENIAL_PREFIX;
 use systemprompt_engine::run::{Delivery, Reply, denied};
 use systemprompt_engine::store::ToolState;
@@ -175,6 +177,60 @@ async fn an_aborted_call_is_marked_aborted() {
     assert_eq!(
         harness.engine.pending_permissions(),
         Vec::<systemprompt_engine::run::PermissionAsk>::new()
+    );
+    harness.engine.shutdown().await;
+}
+
+#[tokio::test]
+async fn a_child_session_keeps_the_rules_of_its_parent_session() {
+    let transport = Arc::new(Scripted::with(vec![
+        (
+            200,
+            tool_reply(
+                "call_task",
+                "task",
+                &json!({"description": "look around", "prompt": "Read the notes", "agent": "general"}),
+            ),
+        ),
+        (
+            200,
+            tool_reply("call_read", "read", &json!({"path": "notes.txt"})),
+        ),
+        (200, text_reply("child done")),
+        (200, text_reply("parent done")),
+    ]));
+    let harness = harness(Arc::new(TestGovernor::default()), Arc::clone(&transport));
+    let id = titled_session(&harness).await;
+    let rules = Ruleset::from(vec![Rule::new(READ, "*", Action::Deny)]);
+    harness
+        .engine
+        .store()
+        .update_session(&id, |session| {
+            session.permission = Some(serde_json::to_value(&rules).unwrap());
+        })
+        .unwrap();
+    let mut events = harness.engine.subscribe();
+
+    harness
+        .engine
+        .prompt(prompt(
+            &harness,
+            &id,
+            "Delegate the reading",
+            Delivery::Steer,
+        ))
+        .await
+        .unwrap();
+    wait_idle(&mut events, &id).await;
+
+    let children = harness.engine.store().child_sessions(&id).unwrap();
+    assert_eq!(children.len(), 1);
+    let stored: Ruleset = serde_json::from_value(children[0].permission.clone().unwrap()).unwrap();
+    assert_eq!(stored, rules);
+    let messages = harness.engine.messages(&children[0].id).await.unwrap();
+    assert!(
+        matches!(tool_state(&messages), ToolState::Error { .. }),
+        "the child read a file its parent's rules deny"
     );
     harness.engine.shutdown().await;
 }

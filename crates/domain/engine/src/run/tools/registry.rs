@@ -10,7 +10,7 @@
 
 use std::sync::Arc;
 
-use crate::config::permission;
+use crate::config::{Action, permission};
 use crate::llm::ToolDef;
 use crate::prompt::tool_names;
 use crate::tools::{Tool, names};
@@ -26,6 +26,7 @@ use crate::run::session::subtask::can_write;
 pub(crate) struct ToolBox {
     tools: Vec<Arc<dyn Tool>>,
     extension_tools: Vec<ExtensionTool>,
+    skills: Vec<String>,
 }
 
 impl ToolBox {
@@ -51,6 +52,12 @@ impl ToolBox {
         self.extension_tools
             .iter()
             .find(|tool| tool.tool.name() == name)
+    }
+
+    /// The skills the skill tool offers: none when the tool is not offered,
+    /// and never one a rule denies by name.
+    pub(crate) fn offers_skill(&self, name: &str) -> bool {
+        self.skills.iter().any(|skill| skill == name)
     }
 
     pub(crate) fn names(&self) -> Vec<&str> {
@@ -140,8 +147,19 @@ pub(crate) fn assemble(ctx: &StepContext) -> ToolBox {
         let task = TaskTool::new(Arc::clone(&ctx.inner), subagents, model, caller_writes);
         tools.push(Arc::new(task));
     }
-    if !ctx.config.skills.is_empty() && visible(tool_names::SKILL) {
-        tools.push(Arc::new(SkillTool::new(Arc::clone(&ctx.config))));
+    let skills: Vec<_> = if visible(tool_names::SKILL) {
+        ctx.config
+            .skills
+            .keys()
+            .filter(|name| rules.evaluate(permission::SKILL, name.as_str()) != Action::Deny)
+            .cloned()
+            .collect()
+    } else {
+        Vec::new()
+    };
+    if !skills.is_empty() {
+        let tool = SkillTool::new(Arc::clone(&ctx.config), skills.clone());
+        tools.push(Arc::new(tool));
     }
     if ctx.session.parent_id.is_none() && visible(tool_names::QUESTION) {
         tools.push(Arc::new(QuestionTool::new(Arc::clone(&ctx.inner))));
@@ -154,5 +172,6 @@ pub(crate) fn assemble(ctx: &StepContext) -> ToolBox {
     ToolBox {
         tools,
         extension_tools,
+        skills,
     }
 }

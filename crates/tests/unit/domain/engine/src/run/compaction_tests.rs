@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use systemprompt_engine::run::Delivery;
+use systemprompt_engine::run::{Delivery, EngineEvent, ErrorKind, RunStatus};
 use systemprompt_engine::store::PartBody;
 
 use crate::run::support::{
@@ -49,5 +49,51 @@ async fn a_compaction_replaces_the_history_before_it_with_its_summary() {
         .filter(|part| matches!(part.body, PartBody::Compaction { auto: false }))
         .count();
     assert_eq!(boundaries, 1);
+    harness.engine.shutdown().await;
+}
+
+const OVERFLOW: &str = r#"{"error": {"message": "maximum context length exceeded", "code": "context_length_exceeded"}}"#;
+
+#[tokio::test]
+async fn a_failed_recovery_summary_leaves_the_overflow_as_the_turns_failure() {
+    let transport = Arc::new(Scripted::with(vec![
+        (400, OVERFLOW.to_owned()),
+        (400, r#"{"error": {"message": "bad request"}}"#.to_owned()),
+    ]));
+    let harness = harness(Arc::new(TestGovernor::default()), Arc::clone(&transport));
+    let id = titled_session(&harness).await;
+    let mut events = harness.engine.subscribe();
+
+    harness
+        .engine
+        .prompt(prompt(&harness, &id, "Continue", Delivery::Steer))
+        .await
+        .unwrap();
+    let mut failures = Vec::new();
+    let settled = async {
+        loop {
+            match events.recv().await {
+                Ok(EngineEvent::SessionError { session, error }) if session == id => {
+                    failures.push(error.kind);
+                },
+                Ok(EngineEvent::Status {
+                    session,
+                    status: RunStatus::Idle,
+                }) if session == id => return,
+                Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {},
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => panic!("feed closed"),
+            }
+        }
+    };
+    tokio::time::timeout(std::time::Duration::from_secs(30), settled)
+        .await
+        .expect("the run did not settle");
+
+    assert_eq!(failures, [ErrorKind::ContextOverflow]);
+    assert_eq!(
+        transport.requests().len(),
+        2,
+        "one step and one summary request"
+    );
     harness.engine.shutdown().await;
 }

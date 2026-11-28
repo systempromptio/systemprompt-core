@@ -2,7 +2,8 @@ use std::error::Error;
 use std::path::Path;
 
 use systemprompt_engine::store::{
-    AssistantMessage, MessageId, NewSession, Part, PartBody, Session, SessionId, Store, UserMessage,
+    AssistantMessage, MessageId, NewSession, Part, PartBody, Session, SessionId, Store,
+    UserMessage, now_ms,
 };
 
 pub(crate) type TestResult<T = ()> = Result<T, Box<dyn Error>>;
@@ -34,13 +35,14 @@ pub(crate) fn assistant(
     parent: &MessageId,
     text: &str,
 ) -> TestResult<MessageId> {
-    let message = AssistantMessage::new(
+    let mut message = AssistantMessage::new(
         store.ids(),
         session_id.clone(),
         parent.clone(),
         "build",
         "model-a",
     );
+    message.completed_at = Some(now_ms());
     let id = message.id.clone();
     store.upsert_message(&message.into())?;
     store.upsert_part(&Part::new(

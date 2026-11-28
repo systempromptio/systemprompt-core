@@ -113,3 +113,47 @@ async fn steers_reach_the_running_turn_and_queued_prompts_wait_for_the_next() {
     assert_eq!(users, ["Read the notes", "steered words", "queued words"]);
     harness.engine.shutdown().await;
 }
+
+#[tokio::test]
+async fn an_interrupt_keeps_held_steers_for_the_next_turn_and_drops_queued_prompts() {
+    let transport = held(vec![
+        (200, text_reply("interrupted")),
+        (200, text_reply("Carried on.")),
+    ]);
+    let harness = harness(Arc::new(TestGovernor::default()), Arc::clone(&transport));
+    let id = titled_session(&harness).await;
+    let mut events = harness.engine.subscribe();
+
+    harness
+        .engine
+        .prompt(prompt(&harness, &id, "Start work", Delivery::Steer))
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(30), transport.first_sent.notified())
+        .await
+        .unwrap();
+    for (text, delivery) in [
+        ("held steer", Delivery::Steer),
+        ("parked prompt", Delivery::Queue),
+    ] {
+        harness
+            .engine
+            .prompt(prompt(&harness, &id, text, delivery))
+            .await
+            .unwrap();
+    }
+    assert!(harness.engine.abort(&id));
+    transport.release.notify_one();
+    wait_idle(&mut events, &id).await;
+
+    harness
+        .engine
+        .prompt(prompt(&harness, &id, "carry on", Delivery::Steer))
+        .await
+        .unwrap();
+    wait_idle(&mut events, &id).await;
+    let last = transport.requests().last().unwrap().to_string();
+    assert!(last.contains("held steer"), "{last}");
+    assert!(!last.contains("parked prompt"), "{last}");
+    harness.engine.shutdown().await;
+}

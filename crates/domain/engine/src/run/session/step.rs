@@ -44,19 +44,7 @@ pub(crate) async fn run(
     );
     put_message(inner, &message).await?;
     let before = snapshot(ctx).await;
-    let start = PartBody::StepStart {
-        snapshot: before.as_ref().map(ToString::to_string),
-    };
-    put_part(
-        inner,
-        Part::new(
-            inner.store.ids(),
-            session_id.clone(),
-            message.id.clone(),
-            start,
-        ),
-    )
-    .await?;
+    put_step_start(inner, &message, before.as_ref()).await?;
 
     let call = ModelCall {
         session_id: session_id.clone(),
@@ -72,7 +60,11 @@ pub(crate) async fn run(
         },
     };
 
-    let has_calls = !streamed.calls.is_empty();
+    let cut_off = matches!(streamed.finish, Some(crate::llm::FinishReason::Length));
+    if cut_off {
+        exec::settle_cut_off(ctx, &message.id, &streamed.calls).await;
+    }
+    let has_calls = !cut_off && !streamed.calls.is_empty();
     let stop = has_calls && exec::run_calls(ctx, toolbox, &message.id, &streamed.calls).await;
     let after = if has_calls {
         snapshot(ctx).await
@@ -109,6 +101,23 @@ pub(crate) async fn run(
     Ok(StepOutcome {
         more: has_calls && !stop,
     })
+}
+
+async fn put_step_start(
+    inner: &Inner,
+    message: &AssistantMessage,
+    before: Option<&SnapshotId>,
+) -> Result<(), EngineError> {
+    let start = PartBody::StepStart {
+        snapshot: before.map(ToString::to_string),
+    };
+    let part = Part::new(
+        inner.store.ids(),
+        message.session_id.clone(),
+        message.id.clone(),
+        start,
+    );
+    put_part(inner, part).await
 }
 
 async fn complete(

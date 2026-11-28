@@ -36,7 +36,6 @@ fn read_done(output: &str, attachments: Vec<Attachment>) -> ToolState {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "parity ledger: a reasoning part that holds only a signature is dropped from the request"]
 async fn replies_with_nothing_to_send_are_left_out_and_signature_only_reasoning_is_kept() {
     let scripted = Scripted::start(vec![text_turn("ok")]).await;
     let id = scripted.session().await;
@@ -194,7 +193,6 @@ async fn a_tool_call_with_media_is_replayed_as_a_call_and_a_result_holding_the_m
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "parity ledger: a failed reply is replayed whole, including output after its last tool call and replies in which no tool ran"]
 async fn a_failed_reply_is_replayed_only_up_to_its_last_tool_call_that_ran() {
     let scripted = Scripted::start(vec![text_turn("ok")]).await;
     let id = scripted.session().await;

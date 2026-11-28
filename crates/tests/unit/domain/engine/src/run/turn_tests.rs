@@ -3,7 +3,10 @@ use std::sync::atomic::Ordering;
 
 use serde_json::json;
 use systemprompt_engine::run::{Admitted, Delivery, ErrorKind};
-use systemprompt_engine::store::{FinishReason, PartBody, ToolState};
+use systemprompt_engine::store::{
+    AssistantMessage, CallId, FinishReason, JsonMap, MessageError, MessageErrorKind, Part,
+    PartBody, ToolState, UserMessage, now_ms,
+};
 
 use crate::run::support::{
     NullGovernor, Scripted, TestGovernor, harness, prompt, text_reply, texts, titled_session,
@@ -169,5 +172,87 @@ async fn without_models_a_prompt_is_refused_before_anything_is_stored() {
         harness.engine.models(),
         Vec::<systemprompt_engine::run::ModelSpec>::new()
     );
+    harness.engine.shutdown().await;
+}
+
+#[tokio::test]
+async fn a_failed_reply_is_sent_back_only_up_to_its_last_tool_call_that_ran() {
+    let transport = Arc::new(Scripted::with(vec![(200, text_reply("ok"))]));
+    let harness = harness(Arc::new(TestGovernor::default()), Arc::clone(&transport));
+    let id = titled_session(&harness).await;
+    let store = harness.engine.store();
+    let model = crate::run::support::model().id;
+    let question = UserMessage::new(store.ids(), id.clone(), "build", &model);
+    let question_id = question.id.clone();
+    store.upsert_message(&question.into()).unwrap();
+    let text = |body: &str| PartBody::Text {
+        text: body.to_owned(),
+        synthetic: false,
+    };
+    store
+        .upsert_part(&Part::new(
+            store.ids(),
+            id.clone(),
+            question_id.clone(),
+            text("Start"),
+        ))
+        .unwrap();
+    let failed = |parts: Vec<PartBody>| {
+        let mut reply = AssistantMessage::new(
+            store.ids(),
+            id.clone(),
+            question_id.clone(),
+            "build",
+            &model,
+        );
+        reply.finish = Some(FinishReason::Error);
+        reply.completed_at = Some(now_ms());
+        reply.error = Some(MessageError {
+            kind: MessageErrorKind::Api,
+            message: "the stream dropped".to_owned(),
+            status: None,
+            retryable: false,
+        });
+        let reply_id = reply.id.clone();
+        store.upsert_message(&reply.into()).unwrap();
+        for body in parts {
+            store
+                .upsert_part(&Part::new(store.ids(), id.clone(), reply_id.clone(), body))
+                .unwrap();
+        }
+    };
+    failed(vec![text("Partial visible answer")]);
+    failed(vec![
+        text("Reading first"),
+        PartBody::Tool {
+            call_id: CallId::try_new("call_ran").unwrap(),
+            tool: "read".to_owned(),
+            state: Box::new(ToolState::Completed {
+                input: json!({"path": "notes.txt"}),
+                output: "Hello".to_owned(),
+                title: "notes.txt".to_owned(),
+                metadata: JsonMap::new(),
+                attachments: Vec::new(),
+                started: now_ms(),
+                ended: now_ms(),
+            }),
+        },
+        text("Now I will run the te"),
+    ]);
+    let mut events = harness.engine.subscribe();
+    harness
+        .engine
+        .prompt(prompt(&harness, &id, "Try again", Delivery::Steer))
+        .await
+        .unwrap();
+    wait_idle(&mut events, &id).await;
+
+    let sent = transport.requests()[0].to_string();
+    assert!(
+        sent.contains("Reading first") && sent.contains("call_ran"),
+        "{sent}"
+    );
+    assert!(!sent.contains("Partial visible answer"), "{sent}");
+    assert!(!sent.contains("run the te"), "{sent}");
     harness.engine.shutdown().await;
 }

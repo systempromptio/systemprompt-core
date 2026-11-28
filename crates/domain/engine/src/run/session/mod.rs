@@ -29,7 +29,7 @@ pub(crate) mod title;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::store::{MessageId, NewSession, PartBody, Session, SessionId};
+use crate::store::{MessageId, NewSession, PartBody, Session, SessionId, StoreError};
 use serde::{Deserialize, Serialize};
 
 pub(crate) use runs::{Admit, Runs};
@@ -137,6 +137,12 @@ pub(crate) async fn create(
         .run(move |store| store.ensure_project(&root, &name))
         .await?;
     let mut new = NewSession::new(project.id, directory);
+    if let Some(parent) = &parent {
+        let rules = inner.session_rules(parent).await?;
+        if !rules.is_empty() {
+            new.permission = Some(serde_json::to_value(&rules).map_err(StoreError::from)?);
+        }
+    }
     new.parent_id = parent;
     new.title = title.unwrap_or_default();
     new.agent = agent;

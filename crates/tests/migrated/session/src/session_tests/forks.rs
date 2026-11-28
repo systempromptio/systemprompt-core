@@ -59,7 +59,6 @@ fn a_fork_takes_its_sources_title_and_stays_untitled_when_there_is_none() {
 }
 
 #[test]
-#[ignore = "parity ledger: a fork copies a reply that is still running, with its unfinished tool call"]
 fn a_reply_that_is_still_running_is_not_copied_into_a_fork() {
     let store = Store::open_in_memory().unwrap();
     let source = session(&store);
@@ -94,7 +93,6 @@ fn a_reply_that_is_still_running_is_not_copied_into_a_fork() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "parity ledger: a child session starts without its parent's session rules; only a fork carries them"]
 async fn session_rules_pass_to_forks_and_to_child_sessions() {
     let scripted = Scripted::start(vec![
         task_turn(),

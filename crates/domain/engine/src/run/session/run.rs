@@ -1,7 +1,11 @@
 //! The run loop: one driver per busy session that takes turns until its inbox
-//! is empty, and the turn itself, which takes steps until the model stops, the
-//! agent's step limit is reached, or the run is aborted. Each step's answer is
-//! capped by the agent's output limit, held under the model's ceiling.
+//! is empty (an interrupted run stores the steers it held for the next turn
+//! and drops its queued prompts), and the turn itself, which takes steps until
+//! the model stops, the agent's step limit is reached, or the run is aborted.
+//! Each step's answer is capped by the agent's output limit, held under the
+//! model's ceiling. A context overflow before any output is stored is
+//! compacted and retried once; if the summary fails, the overflow stays the
+//! turn's failure.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -65,6 +69,11 @@ pub(crate) async fn drive(inner: Arc<Inner>, session_id: SessionId, mode: TurnMo
                 TurnMode::Compact => compact_now(&inner, &session_id, &cancel).await,
             };
             if let Err(error) = result {
+                report(&inner, &session_id, &error);
+            }
+            if cancel.is_cancelled()
+                && let Err(error) = admit::deliver_steers(&inner, &session_id).await
+            {
                 report(&inner, &session_id, &error);
             }
         }
@@ -156,16 +165,51 @@ async fn turn(
                 }
             },
             Err(error) if !compacted && is_overflow(&error) => {
+                if stored_output(inner, session_id).await? {
+                    return Err(error);
+                }
                 compacted = true;
                 tracing::info!(session = %session_id, "context overflow; compacting and retrying");
-                if !compaction::run(&ctx, true).await? {
-                    return Err(error);
+                match compaction::run(&ctx, true).await {
+                    Ok(true) => {},
+                    Ok(false) => return Err(error),
+                    Err(summary) if summary.is_aborted() => return Err(summary),
+                    Err(summary) => {
+                        tracing::warn!(
+                            session = %session_id,
+                            error = %summary.describe(),
+                            "the recovery summary failed; the overflow stands"
+                        );
+                        return Err(error);
+                    },
                 }
                 steps = steps.saturating_sub(1);
             },
             Err(error) => return Err(error),
         }
     }
+}
+
+/// Whether the reply that just failed already stored output: text, reasoning
+/// or a tool call. Such a reply is not compacted and retried, since the retry
+/// would answer again what the stored output began.
+async fn stored_output(inner: &Inner, session_id: &SessionId) -> Result<bool, EngineError> {
+    let key = session_id.clone();
+    let latest = inner
+        .db
+        .run(move |store| store.messages(&key, &MessagePage::latest(1)))
+        .await?;
+    Ok(latest
+        .iter()
+        .filter(|message| message.message.as_assistant().is_some())
+        .flat_map(|message| &message.parts)
+        .any(|part| match &part.body {
+            PartBody::Text { text, .. } | PartBody::Reasoning { text, .. } => {
+                !text.trim().is_empty()
+            },
+            PartBody::Tool { .. } => true,
+            _ => false,
+        }))
 }
 
 const fn is_overflow(error: &EngineError) -> bool {
