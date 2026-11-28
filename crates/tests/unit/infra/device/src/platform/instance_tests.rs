@@ -1,14 +1,78 @@
+use std::path::PathBuf;
+use std::process::{Child, Command, ExitStatus};
 use std::time::Duration;
 
 use systemprompt_device::platform::instance::{
     Acquisition, HandOff, InstanceError, InstanceGuard, RunningInstance, acquire,
 };
 use tempfile::TempDir;
-use tokio::time::timeout;
+use tokio::time::{Instant, sleep, timeout};
 
 // Why: the primary keeps listening after a hand-off it rejected, so an
 // unbounded accept would hide the launch's own error behind a hung test.
 const ROUND: Duration = Duration::from_secs(20);
+
+// Why: the second launch runs in a process of its own, this test binary
+// started again on the helper below, so the exchange crosses a real process
+// boundary the way a second start of the app does.
+const HELPER: &str = "platform::instance_tests::second_launch_process";
+const HELPER_ROOT: &str = "SYSTEMPROMPT_INSTANCE_HELPER_ROOT";
+const HELPER_EXPECT: &str = "SYSTEMPROMPT_INSTANCE_HELPER_EXPECT";
+const EXPECT_DELIVERED: &str = "delivered";
+const EXPECT_REFUSED: &str = "refused";
+const HELPER_ARGUMENT: &str = "sp-harness://settings?page=about";
+
+// Why: the launch's own waits end within seconds; this bound only keeps a
+// regression from hanging the run.
+const PROCESS_EXIT: Duration = Duration::from_secs(15);
+
+const EXIT_POLL: Duration = Duration::from_millis(20);
+
+fn spawn_second_launch(root: &TempDir, expect: &str) -> Child {
+    Command::new(std::env::current_exe().expect("test binary path"))
+        .args([HELPER, "--exact", "--nocapture"])
+        .env(HELPER_ROOT, root.path())
+        .env(HELPER_EXPECT, expect)
+        .spawn()
+        .expect("start the second launch")
+}
+
+async fn exit_of(mut child: Child) -> ExitStatus {
+    let deadline = Instant::now() + PROCESS_EXIT;
+    loop {
+        if let Some(status) = child.try_wait().expect("poll the second launch") {
+            return status;
+        }
+        if Instant::now() >= deadline {
+            child.kill().expect("stop the hung second launch");
+            panic!("the second launch did not exit within {PROCESS_EXIT:?}");
+        }
+        sleep(EXIT_POLL).await;
+    }
+}
+
+#[tokio::test]
+async fn second_launch_process() {
+    let Some(root) = std::env::var_os(HELPER_ROOT).map(PathBuf::from) else {
+        return;
+    };
+    let expect = std::env::var(HELPER_EXPECT).expect("the helper names its outcome");
+    let running = match acquire(&root).expect("acquire the held data root") {
+        Acquisition::Secondary(running) => running,
+        Acquisition::Primary(_) => panic!("the data root must be held by the first process"),
+    };
+    let outcome = running
+        .hand_off(&HandOff {
+            arguments: vec![HELPER_ARGUMENT.to_owned()],
+            working_directory: None,
+        })
+        .await;
+    match expect.as_str() {
+        EXPECT_DELIVERED => outcome.expect("the running instance acknowledges"),
+        EXPECT_REFUSED => assert!(outcome.is_err(), "nothing accepted, got {outcome:?}"),
+        other => panic!("unknown helper outcome {other}"),
+    }
+}
 
 fn primary(root: &TempDir) -> InstanceGuard {
     match acquire(root.path()).expect("acquire a free data root") {
@@ -147,5 +211,36 @@ async fn data_root_too_deep_for_a_socket_address_is_refused() {
     assert!(
         matches!(outcome, Err(InstanceError::EndpointTooLong { .. })),
         "got {outcome:?}"
+    );
+}
+
+#[tokio::test]
+async fn second_launch_in_another_process_hands_off_and_exits() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let mut guard = primary(&root);
+
+    let child = spawn_second_launch(&root, EXPECT_DELIVERED);
+    let received = timeout(ROUND, guard.accept())
+        .await
+        .expect("the primary accepts in time")
+        .expect("the primary receives the hand-off");
+
+    assert_eq!(received.arguments, vec![HELPER_ARGUMENT.to_owned()]);
+    assert!(
+        exit_of(child).await.success(),
+        "the second launch reports its hand-off"
+    );
+}
+
+#[tokio::test]
+async fn second_launch_exits_when_the_primary_never_accepts() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let _guard = primary(&root);
+
+    let child = spawn_second_launch(&root, EXPECT_REFUSED);
+
+    assert!(
+        exit_of(child).await.success(),
+        "the second launch gives up and exits"
     );
 }
