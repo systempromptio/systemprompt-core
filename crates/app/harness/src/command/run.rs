@@ -63,6 +63,7 @@ struct Parts<'a> {
     host: &'a HeadlessHost,
     request: &'a RunRequest,
     cancel: &'a CancellationToken,
+    asks_wait: bool,
 }
 
 pub async fn run<W: Write + Send>(
@@ -71,7 +72,7 @@ pub async fn run<W: Write + Send>(
     cancel: &CancellationToken,
     out: &mut EventWriter<W>,
 ) -> RunReport {
-    Box::pin(conduct(host, &request, (cancel, None), out)).await
+    Box::pin(conduct(host, &request, (cancel, None), false, out)).await
 }
 
 pub async fn run_controlled<W: Write + Send>(
@@ -81,13 +82,31 @@ pub async fn run_controlled<W: Write + Send>(
     out: &mut EventWriter<W>,
 ) -> RunReport {
     let (cancel, controls) = control;
-    Box::pin(conduct(host, &request, (cancel, Some(controls)), out)).await
+    Box::pin(conduct(
+        host,
+        &request,
+        (cancel, Some(controls)),
+        false,
+        out,
+    ))
+    .await
+}
+
+pub async fn run_replied<W: Write + Send>(
+    host: &HeadlessHost,
+    request: RunRequest,
+    control: (&CancellationToken, ControlFeed),
+    out: &mut EventWriter<W>,
+) -> RunReport {
+    let (cancel, controls) = control;
+    Box::pin(conduct(host, &request, (cancel, Some(controls)), true, out)).await
 }
 
 async fn conduct<W: Write + Send>(
     host: &HeadlessHost,
     request: &RunRequest,
     control: (&CancellationToken, Option<ControlFeed>),
+    asks_wait: bool,
     out: &mut EventWriter<W>,
 ) -> RunReport {
     let (cancel, controls) = control;
@@ -100,6 +119,7 @@ async fn conduct<W: Write + Send>(
                 host,
                 request,
                 cancel,
+                asks_wait,
             };
             let report = Box::pin(drive(&parts, controls, &mut decider, out)).await;
             composition.shutdown().await;
@@ -166,7 +186,7 @@ async fn converse<W: Write + Send>(
         engine: &parts.composition.engine,
         root: session.id.clone(),
         decider,
-        waiting: feeds.controls.is_some().then(WaitingAsks::default),
+        waiting: parts.asks_wait.then(WaitingAsks::default),
         out,
         feeds,
         template: PromptInput {

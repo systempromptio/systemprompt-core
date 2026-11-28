@@ -20,7 +20,7 @@ use crate::command::event::EventWriter;
 use crate::command::exit::ExitStatus;
 use crate::command::host::HeadlessHost;
 use crate::command::login::{login, read_token};
-use crate::command::run::{run, run_controlled};
+use crate::command::run::{run, run_replied};
 use crate::command::usage::{USAGE, UsageError};
 
 /// The three standard streams of an invocation.
@@ -64,7 +64,7 @@ where
                     let mut out = EventWriter::new(output);
                     let (controls, _reader) = read_controls(input);
                     let control = (cancel, controls);
-                    Box::pin(run_controlled(host, request, control, &mut out))
+                    Box::pin(run_replied(host, request, control, &mut out))
                         .await
                         .status
                 },

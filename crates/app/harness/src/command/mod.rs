@@ -49,7 +49,7 @@ pub use login::{LoginFailure, LoginOutcome, LoginReport, LoginRequest, login, re
 pub use permission::{
     AnswerSource, Answers, Decider, PermissionMode, QuestionAnswers, UnusedAnswers, WaitingAsks,
 };
-pub use run::{DEFAULT_SYNC_TIMEOUT, RunReport, RunRequest, run, run_controlled};
+pub use run::{DEFAULT_SYNC_TIMEOUT, RunReport, RunRequest, run, run_controlled, run_replied};
 pub use settings::MemorySettings;
 pub use slot::GovernorSlot;
 pub use usage::{USAGE, UsageError};

@@ -5,10 +5,10 @@
 //! Each product's transcript is first read into a [`Transcript`], a form that
 //! names no product: the harness's event stream and the scripted instance's
 //! request log ([`harness`]), or the reference runner's export
-//! ([`reference`]). [`build::trace`] reduces a transcript and the scenario's
-//! script to the normalised trace, [`compare::differences`] lists where two
-//! traces part, and [`ledger`] classifies every difference against the
-//! reviewed file beside this crate and writes the parity ledger.
+//! ([`mod@reference`]). [`build::trace`] reduces a transcript and the
+//! scenario's script to the normalised trace, [`compare::differences`] lists
+//! where two traces part, and [`ledger`] classifies every difference against
+//! the reviewed file beside this crate and writes the parity ledger.
 
 pub mod build;
 pub mod compare;

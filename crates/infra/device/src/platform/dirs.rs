@@ -135,6 +135,12 @@ impl RootName {
 }
 
 fn part(value: &str) -> Result<&str, DirsError> {
+    if value.contains('/') {
+        return Err(DirsError::Name {
+            value: value.to_owned(),
+            reason: "the name holds a path separator",
+        });
+    }
     match check_segment(value) {
         Ok(()) if value.trim() == value => Ok(value),
         Ok(()) => Err(DirsError::Name {

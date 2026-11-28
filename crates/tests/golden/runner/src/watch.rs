@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use std::io::Write;
 
 use serde_json::Value;
-use systemprompt_harness::command::{Control, ControlDelivery};
+use systemprompt_harness::command::{ControlCommand, ControlError};
 use systemprompt_parity_compare::{Mark, MarkKind};
 use systemprompt_scripted_instance::{Route, ScriptedInstance};
 use tokio::sync::mpsc;
@@ -47,7 +47,7 @@ fn model_calls(instance: &ScriptedInstance) -> usize {
 pub(crate) struct Watcher<'a> {
     scenario: &'a Scenario,
     instance: &'a ScriptedInstance,
-    controls: Option<mpsc::UnboundedSender<Control>>,
+    controls: Option<mpsc::UnboundedSender<Result<ControlCommand, ControlError>>>,
     pub(crate) events: Vec<Value>,
     pub(crate) marks: Vec<Mark>,
     done: Vec<bool>,
@@ -66,7 +66,7 @@ impl<'a> Watcher<'a> {
     pub(crate) fn new(
         scenario: &'a Scenario,
         instance: &'a ScriptedInstance,
-        controls: mpsc::UnboundedSender<Control>,
+        controls: mpsc::UnboundedSender<Result<ControlCommand, ControlError>>,
     ) -> Self {
         Self {
             scenario,
@@ -194,13 +194,13 @@ impl<'a> Watcher<'a> {
     }
 
     fn close(&mut self) {
-        self.send(Control::Close);
+        self.send(ControlCommand::End {});
         self.controls = None;
     }
 
-    fn send(&self, control: Control) {
+    fn send(&self, control: ControlCommand) {
         if let Some(controls) = &self.controls
-            && controls.send(control).is_err()
+            && controls.send(Ok(control)).is_err()
         {
             eprintln!("the run no longer takes controls");
         }
@@ -219,36 +219,20 @@ impl<'a> Watcher<'a> {
                 .cloned()
                 .unwrap_or_default();
             let (kind, control) = match action.act.as_str() {
-                "steer" => (
-                    MarkKind::Steer,
-                    Control::Prompt {
-                        text,
-                        delivery: ControlDelivery::Steer,
-                    },
-                ),
-                "prompt" => (
-                    MarkKind::Prompt,
-                    Control::Prompt {
-                        text,
-                        delivery: ControlDelivery::Queue,
-                    },
-                ),
-                "abort" => (MarkKind::Abort, Control::Abort),
+                "steer" => (MarkKind::Steer, ControlCommand::Steer { text }),
+                "prompt" => (MarkKind::Prompt, ControlCommand::Prompt { text }),
+                "abort" => (MarkKind::Abort, ControlCommand::Abort {}),
                 _ => {
-                    let target = message
-                        .and_then(|number| self.user_messages.get(number as usize - 1))
-                        .cloned()
-                        .unwrap_or_default();
-                    let control = Control::parse(
-                        &serde_json::json!({ "type": "revert", "message_id": target }).to_string(),
-                    );
-                    match control {
-                        Ok(control) => (MarkKind::Revert, control),
-                        Err(error) => {
-                            eprintln!("no revert target for message {message:?}: {error}");
-                            continue;
+                    let Some(number) = message else {
+                        eprintln!("a revert action names no message");
+                        continue;
+                    };
+                    (
+                        MarkKind::Revert,
+                        ControlCommand::Revert {
+                            prompt: number as usize,
                         },
-                    }
+                    )
                 },
             };
             self.marks.push(Mark {
