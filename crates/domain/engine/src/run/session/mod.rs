@@ -17,6 +17,7 @@ pub(crate) mod inbox;
 pub(crate) mod job_notice;
 pub(crate) mod meta;
 pub(crate) mod model_call;
+mod prepare;
 pub(crate) mod revert;
 pub(crate) mod run;
 pub(crate) mod runs;

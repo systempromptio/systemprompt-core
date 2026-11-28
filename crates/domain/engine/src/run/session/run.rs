@@ -13,20 +13,18 @@
 use std::sync::Arc;
 
 use crate::config::{AgentDef, Loaded, Ruleset};
-use crate::llm::{LlmError, Message, ModelSpec, Request};
+use crate::llm::{LlmError, Message, ModelSpec};
 use crate::prompt::notices;
-use crate::store::{MessageId, MessagePage, MessageWithParts, PartBody, Session, SessionId};
+use crate::store::{MessagePage, MessageWithParts, PartBody, Session, SessionId};
 use systemprompt_traits::CancellationToken;
 
-use super::{admit, compaction, history, meta, step, system};
+use super::prepare::{Prepared, prepare};
+use super::{admit, compaction, step};
 use crate::run::directory::DirState;
 use crate::run::error::EngineError;
 use crate::run::events::{EngineEvent, RunStatus, SessionFailure};
 use crate::run::governor::SessionEvent;
 use crate::run::inner::Inner;
-use crate::run::tools::registry::{self, ToolBox};
-
-const DEFAULT_MAX_STEPS: u32 = 100;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum TurnMode {
@@ -43,15 +41,6 @@ pub(crate) struct StepContext {
     pub(crate) model: ModelSpec,
     pub(crate) rules: Ruleset,
     pub(crate) cancel: CancellationToken,
-}
-
-struct Prepared {
-    ctx: StepContext,
-    toolbox: ToolBox,
-    request: Request,
-    parent: MessageId,
-    max_steps: u32,
-    used: u64,
 }
 
 pub(crate) async fn drive(inner: Arc<Inner>, session_id: SessionId, mode: TurnMode) {
@@ -266,70 +255,4 @@ pub(crate) async fn context(
         cancel,
     };
     Ok((ctx, history))
-}
-
-async fn prepare(
-    inner: &Arc<Inner>,
-    session_id: &SessionId,
-    cancel: &CancellationToken,
-) -> Result<Prepared, EngineError> {
-    let (ctx, history) = context(inner, session_id, cancel).await?;
-    let parent = history
-        .iter()
-        .rev()
-        .find_map(|message| message.message.as_user().map(|user| user.id.clone()))
-        .ok_or(EngineError::EmptyPrompt)?;
-    let toolbox = registry::assemble(&ctx);
-    let mark = meta::compaction(&ctx.session);
-    let mut request = Request::new(ctx.model.clone());
-    request.system = system::prompt(&ctx, &toolbox, &history);
-    request.messages = history::build(&history, mark.as_ref(), &meta::steered(&ctx.session));
-    request.tools = toolbox.defs();
-    request.params.temperature = ctx.agent.temperature.map(f64::from);
-    request.params.max_output = output_limit(&ctx.agent, &ctx.model);
-    let max_steps = ctx
-        .agent
-        .steps
-        .filter(|steps| *steps > 0)
-        .unwrap_or(DEFAULT_MAX_STEPS);
-    let used = last_usage(&history);
-    Ok(Prepared {
-        ctx,
-        toolbox,
-        request,
-        parent,
-        max_steps,
-        used,
-    })
-}
-
-fn output_limit(agent: &AgentDef, model: &ModelSpec) -> Option<u32> {
-    let wanted = agent.max_output.filter(|limit| *limit > 0)?;
-    Some(match model.max_output {
-        0 => wanted,
-        ceiling => wanted.min(ceiling),
-    })
-}
-
-fn last_usage(history: &[MessageWithParts]) -> u64 {
-    for message in history.iter().rev() {
-        let compaction = message
-            .parts
-            .iter()
-            .any(|part| matches!(part.body, PartBody::Compaction { .. }));
-        if message.message.as_user().is_some() && compaction {
-            return 0;
-        }
-        let assistant = message
-            .message
-            .as_assistant()
-            .filter(|assistant| !assistant.system);
-        if let Some(assistant) = assistant {
-            let used = assistant.usage.input.saturating_add(assistant.usage.output);
-            if used > 0 {
-                return used;
-            }
-        }
-    }
-    0
 }
