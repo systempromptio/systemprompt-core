@@ -13,6 +13,8 @@
 #[cfg(test)]
 mod ask_tests;
 #[cfg(test)]
+mod compaction_run_tests;
+#[cfg(test)]
 mod compaction_tests;
 #[cfg(test)]
 mod feed_tests;
