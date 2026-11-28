@@ -64,7 +64,7 @@ The types:
 | `ScriptedInstanceBuilder` | `user`, `pat`, `manifest`, `models`, `verdict`, `script`, `title_reply` (section 3.1), `document(path, bytes)` (the Drive store starts holding it; the change feed records it as created), `port` (default 0, an ephemeral port; always loopback), `start` |
 | `ScriptedInstance` | The calls above, plus `addr` and read access to each fixture it was built with |
 | `TestUser` | Typed user id, optional tenant id, email, display name, roles |
-| `ManifestFixture`, `ManifestFault` | `minimal()`, `with_fault`, `with_plugin`. Faults: `StaleVersion`, `FutureNotBefore`, `WrongUser`, `ChangedKey`, `BadSignature`; each is also taken by its hyphenated name (`stale-version`, and so on) |
+| `ManifestFixture`, `ManifestFault` | `minimal()`, `with_fault`, `with_plugin`, `with_extension` (a host extension listed for the harness host). Faults: `StaleVersion`, `FutureNotBefore`, `WrongUser`, `ChangedKey`, `BadSignature`; each is also taken by its hyphenated name (`stale-version`, and so on) |
 | `PluginFixture` | `new(id)`, `governance(id)` (owns the governance hooks, so the harness mints a hook token and asks for verdicts), `file(path, bytes)`, `published()` (a managed publication: the manifest entry names it and its plan is served). The entry's digests are derived from the files; a plugin manifest is served when the fixture brings none |
 | `ModelFixture` | A typed model id and a wire protocol (core's `WireProtocol`; there is no local protocol enum); `messages(id)`, `chat(id)`, `on(id, protocol)`, `named(display)`, `context_window(tokens)`, `family()` (core's `ClientFamily` for the protocol) |
 | `VerdictScript`, `Verdict` | A default verdict and a map from logical tool name to verdict. `Allow`, `Deny { reason }`, `Delay { millis }`, `Error { status }`. File shape: `{"default": <verdict>, "tools": {"<name>": <verdict>}}` |
@@ -94,6 +94,8 @@ The binary is `systemprompt-scripted-instance`. It prints one JSON line with `ba
 | `--manifest-fault FAULT` | `ManifestFixture::with_fault` | The manifest carries that fault: `stale-version`, `future-not-before`, `wrong-user`, `changed-key` or `bad-signature`. Any other name is a usage error that lists these five |
 | `--pat TEXT` | `pat(TestPat::new(..))` | The personal access token the instance accepts, and prints, in place of the fixture's. A restart with another value refuses a credential stored against the earlier one. A device accepts only a token that starts with core's API-key prefix |
 | `--document PATH=FILE` (repeatable) | `document(path, bytes)` | The Drive store starts with a document at `PATH` holding the bytes of the local file `FILE`. The value is split at its first `=`; a file that cannot be read stops the start |
+| `--keys FILE` | `keys(path)` | Sign with the keys held in `FILE` (three Ed25519 seeds), writing new ones there owner-only when it does not exist, in place of new keys on every start. A restart on the same file serves a manifest key an app that pinned the first start still trusts, so `--manifest-fault stale-version` after a healthy start is a real older-version refusal. A file of any other length stops the start |
+| `--extension ID` (repeatable) | `ManifestFixture::with_extension` | The manifest's `host_extensions` lists `ID` for the harness host, so the device's extension policy enables it (`drive` turns on Drive). An id that is not kebab-case is a usage error |
 
 ### 2.1 What exists at the end of S0
 

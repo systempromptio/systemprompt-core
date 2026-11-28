@@ -34,6 +34,20 @@ pub enum ScriptedInstanceError {
         source: serde_json::Error,
     },
 
+    #[error("failed to load or write the key file {}", .path.display())]
+    KeyFile {
+        path: PathBuf,
+        #[source]
+        source: systemprompt_device::secure::SecureError,
+    },
+
+    #[error("the key file {} holds {found} bytes, expected {expected}", .path.display())]
+    KeyFileMalformed {
+        path: PathBuf,
+        expected: usize,
+        found: usize,
+    },
+
     #[error("failed to parse inline scenario JSON")]
     ParseInline(#[source] serde_json::Error),
 

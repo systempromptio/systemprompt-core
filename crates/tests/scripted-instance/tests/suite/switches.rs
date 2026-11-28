@@ -1,14 +1,20 @@
 use clap::ValueEnum;
-use systemprompt_device::client::ClientError;
+use std::path::PathBuf;
+
+use systemprompt_device::client::{ClientError, ManifestFetch};
 use systemprompt_device::protocol::Pat;
+use systemprompt_device::protocol::manifest::Manifest;
+use systemprompt_device::protocol::version::is_newer;
 use systemprompt_models::ApiPaths;
+use systemprompt_models::bridge::host::HostKind;
+use systemprompt_models::bridge::manifest::HostExtensionId;
 use systemprompt_models::documents::client::{ChangeKind, FeedChanges};
 use systemprompt_models::documents::content_hash;
-use systemprompt_scripted_instance::{ManifestFault, ScriptedInstance, TestPat};
+use systemprompt_scripted_instance::{ManifestFault, ManifestFixture, ScriptedInstance, TestPat};
 
 use crate::feed::Feed;
 use crate::manifest::{faulty, fetch};
-use crate::support::client;
+use crate::support::{client, signed_in};
 
 const FAULTS: [(&str, ManifestFault); 5] = [
     ("stale-version", ManifestFault::StaleVersion),
@@ -102,4 +108,89 @@ async fn the_drive_starts_with_the_documents_the_builder_is_given() {
 
     let unbased = feed.commit(None, "notes/a.md", None, b"three").await;
     assert_eq!(unbased.status().as_u16(), 409);
+}
+
+fn key_file(name: &str) -> PathBuf {
+    let path = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
+        .join("scripted-instance-keys")
+        .join(name);
+    if let Err(error) = std::fs::remove_file(&path) {
+        assert_eq!(error.kind(), std::io::ErrorKind::NotFound, "{error}");
+    }
+    path
+}
+
+async fn fetched(
+    instance: &ScriptedInstance,
+    key: &systemprompt_device::client::ManifestKey,
+) -> Result<Box<Manifest>, ClientError> {
+    let (client, session) = signed_in(instance).await;
+    match client.manifest(&session.jwt, key, None, false).await? {
+        ManifestFetch::Fetched { manifest, .. } => Ok(manifest),
+        ManifestFetch::NotModified => panic!("a fetch without an ETag carries a manifest"),
+    }
+}
+
+#[tokio::test]
+async fn a_restart_on_the_same_key_file_is_trusted_and_can_serve_an_older_version() {
+    let path = key_file("restart.keys");
+    let first = ScriptedInstance::builder()
+        .keys(&path)
+        .start()
+        .await
+        .unwrap();
+    let pinned = client(&first).pubkey().await.unwrap();
+    let healthy = fetched(&first, &pinned).await.unwrap();
+    first.shutdown().await.unwrap();
+    assert_eq!(std::fs::read(&path).unwrap().len(), 96);
+
+    let restarted = ScriptedInstance::builder()
+        .keys(&path)
+        .manifest(ManifestFixture::minimal().with_fault(ManifestFault::StaleVersion))
+        .start()
+        .await
+        .unwrap();
+    let current = fetched(&restarted, &pinned).await.unwrap();
+    assert!(!is_newer(
+        &healthy.manifest_version,
+        Some(&current.manifest_version)
+    ));
+    let stale = fetched(&restarted, &pinned).await.unwrap();
+    assert!(!is_newer(
+        &stale.manifest_version,
+        Some(&current.manifest_version)
+    ));
+
+    let other = ScriptedInstance::builder()
+        .keys(key_file("other.keys"))
+        .start()
+        .await
+        .unwrap();
+    let refused = fetched(&other, &pinned).await;
+    assert!(refused.is_err());
+}
+
+#[tokio::test]
+async fn a_host_extension_is_listed_for_the_harness_host() {
+    let drive = HostExtensionId::try_new("drive").unwrap();
+    let instance = ScriptedInstance::builder()
+        .manifest(
+            ManifestFixture::minimal()
+                .with_extension(drive.clone())
+                .with_extension(drive.clone()),
+        )
+        .start()
+        .await
+        .unwrap();
+    let key = client(&instance).pubkey().await.unwrap();
+    let manifest = fetched(&instance, &key).await.unwrap();
+    assert_eq!(
+        manifest.extensions_for(HostKind::Harness),
+        Some([drive].as_slice())
+    );
+
+    let plain = ScriptedInstance::builder().start().await.unwrap();
+    let key = client(&plain).pubkey().await.unwrap();
+    let manifest = fetched(&plain, &key).await.unwrap();
+    assert_eq!(manifest.extensions_for(HostKind::Harness), None);
 }

@@ -5,7 +5,8 @@
 //! fixture's plugins, each with the digests of the bundle files the
 //! instance serves for it; the minimal fixture has none. The harness's model
 //! filter names the client families of the fixture's models, as core's
-//! gateway writes it.
+//! gateway writes it. The fixture's host extensions are listed for the
+//! harness host in `host_extensions`, as core's gateway lists an instance's.
 
 use std::sync::PoisonError;
 use std::sync::atomic::Ordering;
@@ -14,7 +15,7 @@ use chrono::{DateTime, SecondsFormat, TimeDelta, Utc};
 use serde_json::json;
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::bridge::manifest::{
-    ManifestSignature, PluginEntry, SignedManifest, SignedManifestEnvelope,
+    HostExtensionId, ManifestSignature, PluginEntry, SignedManifest, SignedManifestEnvelope,
 };
 
 use crate::plugin::{FixtureError, PluginFixture};
@@ -29,6 +30,7 @@ const OTHER_USER: &str = "scripted-other-user";
 pub struct ManifestFixture {
     fault: Option<ManifestFault>,
     plugins: Vec<PluginFixture>,
+    extensions: Vec<HostExtensionId>,
 }
 
 impl ManifestFixture {
@@ -45,6 +47,20 @@ impl ManifestFixture {
         self.plugins.retain(|held| held.id != plugin.id);
         self.plugins.push(plugin);
         self
+    }
+
+    /// Lists `id` in the manifest's `host_extensions` for the harness host,
+    /// so the device's extension policy enables it. A repeated id is listed
+    /// once.
+    pub fn with_extension(mut self, id: HostExtensionId) -> Self {
+        if !self.extensions.contains(&id) {
+            self.extensions.push(id);
+        }
+        self
+    }
+
+    pub fn extensions(&self) -> &[HostExtensionId] {
+        &self.extensions
     }
 
     pub fn fault(&self) -> Option<ManifestFault> {
@@ -138,7 +154,7 @@ pub(crate) fn serve(state: &InstanceState) -> Result<ServedManifest, FixtureErro
         .map(PluginFixture::entry)
         .collect::<Result<_, _>>()?;
 
-    let manifest: SignedManifest = serde_json::from_value(json!({
+    let mut manifest: SignedManifest = serde_json::from_value(json!({
         "manifest_version": version,
         "issued_at": dated,
         "not_before": not_before,
@@ -157,6 +173,11 @@ pub(crate) fn serve(state: &InstanceState) -> Result<ServedManifest, FixtureErro
         "enabled_hosts": [HostKind::Harness],
         "host_model_protocols": { HostKind::Harness.as_str(): protocols },
     }))?;
+    if !state.manifest.extensions.is_empty() {
+        manifest
+            .host_extensions
+            .insert(HostKind::Harness, state.manifest.extensions.clone());
+    }
     let payload = serde_jcs::to_string(&manifest)?;
 
     let key = state
