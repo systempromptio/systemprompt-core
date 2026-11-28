@@ -126,11 +126,13 @@ pub(super) struct ProcessTree {
 
 impl ProcessTree {
     fn attach(child: &Child) -> Self {
-        let tree = Host::adopt(child)
-            .inspect_err(|error| {
+        let tree = match Host::adopt(child) {
+            Ok(tree) => Some(tree),
+            Err(error) => {
                 tracing::warn!(error = %error, "shell command is not tracked as a process tree");
-            })
-            .ok();
+                None
+            },
+        };
         Self { tree }
     }
 

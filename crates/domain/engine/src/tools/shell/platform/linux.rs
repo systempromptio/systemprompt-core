@@ -103,7 +103,13 @@ fn charset_named(codeset: &str) -> Option<&'static Encoding> {
               child before it execs"
 )]
 fn arm_parent_death_signal(command: &mut Command) {
-    let engine = libc::pid_t::try_from(std::process::id()).ok();
+    let engine = match libc::pid_t::try_from(std::process::id()) {
+        Ok(engine) => Some(engine),
+        Err(error) => {
+            tracing::warn!(error = %error, "the engine's process id is not a pid_t; the parent check is skipped");
+            None
+        },
+    };
     // SAFETY: the closure runs in the forked child between `fork` and `execve`,
     // where only async-signal-safe calls are permitted. `prctl` and `getppid` are
     // on that list, and building an error from an errno neither allocates nor

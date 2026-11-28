@@ -48,7 +48,7 @@ async fn a_timeout_ends_the_job_with_everything_in_it() {
 }
 
 #[tokio::test]
-async fn output_that_is_not_utf8_is_read_in_the_console_code_page() {
+async fn output_that_is_not_utf8_keeps_one_character_for_the_byte_and_its_neighbours() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(
         dir.path().join("legacy.txt"),
@@ -60,7 +60,10 @@ async fn output_that_is_not_utf8_is_read_in_the_console_code_page() {
         .run(json!({"command": "type legacy.txt"}), &ctx)
         .await
         .unwrap();
-    assert!(out.output.starts_with('a'));
-    assert!(out.output.trim_end().ends_with('b'));
-    assert!(!out.output.contains('\u{FFFD}'));
+    // Why: which character the byte becomes depends on the console code page of
+    // the machine (a UTF-8 console has none for it), so only the shape is fixed.
+    let line: Vec<char> = out.output.trim_end().chars().collect();
+    assert_eq!(line.len(), 3, "{:?}", out.output);
+    assert_eq!(line[0], 'a');
+    assert_eq!(line[2], 'b');
 }
