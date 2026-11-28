@@ -17,8 +17,8 @@ use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 
 use super::decode::Decoder;
+use super::platform::ProcessTree;
 use super::select::{ShellKind, ShellSpec};
-use super::tree::ProcessTree;
 use crate::tools::error::ToolError;
 
 const PS_PRELUDE: &str = "$ProgressPreference = 'SilentlyContinue'; try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}; $OutputEncoding = [System.Text.Encoding]::UTF8; ";
