@@ -17,3 +17,4 @@ mod manifest;
 mod plans;
 mod streams;
 mod support;
+mod switches;

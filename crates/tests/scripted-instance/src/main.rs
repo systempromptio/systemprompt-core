@@ -9,8 +9,25 @@ use std::path::PathBuf;
 use anyhow::Context;
 use clap::Parser;
 use systemprompt_scripted_instance::{
-    ManifestFixture, ModelFixture, ModelScript, PluginFixture, ScriptedInstance, VerdictScript,
+    ManifestFault, ManifestFixture, ModelFixture, ModelScript, PluginFixture, ScriptedInstance,
+    TestPat, VerdictScript,
 };
+
+#[derive(Debug, Clone)]
+struct SeededDocument {
+    path: String,
+    file: PathBuf,
+}
+
+fn seeded_document(value: &str) -> Result<SeededDocument, String> {
+    match value.split_once('=') {
+        Some((path, file)) if !path.is_empty() && !file.is_empty() => Ok(SeededDocument {
+            path: path.to_owned(),
+            file: PathBuf::from(file),
+        }),
+        _ => Err("expected <PATH>=<FILE>: the Drive path, then the local file".to_owned()),
+    }
+}
 
 #[derive(Debug, Parser)]
 #[command(
@@ -53,6 +70,29 @@ struct Cli {
         help = "List a plugin that owns the governance hooks, so verdicts are asked"
     )]
     governance_plugin: Option<String>,
+
+    #[arg(
+        long,
+        value_enum,
+        value_name = "FAULT",
+        help = "Serve the manifest with this fault"
+    )]
+    manifest_fault: Option<ManifestFault>,
+
+    #[arg(
+        long,
+        value_name = "TEXT",
+        help = "The personal access token the instance accepts, in place of the fixture's"
+    )]
+    pat: Option<String>,
+
+    #[arg(
+        long = "document",
+        value_name = "PATH=FILE",
+        value_parser = seeded_document,
+        help = "Start the Drive store with a document at PATH holding the bytes of FILE"
+    )]
+    documents: Vec<SeededDocument>,
 }
 
 #[tokio::main]
@@ -88,6 +128,10 @@ async fn main() -> anyhow::Result<()> {
         Some(id) => ManifestFixture::minimal().with_plugin(PluginFixture::governance(id)),
         None => ManifestFixture::minimal(),
     };
+    let manifest = match cli.manifest_fault {
+        Some(fault) => manifest.with_fault(fault),
+        None => manifest,
+    };
     let mut builder = ScriptedInstance::builder()
         .port(cli.port)
         .manifest(manifest)
@@ -96,6 +140,14 @@ async fn main() -> anyhow::Result<()> {
         .script(script);
     if let Some(reply) = cli.title_reply {
         builder = builder.title_reply(reply);
+    }
+    if let Some(pat) = cli.pat {
+        builder = builder.pat(TestPat::new(pat));
+    }
+    for document in cli.documents {
+        let bytes = std::fs::read(&document.file)
+            .with_context(|| format!("failed to read {}", document.file.display()))?;
+        builder = builder.document(document.path, bytes);
     }
     let instance = builder
         .start()

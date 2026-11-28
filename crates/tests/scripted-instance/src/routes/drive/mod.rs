@@ -20,11 +20,11 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use chrono::{TimeDelta, Utc};
 use serde_json::{Map, json};
-use systemprompt_identifiers::{ContentHash, DocumentId, DocumentRevisionId};
+use systemprompt_identifiers::ContentHash;
 use systemprompt_models::documents::{
     DRIVE_SYNC_AUDIENCE, DocumentFormat, DriveChangeKind, DriveChanges, DriveCommitMeta,
-    DriveCommitResponse, DriveEntry, DriveManifest, DriveMoveRequest, DriveSyncToken,
-    DriveTrashRequest, DriveTrashResponse, content_hash,
+    DriveCommitResponse, DriveManifest, DriveMoveRequest, DriveSyncToken, DriveTrashRequest,
+    DriveTrashResponse, content_hash,
 };
 
 pub(crate) use self::store::DriveStore;
@@ -167,27 +167,7 @@ pub(crate) async fn commit(
         };
         return (StatusCode::CONFLICT, Json(outcome)).into_response();
     }
-    let kind = if held.is_some() {
-        DriveChangeKind::Updated
-    } else {
-        DriveChangeKind::Created
-    };
-    let entry = DriveEntry {
-        document_id: held
-            .map(|head| head.document_id)
-            .or(meta.document_id)
-            .unwrap_or_else(DocumentId::generate),
-        format: format_of(&meta.path),
-        path: meta.path,
-        head_revision_id: DocumentRevisionId::generate(),
-        content_sha256: meta.content_sha256,
-        size_bytes: u64::try_from(bytes.len()).unwrap_or(u64::MAX),
-        updated_at: Utc::now(),
-    };
-    drive.blobs.insert(entry.content_sha256.clone(), bytes);
-    drive.note(&entry, kind);
-    let revision_id = entry.head_revision_id.clone();
-    drive.documents.insert(entry.document_id.clone(), entry);
+    let revision_id = drive.write(meta.document_id, meta.path, bytes);
     drop(drive);
     Json(DriveCommitResponse::Committed { revision_id }).into_response()
 }
