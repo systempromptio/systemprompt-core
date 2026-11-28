@@ -4,7 +4,7 @@
 
 use serde_json::json;
 use systemprompt_engine::run::PermissionAsk;
-use systemprompt_engine::store::ToolState;
+use systemprompt_engine::store::{PartBody, Role, ToolState};
 
 use super::helpers::{add_skill, asking_before_reads, outside, run, run_approving};
 use crate::support::{Scripted, Setup, read_turn, text_turn, tool_states, tool_turn};
@@ -114,6 +114,44 @@ async fn a_read_is_asked_about_under_the_resolved_file_and_the_call_that_made_it
         ),
         "{states:?}"
     );
+    scripted.finish().await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_tool_call_runs_under_its_session_its_reply_and_the_models_call_id() {
+    let scripted = Scripted::with(
+        vec![
+            tool_turn("call-9", "read", json!({"path": "notes.txt"})),
+            text_turn("ok"),
+        ],
+        asking_before_reads(),
+    )
+    .await;
+    let id = scripted.session().await;
+    let settled = run_approving(&scripted, &id, "Read the notes").await;
+    let [ask] = settled.asks.as_slice() else {
+        panic!("{:?}", settled.asks);
+    };
+    assert_eq!(ask.session, id);
+    assert_eq!(ask.call_id.as_str(), "call-9");
+    assert_eq!(ask.tool, "read");
+    let messages = scripted.messages(&id).await;
+    let holders: Vec<_> = messages
+        .iter()
+        .flat_map(|message| message.parts.iter().map(move |part| (message, part)))
+        .filter_map(|(message, part)| match &part.body {
+            PartBody::Tool { call_id, tool, .. } => Some((message, part, call_id, tool)),
+            _ => None,
+        })
+        .collect();
+    let [(message, part, call_id, tool)] = holders.as_slice() else {
+        panic!("{messages:?}");
+    };
+    assert_eq!(call_id.as_str(), "call-9");
+    assert_eq!(tool.as_str(), "read");
+    assert_eq!(part.session_id, id);
+    assert_eq!(&part.message_id, message.message.id());
+    assert_eq!(message.message.role(), Role::Assistant);
     scripted.finish().await;
 }
 

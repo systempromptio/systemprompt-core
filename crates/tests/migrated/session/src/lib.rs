@@ -18,6 +18,8 @@ mod compaction_run_tests;
 mod compaction_tests;
 #[cfg(test)]
 mod feed_tests;
+#[cfg(all(test, unix))]
+mod format_tests;
 #[cfg(test)]
 mod loop_tests;
 #[cfg(test)]
