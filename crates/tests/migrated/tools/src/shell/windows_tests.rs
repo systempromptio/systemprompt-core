@@ -67,7 +67,7 @@ async fn output_arrives_in_order_with_the_exit_code() {
     assert_eq!(lines, ["one", "two", "[Exit code: 3]"], "{}", out.output);
     assert_eq!(out.metadata["exit_code"], 3);
     let silent = run(&project, &cmd(), "exit /b 0").await.ok();
-    assert_eq!(silent.output.trim(), "");
+    assert_eq!(silent.output.trim(), "(no output)");
     assert_eq!(silent.metadata["exit_code"], 0);
 }
 

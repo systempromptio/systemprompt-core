@@ -54,6 +54,9 @@ async fn exit_of(mut child: Child) -> ExitStatus {
 #[tokio::test]
 async fn second_launch_process() {
     let Some(root) = std::env::var_os(HELPER_ROOT).map(PathBuf::from) else {
+        // skip-ok: this test is the second process another test starts with the data
+        // root in its environment; run on its own it has no first process to
+        // hand off to
         return;
     };
     let expect = std::env::var(HELPER_EXPECT).expect("the helper names its outcome");

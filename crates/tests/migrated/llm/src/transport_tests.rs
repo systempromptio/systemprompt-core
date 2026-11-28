@@ -222,6 +222,8 @@ async fn proxy_variables_route_requests_and_no_proxy_hosts_bypass_the_proxy() {
             "proxied" => assert!(outcome.is_ok(), "{outcome:?}"),
             _ => assert!(outcome.is_err(), "the bypassed host answered"),
         }
+        // skip-ok: this is the child process, which has made its one request; the
+        // parent run below asserts on its exit status
         return;
     }
     for name in ["HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"] {
