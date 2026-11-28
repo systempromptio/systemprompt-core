@@ -13,7 +13,7 @@ mod enable;
 mod names_unicode;
 #[cfg(test)]
 mod notices;
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod placement_race;
 #[cfg(test)]
 mod presence;

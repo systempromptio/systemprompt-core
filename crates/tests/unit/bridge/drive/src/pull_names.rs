@@ -1,3 +1,4 @@
+#[cfg(unix)]
 use systemprompt_bridge::drive::DriveError;
 use systemprompt_bridge::drive::names::{PathRefusal, case_collision, portable_segment};
 use systemprompt_bridge::drive::pull::pull;

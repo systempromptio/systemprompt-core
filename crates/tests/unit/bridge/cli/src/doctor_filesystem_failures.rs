@@ -2,9 +2,9 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
 use systemprompt_bridge::cli::doctor::Status;
-use systemprompt_bridge::cli::doctor::filesystem::{
-    check_bridge_working_dir, check_org_plugins_writable, check_private_files,
-};
+#[cfg(not(target_os = "macos"))]
+use systemprompt_bridge::cli::doctor::filesystem::check_org_plugins_writable;
+use systemprompt_bridge::cli::doctor::filesystem::{check_bridge_working_dir, check_private_files};
 use tempfile::TempDir;
 
 struct Sandbox {
@@ -35,6 +35,7 @@ impl Sandbox {
             .join("systemprompt-bridge.toml")
     }
 
+    #[cfg(not(target_os = "macos"))]
     fn user_org_plugins(&self) -> PathBuf {
         self.data.path().join("Claude").join("org-plugins")
     }

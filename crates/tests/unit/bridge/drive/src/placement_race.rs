@@ -15,7 +15,6 @@ fn is_symlink_refusal(err: &DriveError) -> bool {
     )
 }
 
-#[cfg(unix)]
 #[test]
 fn a_folder_swapped_for_a_link_after_the_check_is_never_written_through() {
     let fx = Fixture::new("http://127.0.0.1:9");
@@ -32,7 +31,6 @@ fn a_folder_swapped_for_a_link_after_the_check_is_never_written_through() {
     assert!(!outside.path().join("escape.md").exists());
 }
 
-#[cfg(unix)]
 #[test]
 fn a_move_into_a_folder_swapped_for_a_link_is_refused() {
     let fx = Fixture::new("http://127.0.0.1:9");
