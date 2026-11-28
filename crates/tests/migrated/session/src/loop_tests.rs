@@ -167,7 +167,7 @@ async fn interrupting_a_streaming_step_ends_the_turn_and_marks_the_reply_aborted
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "parity ledger: an interrupt clears the inbox, so queued prompts are dropped"]
+#[ignore = "parity ledger: an interrupt keeps held steers but drops queued prompts"]
 async fn queued_input_survives_an_interrupt_for_a_later_turn() {
     let scripted =
         Scripted::start(vec![stalled(text_turn("slow"), 20_000), text_turn("later")]).await;
