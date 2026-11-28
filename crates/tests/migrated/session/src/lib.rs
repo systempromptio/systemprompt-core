@@ -13,17 +13,29 @@
 #[cfg(test)]
 mod ask_tests;
 #[cfg(test)]
+mod compaction_run_tests;
+#[cfg(test)]
 mod compaction_tests;
 #[cfg(test)]
 mod feed_tests;
+#[cfg(all(test, unix))]
+mod format_tests;
 #[cfg(test)]
 mod loop_tests;
+#[cfg(test)]
+mod request_mapping_tests;
 #[cfg(test)]
 mod retry_tests;
 #[cfg(test)]
 mod revert_tests;
 #[cfg(test)]
+mod session_tests;
+#[cfg(test)]
+mod settlement_tests;
+#[cfg(test)]
 mod store_tests;
+#[cfg(test)]
+mod stream_failure_tests;
 #[cfg(test)]
 mod subagent_tests;
 #[cfg(test)]
@@ -32,3 +44,5 @@ mod support;
 mod title_tests;
 #[cfg(test)]
 mod tools_tests;
+#[cfg(test)]
+mod workspace_tests;
