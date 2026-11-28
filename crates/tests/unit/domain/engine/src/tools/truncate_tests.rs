@@ -88,3 +88,25 @@ async fn spills_full_text_to_data_dir() {
     assert!(result.text.starts_with("line 1\n"));
     assert!(result.text.contains("45 more lines"));
 }
+
+#[tokio::test]
+async fn a_cut_inside_a_code_fence_closes_it_or_drops_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let text = "intro\n> ```\n> code\n> more\n> ```\nafter\n".to_owned();
+    let limits = |max_bytes| OutputLimits {
+        max_lines: 100,
+        max_bytes,
+    };
+    let closed = truncate_output(text.clone(), limits(25), Keep::Head, dir.path(), "a").await;
+    assert!(
+        closed.text.starts_with("intro\n> ```\n> code\n> ```\n"),
+        "{}",
+        closed.text
+    );
+    let dropped = truncate_output(text, limits(16), Keep::Head, dir.path(), "b").await;
+    assert!(
+        dropped.text.starts_with("intro\n\n[Output truncated"),
+        "{}",
+        dropped.text
+    );
+}

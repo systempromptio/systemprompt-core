@@ -36,11 +36,12 @@ pub enum Dialect {
 pub struct Segment {
     pub words: Vec<String>,
     pub redirects: Vec<String>,
+    quoted_names: Vec<usize>,
 }
 
-const POSIX_SKIPPED: [&str; 14] = [
+const POSIX_SKIPPED: [&str; 15] = [
     "{", "}", "!", "if", "then", "else", "elif", "fi", "do", "done", "while", "until", "time",
-    "exec",
+    "exec", "coproc",
 ];
 const NULL_DEVICES: [&str; 5] = ["/dev/null", "/dev/stdout", "/dev/stderr", "nul", "$null"];
 
@@ -94,7 +95,10 @@ impl Segment {
         let mut start = 0;
         while let Some(word) = words.get(start) {
             match dialect {
-                Dialect::Posix if is_assignment(word) || POSIX_SKIPPED.contains(&word.as_str()) => {
+                Dialect::Posix
+                    if (is_assignment(word) && !self.quoted_names.contains(&start))
+                        || POSIX_SKIPPED.contains(&word.as_str()) =>
+                {
                     start += 1;
                 },
                 Dialect::PowerShell if word.starts_with('$') => {

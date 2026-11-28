@@ -139,3 +139,76 @@ fn path_words_cut_globs_and_flags() {
         ["../build/", "/tmp/x", "~/notes"]
     );
 }
+
+#[test]
+fn quoted_digits_before_a_redirect_are_a_word_not_a_descriptor() {
+    let segments = split_commands("'2'>out run", Dialect::Posix);
+    assert_eq!(segments[0].words, ["2", "run"]);
+    assert_eq!(segments[0].redirects, ["out"]);
+    let bare = split_commands("run 2>out", Dialect::Posix);
+    assert_eq!(bare[0].words, ["run"]);
+    assert_eq!(heads("\"A\"=1 run", Dialect::Posix), ["A=1"]);
+}
+
+#[test]
+fn ansi_c_quoting_decodes_escapes_and_keeps_unknown_ones() {
+    let segments = split_commands(r"printf $'a\tb\x41\101\q' $'/tmp/x'", Dialect::Posix);
+    assert_eq!(segments[0].words, ["printf", "a\tbAA\\q", "/tmp/x"]);
+    assert!(
+        segments[0]
+            .path_words(Dialect::Posix)
+            .contains(&"/tmp/x".to_owned())
+    );
+}
+
+#[test]
+fn here_document_bodies_are_skipped_and_only_their_expansions_scanned() {
+    assert_eq!(
+        heads("cat <<-'X' >out\n\trm a\n\tX\nls", Dialect::Posix),
+        ["cat", "ls"]
+    );
+    assert_eq!(
+        heads("cat <<X\nrm $(whoami)\nX\nls", Dialect::Posix),
+        ["cat", "ls", "whoami"]
+    );
+    assert_eq!(heads("cat <<<word; ls", Dialect::Posix), ["cat", "ls"]);
+}
+
+#[test]
+fn arithmetic_is_one_word_whose_substitutions_are_still_scanned() {
+    let segments = split_commands("echo $((1 + $(id -u))) \"$((2))\"", Dialect::Posix);
+    assert_eq!(segments[0].words, ["echo", "$((1 + $(id -u)))", "$((2))"]);
+    assert_eq!(
+        heads("echo $((1 + $(id -u)))", Dialect::Posix),
+        ["echo", "id"]
+    );
+}
+
+#[test]
+fn the_command_after_coproc_is_the_head() {
+    assert_eq!(heads("coproc git status", Dialect::Posix), ["git"]);
+}
+
+#[test]
+fn a_carriage_return_ends_a_comment_in_every_dialect() {
+    assert_eq!(heads("# note\rrm x", Dialect::Posix), ["rm"]);
+    assert_eq!(
+        heads("# note\rRemove-Item x", Dialect::PowerShell),
+        ["remove-item"]
+    );
+}
+
+#[test]
+fn a_parenthesis_in_a_comment_or_braced_variable_does_not_end_a_substitution() {
+    assert_eq!(
+        heads(
+            "Write-Output $(Get-Item a # note )\nRemove-Item b)",
+            Dialect::PowerShell
+        ),
+        ["write-output", "get-item", "remove-item"]
+    );
+    assert_eq!(
+        heads("echo $(printf ${x#)} ; rm y)", Dialect::Posix),
+        ["echo", "printf", "rm"]
+    );
+}

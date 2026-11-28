@@ -10,6 +10,13 @@ use super::{Dialect, Segment};
 const MAX_DEPTH: usize = 64;
 
 #[derive(Debug)]
+pub(super) struct HereDocument {
+    delimiter: String,
+    strip_tabs: bool,
+    expands: bool,
+}
+
+#[derive(Debug)]
 pub(super) struct Lexer {
     pub(super) chars: Vec<char>,
     pub(super) at: usize,
@@ -20,6 +27,9 @@ pub(super) struct Lexer {
     pub(super) word: String,
     pub(super) has_word: bool,
     pub(super) redirect_next: bool,
+    pub(super) quoted_at: Option<usize>,
+    pub(super) here_next: Option<bool>,
+    pub(super) here_documents: Vec<HereDocument>,
     pub(super) depth: usize,
     pub(super) too_deep: bool,
 }
@@ -36,6 +46,9 @@ impl Lexer {
             word: String::new(),
             has_word: false,
             redirect_next: false,
+            quoted_at: None,
+            here_next: None,
+            here_documents: Vec::new(),
             depth,
             too_deep: depth > MAX_DEPTH,
         }
@@ -50,18 +63,34 @@ impl Lexer {
         self.has_word = true;
     }
 
+    pub(super) const fn mark_quoted(&mut self) {
+        if self.quoted_at.is_none() {
+            self.quoted_at = Some(self.word.len());
+        }
+    }
+
     pub(super) fn flush_word(&mut self) {
         if !self.has_word {
             return;
         }
         let word = std::mem::take(&mut self.word);
-        if self.redirect_next {
+        let quoted_at = self.quoted_at.take();
+        if let Some(strip_tabs) = self.here_next.take() {
+            self.here_documents.push(HereDocument {
+                delimiter: word,
+                strip_tabs,
+                expands: quoted_at.is_none(),
+            });
+        } else if self.redirect_next {
             self.current.redirects.push(word);
             self.redirect_next = false;
         } else {
             if self.opens_function_body(&word) {
                 let definition = std::mem::take(&mut self.current);
                 self.segments.push(definition);
+            }
+            if quoted_at.is_some_and(|at| word.find('=').is_some_and(|equals| at <= equals)) {
+                self.current.quoted_names.push(self.current.words.len());
             }
             self.current.words.push(word);
         }
@@ -77,6 +106,7 @@ impl Lexer {
     pub(super) fn end_segment(&mut self) {
         self.flush_word();
         self.redirect_next = false;
+        self.here_next = None;
         let segment = std::mem::take(&mut self.current);
         if !segment.words.is_empty() || !segment.redirects.is_empty() {
             self.segments.push(segment);
@@ -93,7 +123,12 @@ impl Lexer {
                     self.flush_word();
                     self.at += 1;
                 },
-                '\n' | '\r' => {
+                '\n' => {
+                    self.end_segment();
+                    self.at += 1;
+                    self.here_bodies();
+                },
+                '\r' => {
                     self.end_segment();
                     self.at += 1;
                 },
@@ -115,7 +150,7 @@ impl Lexer {
 
     pub(super) fn skip_comment(&mut self) {
         while let Some(c) = self.peek(0) {
-            if c == '\n' {
+            if matches!(c, '\n' | '\r') {
                 break;
             }
             self.at += 1;
@@ -123,6 +158,7 @@ impl Lexer {
     }
 
     pub(super) fn quoted_literal(&mut self, quote: char, doubled_escape: bool) {
+        self.mark_quoted();
         self.at += 1;
         self.has_word = true;
         while let Some(c) = self.peek(0) {
@@ -143,6 +179,7 @@ impl Lexer {
         let mut depth = 0usize;
         let mut quote: Option<char> = None;
         let mut out = String::new();
+        let mut previous: Option<char> = None;
         while let Some(c) = self.peek(0) {
             self.at += 1;
             if let Some(open) = quote {
@@ -150,10 +187,21 @@ impl Lexer {
                     quote = None;
                 }
                 out.push(c);
+                previous = Some(c);
                 continue;
             }
             match c {
                 '\'' | '"' => quote = Some(c),
+                '#' if depth > 0 && self.starts_comment(previous) => {
+                    self.skip_comment();
+                    continue;
+                },
+                '$' if self.peek(0) == Some('{') => {
+                    out.push(c);
+                    self.take_braced(&mut out);
+                    previous = Some('}');
+                    continue;
+                },
                 '(' => {
                     depth += 1;
                     if depth == 1 {
@@ -169,8 +217,37 @@ impl Lexer {
                 _ => {},
             }
             out.push(c);
+            previous = Some(c);
         }
         out
+    }
+
+    const fn starts_comment(&self, previous: Option<char>) -> bool {
+        match (self.dialect, previous) {
+            (Dialect::Cmd, _) => false,
+            (_, None) => true,
+            (_, Some(c)) if c.is_whitespace() => true,
+            (Dialect::PowerShell, Some(c)) => matches!(c, '(' | ')' | '{' | '}' | ';' | '|' | '&'),
+            (Dialect::Posix, Some(c)) => matches!(c, '(' | ';' | '|' | '&'),
+        }
+    }
+
+    fn take_braced(&mut self, out: &mut String) {
+        let mut depth = 0usize;
+        while let Some(c) = self.peek(0) {
+            self.at += 1;
+            out.push(c);
+            match c {
+                '{' => depth += 1,
+                '}' => {
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        return;
+                    }
+                },
+                _ => {},
+            }
+        }
     }
 
     pub(super) fn substitution(&mut self) {
@@ -187,15 +264,66 @@ impl Lexer {
         }
     }
 
-    pub(super) fn redirect(&mut self) {
-        let descriptor =
-            self.has_word && (self.word.chars().all(|c| c.is_ascii_digit()) || self.word == "*");
+    fn here_bodies(&mut self) {
+        for document in std::mem::take(&mut self.here_documents) {
+            while self.at < self.chars.len() {
+                let start = self.at;
+                let end = self.chars[start..]
+                    .iter()
+                    .position(|&c| c == '\n')
+                    .map_or(self.chars.len(), |offset| start + offset);
+                self.at = (end + 1).min(self.chars.len());
+                let line: String = self.chars[start..end].iter().collect();
+                let line = line.strip_suffix('\r').unwrap_or(&line);
+                let compared = if document.strip_tabs {
+                    line.trim_start_matches('\t')
+                } else {
+                    line
+                };
+                if compared == document.delimiter {
+                    break;
+                }
+                if document.expands {
+                    self.expansions(line);
+                }
+            }
+        }
+    }
+
+    pub(super) fn expansions(&mut self, text: &str) {
+        let mut inner = Self::new(text, self.dialect, self.depth + 1);
+        inner.double_body(false);
+        if inner.too_deep {
+            self.too_deep = true;
+        }
+        self.nested.extend(inner.segments);
+        self.nested.extend(inner.nested);
+    }
+
+    pub(super) fn here_document(&mut self) {
+        self.take_descriptor();
+        self.at += 2;
+        let strip_tabs = self.peek(0) == Some('-');
+        if strip_tabs {
+            self.at += 1;
+        }
+        self.here_next = Some(strip_tabs);
+    }
+
+    fn take_descriptor(&mut self) {
+        let descriptor = self.has_word
+            && self.quoted_at.is_none()
+            && (self.word.chars().all(|c| c.is_ascii_digit()) || self.word == "*");
         if descriptor {
             self.word.clear();
             self.has_word = false;
         } else {
             self.flush_word();
         }
+    }
+
+    pub(super) fn redirect(&mut self) {
+        self.take_descriptor();
         self.at += 1;
         while matches!(self.peek(0), Some('>' | '<' | '|')) {
             self.at += 1;
