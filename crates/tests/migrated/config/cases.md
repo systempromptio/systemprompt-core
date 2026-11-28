@@ -1,50 +1,50 @@
 # Migrated configuration tests: per-case results
 
-Batch 2 of the reference-test migration (lane S2-B3). Each catalogue row of this batch is replaced here by one row per case, in the columns of `documentation/future/harness/testing/04-test-migration.md` section 2. `target` names a test as `<crate>::<module>::<function>`, where `config` is `systemprompt-migrated-config-tests` and `session` is `systemprompt-migrated-session-tests`; a `covered` target names an existing test elsewhere. `state` is `passing`, `ledger` (the harness differs; the test, when there is one, is `#[ignore = "parity ledger: ..."]` and asserts the reference behaviour, and `note` gives the observed value) or `open` (not written; `note` says why).
+Batch 2 of the reference-test migration (lane S2-B3). Each catalogue row of this batch is replaced here by one row per case, in the columns of `documentation/future/harness/testing/04-test-migration.md` section 2. `target` names a test as `<crate>::<module>::<function>`, where `config` is `systemprompt-migrated-config-tests` and `session` is `systemprompt-migrated-session-tests`; a `covered` target names an existing test elsewhere. `state` is `passing`, `ledger` (the harness differs; the test, when there is one, is `#[ignore = "parity ledger: ..."]` and asserts the reference behaviour, and `note` gives the observed value) `written` (a test exists that has not yet been run by the integrator) or `open` (not written; `note` says why).
 
-Cases: 199 over 37 catalogue rows. ported 135, covered 4, not applicable 34, deferred 0, difference 20, open 6.
+Cases: 199 over 37 catalogue rows. ported 135, covered 5, not applicable 34, deferred 0, difference 23, open 0, written 2.
 
 ## Rows
 
-| row | source | scope | cases | ported | covered | n/a | deferred | difference | open |
-|---|---|---|---|---|---|---|---|---|---|
-| AUI-87f43a30 | `packages/app/src/providers/models/agent.test.ts` |  | 2 | 2 | 0 | 0 | 0 | 0 | 0 |
-| AUI-dc59bfdb | `packages/app/src/settings/workspaces/project-lsp.test.ts` |  | 3 | 3 | 0 | 0 | 0 | 0 | 0 |
-| ENG-32c83534.1 | `packages/core/test/agent.test.ts` | cases about default ordering and built-in agent permissions | 3 | 2 | 0 | 0 | 0 | 1 | 0 |
-| ENG-b25903a9 | `packages/core/test/config/agent.test.ts` |  | 18 | 14 | 0 | 4 | 0 | 0 | 0 |
-| ENG-9f03c999.2 | `packages/core/test/config/command.test.ts` | cases about reloading on file changes | 5 | 5 | 0 | 0 | 0 | 0 | 0 |
-| ENG-5b32fe8b | `packages/core/test/config/compaction.test.ts` |  | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
-| ENG-eee2b4c4.1 | `packages/core/test/config/config.test.ts` | cases about discovery, layering, substitution and overrides | 16 | 6 | 2 | 4 | 0 | 4 | 0 |
-| ENG-eee2b4c4.2 | `packages/core/test/config/config.test.ts` | cases about watching and reloading | 7 | 6 | 0 | 0 | 0 | 1 | 0 |
-| ENG-6b14bdbe | `packages/core/test/config/discovery.test.ts` |  | 3 | 1 | 0 | 1 | 0 | 0 | 1 |
-| ENG-e7da378b | `packages/core/test/config/entry-observer.test.ts` |  | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
-| ENG-699bf0ff.2 | `packages/core/test/config/markdown.test.ts` | cases about repair edge cases and repeatability | 11 | 8 | 1 | 0 | 0 | 2 | 0 |
-| ENG-397ffe19 | `packages/core/test/config/model.test.ts` |  | 2 | 2 | 0 | 0 | 0 | 0 | 0 |
-| ENG-c21c79ed.1 | `packages/core/test/config/normalization.test.ts` | cases about tolerant decoding, per-entry recovery and diagnostics | 10 | 7 | 0 | 1 | 0 | 2 | 0 |
-| ENG-ac00faab | `packages/core/test/config/reload.test.ts` |  | 7 | 5 | 0 | 2 | 0 | 0 | 0 |
-| ENG-2841d499.1 | `packages/core/test/config/skill.test.ts` | cases about parsing, precedence and rescanning local skill directories | 11 | 10 | 0 | 1 | 0 | 0 | 0 |
-| ENG-f378bae6 | `packages/core/test/config/snapshot.test.ts` |  | 1 | 0 | 0 | 0 | 0 | 1 | 0 |
-| ENG-a7cef8c3 | `packages/core/test/config/watch.test.ts` |  | 2 | 2 | 0 | 0 | 0 | 0 | 0 |
-| ENG-39e0a118 | `packages/core/test/instance-vanilla.test.ts` |  | 1 | 0 | 0 | 1 | 0 | 0 | 0 |
-| ENG-77fb49ea | `packages/core/test/instruction-discovery.test.ts` |  | 14 | 8 | 0 | 2 | 0 | 3 | 1 |
-| ENG-6a70c726.2 | `packages/core/test/location-layer.test.ts` | disabling a built-in agent | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
-| ENG-9ea19c3a.1 | `packages/core/test/permission.test.ts` | rule evaluation and precedence | 19 | 12 | 0 | 4 | 0 | 2 | 1 |
-| ENG-9c4cca40 | `packages/core/test/plugin/command.test.ts` |  | 1 | 0 | 0 | 1 | 0 | 0 | 0 |
-| ENG-85d6a31a | `packages/core/test/plugin/plan.test.ts` |  | 6 | 1 | 1 | 0 | 0 | 1 | 3 |
-| CLI-a9bfd4e0.3 | `packages/cli/test/config.test.ts` | cross-process locking of settings writes | 2 | 0 | 0 | 0 | 0 | 2 | 0 |
-| CLI-9aa7ddae.2 | `packages/cli/test/debug-config.test.ts` | secret redaction | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
-| SRV-5d58e04b.1 | `packages/server/test/config.test.ts` | cases about listing configuration layers | 1 | 0 | 0 | 0 | 0 | 1 | 0 |
-| GPL-ded2881b.2 | `packages/gui-plugins/src/file/artifact.test.ts` | cases about front-matter parsing | 2 | 2 | 0 | 0 | 0 | 0 | 0 |
-| GPL-dac877e6 | `packages/plugin-browser/test/wildcard.test.ts` |  | 27 | 27 | 0 | 0 | 0 | 0 | 0 |
-| NRS-5e155f32 | `packages/cli-rs/crates/local/src/jsonc.rs` |  | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
-| NRS-a2041a6b | `packages/cli-rs/crates/local/src/paths.rs` |  | 5 | 0 | 0 | 5 | 0 | 0 | 0 |
-| NRS-9fe1300e | `packages/cli-rs/crates/local/src/watch.rs` |  | 5 | 3 | 0 | 2 | 0 | 0 | 0 |
-| NRS-704c3050.2 | `packages/cli-rs/crates/local/tests/all/config_interop.rs` | case about watching a not-yet-existing settings directory | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
-| NRS-55f17bf3.2 | `packages/cli-rs/crates/tui/src/plugins/host.rs` | re-created watched directory | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
-| OTH-6c23742c | `packages/schema/test/agent.test.ts` |  | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
-| OTH-5c9a8967.1 | `packages/schema/test/config.test.ts` | permission policy statement cases | 2 | 1 | 0 | 1 | 0 | 0 | 0 |
-| OTH-32b19ac5 | `packages/util/test/global-roots.test.ts` |  | 2 | 0 | 0 | 2 | 0 | 0 | 0 |
-| OTH-2b6a9e9d | `packages/util/test/global.test.ts` |  | 3 | 0 | 0 | 3 | 0 | 0 | 0 |
+| row | source | scope | cases | ported | covered | n/a | deferred | difference | open | written |
+|---|---|---|---|---|---|---|---|---|---|---|
+| AUI-87f43a30 | `packages/app/src/providers/models/agent.test.ts` |  | 2 | 2 | 0 | 0 | 0 | 0 | 0 | 0 |
+| AUI-dc59bfdb | `packages/app/src/settings/workspaces/project-lsp.test.ts` |  | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| ENG-32c83534.1 | `packages/core/test/agent.test.ts` | cases about default ordering and built-in agent permissions | 3 | 2 | 0 | 0 | 0 | 1 | 0 | 0 |
+| ENG-b25903a9 | `packages/core/test/config/agent.test.ts` |  | 18 | 14 | 0 | 4 | 0 | 0 | 0 | 0 |
+| ENG-9f03c999.2 | `packages/core/test/config/command.test.ts` | cases about reloading on file changes | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
+| ENG-5b32fe8b | `packages/core/test/config/compaction.test.ts` |  | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| ENG-eee2b4c4.1 | `packages/core/test/config/config.test.ts` | cases about discovery, layering, substitution and overrides | 16 | 6 | 2 | 4 | 0 | 4 | 0 | 0 |
+| ENG-eee2b4c4.2 | `packages/core/test/config/config.test.ts` | cases about watching and reloading | 7 | 6 | 0 | 0 | 0 | 1 | 0 | 0 |
+| ENG-6b14bdbe | `packages/core/test/config/discovery.test.ts` |  | 3 | 1 | 0 | 1 | 0 | 0 | 0 | 1 |
+| ENG-e7da378b | `packages/core/test/config/entry-observer.test.ts` |  | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| ENG-699bf0ff.2 | `packages/core/test/config/markdown.test.ts` | cases about repair edge cases and repeatability | 11 | 8 | 1 | 0 | 0 | 2 | 0 | 0 |
+| ENG-397ffe19 | `packages/core/test/config/model.test.ts` |  | 2 | 2 | 0 | 0 | 0 | 0 | 0 | 0 |
+| ENG-c21c79ed.1 | `packages/core/test/config/normalization.test.ts` | cases about tolerant decoding, per-entry recovery and diagnostics | 10 | 7 | 0 | 1 | 0 | 2 | 0 | 0 |
+| ENG-ac00faab | `packages/core/test/config/reload.test.ts` |  | 7 | 5 | 0 | 2 | 0 | 0 | 0 | 0 |
+| ENG-2841d499.1 | `packages/core/test/config/skill.test.ts` | cases about parsing, precedence and rescanning local skill directories | 11 | 10 | 0 | 1 | 0 | 0 | 0 | 0 |
+| ENG-f378bae6 | `packages/core/test/config/snapshot.test.ts` |  | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 |
+| ENG-a7cef8c3 | `packages/core/test/config/watch.test.ts` |  | 2 | 2 | 0 | 0 | 0 | 0 | 0 | 0 |
+| ENG-39e0a118 | `packages/core/test/instance-vanilla.test.ts` |  | 1 | 0 | 0 | 1 | 0 | 0 | 0 | 0 |
+| ENG-77fb49ea | `packages/core/test/instruction-discovery.test.ts` |  | 14 | 8 | 0 | 2 | 0 | 4 | 0 | 0 |
+| ENG-6a70c726.2 | `packages/core/test/location-layer.test.ts` | disabling a built-in agent | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| ENG-9ea19c3a.1 | `packages/core/test/permission.test.ts` | rule evaluation and precedence | 19 | 12 | 0 | 4 | 0 | 3 | 0 | 0 |
+| ENG-9c4cca40 | `packages/core/test/plugin/command.test.ts` |  | 1 | 0 | 0 | 1 | 0 | 0 | 0 | 0 |
+| ENG-85d6a31a | `packages/core/test/plugin/plan.test.ts` |  | 6 | 1 | 2 | 0 | 0 | 2 | 0 | 1 |
+| CLI-a9bfd4e0.3 | `packages/cli/test/config.test.ts` | cross-process locking of settings writes | 2 | 0 | 0 | 0 | 0 | 2 | 0 | 0 |
+| CLI-9aa7ddae.2 | `packages/cli/test/debug-config.test.ts` | secret redaction | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| SRV-5d58e04b.1 | `packages/server/test/config.test.ts` | cases about listing configuration layers | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 |
+| GPL-ded2881b.2 | `packages/gui-plugins/src/file/artifact.test.ts` | cases about front-matter parsing | 2 | 2 | 0 | 0 | 0 | 0 | 0 | 0 |
+| GPL-dac877e6 | `packages/plugin-browser/test/wildcard.test.ts` |  | 27 | 27 | 0 | 0 | 0 | 0 | 0 | 0 |
+| NRS-5e155f32 | `packages/cli-rs/crates/local/src/jsonc.rs` |  | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| NRS-a2041a6b | `packages/cli-rs/crates/local/src/paths.rs` |  | 5 | 0 | 0 | 5 | 0 | 0 | 0 | 0 |
+| NRS-9fe1300e | `packages/cli-rs/crates/local/src/watch.rs` |  | 5 | 3 | 0 | 2 | 0 | 0 | 0 | 0 |
+| NRS-704c3050.2 | `packages/cli-rs/crates/local/tests/all/config_interop.rs` | case about watching a not-yet-existing settings directory | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| NRS-55f17bf3.2 | `packages/cli-rs/crates/tui/src/plugins/host.rs` | re-created watched directory | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| OTH-6c23742c | `packages/schema/test/agent.test.ts` |  | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| OTH-5c9a8967.1 | `packages/schema/test/config.test.ts` | permission policy statement cases | 2 | 1 | 0 | 1 | 0 | 0 | 0 | 0 |
+| OTH-32b19ac5 | `packages/util/test/global-roots.test.ts` |  | 2 | 0 | 0 | 2 | 0 | 0 | 0 | 0 |
+| OTH-2b6a9e9d | `packages/util/test/global.test.ts` |  | 3 | 0 | 0 | 3 | 0 | 0 | 0 | 0 |
 
 ## Cases
 
@@ -106,7 +106,7 @@ Cases: 199 over 37 catalogue rows. ported 135, covered 4, not applicable 34, def
 | ENG-eee2b4c4.2:948 | keeps watching a deleted config file so recreating it reloads | port |  | config::reload_tests::a_deleted_then_recreated_settings_file_is_noticed_both_times | unit | passing |  |
 | ENG-eee2b4c4.2:1621 | does not recursively watch ecosystem config roots | port |  | config::reload_tests::candidate_files_that_do_not_exist_yet_are_part_of_what_a_load_watches | unit | passing |  |
 | ENG-6b14bdbe:56 | skips resolve and stat calls for absent ancestor candidates while keeping watch paths | port |  | config::reload_tests::candidate_files_that_do_not_exist_yet_are_part_of_what_a_load_watches | unit | passing |  |
-| ENG-6b14bdbe:103 | falls back to direct candidate probes when listing an ancestor directory is denied | port |  |  | unit | open | not written: needs an unlistable ancestor directory fixture |
+| ENG-6b14bdbe:103 | falls back to direct candidate probes when listing an ancestor directory is denied | port | | config::reload_tests::settings_in_an_ancestor_that_cannot_be_listed_are_still_found | unit | written | |
 | ENG-6b14bdbe:130 | probes candidates when readDirectory reports a differently cased entry | not-applicable | reference-internal: probing strategy of the reference file reader |  | unit | - |  |
 | ENG-e7da378b:11 | closes the startup race and reloads later updates | port |  | config::reload_tests::the_first_settings_file_written_after_start_up_is_loaded | unit | passing |  |
 | ENG-699bf0ff.2:10 | recovers unquoted-colon frontmatter via the sanitize fallback | covered | same | systemprompt-engine-tests::config::frontmatter_tests::colon_in_plain_value_is_repaired | unit | passing |  |
@@ -167,7 +167,7 @@ Cases: 199 over 37 catalogue rows. ported 135, covered 4, not applicable 34, def
 | ENG-77fb49ea:646 | isolates source failure without failing activation | port |  | config::instruction_tests::an_unreadable_instruction_file_fails_alone | unit | passing |  |
 | ENG-77fb49ea:676 | marks a discovered file that disappears before read as unavailable | port |  | config::instruction_tests::a_missing_configured_file_is_reported_without_failing_the_load | unit | passing |  |
 | ENG-77fb49ea:711 | skips discovered files a sandbox denies and keeps the rest available | not-applicable | no-feature: sandboxed reads of instruction files |  | unit | - |  |
-| ENG-77fb49ea:743 | canonicalizes boundaries and honors project opt-out | port |  |  | unit | open | not written |
+| ENG-77fb49ea:743 | canonicalizes boundaries and honors project opt-out | port | | | unit | ledger | asserts: project instruction discovery can be turned off and its boundaries are canonicalised; observed by reading: config/instruction.rs collect has no switch that skips the project levels |
 | ENG-6a70c726.2:546 | allows the built-in Plan agent to be disabled | port |  | config::agent_tests::a_built_in_agent_disabled_in_settings_disappears | unit | passing |  |
 | ENG-9ea19c3a.1:111 | Permission.site saves a web URL's site as written, and only the URL itself when its site isn't plain | not-applicable | no-feature: saving a web site, rather than a URL, as an approval |  | unit | - |  |
 | ENG-9ea19c3a.1:132 | never reports an action as denied when evaluate leaves a resource reachable | port |  | config::permission_tests::a_blanket_deny_lifted_by_a_later_allow_no_longer_denies_everything | unit | passing |  |
@@ -184,17 +184,17 @@ Cases: 199 over 37 catalogue rows. ported 135, covered 4, not applicable 34, def
 | ENG-9ea19c3a.1:461 | preserves global ${action} asks and denies | port |  | config::permission_tests::global_asks_and_denies_survive_a_project_that_says_nothing_about_them | unit | passing |  |
 | ENG-9ea19c3a.1:491 | allows managed output reads without granting external directory access | port |  | config::permission_tests::the_engine_temporary_directory_is_reachable_without_opening_other_external_directories | unit | passing |  |
 | ENG-9ea19c3a.1:506 | uses build permissions when the Session agent is omitted | port |  | config::agent_tests::the_default_agent_is_the_configured_one_when_usable_otherwise_the_first_primary | unit | passing |  |
-| ENG-9ea19c3a.1:532 | denies omitted-agent permissions when no primary default agent exists | port |  |  | unit | open | not written |
+| ENG-9ea19c3a.1:532 | denies omitted-agent permissions when no primary default agent exists | port | | | unit | ledger | asserts: a permission question for a session with no agent and no primary default agent is denied; observed by reading: the step never reaches a question, it fails with EngineError::UnknownAgent (run/session/run.rs), so the outcome is a refusal by another route |
 | ENG-9ea19c3a.1:554 | evaluates bash with the normal configured-rule semantics | port |  | config::permission_tests::explicit_rules_allow_and_deny_without_asking_and_unmatched_subjects_ask | unit | passing |  |
 | ENG-9ea19c3a.1:567 | merges session rules after agent rules and before saved approvals | port |  | config::permission_tests::session_rules_apply_after_agent_rules | unit | passing |  |
 | ENG-9ea19c3a.1:595 | uses saved bash approvals while preserving configured deny precedence | port |  | config::permission_tests::a_saved_approval_never_overrides_a_configured_deny | unit | ledger | observed: Allow: the session approval layer is last and wins |
 | ENG-9c4cca40:36 | registers built-in init and review commands | not-applicable | no-feature: built-in project-initialisation and review commands (the harness ships compact, undo and redo) |  | unit | - |  |
 | ENG-85d6a31a:87 | gives the plan agent its own enter and leave texts without replacing its prompt | covered | same | systemprompt-engine-tests::prompt::notices_tests::plan_mode_names_the_plan_file_only_when_given | unit | passing |  |
-| ENG-85d6a31a:103 | does not create the Plan directory during activation | port |  |  | unit | open | not written |
+| ENG-85d6a31a:103 | does not create the Plan directory during activation | port | | config::permission_tests::building_the_planning_rules_creates_no_plan_directory | unit | written | |
 | ENG-85d6a31a:110 | allows edits only inside the Plan directory | port |  | config::permission_tests::in_planning_mode_only_the_plan_directory_may_be_written | unit | passing |  |
 | ENG-85d6a31a:121 | allows external directories without asking | port |  |  | unit | ledger | asserts: the plan agent reaches external directories without asking; observed: plan_defaults ask for external directories (only the engine temporary directory is allowed) |
-| ENG-85d6a31a:131 | rewrites blocked mutation failures with the Plan directory | port |  |  | unit | open | not written |
-| ENG-85d6a31a:153 | preserves mutation failures unrelated to permissions | port |  |  | unit | open | not written |
+| ENG-85d6a31a:131 | rewrites blocked mutation failures with the Plan directory | port | | | unit | ledger | asserts: a blocked edit, write or patch in planning mode fails with a message naming the Plan directory; observed by reading: the permission error is returned as is, nothing rewrites mutation failures |
+| ENG-85d6a31a:153 | preserves mutation failures unrelated to permissions | covered | same | migrated-tools::edit_tests::a_missing_file_is_named_and_creating_it_is_suggested | unit | | nothing rewrites tool failures, so a failure unrelated to permissions reaches the model unchanged; the named test asserts one such failure |
 | CLI-a9bfd4e0.3:427 | serializes migration and updates across processes | port |  |  | unit | ledger | asserts: concurrent writers to the global settings file are serialised by a lock; observed: update_global_setting writes atomically through a temporary file but takes no lock; two writers race (last rename wins) |
 | CLI-a9bfd4e0.3:466 | config reads remain interruptible while waiting for the file lock | port |  |  | unit | ledger | asserts: concurrent writers to the global settings file are serialised by a lock; observed: update_global_setting writes atomically through a temporary file but takes no lock; two writers race (last rename wins) |
 | CLI-9aa7ddae.2:99 | redacts URL credentials and credential environment variables without mutating config | port |  | config::settings_tests::server_credentials_never_appear_in_debug_output | unit | passing |  |
