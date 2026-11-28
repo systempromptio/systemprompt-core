@@ -350,6 +350,7 @@ parking_lot = "0.13"
 jsonc-parser = { version = "0.34", features = ["serde"] }
 httpdate = "1"
 dunce = "1.0"
+encoding_rs = "0.8"
 ignore = "0.4"
 similar = "2"
 which = "8"
