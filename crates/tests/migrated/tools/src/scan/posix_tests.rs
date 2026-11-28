@@ -340,7 +340,6 @@ fn whitespace_that_is_not_shell_whitespace_does_not_separate_words() {
 }
 
 #[test]
-#[ignore = "parity ledger: Lexer::redirect takes any all-digit word before a redirect as a descriptor, so a quoted or escaped 123 is dropped instead of staying the command name"]
 fn quoted_digits_before_a_redirect_stay_the_command_name() {
     for head in ["'123'", "\"123\"", "1\\23"] {
         let segments = split_commands(&format!("{head}>/dev/null argument"), Dialect::Posix);

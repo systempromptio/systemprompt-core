@@ -20,6 +20,7 @@ pub(super) struct Lexer {
     pub(super) word: String,
     pub(super) has_word: bool,
     pub(super) redirect_next: bool,
+    pub(super) quoted_at: Option<usize>,
     pub(super) depth: usize,
     pub(super) too_deep: bool,
 }
@@ -36,6 +37,7 @@ impl Lexer {
             word: String::new(),
             has_word: false,
             redirect_next: false,
+            quoted_at: None,
             depth,
             too_deep: depth > MAX_DEPTH,
         }
@@ -50,11 +52,18 @@ impl Lexer {
         self.has_word = true;
     }
 
+    pub(super) fn mark_quoted(&mut self) {
+        if self.quoted_at.is_none() {
+            self.quoted_at = Some(self.word.len());
+        }
+    }
+
     pub(super) fn flush_word(&mut self) {
         if !self.has_word {
             return;
         }
         let word = std::mem::take(&mut self.word);
+        let quoted_at = self.quoted_at.take();
         if self.redirect_next {
             self.current.redirects.push(word);
             self.redirect_next = false;
@@ -62,6 +71,9 @@ impl Lexer {
             if self.opens_function_body(&word) {
                 let definition = std::mem::take(&mut self.current);
                 self.segments.push(definition);
+            }
+            if quoted_at.is_some_and(|at| word.find('=').is_some_and(|equals| at <= equals)) {
+                self.current.quoted_names.push(self.current.words.len());
             }
             self.current.words.push(word);
         }
@@ -123,6 +135,7 @@ impl Lexer {
     }
 
     pub(super) fn quoted_literal(&mut self, quote: char, doubled_escape: bool) {
+        self.mark_quoted();
         self.at += 1;
         self.has_word = true;
         while let Some(c) = self.peek(0) {
@@ -188,8 +201,9 @@ impl Lexer {
     }
 
     pub(super) fn redirect(&mut self) {
-        let descriptor =
-            self.has_word && (self.word.chars().all(|c| c.is_ascii_digit()) || self.word == "*");
+        let descriptor = self.has_word
+            && self.quoted_at.is_none()
+            && (self.word.chars().all(|c| c.is_ascii_digit()) || self.word == "*");
         if descriptor {
             self.word.clear();
             self.has_word = false;

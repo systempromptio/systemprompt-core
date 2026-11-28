@@ -139,3 +139,13 @@ fn path_words_cut_globs_and_flags() {
         ["../build/", "/tmp/x", "~/notes"]
     );
 }
+
+#[test]
+fn quoted_digits_before_a_redirect_are_a_word_not_a_descriptor() {
+    let segments = split_commands("'2'>out run", Dialect::Posix);
+    assert_eq!(segments[0].words, ["2", "run"]);
+    assert_eq!(segments[0].redirects, ["out"]);
+    let bare = split_commands("run 2>out", Dialect::Posix);
+    assert_eq!(bare[0].words, ["run"]);
+    assert_eq!(heads("\"A\"=1 run", Dialect::Posix), ["A=1"]);
+}

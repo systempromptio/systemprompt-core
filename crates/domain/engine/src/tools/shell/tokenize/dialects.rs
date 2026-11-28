@@ -11,6 +11,7 @@ impl Lexer {
         let next = self.peek(1);
         match c {
             '\\' => {
+                self.mark_quoted();
                 self.at += 2;
                 if let Some(escaped) = next
                     && escaped != '\n'
@@ -60,6 +61,7 @@ impl Lexer {
     }
 
     pub(super) fn posix_double(&mut self) {
+        self.mark_quoted();
         self.at += 1;
         self.has_word = true;
         while let Some(c) = self.peek(0) {
@@ -92,6 +94,7 @@ impl Lexer {
         let next = self.peek(1);
         match c {
             '`' => {
+                self.mark_quoted();
                 self.at += 2;
                 if let Some(escaped) = next
                     && escaped != '\n'
@@ -129,6 +132,7 @@ impl Lexer {
     }
 
     pub(super) fn powershell_double(&mut self) {
+        self.mark_quoted();
         self.at += 1;
         self.has_word = true;
         while let Some(c) = self.peek(0) {
@@ -163,6 +167,7 @@ impl Lexer {
         let next = self.peek(1);
         match c {
             '^' => {
+                self.mark_quoted();
                 self.at += 2;
                 if let Some(escaped) = next
                     && escaped != '\n'
