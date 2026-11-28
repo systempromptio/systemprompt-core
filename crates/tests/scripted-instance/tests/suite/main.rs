@@ -4,6 +4,7 @@
 //! crate's decoders to the scripted turn.
 
 mod asides;
+mod catalog;
 mod device;
 mod faults;
 mod hooks;

@@ -16,6 +16,7 @@ use systemprompt_models::bridge::profile::{AdvertisedLimits, BridgeProfileRespon
 use systemprompt_models::bridge::session::PubkeyResponse;
 
 use super::{holds_model_credential, refuse, session, unauthorized};
+use crate::model::ModelFixture;
 use crate::state::InstanceState;
 use crate::{manifest, token};
 
@@ -25,6 +26,19 @@ const LIMITS: AdvertisedLimits = AdvertisedLimits {
     context_window: 200_000,
     max_output_tokens: 8_192,
 };
+
+// Why: the profile carries a window as `u32`; a fixture above that reads as
+// the widest window the profile can name.
+fn limits(model: &ModelFixture) -> AdvertisedLimits {
+    AdvertisedLimits {
+        context_window: model
+            .context_window
+            .map_or(LIMITS.context_window, |tokens| {
+                u32::try_from(tokens).unwrap_or(u32::MAX)
+            }),
+        max_output_tokens: LIMITS.max_output_tokens,
+    }
+}
 
 pub(crate) async fn pubkey(State(state): State<Arc<InstanceState>>) -> Json<PubkeyResponse> {
     let key = state.keys.manifest_key(manifest::key_is_rotated(&state));
@@ -84,7 +98,7 @@ pub(crate) async fn models(
                 "type": "model",
                 "id": model.id,
                 "display_name": model.display_name.as_deref().unwrap_or(model.id.as_str()),
-                "max_input_tokens": LIMITS.context_window,
+                "max_input_tokens": limits(model).context_window,
                 "max_tokens": LIMITS.max_output_tokens,
             })
         })
@@ -118,7 +132,7 @@ pub(crate) async fn profile(
         model_limits: state
             .models
             .iter()
-            .map(|model| (model.id.clone(), LIMITS))
+            .map(|model| (model.id.clone(), limits(model)))
             .collect(),
         model_names: state
             .models

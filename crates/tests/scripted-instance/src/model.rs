@@ -1,4 +1,5 @@
-//! The models an instance advertises.
+//! The models an instance advertises, each with the context window the
+//! model list and the profile report for it.
 
 use systemprompt_identifiers::ModelId;
 use systemprompt_wire::WireProtocol;
@@ -8,6 +9,7 @@ pub struct ModelFixture {
     pub id: ModelId,
     pub protocol: WireProtocol,
     pub display_name: Option<String>,
+    pub context_window: Option<u64>,
 }
 
 impl ModelFixture {
@@ -24,11 +26,17 @@ impl ModelFixture {
             id: ModelId::new(id),
             protocol,
             display_name: None,
+            context_window: None,
         }
     }
 
     pub fn named(mut self, display_name: impl Into<String>) -> Self {
         self.display_name = Some(display_name.into());
+        self
+    }
+
+    pub const fn context_window(mut self, tokens: u64) -> Self {
+        self.context_window = Some(tokens);
         self
     }
 }
