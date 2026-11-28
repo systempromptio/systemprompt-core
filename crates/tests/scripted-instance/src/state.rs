@@ -1,8 +1,8 @@
 //! What a started instance holds and its router reads: the fixtures, the
-//! keys, the request log and the script cursor.
+//! keys, the request log, the script cursor and the in-memory stores.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Mutex, PoisonError};
+use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use axum::http::{HeaderMap, Method};
 use chrono::{DateTime, Utc};
@@ -13,6 +13,8 @@ use crate::guard;
 use crate::manifest::ManifestFixture;
 use crate::model::ModelFixture;
 use crate::record::{RecordedBody, RequestRecord, Route};
+use crate::routes::consumer::ConsumerStore;
+use crate::routes::drive::DriveStore;
 use crate::script::{ModelScript, Turn};
 use crate::token::Keys;
 use crate::user::{TestPat, TestUser};
@@ -35,6 +37,12 @@ pub(crate) struct InstanceState {
     pub(crate) codes: Mutex<Vec<String>>,
     pub(crate) manifests_served: AtomicUsize,
     pub(crate) manifest_dated: Mutex<DateTime<Utc>>,
+    pub(crate) consumer: Mutex<ConsumerStore>,
+    pub(crate) drive: Mutex<DriveStore>,
+}
+
+pub(crate) fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 #[derive(Debug)]
@@ -61,22 +69,25 @@ pub(crate) struct Admitted {
 
 impl Admitted {
     pub(crate) fn json(&self) -> &Value {
-        match &self.body {
-            RecordedBody::Json(value) => value,
-            RecordedBody::Empty | RecordedBody::Bytes(_) => &Value::Null,
-        }
+        self.body.json().unwrap_or(&Value::Null)
     }
 }
 
 impl InstanceState {
     pub(crate) fn admit(&self, arrival: Arrival, wants_turn: bool) -> Admitted {
         let route = Route::of(&arrival.path);
-        let mut requests = self.requests.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut requests = lock(&self.requests);
         let sequence = u64::try_from(requests.len()).unwrap_or(u64::MAX);
+        let (decision, purpose) = if wants_turn {
+            let (decision, purpose) = self.decide(arrival.body.json().unwrap_or(&Value::Null));
+            (Some(decision), purpose)
+        } else {
+            (None, None)
+        };
         let admitted = Admitted {
             sequence,
             body: arrival.body.clone(),
-            decision: wants_turn.then(|| self.next_turn(&arrival.body)),
+            decision,
         };
         requests.push(RequestRecord {
             sequence,
@@ -87,22 +98,35 @@ impl InstanceState {
             headers: arrival.headers,
             body: arrival.body,
             unscripted: matches!(admitted.decision, Some(Decision::Refused(_))),
+            purpose,
         });
         drop(requests);
         self.arrivals.send_modify(|count| *count += 1);
         admitted
     }
 
-    fn next_turn(&self, body: &RecordedBody) -> Decision {
+    fn decide(&self, request: &Value) -> (Decision, Option<String>) {
+        match self.script.aside_for(&guard::system_text(request)) {
+            Some(aside) => {
+                let answer = Turn {
+                    respond: aside.respond.clone(),
+                    ..Turn::default()
+                };
+                (
+                    Decision::Turn(Box::new(answer)),
+                    Some(aside.purpose.clone()),
+                )
+            },
+            None => (self.next_turn(request), None),
+        }
+    }
+
+    fn next_turn(&self, request: &Value) -> Decision {
         let index = self.consumed_turns.load(Ordering::SeqCst);
         let Some(turn) = self.script.turns.get(index) else {
             return Decision::Refused(format!(
                 "the script has no turn left for this request ({index} consumed)"
             ));
-        };
-        let request = match body {
-            RecordedBody::Json(value) => value,
-            RecordedBody::Empty | RecordedBody::Bytes(_) => &Value::Null,
         };
         match guard::check(&turn.expect, request) {
             Ok(()) => {
@@ -118,15 +142,12 @@ impl InstanceState {
 
     pub(crate) fn issue_code(&self) -> String {
         let code = format!("code-{:032x}", rand::random::<u128>());
-        self.codes
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .push(code.clone());
+        lock(&self.codes).push(code.clone());
         code
     }
 
     pub(crate) fn redeem_code(&self, code: &str) -> bool {
-        let mut codes = self.codes.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut codes = lock(&self.codes);
         let found = codes.iter().position(|issued| issued == code);
         found.map(|at| codes.swap_remove(at)).is_some()
     }

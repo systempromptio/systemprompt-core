@@ -3,7 +3,8 @@
 //! A harness session is the user's own: a session token is minted from
 //! the user's personal access token, and the device-link page approves
 //! itself, so both the loopback-callback and the paste-code flow complete
-//! without a browser.
+//! without a browser. Beside the session token a sign-in returns the device
+//! token the Drive sync feed trades for its own.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -23,10 +24,11 @@ use systemprompt_models::bridge::instance::{
     BridgeDiscovery, DISCOVERY_CONTRACT, InstanceBranding,
 };
 use systemprompt_models::bridge::session::{Capabilities, Health};
+use systemprompt_models::documents::BRIDGE_DEVICE_AUDIENCE;
 
 use super::{bearer, refuse, session, unauthorized};
 use crate::state::{Admitted, InstanceState};
-use crate::token::{SESSION_USE, TOKEN_TTL_SECS};
+use crate::token::{DEVICE_TOKEN_USE, SESSION_USE, TOKEN_TTL_SECS};
 
 const DISPLAY_NAME: &str = "Scripted Instance";
 const LOOPBACK_REDIRECTS: [&str; 2] = ["http://127.0.0.1:", "http://localhost:"];
@@ -159,8 +161,11 @@ fn mint_session(state: &InstanceState, headers: &HeaderMap) -> Value {
     if let Some(tenant) = &state.user.tenant_id {
         claims.insert("tenant_id".to_owned(), json!(tenant));
     }
+    let mut device = claims.clone();
+    device.insert("aud".to_owned(), json!(BRIDGE_DEVICE_AUDIENCE));
     json!({
         "token": state.keys.mint(SESSION_USE, claims),
+        "device_token": state.keys.mint(DEVICE_TOKEN_USE, device),
         "ttl": TOKEN_TTL_SECS,
         "headers": {
             names::SESSION_ID: session_id,

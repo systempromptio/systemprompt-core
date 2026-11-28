@@ -14,6 +14,7 @@ pub struct RequestRecord {
     pub headers: HeaderMap,
     pub body: RecordedBody,
     pub unscripted: bool,
+    pub purpose: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -21,6 +22,15 @@ pub enum RecordedBody {
     Empty,
     Json(Value),
     Bytes(Vec<u8>),
+}
+
+impl RecordedBody {
+    pub const fn json(&self) -> Option<&Value> {
+        match self {
+            Self::Json(value) => Some(value),
+            Self::Empty | Self::Bytes(_) => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -41,9 +51,11 @@ pub enum Route {
     Telemetry,
     Verdict,
     Heartbeat,
+    DeviceEnrolment,
     PluginBundle,
     Plan,
     Receipt,
+    SessionBinding,
     Drive,
     Unrouted,
 }
@@ -81,7 +93,9 @@ impl Route {
             ApiPaths::PUBLIC_HOOKS_TRACK => Self::Telemetry,
             ApiPaths::PUBLIC_HOOKS_GOVERN => Self::Verdict,
             ApiPaths::BRIDGE_HEARTBEAT => Self::Heartbeat,
+            ApiPaths::BRIDGE_DEVICE => Self::DeviceEnrolment,
             ApiPaths::CONSUMER_RECEIPTS => Self::Receipt,
+            ApiPaths::CONSUMER_SESSION_BINDINGS => Self::SessionBinding,
             _ if under(path, ApiPaths::BRIDGE_PLUGINS) => Self::PluginBundle,
             _ if under(path, ApiPaths::CONSUMER_RESOURCES) => Self::Plan,
             _ if DRIVE_ROUTES

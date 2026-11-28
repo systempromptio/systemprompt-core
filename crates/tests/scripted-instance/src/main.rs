@@ -30,6 +30,13 @@ struct Cli {
 
     #[arg(long = "chat-model", value_name = "MODEL_ID")]
     chat_models: Vec<String>,
+
+    #[arg(
+        long,
+        value_name = "TOKENS",
+        help = "The context window advertised for every model"
+    )]
+    context_window: Option<u64>,
 }
 
 #[tokio::main]
@@ -55,7 +62,11 @@ async fn main() -> anyhow::Result<()> {
         .messages_models
         .into_iter()
         .map(ModelFixture::messages)
-        .chain(cli.chat_models.into_iter().map(ModelFixture::chat));
+        .chain(cli.chat_models.into_iter().map(ModelFixture::chat))
+        .map(|model| match cli.context_window {
+            Some(tokens) => model.context_window(tokens),
+            None => model,
+        });
 
     let instance = ScriptedInstance::builder()
         .port(cli.port)

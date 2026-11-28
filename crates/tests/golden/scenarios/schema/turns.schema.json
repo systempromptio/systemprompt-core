@@ -14,9 +14,39 @@
       "items": {
         "$ref": "#/definitions/turn"
       }
+    },
+    "asides": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/aside"
+      }
     }
   },
   "definitions": {
+    "aside": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "purpose",
+        "system_contains"
+      ],
+      "properties": {
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        },
+        "system_contains": {
+          "type": "string",
+          "minLength": 1
+        },
+        "respond": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/respond"
+          }
+        }
+      }
+    },
     "turn": {
       "type": "object",
       "additionalProperties": false,

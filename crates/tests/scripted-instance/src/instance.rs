@@ -2,7 +2,7 @@
 
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use chrono::Utc;
@@ -18,7 +18,7 @@ use crate::model::ModelFixture;
 use crate::record::RequestRecord;
 use crate::router;
 use crate::script::ModelScript;
-use crate::state::InstanceState;
+use crate::state::{InstanceState, lock};
 use crate::token::Keys;
 use crate::user::{TestPat, TestUser};
 use crate::verdict::VerdictScript;
@@ -98,6 +98,8 @@ impl ScriptedInstanceBuilder {
             script: self.script,
             requests: Mutex::new(Vec::new()),
             consumed_turns: AtomicUsize::new(0),
+            consumer: Mutex::default(),
+            drive: Mutex::default(),
         });
 
         let app = router::router(Arc::clone(&state));
@@ -170,11 +172,7 @@ impl ScriptedInstance {
     }
 
     pub fn requests(&self) -> Vec<RequestRecord> {
-        self.state
-            .requests
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .clone()
+        lock(&self.state.requests).clone()
     }
 
     pub fn unscripted_requests(&self) -> Vec<RequestRecord> {

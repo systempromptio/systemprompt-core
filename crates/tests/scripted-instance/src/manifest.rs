@@ -1,7 +1,9 @@
 //! The manifest an instance serves, and the ways it can be made wrong.
 //!
 //! The payload is core's `SignedManifest`, canonicalised and signed with
-//! the instance's Ed25519 key over the exact payload string.
+//! the instance's Ed25519 key over the exact payload string. It lists the
+//! fixture's plugins, each with the digests of the bundle files the
+//! instance serves for it; the minimal fixture has none.
 
 use std::sync::PoisonError;
 use std::sync::atomic::Ordering;
@@ -10,9 +12,10 @@ use chrono::{DateTime, SecondsFormat, TimeDelta, Utc};
 use serde_json::json;
 use systemprompt_models::bridge::host::HostKind;
 use systemprompt_models::bridge::manifest::{
-    ManifestSignature, SignedManifest, SignedManifestEnvelope,
+    ManifestSignature, PluginEntry, SignedManifest, SignedManifestEnvelope,
 };
 
+use crate::plugin::{FixtureError, PluginFixture};
 use crate::state::InstanceState;
 use crate::token;
 
@@ -23,6 +26,7 @@ const OTHER_USER: &str = "scripted-other-user";
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ManifestFixture {
     fault: Option<ManifestFault>,
+    plugins: Vec<PluginFixture>,
 }
 
 impl ManifestFixture {
@@ -35,8 +39,27 @@ impl ManifestFixture {
         self
     }
 
+    pub fn with_plugin(mut self, plugin: PluginFixture) -> Self {
+        self.plugins.retain(|held| held.id != plugin.id);
+        self.plugins.push(plugin);
+        self
+    }
+
     pub fn fault(&self) -> Option<ManifestFault> {
         self.fault
+    }
+
+    pub fn plugins(&self) -> &[PluginFixture] {
+        &self.plugins
+    }
+
+    pub(crate) fn plugin_file(&self, plugin: &str, path: &str) -> Option<Vec<u8>> {
+        self.plugins
+            .iter()
+            .find(|held| held.id.as_str() == plugin)?
+            .served()
+            .ok()?
+            .remove(path)
     }
 }
 
@@ -60,7 +83,7 @@ pub(crate) fn key_is_rotated(state: &InstanceState) -> bool {
         && state.manifests_served.load(Ordering::SeqCst) > 0
 }
 
-pub(crate) fn serve(state: &InstanceState) -> Result<ServedManifest, serde_json::Error> {
+pub(crate) fn serve(state: &InstanceState) -> Result<ServedManifest, FixtureError> {
     let fault = state.manifest.fault();
     let served_before = state.manifests_served.load(Ordering::SeqCst) > 0;
     let dated = dated(state);
@@ -96,6 +119,13 @@ pub(crate) fn serve(state: &InstanceState) -> Result<ServedManifest, serde_json:
         tags
     };
 
+    let plugins: Vec<PluginEntry> = state
+        .manifest
+        .plugins
+        .iter()
+        .map(PluginFixture::entry)
+        .collect::<Result<_, _>>()?;
+
     let manifest: SignedManifest = serde_json::from_value(json!({
         "manifest_version": version,
         "issued_at": dated,
@@ -109,7 +139,7 @@ pub(crate) fn serve(state: &InstanceState) -> Result<ServedManifest, serde_json:
             "display_name": state.user.display_name,
             "roles": state.user.roles,
         },
-        "plugins": [],
+        "plugins": plugins,
         "managed_mcp_servers": [],
         "revocations": [],
         "enabled_hosts": [HostKind::Harness],

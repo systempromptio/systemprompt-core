@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use axum::Router;
 use axum::body::{Body, to_bytes};
-use axum::extract::{Request, State};
+use axum::extract::{DefaultBodyLimit, Request, State};
 use axum::http::StatusCode;
 use axum::middleware::{self, Next};
 use axum::response::Response;
@@ -14,7 +14,7 @@ use axum::routing::{get, post};
 use systemprompt_models::ApiPaths;
 
 use crate::record::{RecordedBody, Route};
-use crate::routes::{self, auth, hooks, model, sync};
+use crate::routes::{self, auth, consumer, drive, hooks, model, sync};
 use crate::state::{Arrival, InstanceState};
 
 const BODY_LIMIT: usize = 64 * 1024 * 1024;
@@ -43,7 +43,25 @@ pub(crate) fn router(state: Arc<InstanceState>) -> Router {
         .route(ApiPaths::PUBLIC_HOOKS_GOVERN, post(hooks::govern))
         .route(ApiPaths::GATEWAY_MESSAGES, post(model::messages))
         .route(ApiPaths::GATEWAY_CHAT_COMPLETIONS, post(model::chat))
+        .route(ApiPaths::BRIDGE_DEVICE, post(consumer::enrol))
+        .route(
+            ApiPaths::BRIDGE_PLUGIN_FILE_ROUTE,
+            get(consumer::plugin_file),
+        )
+        .route(ApiPaths::CONSUMER_RECEIPTS, post(consumer::receipt))
+        .route(
+            ApiPaths::CONSUMER_SESSION_BINDINGS,
+            post(consumer::session_binding),
+        )
+        .route(ApiPaths::BRIDGE_DRIVE_TOKEN, post(drive::token))
+        .route(ApiPaths::BRIDGE_DRIVE_MANIFEST, get(drive::manifest))
+        .route(ApiPaths::BRIDGE_DRIVE_CHANGES, get(drive::changes))
+        .route(ApiPaths::BRIDGE_DRIVE_BLOB_ROUTE, get(drive::blob))
+        .route(ApiPaths::BRIDGE_DRIVE_COMMIT, post(drive::commit))
+        .route(ApiPaths::BRIDGE_DRIVE_TRASH, post(drive::trash))
+        .route(ApiPaths::BRIDGE_DRIVE_MOVE, post(drive::move_document))
         .fallback(unrouted)
+        .layer(DefaultBodyLimit::max(BODY_LIMIT))
         .layer(middleware::from_fn_with_state(Arc::clone(&state), record))
         .with_state(state)
 }

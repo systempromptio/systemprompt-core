@@ -1,6 +1,6 @@
 //! The guard of a turn: whether a model request is the one the turn was
-//! written for. It reads both request shapes, Messages and Chat
-//! Completions.
+//! written for, and the system prompt an aside is recognised by. It reads
+//! both request shapes, Messages and Chat Completions.
 
 use serde_json::Value;
 
@@ -25,6 +25,32 @@ pub(crate) fn check(expect: &Expect, request: &Value) -> Result<(), String> {
          and carries tool results {results:?}",
         expect.tools_include, expect.tool_results
     ))
+}
+
+pub(crate) fn system_text(request: &Value) -> String {
+    let mut parts = Vec::new();
+    collect_text(request.get("system"), &mut parts);
+    for message in list(request, "messages") {
+        if matches!(
+            message.get("role").and_then(Value::as_str),
+            Some("system" | "developer")
+        ) {
+            collect_text(message.get("content"), &mut parts);
+        }
+    }
+    parts.join("\n")
+}
+
+fn collect_text<'a>(content: Option<&'a Value>, parts: &mut Vec<&'a str>) {
+    match content {
+        Some(Value::String(text)) => parts.push(text),
+        Some(Value::Array(blocks)) => parts.extend(
+            blocks
+                .iter()
+                .filter_map(|block| block.get("text").and_then(Value::as_str)),
+        ),
+        _ => {},
+    }
 }
 
 fn advertised_tools(request: &Value) -> Vec<String> {
