@@ -33,6 +33,8 @@ mod settlement_tests;
 #[cfg(test)]
 mod store_tests;
 #[cfg(test)]
+mod stream_failure_tests;
+#[cfg(test)]
 mod subagent_tests;
 #[cfg(test)]
 mod support;
