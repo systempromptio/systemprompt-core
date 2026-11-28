@@ -82,6 +82,12 @@ async fn generate(
             None
         },
     };
+    // Why: a call the engine's shutdown cancelled did not fail, it was never
+    // answered; storing the fallback then would name the session for good.
+    if generated.is_none() && cancel.is_cancelled() {
+        tracing::debug!(session = %job.session_id, "title call cancelled; no title stored");
+        return Ok(());
+    }
     let Some(title) = generated.or_else(|| fallback(&job.text)) else {
         return Ok(());
     };
