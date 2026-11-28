@@ -102,7 +102,6 @@ fn cut(text: &str, limits: OutputLimits, keep: Keep) -> Cut {
     }
 }
 
-/// A code fence opened in kept text and not closed in it.
 #[derive(Debug)]
 struct OpenFence {
     start: usize,

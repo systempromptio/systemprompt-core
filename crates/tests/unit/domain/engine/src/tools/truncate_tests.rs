@@ -98,7 +98,15 @@ async fn a_cut_inside_a_code_fence_closes_it_or_drops_it() {
         max_bytes,
     };
     let closed = truncate_output(text.clone(), limits(25), Keep::Head, dir.path(), "a").await;
-    assert!(closed.text.starts_with("intro\n> ```\n> code\n> ```\n"), "{}", closed.text);
+    assert!(
+        closed.text.starts_with("intro\n> ```\n> code\n> ```\n"),
+        "{}",
+        closed.text
+    );
     let dropped = truncate_output(text, limits(16), Keep::Head, dir.path(), "b").await;
-    assert!(dropped.text.starts_with("intro\n\n[Output truncated"), "{}", dropped.text);
+    assert!(
+        dropped.text.starts_with("intro\n\n[Output truncated"),
+        "{}",
+        dropped.text
+    );
 }

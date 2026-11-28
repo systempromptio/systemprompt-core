@@ -9,8 +9,6 @@ use super::{Dialect, Segment};
 
 const MAX_DEPTH: usize = 64;
 
-/// A here-document whose delimiter has been read and whose body starts after
-/// the next line feed.
 #[derive(Debug)]
 pub(super) struct HereDocument {
     delimiter: String,
@@ -65,7 +63,7 @@ impl Lexer {
         self.has_word = true;
     }
 
-    pub(super) fn mark_quoted(&mut self) {
+    pub(super) const fn mark_quoted(&mut self) {
         if self.quoted_at.is_none() {
             self.quoted_at = Some(self.word.len());
         }
@@ -224,7 +222,7 @@ impl Lexer {
         out
     }
 
-    fn starts_comment(&self, previous: Option<char>) -> bool {
+    const fn starts_comment(&self, previous: Option<char>) -> bool {
         match (self.dialect, previous) {
             (Dialect::Cmd, _) => false,
             (_, None) => true,
@@ -292,8 +290,6 @@ impl Lexer {
         }
     }
 
-    /// Scans text where only expansions run, a here-document body or
-    /// arithmetic, and keeps the commands of its substitutions.
     pub(super) fn expansions(&mut self, text: &str) {
         let mut inner = Self::new(text, self.dialect, self.depth + 1);
         inner.double_body(false);

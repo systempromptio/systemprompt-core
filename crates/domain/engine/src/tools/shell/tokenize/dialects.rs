@@ -110,7 +110,9 @@ impl Lexer {
             'c' => {
                 if let Some(control) = self.peek(0) {
                     self.at += 1;
-                    self.word.push(char::from(u8::try_from(u32::from(control) & 0x1f).unwrap_or(0)));
+                    self.word.push(char::from(
+                        u8::try_from(u32::from(control) & 0x1f).unwrap_or(0),
+                    ));
                 }
                 return;
             },

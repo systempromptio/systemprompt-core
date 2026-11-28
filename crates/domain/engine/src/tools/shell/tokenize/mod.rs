@@ -36,8 +36,6 @@ pub enum Dialect {
 pub struct Segment {
     pub words: Vec<String>,
     pub redirects: Vec<String>,
-    /// Indices of words quoted or escaped before their first `=`: such a word
-    /// is a command name, never a variable assignment.
     quoted_names: Vec<usize>,
 }
 

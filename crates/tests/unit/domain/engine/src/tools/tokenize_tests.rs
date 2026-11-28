@@ -178,7 +178,10 @@ fn here_document_bodies_are_skipped_and_only_their_expansions_scanned() {
 fn arithmetic_is_one_word_whose_substitutions_are_still_scanned() {
     let segments = split_commands("echo $((1 + $(id -u))) \"$((2))\"", Dialect::Posix);
     assert_eq!(segments[0].words, ["echo", "$((1 + $(id -u)))", "$((2))"]);
-    assert_eq!(heads("echo $((1 + $(id -u)))", Dialect::Posix), ["echo", "id"]);
+    assert_eq!(
+        heads("echo $((1 + $(id -u)))", Dialect::Posix),
+        ["echo", "id"]
+    );
 }
 
 #[test]
@@ -189,13 +192,19 @@ fn the_command_after_coproc_is_the_head() {
 #[test]
 fn a_carriage_return_ends_a_comment_in_every_dialect() {
     assert_eq!(heads("# note\rrm x", Dialect::Posix), ["rm"]);
-    assert_eq!(heads("# note\rRemove-Item x", Dialect::PowerShell), ["remove-item"]);
+    assert_eq!(
+        heads("# note\rRemove-Item x", Dialect::PowerShell),
+        ["remove-item"]
+    );
 }
 
 #[test]
 fn a_parenthesis_in_a_comment_or_braced_variable_does_not_end_a_substitution() {
     assert_eq!(
-        heads("Write-Output $(Get-Item a # note )\nRemove-Item b)", Dialect::PowerShell),
+        heads(
+            "Write-Output $(Get-Item a # note )\nRemove-Item b)",
+            Dialect::PowerShell
+        ),
         ["write-output", "get-item", "remove-item"]
     );
     assert_eq!(
