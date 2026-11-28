@@ -42,3 +42,5 @@ mod support;
 mod title_tests;
 #[cfg(test)]
 mod tools_tests;
+#[cfg(test)]
+mod workspace_tests;
