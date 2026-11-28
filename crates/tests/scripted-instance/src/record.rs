@@ -14,6 +14,7 @@ pub struct RequestRecord {
     pub headers: HeaderMap,
     pub body: RecordedBody,
     pub unscripted: bool,
+    pub purpose: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -21,6 +22,15 @@ pub enum RecordedBody {
     Empty,
     Json(Value),
     Bytes(Vec<u8>),
+}
+
+impl RecordedBody {
+    pub const fn json(&self) -> Option<&Value> {
+        match self {
+            Self::Json(value) => Some(value),
+            Self::Empty | Self::Bytes(_) => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

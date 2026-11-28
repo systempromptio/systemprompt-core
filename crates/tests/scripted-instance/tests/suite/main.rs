@@ -3,6 +3,7 @@
 //! the device's verifier, and a stream it encodes decodes with the wire
 //! crate's decoders to the scripted turn.
 
+mod asides;
 mod device;
 mod faults;
 mod hooks;

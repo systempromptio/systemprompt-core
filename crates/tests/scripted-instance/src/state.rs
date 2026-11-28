@@ -61,10 +61,7 @@ pub(crate) struct Admitted {
 
 impl Admitted {
     pub(crate) fn json(&self) -> &Value {
-        match &self.body {
-            RecordedBody::Json(value) => value,
-            RecordedBody::Empty | RecordedBody::Bytes(_) => &Value::Null,
-        }
+        self.body.json().unwrap_or(&Value::Null)
     }
 }
 
@@ -73,10 +70,16 @@ impl InstanceState {
         let route = Route::of(&arrival.path);
         let mut requests = self.requests.lock().unwrap_or_else(PoisonError::into_inner);
         let sequence = u64::try_from(requests.len()).unwrap_or(u64::MAX);
+        let (decision, purpose) = if wants_turn {
+            let (decision, purpose) = self.decide(arrival.body.json().unwrap_or(&Value::Null));
+            (Some(decision), purpose)
+        } else {
+            (None, None)
+        };
         let admitted = Admitted {
             sequence,
             body: arrival.body.clone(),
-            decision: wants_turn.then(|| self.next_turn(&arrival.body)),
+            decision,
         };
         requests.push(RequestRecord {
             sequence,
@@ -87,22 +90,35 @@ impl InstanceState {
             headers: arrival.headers,
             body: arrival.body,
             unscripted: matches!(admitted.decision, Some(Decision::Refused(_))),
+            purpose,
         });
         drop(requests);
         self.arrivals.send_modify(|count| *count += 1);
         admitted
     }
 
-    fn next_turn(&self, body: &RecordedBody) -> Decision {
+    fn decide(&self, request: &Value) -> (Decision, Option<String>) {
+        match self.script.aside_for(&guard::system_text(request)) {
+            Some(aside) => {
+                let answer = Turn {
+                    respond: aside.respond.clone(),
+                    ..Turn::default()
+                };
+                (
+                    Decision::Turn(Box::new(answer)),
+                    Some(aside.purpose.clone()),
+                )
+            },
+            None => (self.next_turn(request), None),
+        }
+    }
+
+    fn next_turn(&self, request: &Value) -> Decision {
         let index = self.consumed_turns.load(Ordering::SeqCst);
         let Some(turn) = self.script.turns.get(index) else {
             return Decision::Refused(format!(
                 "the script has no turn left for this request ({index} consumed)"
             ));
-        };
-        let request = match body {
-            RecordedBody::Json(value) => value,
-            RecordedBody::Empty | RecordedBody::Bytes(_) => &Value::Null,
         };
         match guard::check(&turn.expect, request) {
             Ok(()) => {

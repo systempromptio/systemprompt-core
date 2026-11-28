@@ -39,6 +39,8 @@ pub use instance::{ScriptedInstance, ScriptedInstanceBuilder};
 pub use manifest::{ManifestFault, ManifestFixture};
 pub use model::ModelFixture;
 pub use record::{RecordedBody, RequestRecord, Route};
-pub use script::{Expect, ModelScript, Respond, StopReason, ToolCall, Turn, TurnFault, Usage};
+pub use script::{
+    Aside, Expect, ModelScript, Respond, StopReason, ToolCall, Turn, TurnFault, Usage,
+};
 pub use user::{TestPat, TestUser};
 pub use verdict::{Verdict, VerdictScript};
