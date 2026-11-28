@@ -206,7 +206,7 @@ protocol = "*"
 comparison = "harness-vs-reference"
 path = "*"
 class = "intended"
-reason = "The reference agent at v2.4.2 does not advertise its patch tool to this model (its first request lists edit, glob, grep, question, read, shell, skill, subagent, todowrite, webfetch, websearch, write, execute), so the scripted turn that calls patch is refused with 400 and the run ends; every later step, the session count and the workspace follow from that one cause. The harness offers its patch tool to every model. Unsure whether intended is the right class: the corpus names 'a tool the harness does not offer', not the reverse."
+reason = "The reference agent at v2.4.2 does not advertise its patch tool to this model (its first request lists edit, glob, grep, question, read, shell, skill, subagent, todowrite, webfetch, websearch, write, execute), so the scripted turn that calls patch is refused with 400 and the run ends; every later step, the session count and the workspace follow from that one cause. The harness offers its patch tool to every model. The reference does offer patch, to other models: in the v2.4.2 binary (sha256 of the pinned archive 452912288f93...) tool hiding hides edit and write when the model id or modelID contains 'gpt-' and neither contains 'oss' or 'gpt-4', and hides patch for every other model, so patch is a per-model-family choice of the reference, not a missing feature. Intended: offering one patch tool to every model is the harness's tool-surface design, the same kind of difference as 'a tool the harness does not offer' in the corpus's definition of intended; no named reverse case is needed."
 
 [[entry]]
 scenario = "12-background-job-abort"
@@ -214,7 +214,7 @@ protocol = "*"
 comparison = "harness-vs-reference"
 path = "session.jobs"
 class = "intended"
-reason = "After the abort the harness has killed the background job's process tree (row 12: the process tree is killed); the reference's job list taken at the end of the run (jobs.json) still shows sleep 300 running, because its background shells outlive an interrupted step by design. Unsure: whether the reference would end the job later was not observed."
+reason = "After the abort the harness has killed the background job's process tree (row 12: the process tree is killed); the reference's job list taken at the end of the run (jobs.json) still shows sleep 300 running, because its background shells outlive an interrupted step by design. Observed: running only this scenario's reference side, the reference logs 'shutdown started signal=SIGTERM' when the runner stops it after the export, and afterwards no opencode or sleep 300 process remains in the process table, so the reference ends its jobs when its process exits, not when a step is aborted. Intended: the harness ends the job with the aborted step, which row 12 requires."
 
 [[entry]]
 scenario = "19-subagent-task"
@@ -223,7 +223,7 @@ comparison = "harness-vs-reference"
 path = "session.messages"
 class = "gap"
 reason = "The reference runs a subagent in the background: its task call returns at once with a 'working in the background' result, the parent's next request carries t1 before the child has run, the scripted turn expecting the child's c1 is refused with 400, and the child's answer reaches the parent later as an extra message. The harness runs the child to completion and returns its answer as the task's result. Every path here follows from that one cause. Background subagents that work while the parent continues are useful behaviour the harness lacks."
-owner = "S9 (the deferred features and orchestration; unsure, no stage names background subagents)"
+owner = "S9 (S9-C2, background subagents that run while the parent continues)"
 
 [[entry]]
 scenario = "19-subagent-task"
@@ -232,7 +232,7 @@ comparison = "harness-vs-reference"
 path = "steps[3].steps[4].status"
 class = "gap"
 reason = "The reference runs a subagent in the background: its task call returns at once with a 'working in the background' result, the parent's next request carries t1 before the child has run, the scripted turn expecting the child's c1 is refused with 400, and the child's answer reaches the parent later as an extra message. The harness runs the child to completion and returns its answer as the task's result. Every path here follows from that one cause. Background subagents that work while the parent continues are useful behaviour the harness lacks."
-owner = "S9 (the deferred features and orchestration; unsure, no stage names background subagents)"
+owner = "S9 (S9-C2, background subagents that run while the parent continues)"
 
 [[entry]]
 scenario = "19-subagent-task"
@@ -241,7 +241,7 @@ comparison = "harness-vs-reference"
 path = "steps[3].steps[4].tool_results"
 class = "gap"
 reason = "The reference runs a subagent in the background: its task call returns at once with a 'working in the background' result, the parent's next request carries t1 before the child has run, the scripted turn expecting the child's c1 is refused with 400, and the child's answer reaches the parent later as an extra message. The harness runs the child to completion and returns its answer as the task's result. Every path here follows from that one cause. Background subagents that work while the parent continues are useful behaviour the harness lacks."
-owner = "S9 (the deferred features and orchestration; unsure, no stage names background subagents)"
+owner = "S9 (S9-C2, background subagents that run while the parent continues)"
 
 [[entry]]
 scenario = "19-subagent-task"
@@ -250,7 +250,7 @@ comparison = "harness-vs-reference"
 path = "steps[3].steps[5]"
 class = "gap"
 reason = "The reference runs a subagent in the background: its task call returns at once with a 'working in the background' result, the parent's next request carries t1 before the child has run, the scripted turn expecting the child's c1 is refused with 400, and the child's answer reaches the parent later as an extra message. The harness runs the child to completion and returns its answer as the task's result. Every path here follows from that one cause. Background subagents that work while the parent continues are useful behaviour the harness lacks."
-owner = "S9 (the deferred features and orchestration; unsure, no stage names background subagents)"
+owner = "S9 (S9-C2, background subagents that run while the parent continues)"
 
 [[entry]]
 scenario = "19-subagent-task"
@@ -259,7 +259,7 @@ comparison = "harness-vs-reference"
 path = "steps[3].steps[6]"
 class = "gap"
 reason = "The reference runs a subagent in the background: its task call returns at once with a 'working in the background' result, the parent's next request carries t1 before the child has run, the scripted turn expecting the child's c1 is refused with 400, and the child's answer reaches the parent later as an extra message. The harness runs the child to completion and returns its answer as the task's result. Every path here follows from that one cause. Background subagents that work while the parent continues are useful behaviour the harness lacks."
-owner = "S9 (the deferred features and orchestration; unsure, no stage names background subagents)"
+owner = "S9 (S9-C2, background subagents that run while the parent continues)"
 
 [[entry]]
 scenario = "19-subagent-task"
@@ -268,7 +268,7 @@ comparison = "harness-vs-reference"
 path = "steps[3].steps[7]"
 class = "gap"
 reason = "The reference runs a subagent in the background: its task call returns at once with a 'working in the background' result, the parent's next request carries t1 before the child has run, the scripted turn expecting the child's c1 is refused with 400, and the child's answer reaches the parent later as an extra message. The harness runs the child to completion and returns its answer as the task's result. Every path here follows from that one cause. Background subagents that work while the parent continues are useful behaviour the harness lacks."
-owner = "S9 (the deferred features and orchestration; unsure, no stage names background subagents)"
+owner = "S9 (S9-C2, background subagents that run while the parent continues)"
 
 [[entry]]
 scenario = "19-subagent-task"
@@ -277,7 +277,7 @@ comparison = "harness-vs-reference"
 path = "steps[4].digest"
 class = "gap"
 reason = "The reference runs a subagent in the background: its task call returns at once with a 'working in the background' result, the parent's next request carries t1 before the child has run, the scripted turn expecting the child's c1 is refused with 400, and the child's answer reaches the parent later as an extra message. The harness runs the child to completion and returns its answer as the task's result. Every path here follows from that one cause. Background subagents that work while the parent continues are useful behaviour the harness lacks."
-owner = "S9 (the deferred features and orchestration; unsure, no stage names background subagents)"
+owner = "S9 (S9-C2, background subagents that run while the parent continues)"
 
 [[entry]]
 scenario = "19-subagent-task"
@@ -286,7 +286,7 @@ comparison = "harness-vs-reference"
 path = "steps[5].tool_results"
 class = "gap"
 reason = "The reference runs a subagent in the background: its task call returns at once with a 'working in the background' result, the parent's next request carries t1 before the child has run, the scripted turn expecting the child's c1 is refused with 400, and the child's answer reaches the parent later as an extra message. The harness runs the child to completion and returns its answer as the task's result. Every path here follows from that one cause. Background subagents that work while the parent continues are useful behaviour the harness lacks."
-owner = "S9 (the deferred features and orchestration; unsure, no stage names background subagents)"
+owner = "S9 (S9-C2, background subagents that run while the parent continues)"
 
 [[entry]]
 scenario = "22-provider-error-then-success"
