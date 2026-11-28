@@ -14,14 +14,14 @@ use crate::support::MODEL;
 
 const AGENT: &str = "build";
 
-pub(super) struct Seed<'a> {
+pub(crate) struct Seed<'a> {
     store: &'a Store,
     session: SessionId,
     parent: Option<MessageId>,
 }
 
 impl<'a> Seed<'a> {
-    pub(super) fn new(engine: &'a Engine, session: &SessionId) -> Self {
+    pub(crate) fn new(engine: &'a Engine, session: &SessionId) -> Self {
         Self {
             store: engine.store(),
             session: session.clone(),
@@ -50,23 +50,23 @@ impl<'a> Seed<'a> {
     }
 
     /// A prompt the user sent.
-    pub(super) fn user(&mut self, bodies: Vec<PartBody>) {
+    pub(crate) fn user(&mut self, bodies: Vec<PartBody>) {
         self.write_user(false, bodies);
     }
 
     /// A user-role message the engine wrote itself.
-    pub(super) fn engine_user(&mut self, bodies: Vec<PartBody>) {
+    pub(crate) fn engine_user(&mut self, bodies: Vec<PartBody>) {
         self.write_user(true, bodies);
     }
 
     /// A reply to the latest user message that finished normally.
-    pub(super) fn reply(&self, bodies: Vec<PartBody>) {
+    pub(crate) fn reply(&self, bodies: Vec<PartBody>) {
         self.reply_with(|_| {}, bodies);
     }
 
     /// A reply to the latest user message, finished normally unless `edit`
     /// says otherwise.
-    pub(super) fn reply_with(
+    pub(crate) fn reply_with(
         &self,
         edit: impl FnOnce(&mut AssistantMessage),
         bodies: Vec<PartBody>,
@@ -81,21 +81,21 @@ impl<'a> Seed<'a> {
     }
 }
 
-pub(super) fn text(text: &str) -> PartBody {
+pub(crate) fn text(text: &str) -> PartBody {
     PartBody::Text {
         text: text.to_owned(),
         synthetic: false,
     }
 }
 
-pub(super) fn reasoning(text: &str, signature: Option<&str>) -> PartBody {
+pub(crate) fn reasoning(text: &str, signature: Option<&str>) -> PartBody {
     PartBody::Reasoning {
         text: text.to_owned(),
         provider_data: signature.map(|signature| json!({ "signature": signature })),
     }
 }
 
-pub(super) fn tool(call: &str, name: &str, state: ToolState) -> PartBody {
+pub(crate) fn tool(call: &str, name: &str, state: ToolState) -> PartBody {
     PartBody::Tool {
         call_id: CallId::try_new(call).unwrap(),
         tool: name.to_owned(),

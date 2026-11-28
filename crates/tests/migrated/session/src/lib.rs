@@ -23,6 +23,8 @@ mod format_tests;
 #[cfg(test)]
 mod loop_tests;
 #[cfg(test)]
+mod mcp_permission_tests;
+#[cfg(test)]
 mod request_mapping_tests;
 #[cfg(test)]
 mod retry_tests;
@@ -42,6 +44,8 @@ mod subagent_tests;
 mod support;
 #[cfg(test)]
 mod title_tests;
+#[cfg(test)]
+mod tool_history_tests;
 #[cfg(test)]
 mod tools_tests;
 #[cfg(test)]

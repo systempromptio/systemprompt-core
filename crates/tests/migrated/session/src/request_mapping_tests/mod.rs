@@ -7,7 +7,7 @@ mod admission;
 mod history;
 mod media_types;
 mod prompt_content;
-mod seed;
+pub(crate) mod seed;
 mod vision;
 
 use serde_json::{Value, json};
@@ -34,7 +34,7 @@ fn data_url(mime: &str, data: &str, name: Option<&str>) -> AttachmentInput {
 }
 
 // JSON: a Messages text block as the instance recorded it.
-fn text_block(text: &str) -> Value {
+pub(crate) fn text_block(text: &str) -> Value {
     json!({"type": "text", "text": text})
 }
 
@@ -44,7 +44,7 @@ fn image_block(mime: &str, data: &str) -> Value {
 }
 
 // JSON: a Messages user turn of text blocks as the instance recorded it.
-fn user_turn(texts: &[&str]) -> Value {
+pub(crate) fn user_turn(texts: &[&str]) -> Value {
     let content: Vec<Value> = texts.iter().map(|text| text_block(text)).collect();
     json!({"role": "user", "content": content})
 }
@@ -65,7 +65,7 @@ fn block_types(turn: &Value) -> Vec<&str> {
 /// Sends a prompt, waits for the run to end and returns the conversation turns
 /// of the last model request.
 // JSON: the `messages` array of the request body the instance recorded.
-async fn ask(scripted: &Scripted, id: &SessionId, text: &str) -> Value {
+pub(crate) async fn ask(scripted: &Scripted, id: &SessionId, text: &str) -> Value {
     let mut events = scripted.engine.subscribe();
     scripted
         .engine
