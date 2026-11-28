@@ -2,7 +2,7 @@
 
 Batch 2 of the reference-test migration (lane S2-B3). Each catalogue row of this batch is replaced here by one row per case, in the columns of `documentation/future/harness/testing/04-test-migration.md` section 2. `target` names a test as `<crate>::<module>::<function>`, where `config` is `systemprompt-migrated-config-tests` and `session` is `systemprompt-migrated-session-tests`; a `covered` target names an existing test elsewhere. `state` is `passing`, `ledger` (the harness differs; the test, when there is one, is `#[ignore = "parity ledger: ..."]` and asserts the reference behaviour, and `note` gives the observed value), `written` (a new test the integrator has not yet run) or `open` (not written; `note` says why).
 
-Cases: 1140 over 120 catalogue rows. ported 230, covered 86, not applicable 430, deferred 1, difference 393, open 0.
+Cases: 1140 over 120 catalogue rows. ported 244, covered 86, not applicable 430, deferred 1, difference 379, open 0.
 
 ## Rows
 

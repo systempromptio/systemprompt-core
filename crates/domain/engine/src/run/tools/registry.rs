@@ -147,16 +147,16 @@ pub(crate) fn assemble(ctx: &StepContext) -> ToolBox {
         let task = TaskTool::new(Arc::clone(&ctx.inner), subagents, model, caller_writes);
         tools.push(Arc::new(task));
     }
-    let mut skills = Vec::new();
-    if visible(tool_names::SKILL) {
-        skills = ctx
-            .config
+    let skills: Vec<_> = if visible(tool_names::SKILL) {
+        ctx.config
             .skills
             .keys()
             .filter(|name| rules.evaluate(permission::SKILL, name.as_str()) != Action::Deny)
             .cloned()
-            .collect();
-    }
+            .collect()
+    } else {
+        Vec::new()
+    };
     if !skills.is_empty() {
         let tool = SkillTool::new(Arc::clone(&ctx.config), skills.clone());
         tools.push(Arc::new(tool));
