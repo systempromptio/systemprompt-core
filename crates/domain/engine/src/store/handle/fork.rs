@@ -102,7 +102,7 @@ fn copy_messages(
         params![param(source), optional_param(before)],
     )?;
     let mut renamed: HashMap<MessageId, MessageId> = HashMap::with_capacity(messages.len());
-    for message in messages.into_iter().filter(is_settled) {
+    for message in messages.into_iter().filter(|message| !is_running(message)) {
         let old_id = message.id().clone();
         let new_id = MessageId::mint(ids);
         let copy = retarget(message, &new_id, fork_id, &renamed);
@@ -113,10 +113,10 @@ fn copy_messages(
     Ok(renamed)
 }
 
-fn is_settled(message: &Message) -> bool {
+fn is_running(message: &Message) -> bool {
     message
         .as_assistant()
-        .is_none_or(|reply| reply.completed_at.is_some() || reply.error.is_some())
+        .is_some_and(|reply| reply.completed_at.is_none() && reply.error.is_none())
 }
 
 // JSON: session metadata is engine bookkeeping; any string in it that names a
