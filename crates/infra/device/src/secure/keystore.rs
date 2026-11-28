@@ -25,8 +25,10 @@ pub struct Keystore {
     store: Arc<dyn CredentialStore>,
 }
 
+type Entries = HashMap<(String, String), Zeroizing<Vec<u8>>>;
+
 #[derive(Default)]
-struct MemoryStore(Mutex<HashMap<(String, String), Zeroizing<Vec<u8>>>>);
+struct MemoryStore(Mutex<Entries>);
 
 impl fmt::Debug for MemoryStore {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

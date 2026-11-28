@@ -22,7 +22,7 @@ pub(super) const CONNECT_WAIT: Duration = Duration::from_secs(3);
 
 pub(super) const CONNECT_STEP: Duration = Duration::from_millis(50);
 
-fn transport(source: std::io::Error) -> FrameError {
+const fn transport(source: std::io::Error) -> FrameError {
     FrameError::Transport { source }
 }
 

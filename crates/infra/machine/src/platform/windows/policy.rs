@@ -146,8 +146,10 @@ fn raw_values(key: &Key) -> io::Result<Vec<RawValue>> {
 
 fn text(data: &[u8]) -> io::Result<String> {
     let mut units: Vec<u16> = data
-        .chunks_exact(2)
-        .map(|pair| u16::from_le_bytes([pair[0], pair[1]]))
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|pair| u16::from_le_bytes(*pair))
         .collect();
     while units.last() == Some(&0) {
         units.pop();

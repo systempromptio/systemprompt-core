@@ -6,7 +6,7 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::fs::{self, File};
-use std::io::{self, Read as _, Write as _};
+use std::io::{self, Write as _};
 use std::path::{Path, PathBuf};
 
 use super::{Access, WriteOutcome};
@@ -81,8 +81,7 @@ pub fn read_optional(path: &Path) -> Result<Option<Vec<u8>>, SecureError> {
         return Ok(None);
     };
     let mut bytes = Vec::new();
-    file.read_to_end(&mut bytes)
-        .map_err(|source| SecureError::io("read", path, source))?;
+    io::copy(&mut file, &mut bytes).map_err(|source| SecureError::io("read", path, source))?;
     Ok(Some(bytes))
 }
 
