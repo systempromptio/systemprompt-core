@@ -1,5 +1,7 @@
-//! Forking: a new root session holding copies of a session's history before a
-//! cut, with fresh ids in the same order.
+//! Forking: a new root session holding copies of a session's settled history
+//! before a cut, with fresh ids in the same order. A reply that is still
+//! running is left behind, and message ids named in the session's metadata
+//! are renamed to their copies.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -7,6 +9,7 @@
 use std::collections::HashMap;
 
 use rusqlite::{Connection, OptionalExtension, params};
+use serde_json::Value;
 
 use crate::store::change::Change;
 use crate::store::error::{Result, not_found};
@@ -15,7 +18,9 @@ use crate::store::id::{
     IdClock, MessageId, PartId, SessionId, column, now_ms, optional_param, param,
 };
 use crate::store::model::{DiffSummary, Message, Session};
-use crate::store::rows::{insert_session, load_session, query_messages, write_message};
+use crate::store::rows::{
+    insert_session, load_session, query_messages, update_session_row, write_message,
+};
 
 const PART_COPIES: &str = "SELECT ordinal, kind, payload, created_at, updated_at FROM part \
      WHERE message_id = ?1 ORDER BY ordinal, id";
@@ -40,7 +45,7 @@ impl Store {
                 ensure_in_session(transaction, cut, id)?;
             }
             let now = now_ms();
-            let fork = Session {
+            let mut fork = Session {
                 id: SessionId::mint(self.ids()),
                 parent_id: None,
                 revert: None,
@@ -51,7 +56,12 @@ impl Store {
                 ..source
             };
             insert_session(transaction, &fork)?;
-            let copied = copy_messages(transaction, self.ids(), id, before, &fork.id)?;
+            let renamed = copy_messages(transaction, self.ids(), id, before, &fork.id)?;
+            let copied = renamed.len();
+            for value in fork.metadata.values_mut() {
+                rename_ids(value, &renamed);
+            }
+            update_session_row(transaction, &fork)?;
             Self::touch_project(transaction, &fork.project_id, now)?;
             tracing::debug!(source = %id, fork = %fork.id, messages = copied, "session forked");
             changes.push(Change::SessionCreated(Box::new(fork.clone())));
@@ -85,14 +95,14 @@ fn copy_messages(
     source: &SessionId,
     before: Option<&MessageId>,
     fork_id: &SessionId,
-) -> Result<usize> {
+) -> Result<HashMap<MessageId, MessageId>> {
     let messages = query_messages(
         connection,
         "WHERE session_id = ?1 AND (?2 IS NULL OR id < ?2) ORDER BY id",
         params![param(source), optional_param(before)],
     )?;
     let mut renamed: HashMap<MessageId, MessageId> = HashMap::with_capacity(messages.len());
-    for message in messages {
+    for message in messages.into_iter().filter(is_settled) {
         let old_id = message.id().clone();
         let new_id = MessageId::mint(ids);
         let copy = retarget(message, &new_id, fork_id, &renamed);
@@ -100,7 +110,30 @@ fn copy_messages(
         copy_parts(connection, ids, &old_id, &new_id, fork_id)?;
         renamed.insert(old_id, new_id);
     }
-    Ok(renamed.len())
+    Ok(renamed)
+}
+
+/// A reply is settled once it completed or failed; one still running is not
+/// copied.
+fn is_settled(message: &Message) -> bool {
+    message
+        .as_assistant()
+        .is_none_or(|reply| reply.completed_at.is_some() || reply.error.is_some())
+}
+
+// JSON: session metadata is engine bookkeeping; any string in it that names a
+// copied message is renamed to the copy.
+fn rename_ids(value: &mut Value, renamed: &HashMap<MessageId, MessageId>) {
+    match value {
+        Value::String(text) => {
+            if let Some(copy) = MessageId::parse(text).ok().and_then(|id| renamed.get(&id)) {
+                *text = copy.to_string();
+            }
+        },
+        Value::Array(items) => items.iter_mut().for_each(|item| rename_ids(item, renamed)),
+        Value::Object(map) => map.values_mut().for_each(|item| rename_ids(item, renamed)),
+        Value::Null | Value::Bool(_) | Value::Number(_) => {},
+    }
 }
 
 fn retarget(

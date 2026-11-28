@@ -91,7 +91,6 @@ async fn media_in_the_kept_tail_is_described_not_resent() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "parity ledger: a fork copies the compaction mark with the source session's message ids, so the fork loses the verbatim tail"]
 async fn a_fork_keeps_the_verbatim_tail_of_the_summary_it_copied() {
     let (scripted, id) = near_the_ceiling(&[
         "SUMMARY of the first exchange",

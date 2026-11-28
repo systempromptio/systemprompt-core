@@ -5,7 +5,7 @@ use systemprompt_engine::store::{
     TodoPriority, TodoStatus,
 };
 
-use crate::store::support::{TestResult, assistant, session, text_of, user};
+use crate::store::support::{TestResult, assistant, empty_reply, session, text_of, user};
 
 #[test]
 fn fork_copies_history_before_the_cut_with_fresh_ids() -> TestResult {
@@ -174,5 +174,44 @@ fn sessions_are_found_by_title() -> TestResult {
     assert_eq!(store.search_sessions(None, "parser", 10)?.len(), 1);
     assert_eq!(store.root_sessions(&alpha.project_id, false)?.len(), 1);
     assert_eq!(store.root_sessions(&alpha.project_id, true)?.len(), 2);
+    Ok(())
+}
+
+#[test]
+fn a_fork_leaves_a_running_reply_behind_and_renames_the_message_ids_its_metadata_names()
+-> TestResult {
+    let store = Store::open_in_memory()?;
+    let source = session(&store)?;
+    let first = user(&store, &source.id, "one")?;
+    let settled = assistant(&store, &source.id, &first, "reply one")?;
+    let running = empty_reply(&store, &source.id)?;
+    store.update_session(&source.id, |session| {
+        session.metadata.insert(
+            "mark".to_owned(),
+            serde_json::json!({"message": first.to_string(), "tail": settled.to_string()}),
+        );
+        session.metadata.insert(
+            "running".to_owned(),
+            serde_json::Value::String(running.to_string()),
+        );
+    })?;
+
+    let fork = store.fork_session(&source.id, None)?;
+    let copied = store.messages(&fork.id, &MessagePage::all())?;
+    assert_eq!(
+        copied.len(),
+        3,
+        "the prompt the running reply answers stays"
+    );
+    assert!(copied.iter().all(|entry| entry.message.id() != &running));
+    let ids: Vec<String> = copied
+        .iter()
+        .map(|entry| entry.message.id().to_string())
+        .collect();
+    assert_eq!(fork.metadata["mark"]["message"], ids[0].as_str());
+    assert_eq!(fork.metadata["mark"]["tail"], ids[1].as_str());
+    assert_eq!(fork.metadata["running"], running.to_string().as_str());
+    let stored = store.get_session(&fork.id)?.ok_or("the fork is stored")?;
+    assert_eq!(stored.metadata, fork.metadata);
     Ok(())
 }
