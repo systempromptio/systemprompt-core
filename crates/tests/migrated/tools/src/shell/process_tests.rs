@@ -83,7 +83,11 @@ async fn an_unknown_command_fails_cleanly_with_its_status() {
     let project = Project::new();
     let out = run(&project, "definitely-not-a-command-xyz").await.ok();
     assert_eq!(out.metadata["exit_code"], 127);
-    assert!(out.output.contains("not found"), "{}", out.output);
+    assert!(
+        out.output.contains("definitely-not-a-command-xyz"),
+        "{}",
+        out.output
+    );
 }
 
 #[tokio::test]

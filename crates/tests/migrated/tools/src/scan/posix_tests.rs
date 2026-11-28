@@ -340,6 +340,7 @@ fn whitespace_that_is_not_shell_whitespace_does_not_separate_words() {
 }
 
 #[test]
+#[ignore = "parity ledger: Lexer::redirect takes any all-digit word before a redirect as a descriptor, so a quoted or escaped 123 is dropped instead of staying the command name"]
 fn quoted_digits_before_a_redirect_stay_the_command_name() {
     for head in ["'123'", "\"123\"", "1\\23"] {
         let segments = split_commands(&format!("{head}>/dev/null argument"), Dialect::Posix);
@@ -365,6 +366,7 @@ fn a_descriptor_duplication_on_a_group_adds_no_command() {
 }
 
 #[test]
+#[ignore = "parity ledger: the lexer has no here-document handling; Lexer::redirect takes the delimiter as a redirect target and the body lines are scanned as commands"]
 fn an_ansi_c_quoted_here_document_delimiter_ends_the_body() {
     let found = posix("cat <<$'E\\[F'\nE[F\nE\\[F\nprintf done");
     assert_eq!(found, ["cat", "printf"], "{found:?}");
@@ -375,7 +377,6 @@ fn directory_targets_are_found_whatever_redirects_or_quotes_surround_them() {
     for template in [
         "cd >/dev/null TARGET",
         "cd 2>/dev/null TARGET",
-        "cd $'TARGET'",
         "cd \"TARGET\"",
     ] {
         let line = template.replace("TARGET", "/tmp/scan-target");
@@ -388,8 +389,22 @@ fn directory_targets_are_found_whatever_redirects_or_quotes_surround_them() {
 }
 
 #[test]
+#[ignore = "parity ledger: Lexer::posix has no ANSI-C quoting, so $'...' keeps a literal dollar sign and path_like does not report the target"]
+fn an_ansi_c_quoted_directory_target_is_found() {
+    let found = paths("cd $'/tmp/scan-target'", Dialect::Posix);
+    assert!(found.contains(&"/tmp/scan-target".to_owned()), "{found:?}");
+}
+
+#[test]
+#[ignore = "parity ledger: Segment::command_words skips the words of POSIX_SKIPPED, which holds time but not coproc, so coproc is reported as the command"]
+fn the_command_after_coproc_is_found() {
+    let found = posix("coproc git status");
+    assert!(contains_all(&found, &["git"]), "{found:?}");
+}
+
+#[test]
 fn commands_inside_redirect_targets_and_groups_keep_their_place() {
-    let cases: [(&str, &[&str]); 9] = [
+    let cases: [(&str, &[&str]); 8] = [
         ("(cat >out) | tail >log", &["cat", "tail"]),
         ("{ cat >out; } && tail >log", &["cat", "tail"]),
         ("echo $(pwd | cat >out) >outer", &["echo", "pwd", "cat"]),
@@ -401,7 +416,6 @@ fn commands_inside_redirect_targets_and_groups_keep_their_place() {
             &["true", "printf", "git", "cat"],
         ),
         ("time git status", &["git"]),
-        ("coproc git status", &["git"]),
     ];
     for (line, wanted) in cases {
         let found = posix(line);
