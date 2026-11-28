@@ -38,6 +38,7 @@ lint-layers
 lint-kernel-deps
 lint-device-closure
 lint-module-order
+lint-platform-confinement
 lint-phone-closure
 lint-capability-cfg
 lint-domain-protocol-deps

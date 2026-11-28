@@ -58,6 +58,7 @@ lint-layers                 global  cheap    sql     0.1s; the cargo dependency 
 lint-kernel-deps            global  cheap    sql     0.1s; the cargo dependency graph
 lint-device-closure         global  cheap    sql     0.1s; the cargo dependency graph against the kernel rows of units.txt
 lint-module-order           global  cheap    sql     0.3s; every source file of systemprompt-engine and systemprompt-harness against the fixed module order of each
+lint-platform-confinement   global  cheap    sql     0.3s; every Rust file of the device crates (the DEVICE list of lint-device-closure.py) for target-system cfg outside a platform module
 lint-phone-closure          global  cheap    sql     0.1s; the cargo dependency graph from systemprompt-mobile, feature-resolved from the manifests
 lint-capability-cfg         global  cheap    errors  0.3s; crates/ (minus crates/tests) token scan against the capability features of units.txt and the facade
 lint-domain-protocol-deps   global  cheap    sql     0.1s; the cargo dependency graph
