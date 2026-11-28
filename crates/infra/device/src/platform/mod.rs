@@ -25,6 +25,7 @@
 
 mod contract;
 mod dirs;
+pub mod instance;
 #[cfg(any(windows, target_os = "linux"))]
 mod keyring;
 #[cfg(target_os = "linux")]

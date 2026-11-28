@@ -1,0 +1,1 @@
+src/tools/shell/platform/linux.rs  # platform constraint: LC_ALL, LC_CTYPE and LANG name the locale charset that shell output is decoded with

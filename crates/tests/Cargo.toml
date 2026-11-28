@@ -57,6 +57,7 @@ members = [
     "unit/infra/security",
     "unit/infra/security/authz",
     "unit/infra/device",
+    "unit/infra/machine",
     # Unit tests - domain layer
     "unit/domain/agent",
     "unit/domain/ai",
@@ -343,6 +344,7 @@ systemprompt-teams = { path = "../domain/teams" }
 systemprompt-engine = { path = "../domain/engine" }
 systemprompt-drive = { path = "../domain/drive" }
 systemprompt-device = { path = "../infra/device" }
+systemprompt-machine = { path = "../infra/machine" }
 systemprompt-runtime = { path = "../app/runtime" }
 systemprompt-mcp-host = { path = "../app/mcp-host" }
 systemprompt-scheduler = { path = "../app/scheduler" }

@@ -8,6 +8,7 @@ mod dirs_linux_tests;
 mod dirs_macos_tests;
 #[cfg(windows)]
 mod dirs_windows_tests;
+mod instance_tests;
 #[cfg(target_os = "macos")]
 mod keychain_tests;
 #[cfg(target_os = "linux")]
