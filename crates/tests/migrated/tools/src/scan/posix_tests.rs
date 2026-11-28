@@ -314,7 +314,6 @@ fn very_long_input_is_scanned_in_bounded_time() {
 }
 
 #[test]
-#[ignore = "parity ledger: glob qualifiers that run code are not refused"]
 fn glob_qualifiers_that_run_code_are_refused() {
     assert!(split_commands("ls *(e:'rm x':)", Dialect::Posix).is_empty());
 }

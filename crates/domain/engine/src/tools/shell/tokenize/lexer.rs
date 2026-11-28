@@ -25,7 +25,7 @@ pub(super) struct Lexer {
     pub(super) here_next: Option<bool>,
     pub(super) here_documents: Vec<HereDocument>,
     pub(super) depth: usize,
-    pub(super) too_deep: bool,
+    pub(super) unanalysable: bool,
 }
 
 impl Lexer {
@@ -44,7 +44,7 @@ impl Lexer {
             here_next: None,
             here_documents: Vec::new(),
             depth,
-            too_deep: depth > MAX_DEPTH,
+            unanalysable: depth > MAX_DEPTH,
         }
     }
 
@@ -109,7 +109,7 @@ impl Lexer {
 
     pub(super) fn run(mut self) -> Option<Vec<Segment>> {
         while let Some(c) = self.peek(0) {
-            if self.too_deep {
+            if self.unanalysable {
                 return None;
             }
             match c {
@@ -134,7 +134,7 @@ impl Lexer {
             }
         }
         self.end_segment();
-        if self.too_deep {
+        if self.unanalysable {
             return None;
         }
         let mut all = self.segments;
@@ -254,8 +254,30 @@ impl Lexer {
         self.has_word = true;
         match Self::new(inner, self.dialect, self.depth + 1).run() {
             Some(found) => self.nested.extend(found),
-            None => self.too_deep = true,
+            None => self.unanalysable = true,
         }
+    }
+
+    pub(super) fn runs_code_qualifier(&self) -> bool {
+        if !self.word.ends_with(['*', '?', ']']) {
+            return false;
+        }
+        let mut quote: Option<char> = None;
+        for &c in self.chars.iter().skip(self.at + 1) {
+            if let Some(open) = quote {
+                if c == open {
+                    quote = None;
+                }
+                continue;
+            }
+            match c {
+                '\'' | '"' => quote = Some(c),
+                ')' => return false,
+                'e' | '+' => return true,
+                _ => {},
+            }
+        }
+        false
     }
 
     pub(super) fn separator(&mut self, width: usize) {
