@@ -121,7 +121,12 @@ async fn an_abort_mid_stream_leaves_the_title_call_to_finish_and_its_reply_is_st
 
     harness
         .engine
-        .prompt(prompt(&harness, &id, "Explain it at length", Delivery::Steer))
+        .prompt(prompt(
+            &harness,
+            &id,
+            "Explain it at length",
+            Delivery::Steer,
+        ))
         .await
         .unwrap();
     tokio::time::timeout(SETTLE, async {
@@ -154,7 +159,12 @@ async fn a_title_call_cancelled_by_shutdown_stores_no_title() {
 
     harness
         .engine
-        .prompt(prompt(&harness, &id, "Explain it at length", Delivery::Steer))
+        .prompt(prompt(
+            &harness,
+            &id,
+            "Explain it at length",
+            Delivery::Steer,
+        ))
         .await
         .unwrap();
     tokio::time::timeout(SETTLE, async {

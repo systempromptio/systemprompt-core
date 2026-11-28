@@ -5,7 +5,7 @@
 //! `not_before` lies within the clock-skew window (only a date too far ahead
 //! once a version was applied, either way before that). A 304 never comes here:
 //! its stored manifest passed when it first came. The version last applied is
-//! accepted again: a process that starts without the ETag is sent the whole
+//! accepted again: a process that starts without the `ETag` is sent the whole
 //! manifest, and that is the current one, not a replay.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
