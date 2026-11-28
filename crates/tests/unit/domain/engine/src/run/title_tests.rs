@@ -144,3 +144,28 @@ async fn an_abort_mid_stream_leaves_the_title_call_to_finish_and_its_reply_is_st
     );
     harness.engine.shutdown().await;
 }
+
+#[tokio::test]
+async fn a_title_call_cancelled_by_shutdown_stores_no_title() {
+    let governor = Arc::new(TestGovernor::default());
+    let transport = Arc::new(TitleHeld::default());
+    let harness = harness_on(governor, Arc::clone(&transport));
+    let id = harness.engine.create(&harness.project).await.unwrap().id;
+
+    harness
+        .engine
+        .prompt(prompt(&harness, &id, "Explain it at length", Delivery::Steer))
+        .await
+        .unwrap();
+    tokio::time::timeout(SETTLE, async {
+        transport.title_sent.notified().await;
+        transport.step_sent.notified().await;
+    })
+    .await
+    .expect("the title call and the step were not both sent");
+
+    harness.engine.shutdown().await;
+
+    let stored = harness.engine.store().get_session(&id).unwrap().unwrap();
+    assert_eq!(stored.title, "", "a cancelled title call names nothing");
+}

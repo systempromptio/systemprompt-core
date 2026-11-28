@@ -1,8 +1,6 @@
 //! The watcher of a run's event stream: it performs the scenario's actions on
 //! the events they name through the run's control feed and records each with
-//! the number of model requests the instance had received. An abort of a
-//! scenario that asserts the session title waits for the title's `session`
-//! event first.
+//! the number of model requests the instance had received.
 
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -62,9 +60,6 @@ pub(crate) struct Watcher<'a> {
     idles: usize,
     busy: bool,
     closing_after_revert: bool,
-    awaits_title: bool,
-    titled: bool,
-    held_aborts: Vec<(ActionOn, usize)>,
 }
 
 impl<'a> Watcher<'a> {
@@ -89,9 +84,6 @@ impl<'a> Watcher<'a> {
             idles: 0,
             busy: false,
             closing_after_revert: false,
-            awaits_title: scenario.harness.contains_key("title"),
-            titled: false,
-            held_aborts: Vec::new(),
         }
     }
 
@@ -116,16 +108,6 @@ impl<'a> Watcher<'a> {
     }
 
     fn observe(&mut self, event: &Value) -> bool {
-        if !self.titled
-            && Self::field(event, "/type") == "session"
-            && Self::field(event, "/session/id") == self.root
-            && !Self::field(event, "/session/title").is_empty()
-        {
-            self.titled = true;
-            for (on, index) in std::mem::take(&mut self.held_aborts) {
-                self.fire(on, index);
-            }
-        }
         match Self::field(event, "/type") {
             "started" => self.root = Self::field(event, "/session_id").to_owned(),
             "session"
@@ -228,17 +210,6 @@ impl<'a> Watcher<'a> {
         for at in 0..self.scenario.actions.len() {
             let action = &self.scenario.actions[at];
             if self.done[at] || action.on != on || action.index != index {
-                continue;
-            }
-            // Why: the title call runs beside the first step and an aborted
-            // run ends without waiting for it, so an abort sent before the
-            // title is on the stream races it. The abort is held until the
-            // root session's title has been written; the turn it interrupts
-            // stalls, so the response is still mid-stream then.
-            if action.act == "abort" && self.awaits_title && !self.titled {
-                if !self.held_aborts.contains(&(on, index)) {
-                    self.held_aborts.push((on, index));
-                }
                 continue;
             }
             self.done[at] = true;
