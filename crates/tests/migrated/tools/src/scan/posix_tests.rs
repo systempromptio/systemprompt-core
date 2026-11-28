@@ -388,7 +388,6 @@ fn directory_targets_are_found_whatever_redirects_or_quotes_surround_them() {
 }
 
 #[test]
-#[ignore = "parity ledger: Lexer::posix has no ANSI-C quoting, so $'...' keeps a literal dollar sign and path_like does not report the target"]
 fn an_ansi_c_quoted_directory_target_is_found() {
     let found = paths("cd $'/tmp/scan-target'", Dialect::Posix);
     assert!(found.contains(&"/tmp/scan-target".to_owned()), "{found:?}");

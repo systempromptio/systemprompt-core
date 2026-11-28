@@ -149,3 +149,14 @@ fn quoted_digits_before_a_redirect_are_a_word_not_a_descriptor() {
     assert_eq!(bare[0].words, ["run"]);
     assert_eq!(heads("\"A\"=1 run", Dialect::Posix), ["A=1"]);
 }
+
+#[test]
+fn ansi_c_quoting_decodes_escapes_and_keeps_unknown_ones() {
+    let segments = split_commands(r"printf $'a\tb\x41\101\q' $'/tmp/x'", Dialect::Posix);
+    assert_eq!(segments[0].words, ["printf", "a\tbAA\\q", "/tmp/x"]);
+    assert!(
+        segments[0]
+            .path_words(Dialect::Posix)
+            .contains(&"/tmp/x".to_owned())
+    );
+}

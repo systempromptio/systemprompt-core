@@ -20,6 +20,7 @@ impl Lexer {
                 }
             },
             '\'' => self.quoted_literal('\'', false),
+            '$' if next == Some('\'') => self.ansi_c(),
             '"' => self.posix_double(),
             '`' => {
                 self.at += 1;
@@ -56,6 +57,81 @@ impl Lexer {
             _ => {
                 self.push(c);
                 self.at += 1;
+            },
+        }
+    }
+
+    fn ansi_c(&mut self) {
+        self.mark_quoted();
+        self.at += 2;
+        self.has_word = true;
+        while let Some(c) = self.peek(0) {
+            self.at += 1;
+            match c {
+                '\'' => return,
+                '\\' => self.ansi_c_escape(),
+                _ => self.word.push(c),
+            }
+        }
+    }
+
+    fn ansi_c_escape(&mut self) {
+        let Some(c) = self.peek(0) else {
+            self.word.push('\\');
+            return;
+        };
+        self.at += 1;
+        let simple = match c {
+            'a' => Some('\u{7}'),
+            'b' => Some('\u{8}'),
+            'e' | 'E' => Some('\u{1b}'),
+            'f' => Some('\u{c}'),
+            'n' => Some('\n'),
+            'r' => Some('\r'),
+            't' => Some('\t'),
+            'v' => Some('\u{b}'),
+            '\\' | '\'' | '"' | '?' => Some(c),
+            _ => None,
+        };
+        if let Some(decoded) = simple {
+            self.word.push(decoded);
+            return;
+        }
+        let (radix, most) = match c {
+            '0'..='7' => {
+                self.at -= 1;
+                (8, 3)
+            },
+            'x' => (16, 2),
+            'u' => (16, 4),
+            'U' => (16, 8),
+            'c' => {
+                if let Some(control) = self.peek(0) {
+                    self.at += 1;
+                    self.word.push(char::from(u8::try_from(u32::from(control) & 0x1f).unwrap_or(0)));
+                }
+                return;
+            },
+            _ => {
+                self.word.push('\\');
+                self.word.push(c);
+                return;
+            },
+        };
+        let mut value = 0u32;
+        let mut digits = 0;
+        while digits < most
+            && let Some(digit) = self.peek(0).and_then(|d| d.to_digit(radix))
+        {
+            value = value * radix + digit;
+            digits += 1;
+            self.at += 1;
+        }
+        match char::from_u32(value) {
+            Some(decoded) if digits > 0 => self.word.push(decoded),
+            _ => {
+                self.word.push('\\');
+                self.word.push(c);
             },
         }
     }
