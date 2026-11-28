@@ -6,64 +6,21 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::Path;
-use std::process::Stdio;
 use std::time::Duration;
 
 use systemprompt_traits::OwnedTask;
 use tokio::io::{AsyncRead, AsyncReadExt};
-use tokio::process::{Child, Command};
+use tokio::process::Child;
 use tokio::sync::mpsc;
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 
 use super::decode::Decoder;
-use super::select::{ShellKind, ShellSpec};
-use super::tree::ProcessTree;
+use super::platform::{Launcher, ProcessTree};
+use super::select::ShellSpec;
 use crate::tools::error::ToolError;
 
-const PS_PRELUDE: &str = "$ProgressPreference = 'SilentlyContinue'; try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}; $OutputEncoding = [System.Text.Encoding]::UTF8; ";
 const DRAIN_GRACE: Duration = Duration::from_millis(750);
-
-#[cfg(windows)]
-const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-
-pub(crate) fn command(spec: &ShellSpec, script: &str, cwd: &Path) -> Command {
-    let mut cmd = Command::new(&spec.path);
-    match spec.kind {
-        ShellKind::Pwsh | ShellKind::WindowsPowerShell => {
-            cmd.args(["-NoLogo", "-NoProfile", "-NonInteractive", "-Command"]);
-            cmd.arg(format!("{PS_PRELUDE}{script}"));
-        },
-        ShellKind::Cmd => {
-            // Why: cmd.exe parses its own command line, so the script is passed verbatim
-            // inside /s /c "...".
-            #[cfg(windows)]
-            {
-                cmd.raw_arg(format!("/d /s /c \"{script}\""));
-            }
-            #[cfg(not(windows))]
-            {
-                cmd.arg("/c").arg(script);
-            }
-        },
-        ShellKind::GitBash | ShellKind::Posix => {
-            cmd.arg("-c").arg(script);
-        },
-    }
-    cmd.current_dir(cwd)
-        .env("PAGER", "cat")
-        .env("GIT_PAGER", "cat")
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .kill_on_drop(true);
-    #[cfg(windows)]
-    cmd.creation_flags(CREATE_NO_WINDOW);
-    #[cfg(unix)]
-    cmd.process_group(0);
-    cmd
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Ending {
@@ -80,11 +37,15 @@ pub(crate) struct Running {
     pumps: Vec<OwnedTask<()>>,
 }
 
-pub(crate) fn start(spec: &ShellSpec, script: &str, cwd: &Path) -> Result<Running, ToolError> {
-    let mut child = command(spec, script, cwd)
-        .spawn()
+pub(crate) fn start(
+    launcher: &Launcher,
+    spec: &ShellSpec,
+    script: &str,
+    cwd: &Path,
+) -> Result<Running, ToolError> {
+    let (mut child, tree) = launcher
+        .launch(spec, script, cwd)
         .map_err(|err| ToolError::io(format!("could not start {}", spec.path.display()), err))?;
-    let tree = ProcessTree::attach(&child);
     let (sender, output) = mpsc::unbounded_channel();
     let mut pumps = Vec::with_capacity(2);
     if let Some(stdout) = child.stdout.take() {

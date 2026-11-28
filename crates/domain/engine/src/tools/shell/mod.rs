@@ -9,12 +9,12 @@ mod authorize;
 mod capture;
 mod decode;
 mod jobs;
+mod platform;
 mod process;
 mod registry;
 mod run;
 mod select;
 mod tokenize;
-mod tree;
 
 use std::path::Path;
 use std::time::Duration;

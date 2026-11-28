@@ -18,6 +18,7 @@ use systemprompt_identifiers::engine::{IdClock, JobId, SessionId};
 use systemprompt_traits::{BackgroundTasks, CancellationToken};
 
 use super::jobs::{JobInfo, JobListener, JobReport, JobState};
+use super::platform::Launcher;
 use super::process::{self, Ending, Running};
 use super::select::ShellSpec;
 use crate::tools::error::ToolError;
@@ -38,6 +39,7 @@ struct Inner {
     listener: Mutex<Option<Arc<dyn JobListener>>>,
     tasks: BackgroundTasks,
     ids: IdClock,
+    launcher: Launcher,
 }
 
 /// The registry of background shell commands.
@@ -87,6 +89,7 @@ impl BackgroundJobs {
             listener: Mutex::default(),
             tasks,
             ids: IdClock::new(),
+            launcher: Launcher::default(),
         };
         Self {
             inner: Arc::new(inner),
@@ -185,6 +188,10 @@ impl BackgroundJobs {
         running
     }
 
+    pub(super) fn launcher(&self) -> &Launcher {
+        &self.inner.launcher
+    }
+
     pub(crate) fn start(&self, request: &JobStart<'_>) -> Result<JobInfo, ToolError> {
         let id = JobId::mint(&self.inner.ids);
         let dir = request.data_dir.join("jobs");
@@ -194,7 +201,12 @@ impl BackgroundJobs {
         let log = File::create(&output_path).map_err(|err| {
             ToolError::io(format!("could not create {}", output_path.display()), err)
         })?;
-        let running = process::start(request.spec, request.command, request.cwd)?;
+        let running = process::start(
+            &self.inner.launcher,
+            request.spec,
+            request.command,
+            request.cwd,
+        )?;
         let cancel = self.inner.tasks.cancellation_token();
         let info = JobInfo {
             id: id.clone(),

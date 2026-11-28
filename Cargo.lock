@@ -7574,6 +7574,7 @@ dependencies = [
  "bytes",
  "chrono",
  "dunce",
+ "encoding_rs",
  "futures-util",
  "globset",
  "httpdate",

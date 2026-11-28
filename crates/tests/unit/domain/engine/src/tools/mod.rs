@@ -18,3 +18,5 @@ mod support;
 mod todo_tests;
 mod tokenize_tests;
 mod truncate_tests;
+#[cfg(windows)]
+mod windows_shell_tests;

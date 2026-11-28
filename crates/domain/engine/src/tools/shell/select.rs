@@ -1,12 +1,14 @@
-//! Choosing the shell commands run in. On Windows the order is `PowerShell` 7,
-//! Git Bash, Windows `PowerShell` 5.1, then cmd; elsewhere bash, then sh. A
-//! configured shell wins when it resolves.
+//! Choosing the shell commands run in. A configured shell wins when it
+//! resolves; otherwise the platform's own order decides: `PowerShell` 7, Git
+//! Bash, Windows `PowerShell` 5.1, then cmd on Windows; zsh, bash, then sh on
+//! macOS; bash, then sh on Linux.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::path::{Path, PathBuf};
 
+use super::platform;
 use super::tokenize::Dialect;
 
 /// The family of shell a command runs in.
@@ -83,7 +85,7 @@ impl ShellSpec {
             }
             tracing::warn!(shell = %path.display(), "configured shell not found; using the detected one");
         }
-        platform_default()
+        platform::default_shell()
     }
 
     pub fn resolve(path: &Path) -> Option<Self> {
@@ -108,64 +110,6 @@ pub(crate) fn kind_of(path: &Path) -> ShellKind {
         "pwsh" => ShellKind::Pwsh,
         "powershell" => ShellKind::WindowsPowerShell,
         "cmd" => ShellKind::Cmd,
-        _ if cfg!(windows) => ShellKind::GitBash,
-        _ => ShellKind::Posix,
-    }
-}
-
-#[cfg(windows)]
-fn platform_default() -> ShellSpec {
-    if let Ok(path) = which::which("pwsh") {
-        return ShellSpec {
-            path,
-            kind: ShellKind::Pwsh,
-        };
-    }
-    if let Some(path) = git_bash() {
-        return ShellSpec {
-            path,
-            kind: ShellKind::GitBash,
-        };
-    }
-    if let Ok(path) = which::which("powershell") {
-        return ShellSpec {
-            path,
-            kind: ShellKind::WindowsPowerShell,
-        };
-    }
-    let path = which::which("cmd").unwrap_or_else(|_| PathBuf::from("cmd.exe"));
-    ShellSpec {
-        path,
-        kind: ShellKind::Cmd,
-    }
-}
-
-// Why: System32\bash.exe is the WSL launcher, so Git Bash is found next to
-// git.exe rather than on PATH.
-#[cfg(windows)]
-fn git_bash() -> Option<PathBuf> {
-    if let Ok(git) = which::which("git") {
-        for root in git.ancestors().skip(1).take(3) {
-            let candidate = root.join("bin").join("bash.exe");
-            if candidate.is_file() {
-                return Some(candidate);
-            }
-        }
-    }
-    [
-        r"C:\Program Files\Git\bin\bash.exe",
-        r"C:\Program Files (x86)\Git\bin\bash.exe",
-    ]
-    .iter()
-    .map(PathBuf::from)
-    .find(|candidate| candidate.is_file())
-}
-
-#[cfg(not(windows))]
-fn platform_default() -> ShellSpec {
-    let path = which::which("bash").unwrap_or_else(|_| PathBuf::from("/bin/sh"));
-    ShellSpec {
-        path,
-        kind: ShellKind::Posix,
+        _ => platform::unnamed_shell(),
     }
 }

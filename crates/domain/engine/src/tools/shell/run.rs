@@ -65,7 +65,7 @@ impl ShellTool {
         let timeout = call.requested.map_or(self.config.default_timeout, |limit| {
             limit.min(self.config.max_timeout)
         });
-        let running = process::start(&self.spec, call.command, call.cwd)?;
+        let running = process::start(self.jobs.launcher(), &self.spec, call.command, call.cwd)?;
         let mut capture = Capture::new(self.config.capture_bytes);
         let mut live = Live::new(ctx.progress.clone(), call.title.clone());
         let ending = running

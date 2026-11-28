@@ -119,3 +119,33 @@ async fn shutting_down_the_task_set_stops_its_jobs() {
     assert!(report.is_drained());
     assert_eq!(jobs.get(&id).map(|info| info.state), Some(JobState::Killed));
 }
+
+#[tokio::test]
+async fn killing_a_job_ends_what_it_started() {
+    let dir = tempfile::tempdir().unwrap();
+    let (ctx, _) = recorded(dir.path());
+    let jobs = BackgroundJobs::new();
+    let id = start(&jobs, &ctx, "(sleep 3; touch survived) & sleep 30").await;
+    assert!(jobs.kill(&id));
+    assert_eq!(wait_for(&jobs, &id).await.state, JobState::Killed);
+    tokio::time::sleep(Duration::from_millis(3500)).await;
+    assert!(!dir.path().join("survived").exists());
+}
+
+#[tokio::test]
+async fn a_job_that_times_out_ends_what_it_started() {
+    let dir = tempfile::tempdir().unwrap();
+    let (ctx, _) = recorded(dir.path());
+    let jobs = BackgroundJobs::new();
+    let out = sh(&jobs)
+        .run(
+            json!({"command": "(sleep 3; touch survived) & sleep 30", "background": true, "timeout": 1}),
+            &ctx,
+        )
+        .await
+        .unwrap();
+    let id = JobId::parse(out.metadata["job_id"].as_str().unwrap()).unwrap();
+    assert_eq!(wait_for(&jobs, &id).await.state, JobState::TimedOut);
+    tokio::time::sleep(Duration::from_millis(3500)).await;
+    assert!(!dir.path().join("survived").exists());
+}
