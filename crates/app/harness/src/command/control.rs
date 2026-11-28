@@ -187,7 +187,7 @@ impl<W: Write + Send> Pump<'_, W> {
         }
     }
 
-    async fn send(&mut self, text: String, delivery: Delivery) -> Result<(), PumpError> {
+    async fn send(&self, text: String, delivery: Delivery) -> Result<(), PumpError> {
         let input = PromptInput {
             text,
             delivery,
@@ -197,7 +197,7 @@ impl<W: Write + Send> Pump<'_, W> {
         admitted.map(|_| ()).map_err(PumpError::Engine)
     }
 
-    async fn revert(&mut self, prompt: usize) -> Result<(), PumpError> {
+    async fn revert(&self, prompt: usize) -> Result<(), PumpError> {
         let messages = self.engine.messages(&self.root).await;
         let messages = messages.map_err(PumpError::Engine)?;
         let message_id = nth_prompt(&messages, prompt)
