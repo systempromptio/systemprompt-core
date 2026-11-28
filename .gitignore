@@ -120,6 +120,8 @@ scripts/*
 !scripts/test-db.sh
 !scripts/lint-module-order.py
 !scripts/test-lint-module-order.py
+!scripts/lint-platform-confinement.py
+!scripts/test-lint-platform-confinement.py
 !scripts/lint-device-no-window.sh
 !scripts/lint-foreign-names.sh
 !scripts/foreign-names.txt

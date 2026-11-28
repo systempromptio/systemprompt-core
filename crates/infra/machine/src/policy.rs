@@ -20,10 +20,11 @@ pub(crate) const DOCUMENT_LIMIT: u64 = 4 * 1024 * 1024;
 
 const SEGMENT_LIMIT: usize = 128;
 
-/// The names a product's managed configuration is filed under: the vendor key
-/// (registry key, `ProgramData` and `/etc` directory), the preferences domain
-/// and the file name. Each is a single path segment of letters, digits, `.`,
-/// `-` and `_`.
+/// The names a product's managed configuration is filed under.
+///
+/// The vendor key (registry key, `ProgramData` and `/etc` directory), the
+/// preferences domain and the file name. Each is a single path segment of
+/// letters, digits, `.`, `-` and `_`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PolicyIdentity {
     name: String,

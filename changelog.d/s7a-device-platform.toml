@@ -1,0 +1,19 @@
+[root]
+section = "Added"
+area = "Device"
+text = "The device crates have one platform contract per concern with Windows, macOS and Linux implementations: sealing and credential stores, owner-only files, base directories and the data root, single instance with argument hand-off, shell selection, output decoding and process-tree kill, scheduler entries, elevation and machine policy locations. On Linux a sealed sign-in now survives between processes."
+
+[[crate]]
+name = "systemprompt-device"
+section = "Added"
+text = "`platform` module: `DataRoot`, base directories, `KeyringSealer` on Linux, and `platform::instance` (one instance per data root with argument hand-off). `DpapiSealer` and `KeychainSealer` move from `secure` to `platform`."
+
+[[crate]]
+name = "systemprompt-machine"
+section = "Added"
+text = "Scheduler entries, elevation and machine policy locations behind one platform contract."
+
+[[crate]]
+name = "systemprompt-engine"
+section = "Changed"
+text = "The shell tool selects its shell, decodes output and kills the process tree through `tools::shell::platform`; macOS prefers zsh, and Linux decodes non-UTF-8 output in the locale charset."

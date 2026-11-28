@@ -175,6 +175,10 @@ lint-device-closure:
 lint-module-order:
     python3 ./scripts/lint-module-order.py
 
+# Reject a target-system cfg (windows, unix, target_os, target_family, target_vendor, target_env) outside a `platform` module of a device crate
+lint-platform-confinement *ARGS:
+    python3 ./scripts/lint-platform-confinement.py {{ARGS}}
+
 # Reject the phone binding crate reaching an engine, proxy, host, machine, drive, runner or server crate
 lint-phone-closure:
     python3 ./scripts/lint-phone-closure.py

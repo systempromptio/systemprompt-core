@@ -10,6 +10,7 @@
 # sqlx::query*! user in the closure, and no systemprompt-test-hack — see
 # scripts/lint-native-test-deps.sh. One package name per line; `#` comments.
 systemprompt-device-tests
+systemprompt-machine-tests
 systemprompt-drive-tests
 systemprompt-engine-tests
 systemprompt-harness-tests

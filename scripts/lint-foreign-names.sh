@@ -20,10 +20,12 @@ list=scripts/foreign-names.txt
 scope=(
     crates/domain/engine
     crates/infra/device
+    crates/infra/machine
     crates/app/harness
     crates/domain/drive
     crates/tests/unit/domain/engine
     crates/tests/unit/infra/device
+    crates/tests/unit/infra/machine
     crates/tests/unit/app/harness
     crates/tests/unit/domain/drive
     crates/tests/unit/shared/models-device

@@ -52,6 +52,7 @@ workspace-members = [
     "systemprompt-bridge-verdicts-tests",
     "systemprompt-bridge-window-state-tests",
     "systemprompt-device-tests",
+    "systemprompt-machine-tests",
     "systemprompt-drive-tests",
     "systemprompt-engine-tests",
     "systemprompt-harness-tests",

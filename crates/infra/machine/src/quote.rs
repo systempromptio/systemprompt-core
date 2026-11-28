@@ -1,5 +1,7 @@
-//! Text handed to another program's parser: an XML document, a Windows
-//! command line, a POSIX shell line and an AppleScript string. Each function
+//! Text handed to another program's parser.
+//!
+//! An XML document, a Windows command line, a POSIX shell line and an
+//! `AppleScript` string. Each function
 //! is free of platform conditions so every system's tests cover the exact text
 //! the other systems hand over.
 //!

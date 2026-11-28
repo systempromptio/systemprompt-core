@@ -6,6 +6,6 @@
 
 Machine-level install, device-management snippets, policy writer and elevation for systemprompt.io devices.
 
-The crate declares no items and has no dependencies.
+Scheduler entries (Task Scheduler, launchd agents, systemd user units), elevation (UAC, the macOS authorization dialog, pkexec) and the locations a managed configuration is read from, each one typed contract with a Windows, a macOS and a Linux implementation in the `platform` module.
 
 **Layer**: Infra. Device infrastructure consumed by the device application crate; it depends on no server crate above the shared layer. Part of the [systemprompt-core](https://github.com/systempromptio/systemprompt-core) workspace.
