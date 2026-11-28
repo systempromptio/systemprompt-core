@@ -7949,6 +7949,12 @@ dependencies = [
 [[package]]
 name = "systemprompt-machine"
 version = "0.87.0"
+dependencies = [
+ "nix",
+ "thiserror 2.0.21",
+ "tracing",
+ "windows-sys 0.61.2",
+]
 
 [[package]]
 name = "systemprompt-manifest"
