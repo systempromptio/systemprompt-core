@@ -36,9 +36,7 @@ const EXECUTION_ID_KEY: &str = "mcp_tool_executions_pkey";
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExecutionInsert {
     Inserted,
-    /// Another row already carries the request's `ai_tool_call_id`.
     CallIdHeld,
-    /// A row with this `mcp_execution_id` already exists.
     ExecutionIdHeld,
 }
 
@@ -248,8 +246,6 @@ impl ToolUsageRepository {
         Ok(())
     }
 
-    /// Inserts an execution, reporting a row another vantage point already
-    /// wrote for the same call id or execution id as an outcome, not an error.
     pub async fn insert_execution_with_id(
         &self,
         mcp_execution_id: &McpExecutionId,
