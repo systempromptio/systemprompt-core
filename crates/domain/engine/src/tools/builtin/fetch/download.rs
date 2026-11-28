@@ -1,13 +1,14 @@
-//! The bounded GET behind the fetch tool: the declared length checked first,
-//! the body read chunk by chunk up to the byte limit, and a failed status
-//! reported with the start of its body.
+//! The bounded GET behind the fetch tool: a redirect handed back to the
+//! caller unfollowed, the declared length checked first, the body read chunk
+//! by chunk up to the byte limit, and a failed status reported with the start
+//! of its body.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
 use std::time::Duration;
 
-use reqwest::header::{ACCEPT, CONTENT_TYPE};
+use reqwest::header::{ACCEPT, CONTENT_TYPE, LOCATION};
 use url::Url;
 
 use crate::tools::error::ToolError;
@@ -17,6 +18,12 @@ pub(super) struct Fetched {
     pub(super) final_url: String,
     pub(super) content_type: String,
     pub(super) body: Vec<u8>,
+}
+
+#[derive(Debug)]
+pub(super) enum Reply {
+    Page(Fetched),
+    Redirect(Url),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -30,7 +37,7 @@ pub(super) struct Request<'a> {
 pub(super) async fn download(
     client: &reqwest::Client,
     request: Request<'_>,
-) -> Result<Fetched, ToolError> {
+) -> Result<Reply, ToolError> {
     let Request {
         url,
         accept,
@@ -45,6 +52,9 @@ pub(super) async fn download(
         .await
         .map_err(|err| ToolError::caused(format!("could not fetch {url}"), err))?;
     let status = response.status();
+    if status.is_redirection() {
+        return redirect_target(url, response.headers().get(LOCATION)).map(Reply::Redirect);
+    }
     let final_url = response.url().to_string();
     let content_type = response
         .headers()
@@ -79,9 +89,20 @@ pub(super) async fn download(
             snippet.trim()
         )));
     }
-    Ok(Fetched {
+    Ok(Reply::Page(Fetched {
         final_url,
         content_type,
         body,
-    })
+    }))
+}
+
+fn redirect_target(
+    url: &Url,
+    location: Option<&reqwest::header::HeaderValue>,
+) -> Result<Url, ToolError> {
+    let location = location
+        .and_then(|value| value.to_str().ok())
+        .ok_or_else(|| ToolError::failed(format!("{url} redirects without a location")))?;
+    url.join(location)
+        .map_err(|err| ToolError::malformed(format!("{url} redirects to an invalid URL"), err))
 }

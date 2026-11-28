@@ -353,7 +353,6 @@ async fn a_refused_fetch_never_reaches_the_server() {
 }
 
 #[tokio::test]
-#[ignore = "parity ledger: redirects are followed without asking about their target"]
 async fn a_redirect_is_followed_only_to_a_permitted_target() {
     let dir = tempfile::tempdir().unwrap();
     let target = serve(|_| page("text/plain", "far")).await;

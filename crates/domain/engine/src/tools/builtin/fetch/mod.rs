@@ -14,7 +14,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use url::Url;
 
-use self::download::{Fetched, Request, download};
+use self::download::{Fetched, Reply, Request, download};
 use crate::tools::builtin::html::{Flavor, convert};
 use crate::tools::config::FetchConfig;
 use crate::tools::contract::{Attachment, PermissionRequest, Tool, ToolContext, ToolOutput};
@@ -34,7 +34,7 @@ impl FetchTool {
     pub fn new(config: FetchConfig, output: OutputLimits) -> Self {
         let built = reqwest::Client::builder()
             .user_agent(config.user_agent.clone())
-            .redirect(reqwest::redirect::Policy::limited(10))
+            .redirect(reqwest::redirect::Policy::none())
             .connect_timeout(Duration::from_secs(15))
             .build();
         if let Err(err) = &built {
@@ -113,23 +113,6 @@ impl Tool for FetchTool {
         let input: Input = parse_input(&self.schema(), input)?;
         let url =
             Url::parse(input.url.trim()).map_err(|err| ToolError::malformed("invalid URL", err))?;
-        if !matches!(url.scheme(), "http" | "https") {
-            return Err(ToolError::invalid(
-                "only http:// and https:// URLs can be fetched",
-            ));
-        }
-        let host = url
-            .host_str()
-            .ok_or_else(|| ToolError::invalid("the URL has no host"))?
-            .to_ascii_lowercase();
-        ctx.ask(PermissionRequest {
-            permission: "fetch".to_owned(),
-            patterns: vec![host.clone()],
-            always: vec![host.clone()],
-            title: format!("Fetch {url}"),
-            metadata: json!({ "url": url.as_str(), "host": host }),
-        })
-        .await?;
         let client = self
             .client
             .as_ref()
@@ -138,15 +121,37 @@ impl Tool for FetchTool {
             .timeout
             .map_or(self.config.default_timeout, Duration::from_secs)
             .min(self.config.max_timeout);
-        let request = Request {
-            url: &url,
-            accept: input.format.accept(),
-            timeout,
-            max_bytes: self.config.max_bytes,
-        };
-        let fetched = tokio::select! {
-            result = download(client, request) => result?,
-            () = ctx.cancel.cancelled() => return Err(ToolError::Aborted),
+        let mut url = url;
+        let mut approved: Option<url::Origin> = None;
+        let mut hops = 0;
+        let fetched = loop {
+            let host = permitted_host(&url)?;
+            if approved.as_ref() != Some(&url.origin()) {
+                ask_host(ctx, &url, host).await?;
+                approved = Some(url.origin());
+            }
+            let request = Request {
+                url: &url,
+                accept: input.format.accept(),
+                timeout,
+                max_bytes: self.config.max_bytes,
+            };
+            let reply = tokio::select! {
+                result = download(client, request) => result?,
+                () = ctx.cancel.cancelled() => return Err(ToolError::Aborted),
+            };
+            match reply {
+                Reply::Page(fetched) => break fetched,
+                Reply::Redirect(next) if hops < MAX_REDIRECTS => {
+                    hops += 1;
+                    url = next;
+                },
+                Reply::Redirect(_) => {
+                    return Err(ToolError::invalid(format!(
+                        "{url} redirects more than {MAX_REDIRECTS} times"
+                    )));
+                },
+            }
         };
         let mime = fetched
             .content_type
@@ -210,6 +215,35 @@ impl FetchTool {
             })),
         )
     }
+}
+
+const MAX_REDIRECTS: usize = 10;
+
+fn permitted_host(url: &Url) -> Result<String, ToolError> {
+    if !matches!(url.scheme(), "http" | "https") {
+        return Err(ToolError::invalid(
+            "only http:// and https:// URLs can be fetched",
+        ));
+    }
+    if !url.username().is_empty() || url.password().is_some() {
+        return Err(ToolError::invalid(
+            "URLs with embedded credentials cannot be fetched",
+        ));
+    }
+    url.host_str()
+        .map(str::to_ascii_lowercase)
+        .ok_or_else(|| ToolError::invalid("the URL has no host"))
+}
+
+async fn ask_host(ctx: &ToolContext, url: &Url, host: String) -> Result<(), ToolError> {
+    ctx.ask(PermissionRequest {
+        permission: "fetch".to_owned(),
+        patterns: vec![host.clone()],
+        always: vec![host.clone()],
+        title: format!("Fetch {url}"),
+        metadata: json!({ "url": url.as_str(), "host": host }),
+    })
+    .await
 }
 
 fn image_output(url: &Url, mime: &str, fetched: &Fetched) -> ToolOutput {
