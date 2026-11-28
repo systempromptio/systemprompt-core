@@ -1,4 +1,5 @@
 //! Messages: upserts, paged history and deletion, including a committed revert.
+//! Reading the messages of a session that does not exist fails as not found.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -8,7 +9,7 @@ use std::collections::HashMap;
 use rusqlite::{Connection, params};
 
 use crate::store::change::Change;
-use crate::store::error::Result;
+use crate::store::error::{Result, not_found};
 use crate::store::handle::Store;
 use crate::store::id::{MessageId, SessionId, column, now_ms, optional_param, param};
 use crate::store::model::{Message, MessagePage, MessageWithParts, Part};
@@ -53,6 +54,9 @@ impl Store {
         self.read(|connection| {
             let transaction = connection.transaction()?;
             let (messages, parts) = read_page(&transaction, session_id, page, limit)?;
+            if messages.is_empty() && load_session(&transaction, session_id)?.is_none() {
+                return Err(not_found("session", session_id));
+            }
             transaction.commit()?;
             Ok(attach_parts(messages, parts))
         })

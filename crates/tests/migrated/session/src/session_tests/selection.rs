@@ -138,7 +138,6 @@ async fn operations_on_an_unknown_session_fail_as_not_found() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "parity ledger: the messages of an unknown session read as an empty list, not as a not-found error"]
 async fn reading_the_transcript_of_an_unknown_session_fails_as_not_found() {
     let scripted = Scripted::start(Vec::new()).await;
     let unknown = SessionId::mint(scripted.engine.store().ids());

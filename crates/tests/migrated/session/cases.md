@@ -54,7 +54,7 @@ Cases: 1140 over 120 catalogue rows. ported 230, covered 86, not applicable 430,
 | ENG-9ea2aa6f | `packages/core/test/session-instructions.test.ts` |  | 8 | 0 | 0 | 1 | 0 | 7 | 0 |
 | ENG-9a7b01ee | `packages/core/test/session-list.test.ts` |  | 3 | 0 | 0 | 0 | 0 | 3 | 0 |
 | ENG-4c88afa5 | `packages/core/test/session-live-tool-metadata.test.ts` |  | 1 | 0 | 0 | 0 | 0 | 1 | 0 |
-| ENG-af7ebcd6 | `packages/core/test/session-log.test.ts` |  | 5 | 0 | 0 | 0 | 0 | 5 | 0 |
+| ENG-af7ebcd6 | `packages/core/test/session-log.test.ts` |  | 5 | 1 | 0 | 0 | 0 | 4 | 0 |
 | ENG-eb3821b5 | `packages/core/test/session-owned.test.ts` |  | 20 | 0 | 0 | 18 | 0 | 2 | 0 |
 | ENG-0e251e50 | `packages/core/test/session-projector.test.ts` |  | 46 | 6 | 0 | 40 | 0 | 0 | 0 |
 | ENG-2f3c0b44 | `packages/core/test/session-prompt.test.ts` |  | 49 | 6 | 6 | 31 | 0 | 6 | 0 |
@@ -568,7 +568,7 @@ Cases: 1140 over 120 catalogue rows. ported 230, covered 86, not applicable 430,
 | ENG-4c88afa5:33 | adds progress to running tool parts until the call settles | port |  |  | unit | ledger | asserts: running tool parts carry progress until the call settles; observed: tool parts carry their state, input and output only; there is no live progress metadata or progress snapshot (engine store/model ToolState) |
 | ENG-af7ebcd6:34 | replays public session events and marks synced at the aggregate watermark | port |  |  | unit | ledger | asserts: a session change log can be replayed from the start, marked caught up, then followed live; observed: the store change feed is live only; there is no per-session log to replay |
 | ENG-af7ebcd6:47 | continues with live public events when following | port |  |  | unit | ledger | asserts: a session change log can be replayed from the start, marked caught up, then followed live; observed: the store change feed is live only; there is no per-session log to replay |
-| ENG-af7ebcd6:63 | fails with NotFound for an unknown session | port |  | session::session_tests::selection::reading_the_transcript_of_an_unknown_session_fails_as_not_found | unit | ledger | asserts: reading the log of an unknown session fails as not found; observed: Engine::messages returns an empty list for an unknown session (store/handle/messages.rs messages does not check the session exists) |
+| ENG-af7ebcd6:63 | fails with NotFound for an unknown session | port |  | session::session_tests::selection::reading_the_transcript_of_an_unknown_session_fails_as_not_found | unit | passing |  |
 | ENG-af7ebcd6:71 | reads across undecodable gaps in aggregate order and marks the true log position | port |  |  | unit | ledger | asserts: a session change log can be replayed from the start, marked caught up, then followed live; observed: the store change feed is live only; there is no per-session log to replay |
 | ENG-af7ebcd6:96 | completes with a bare synced marker for a migrated Session with no event sequence | port |  |  | unit | ledger | asserts: a session change log can be replayed from the start, marked caught up, then followed live; observed: the store change feed is live only; there is no per-session log to replay |
 | ENG-eb3821b5:170 | owns state changes and message reads without caller services or Location acquisition | not-applicable | reference-internal: independent service handles and inbox conflict types of the reference session service |  | scripted-instance | - |  |

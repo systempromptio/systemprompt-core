@@ -1,6 +1,6 @@
 use systemprompt_engine::store::{
     AssistantMessage, Change, FinishReason, Message, MessageError, MessageErrorKind, MessagePage,
-    PartBody, Store, Usage, now_ms,
+    PartBody, SessionId, Store, StoreError, Usage, now_ms,
 };
 
 use crate::store::support::{TestResult, assistant, session, text_of, user};
@@ -71,5 +71,25 @@ fn messages_round_trip_with_usage_and_errors() -> TestResult {
         return Err("expected a message change".into());
     };
     assert_eq!(published, message);
+    Ok(())
+}
+
+#[test]
+fn an_unknown_session_has_no_messages_to_read_and_an_empty_one_reads_as_empty() -> TestResult {
+    let store = Store::open_in_memory()?;
+    let unknown = SessionId::mint(store.ids());
+    let outcome = store.messages(&unknown, &MessagePage::all());
+    assert!(
+        matches!(
+            outcome,
+            Err(StoreError::NotFound {
+                kind: "session",
+                ..
+            })
+        ),
+        "{outcome:?}"
+    );
+    let empty = session(&store)?;
+    assert!(store.messages(&empty.id, &MessagePage::all())?.is_empty());
     Ok(())
 }
