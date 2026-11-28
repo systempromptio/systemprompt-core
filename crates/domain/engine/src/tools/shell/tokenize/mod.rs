@@ -12,6 +12,7 @@
 
 mod dialects;
 mod lexer;
+mod redirects;
 
 use self::lexer::Lexer;
 

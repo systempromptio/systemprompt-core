@@ -17,6 +17,7 @@ pub(crate) mod inbox;
 pub(crate) mod job_notice;
 pub(crate) mod meta;
 pub(crate) mod model_call;
+mod prepare;
 pub(crate) mod revert;
 pub(crate) mod run;
 pub(crate) mod runs;
@@ -25,6 +26,7 @@ pub(crate) mod stream;
 pub(crate) mod subtask;
 pub(crate) mod system;
 pub(crate) mod title;
+mod user_content;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
