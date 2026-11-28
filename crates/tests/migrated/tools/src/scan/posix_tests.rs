@@ -338,3 +338,113 @@ fn whitespace_that_is_not_shell_whitespace_does_not_separate_words() {
     let segments = split_commands("echo\u{a0}x", Dialect::Posix);
     assert_eq!(segments[0].words, ["echo\u{a0}x"]);
 }
+
+#[test]
+fn quoted_digits_before_a_redirect_stay_the_command_name() {
+    for head in ["'123'", "\"123\"", "1\\23"] {
+        let segments = split_commands(&format!("{head}>/dev/null argument"), Dialect::Posix);
+        assert_eq!(segments.len(), 1, "{head}: {segments:?}");
+        assert_eq!(segments[0].words, ["123", "argument"], "{head}");
+        assert_eq!(segments[0].redirects, ["/dev/null"], "{head}");
+    }
+    let quoted = split_commands("F\"OO\"=bar '123'>out", Dialect::Posix);
+    assert_eq!(quoted.len(), 1, "{quoted:?}");
+    assert_eq!(quoted[0].head(Dialect::Posix).as_deref(), Some("FOO=bar"));
+    assert_eq!(quoted[0].redirects, ["out"]);
+}
+
+#[test]
+fn a_descriptor_duplication_on_a_group_adds_no_command() {
+    for line in [
+        "{ printf ok; } 2>&1",
+        "(printf ok) 2>&1",
+        "(printf ok) 2>&-",
+    ] {
+        assert_eq!(posix(line), ["printf"], "{line}");
+    }
+}
+
+#[test]
+fn an_ansi_c_quoted_here_document_delimiter_ends_the_body() {
+    let found = posix("cat <<$'E\\[F'\nE[F\nE\\[F\nprintf done");
+    assert_eq!(found, ["cat", "printf"], "{found:?}");
+}
+
+#[test]
+fn directory_targets_are_found_whatever_redirects_or_quotes_surround_them() {
+    for template in [
+        "cd >/dev/null TARGET",
+        "cd 2>/dev/null TARGET",
+        "cd $'TARGET'",
+        "cd \"TARGET\"",
+    ] {
+        let line = template.replace("TARGET", "/tmp/scan-target");
+        let found = paths(&line, Dialect::Posix);
+        assert!(
+            found.contains(&"/tmp/scan-target".to_owned()),
+            "{line}: {found:?}"
+        );
+    }
+}
+
+#[test]
+fn commands_inside_redirect_targets_and_groups_keep_their_place() {
+    let cases: [(&str, &[&str]); 9] = [
+        ("(cat >out) | tail >log", &["cat", "tail"]),
+        ("{ cat >out; } && tail >log", &["cat", "tail"]),
+        ("echo $(pwd | cat >out) >outer", &["echo", "pwd", "cat"]),
+        ("echo `pwd | cat >out` >outer", &["echo", "pwd", "cat"]),
+        ("pwd | cat >$(printf out)", &["pwd", "cat", "printf"]),
+        ("cat <(pwd | cat >out) | cat >tail", &["cat", "pwd", "cat"]),
+        (
+            "if true; then printf ok && git >out status; else cat >log; fi",
+            &["true", "printf", "git", "cat"],
+        ),
+        ("time git status", &["git"]),
+        ("coproc git status", &["git"]),
+    ];
+    for (line, wanted) in cases {
+        let found = posix(line);
+        assert!(contains_all(&found, wanted), "{line}: {found:?}");
+    }
+    assert_eq!(prefixes("time git status", Dialect::Posix), ["git status"]);
+    let quoted = split_commands(
+        "pwd | cat '>' \"2>out\" escaped\\>word >out",
+        Dialect::Posix,
+    );
+    assert_eq!(quoted.len(), 2, "{quoted:?}");
+    assert_eq!(quoted[1].redirects, ["out"]);
+    assert_eq!(quoted[1].words, ["cat", ">", "2>out", "escaped>word"]);
+}
+
+#[test]
+fn a_trailing_line_continuation_leaves_one_command() {
+    for line in [
+        "cat\\\n",
+        "cat \\\n",
+        "cat\\\n\\\n",
+        "cat\\\n;",
+        "cat >out\\\n",
+        "cat >out \\\n",
+    ] {
+        assert_eq!(posix(line), ["cat"], "{line:?}");
+        assert_eq!(prefixes(line, Dialect::Posix), ["cat"], "{line:?}");
+    }
+    for line in [
+        "printf 'literal\\\n'\\\n",
+        "printf \"literal\\\n\"\\\n",
+        "printf a\\\nb\\\n",
+    ] {
+        let segments = split_commands(line, Dialect::Posix);
+        assert_eq!(segments.len(), 1, "{line:?}: {segments:?}");
+        assert_eq!(segments[0].words.len(), 2, "{line:?}: {segments:?}");
+    }
+}
+
+#[test]
+fn an_operator_at_a_line_end_takes_the_command_after_blank_lines_and_comments() {
+    for operator in ["&&", "||", "|", "|&"] {
+        let line = format!("printf ok {operator}\n\n# comment\npwd\n\n");
+        assert_eq!(posix(&line), ["printf", "pwd"], "{line:?}");
+    }
+}

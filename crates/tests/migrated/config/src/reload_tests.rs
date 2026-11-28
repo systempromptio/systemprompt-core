@@ -114,3 +114,21 @@ fn a_permission_change_on_a_settings_file_is_noticed_as_a_change_only_if_it_chan
     let reloaded = tree.load();
     assert_eq!(reloaded.settings, loaded.settings);
 }
+
+#[cfg(unix)]
+#[test]
+fn settings_in_an_ancestor_that_cannot_be_listed_are_still_found() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let tree = Tree::new();
+    let guarded = tree.repo.join("guarded");
+    let project = guarded.join("project");
+    std::fs::create_dir_all(&project).unwrap();
+    tree.put(
+        &guarded.join(".harness").join("harness.json"),
+        r#"{"model": "guarded"}"#,
+    );
+    std::fs::set_permissions(&guarded, std::fs::Permissions::from_mode(0o311)).unwrap();
+    let loaded = tree.load_at(&project);
+    std::fs::set_permissions(&guarded, std::fs::Permissions::from_mode(0o755)).unwrap();
+    assert_eq!(loaded.settings.model.as_deref(), Some("guarded"));
+}

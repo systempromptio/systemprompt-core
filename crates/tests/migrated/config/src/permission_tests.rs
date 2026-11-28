@@ -334,3 +334,12 @@ fn built_in_agents_gain_no_shell_access_from_an_external_directory_allowance() {
         Action::Deny
     );
 }
+
+#[test]
+fn building_the_planning_rules_creates_no_plan_directory() {
+    let tree = Tree::new();
+    let plan = Ruleset::plan_defaults(&tree.paths);
+    assert_eq!(plan.evaluate(EDIT, "/repo/src/main.rs"), Action::Deny);
+    assert!(tree.load().settings.model.is_none());
+    assert!(!tree.paths.state.join("plans").exists());
+}

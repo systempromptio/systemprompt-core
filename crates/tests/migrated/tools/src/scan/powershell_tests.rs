@@ -219,3 +219,83 @@ fn incomplete_powershell_input_is_refused() {
         );
     }
 }
+
+#[test]
+fn aliases_used_as_commands_stay_visible() {
+    for alias in ["%", "?", "foreach", "where", "iex"] {
+        let found = ps(&format!("Get-Item x | {alias} {{ Remove-Item victim }}"));
+        assert_eq!(found, ["get-item", alias, "remove-item"], "{alias}");
+    }
+}
+
+#[test]
+fn a_trailing_separator_adds_no_command() {
+    for separator in [";", "&", "\n", "\r", "\r\n"] {
+        let line = format!("Get-Item x{separator}");
+        let segments: Vec<_> = split_commands(&line, Dialect::PowerShell)
+            .into_iter()
+            .filter(|segment| segment.head(Dialect::PowerShell).is_some())
+            .collect();
+        assert_eq!(segments.len(), 1, "{line:?}: {segments:?}");
+        assert_eq!(segments[0].words, ["Get-Item", "x"], "{line:?}");
+    }
+}
+
+#[test]
+fn quotes_inside_a_bare_word_join_it_and_hide_no_comment() {
+    let segments = split_commands(
+        "Write-Output pre'safe'#literal; Get-Item x",
+        Dialect::PowerShell,
+    );
+    let found = ps("Write-Output pre'safe'#literal; Get-Item x");
+    assert_eq!(found, ["write-output", "get-item"], "{segments:?}");
+    assert_eq!(segments[0].words, ["Write-Output", "presafe#literal"]);
+}
+
+#[test]
+fn the_call_operator_reveals_a_quoted_command_and_its_unquoted_arguments() {
+    let line = "& 'Write-Output' \"a\"\"b\" a`#b '' >'out file' 2>&1";
+    let segments: Vec<_> = split_commands(line, Dialect::PowerShell)
+        .into_iter()
+        .filter(|segment| segment.head(Dialect::PowerShell).is_some())
+        .collect();
+    assert_eq!(segments.len(), 1, "{segments:?}");
+    assert_eq!(
+        segments[0].head(Dialect::PowerShell).as_deref(),
+        Some("write-output")
+    );
+    let words = segments[0].command_words(Dialect::PowerShell);
+    assert_eq!(words, ["Write-Output", "a\"b", "a#b", ""], "{segments:?}");
+    assert!(
+        segments[0].redirects.contains(&"out file".to_owned()),
+        "{segments:?}"
+    );
+    assert_eq!(ps("&Remove-Item victim"), ["remove-item"]);
+}
+
+#[test]
+fn a_carriage_return_ends_a_comment() {
+    assert_eq!(ps("# comment\rRemove-Item victim"), ["remove-item"]);
+}
+
+#[test]
+fn an_escaped_newline_inside_a_word_continues_the_command() {
+    assert_eq!(ps("Write-Output x`\nRemove-Item victim"), ["write-output"]);
+}
+
+#[test]
+fn empty_statements_and_comments_yield_no_command() {
+    assert_eq!(ps(""), Vec::<String>::new());
+    assert_eq!(ps("# comment"), Vec::<String>::new());
+    assert_eq!(ps("Write-Output ok; # comment"), ["write-output"]);
+}
+
+#[test]
+fn commands_inside_a_subexpression_of_an_expandable_string_are_found() {
+    let found =
+        ps("$x = \"$(switch ${x}#)\n{ default { Invoke-ProbeA; Set-Location /outside } })\"");
+    assert!(
+        contains_all(&found, &["invoke-probea", "set-location"]),
+        "{found:?}"
+    );
+}

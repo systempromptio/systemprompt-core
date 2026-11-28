@@ -181,3 +181,94 @@ fn the_fetch_tool_identifies_the_application_and_its_version() {
         "{agent}"
     );
 }
+
+const PROXY_CHILD: &str = "MIGRATED_LLM_PROXY_CHILD";
+const PROXY_VARIABLES: [&str; 8] = [
+    "HTTP_PROXY",
+    "http_proxy",
+    "HTTPS_PROXY",
+    "https_proxy",
+    "ALL_PROXY",
+    "all_proxy",
+    "NO_PROXY",
+    "no_proxy",
+];
+const PROXY_TEST: &str =
+    "transport_tests::proxy_variables_route_requests_and_no_proxy_hosts_bypass_the_proxy";
+
+/// Runs this test again in a child process whose environment holds only the
+/// given proxy variables, so the variables are set without touching this
+/// process's environment.
+fn run_child(mode: &str, variables: &[(&str, &str)]) -> bool {
+    let mut command = std::process::Command::new(std::env::current_exe().unwrap());
+    command.args([PROXY_TEST, "--exact", "--nocapture", "--test-threads=1"]);
+    for name in PROXY_VARIABLES {
+        command.env_remove(name);
+    }
+    command.env(PROXY_CHILD, mode);
+    for (name, value) in variables {
+        command.env(name, value);
+    }
+    command.status().unwrap().success()
+}
+
+#[tokio::test]
+async fn proxy_variables_route_requests_and_no_proxy_hosts_bypass_the_proxy() {
+    if let Ok(mode) = std::env::var(PROXY_CHILD) {
+        let outcome = short(30_000)
+            .send(post("http://upstream.invalid/v1/messages"))
+            .await;
+        match mode.as_str() {
+            "proxied" => assert!(outcome.is_ok(), "{outcome:?}"),
+            _ => assert!(outcome.is_err(), "the bypassed host answered"),
+        }
+        return;
+    }
+    for name in ["HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"] {
+        let mut proxy = loopback(vec![http_response(200, &[], "via proxy")]).await;
+        let url = proxy.url.clone();
+        let passed = tokio::task::spawn_blocking(move || run_child("proxied", &[(name, &url)]))
+            .await
+            .unwrap();
+        assert!(passed, "{name}: the child failed");
+        let head = proxy.heads.recv().await.unwrap();
+        assert!(
+            head.starts_with("POST http://upstream.invalid/v1/messages"),
+            "{name}: {head}"
+        );
+    }
+    for bypass in ["upstream.invalid", ".invalid", "*"] {
+        let mut proxy = loopback(vec![http_response(200, &[], "via proxy")]).await;
+        let url = proxy.url.clone();
+        let passed = tokio::task::spawn_blocking(move || {
+            run_child("bypassed", &[("HTTP_PROXY", &url), ("NO_PROXY", bypass)])
+        })
+        .await
+        .unwrap();
+        assert!(passed, "{bypass}: the child failed");
+        assert!(
+            proxy.heads.try_recv().is_err(),
+            "{bypass}: the proxy was used"
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_host_name_that_does_not_resolve_keeps_the_lookup_failure_in_its_causes() {
+    let error = short(30_000)
+        .send(post("http://no-such-host.invalid/v1/messages"))
+        .await
+        .expect_err("a name that cannot resolve answered");
+    assert!(matches!(error, TransportError::Connect(_)), "{error:?}");
+    let mut text = error.to_string();
+    let mut source = std::error::Error::source(&error);
+    while let Some(cause) = source {
+        text.push_str(&format!(": {cause}"));
+        source = cause.source();
+    }
+    let lower = text.to_lowercase();
+    assert!(
+        lower.contains("dns") || lower.contains("lookup") || lower.contains("resolve"),
+        "{text}"
+    );
+}
