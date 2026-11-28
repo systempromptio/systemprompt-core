@@ -58,8 +58,13 @@ async fn output_arrives_in_order_with_the_exit_code() {
     let out = run(&project, &cmd(), "echo one& echo two& exit /b 3")
         .await
         .ok();
-    let lines: Vec<&str> = out.output.lines().map(str::trim).collect();
-    assert_eq!(lines, ["one", "two"], "{}", out.output);
+    let lines: Vec<&str> = out
+        .output
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect();
+    assert_eq!(lines, ["one", "two", "[Exit code: 3]"], "{}", out.output);
     assert_eq!(out.metadata["exit_code"], 3);
     let silent = run(&project, &cmd(), "exit /b 0").await.ok();
     assert_eq!(silent.output.trim(), "");

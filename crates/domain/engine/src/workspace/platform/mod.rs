@@ -33,6 +33,8 @@ trait Platform {
 
     fn leaves_directory(segment: &str) -> bool;
 
+    fn separators() -> &'static [char];
+
     fn shim_names(command: &str) -> Vec<String>;
 
     fn make_writable(path: &Path, permissions: &fs::Permissions) -> io::Result<()>;
@@ -48,6 +50,10 @@ pub(in crate::workspace) fn fold(value: &str) -> String {
 
 pub(in crate::workspace) fn leaves_directory(segment: &str) -> bool {
     Host::leaves_directory(segment)
+}
+
+pub(in crate::workspace) fn separators() -> &'static [char] {
+    Host::separators()
 }
 
 pub(in crate::workspace) fn shim_names(command: &str) -> Vec<String> {
