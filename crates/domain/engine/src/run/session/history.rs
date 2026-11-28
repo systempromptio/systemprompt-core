@@ -10,13 +10,14 @@
 use std::collections::HashSet;
 
 use crate::llm::{Attachment, Content, Message};
-use crate::prompt::{compaction, notices};
+use crate::prompt::compaction;
 use crate::store::{MessageErrorKind, MessageWithParts, Part, PartBody, ToolState};
 use serde_json::Value;
 use systemprompt_identifiers::engine::{CallId, MessageId};
 
-use super::attachments::{decode, parse_data_url};
+use super::attachments::parse_data_url;
 use super::meta::CompactionMark;
+use super::user_content::user_content;
 
 const INTERRUPTED: &str = "The tool call was interrupted before it finished.";
 
@@ -135,53 +136,6 @@ pub(crate) fn map_messages(
         }
     }
     merge(out)
-}
-
-fn user_content(message: &MessageWithParts, steered: bool) -> Vec<Content> {
-    let mut content = Vec::new();
-    for part in &message.parts {
-        match &part.body {
-            PartBody::Text { text, synthetic } if !text.trim().is_empty() => {
-                let text = if steered && !synthetic {
-                    notices::steering(text)
-                } else {
-                    text.clone()
-                };
-                content.push(Content::Text { text });
-            },
-            PartBody::File { mime, name, url } => {
-                if let Some(block) = file_content(mime, name.as_deref(), url) {
-                    content.push(block);
-                }
-            },
-            _ => {},
-        }
-    }
-    content
-}
-
-fn file_content(mime: &str, name: Option<&str>, url: &str) -> Option<Content> {
-    let (declared, data) = parse_data_url(url)?;
-    let mime = if mime.is_empty() {
-        declared
-    } else {
-        mime.to_owned()
-    };
-    if mime.starts_with("image/") {
-        return Some(Content::Image { mime, data });
-    }
-    if mime.starts_with("text/") {
-        let text = String::from_utf8(decode(&data)?).ok()?;
-        let label = name.unwrap_or("attachment");
-        return Some(Content::Text {
-            text: format!("Attached file {label}:\n\n{text}"),
-        });
-    }
-    Some(Content::Document {
-        mime,
-        data,
-        name: name.map(str::to_owned),
-    })
 }
 
 fn replayable(parts: &[Part]) -> &[Part] {

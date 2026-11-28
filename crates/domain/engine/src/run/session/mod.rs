@@ -26,6 +26,7 @@ pub(crate) mod stream;
 pub(crate) mod subtask;
 pub(crate) mod system;
 pub(crate) mod title;
+mod user_content;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
