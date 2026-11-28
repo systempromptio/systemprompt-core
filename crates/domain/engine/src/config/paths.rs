@@ -56,14 +56,21 @@ impl Layout {
     }
 }
 
-pub(crate) fn expand_home(value: &str, home: &Path) -> PathBuf {
+pub(crate) fn home_relative(value: &str) -> Option<&str> {
     if value == "~" {
-        return home.to_path_buf();
+        return Some("");
     }
     value
         .strip_prefix("~/")
         .or_else(|| value.strip_prefix("~\\"))
-        .map_or_else(|| PathBuf::from(value), |rest| home.join(rest))
+}
+
+pub(crate) fn expand_home(value: &str, home: &Path) -> PathBuf {
+    match home_relative(value) {
+        Some("") => home.to_path_buf(),
+        Some(rest) => home.join(rest),
+        None => PathBuf::from(value),
+    }
 }
 
 pub(crate) fn display_slash(path: &Path) -> String {
