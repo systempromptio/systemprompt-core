@@ -181,6 +181,7 @@ impl Lexer {
         let mut depth = 0usize;
         let mut quote: Option<char> = None;
         let mut out = String::new();
+        let mut previous: Option<char> = None;
         while let Some(c) = self.peek(0) {
             self.at += 1;
             if let Some(open) = quote {
@@ -188,10 +189,21 @@ impl Lexer {
                     quote = None;
                 }
                 out.push(c);
+                previous = Some(c);
                 continue;
             }
             match c {
                 '\'' | '"' => quote = Some(c),
+                '#' if depth > 0 && self.starts_comment(previous) => {
+                    self.skip_comment();
+                    continue;
+                },
+                '$' if self.peek(0) == Some('{') => {
+                    out.push(c);
+                    self.take_braced(&mut out);
+                    previous = Some('}');
+                    continue;
+                },
                 '(' => {
                     depth += 1;
                     if depth == 1 {
@@ -207,8 +219,37 @@ impl Lexer {
                 _ => {},
             }
             out.push(c);
+            previous = Some(c);
         }
         out
+    }
+
+    fn starts_comment(&self, previous: Option<char>) -> bool {
+        match (self.dialect, previous) {
+            (Dialect::Cmd, _) => false,
+            (_, None) => true,
+            (_, Some(c)) if c.is_whitespace() => true,
+            (Dialect::PowerShell, Some(c)) => matches!(c, '(' | ')' | '{' | '}' | ';' | '|' | '&'),
+            (Dialect::Posix, Some(c)) => matches!(c, '(' | ';' | '|' | '&'),
+        }
+    }
+
+    fn take_braced(&mut self, out: &mut String) {
+        let mut depth = 0usize;
+        while let Some(c) = self.peek(0) {
+            self.at += 1;
+            out.push(c);
+            match c {
+                '{' => depth += 1,
+                '}' => {
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        return;
+                    }
+                },
+                _ => {},
+            }
+        }
     }
 
     pub(super) fn substitution(&mut self) {

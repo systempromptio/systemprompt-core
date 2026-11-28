@@ -191,3 +191,15 @@ fn a_carriage_return_ends_a_comment_in_every_dialect() {
     assert_eq!(heads("# note\rrm x", Dialect::Posix), ["rm"]);
     assert_eq!(heads("# note\rRemove-Item x", Dialect::PowerShell), ["remove-item"]);
 }
+
+#[test]
+fn a_parenthesis_in_a_comment_or_braced_variable_does_not_end_a_substitution() {
+    assert_eq!(
+        heads("Write-Output $(Get-Item a # note )\nRemove-Item b)", Dialect::PowerShell),
+        ["write-output", "get-item", "remove-item"]
+    );
+    assert_eq!(
+        heads("echo $(printf ${x#)} ; rm y)", Dialect::Posix),
+        ["echo", "printf", "rm"]
+    );
+}

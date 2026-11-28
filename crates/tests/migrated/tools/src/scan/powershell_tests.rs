@@ -291,7 +291,6 @@ fn empty_statements_and_comments_yield_no_command() {
 }
 
 #[test]
-#[ignore = "parity ledger: Lexer::take_group counts parentheses without reading comments or braced variables, so the parenthesis after a comment ends the subexpression early"]
 fn commands_inside_a_subexpression_of_an_expandable_string_are_found() {
     let found =
         ps("$x = \"$(switch ${x}#)\n{ default { Invoke-ProbeA; Set-Location /outside } })\"");
