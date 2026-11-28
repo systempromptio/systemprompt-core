@@ -124,3 +124,57 @@ The ledger is generated on every L2 run, printed to the run's summary, and writt
 ## 7. Changing an expected trace
 
 An expected trace changes only by a reviewed edit that states why. There is no bulk regeneration command in the repository.
+
+## 8. Ledger counts, 2026-11-28
+
+Read at core commit `6d079361b8`, from the scenario corpus (`golden/scenarios/`), the comparator (`parity/compare/`) and its reviewed file (`parity/compare/classifications.toml`). No session was run to produce this section.
+
+**What the ledger holds.** One row per scenario, protocol and comparison. `harness-vs-expected` compares a harness run with `expected/`; `harness-vs-reference` compares it with the reference agent's normalised export. A row's result is `same`, `differs` (one entry per difference, each `intended`, `gap`, `defect`, `reference-defect` or `unclassified`) or `error` (the run could not be judged).
+
+| Count | Value |
+|---|---|
+| Scenarios | 24 |
+| Protocols per scenario | 2 (`messages`, `chat`) |
+| `harness-vs-expected` rows | 48 |
+| `harness-vs-reference` rows | 44 (scenarios 16 and 17 are harness only) |
+| Rows in a full ledger | 92 |
+| Reviewed classifications | 0: `intended` 0, `gap` 0, `defect` 0, `reference-defect` 0 |
+
+**Classified differences.** None, for any scenario or protocol. The reviewed file holds no entry, so every row of a ledger generated at this commit is either `same` or carries `unclassified` differences, and no `defect` is open because none is recorded.
+
+**Matching and unclassified.** Not published, because no generated ledger exists to read. `ledger.json` and `ledger.md` are run output; none is tracked in either repository. What the sources fix:
+
+- The golden test fails a scenario on any unclassified `harness-vs-expected` difference. With no reviewed entry, a green golden run on a system therefore means all 48 of those rows are `same` on that system, and a red one names the scenarios and paths that are not.
+- The `harness-vs-reference` rows are written only by the `parity-ledger` binary when it is given the reference export. No workflow or script in core at this commit starts that binary, and nothing under the template's evidence script or tour does at template commit `63cf625e`; the parity workflow runs the reference agent and uploads its export, and stops there. Those 44 rows have no result until a job joins the export to the golden runs.
+
+Per scenario, each on both protocols:
+
+| # | Scenario | `harness-vs-expected` rows | `harness-vs-reference` rows | Classified differences | Matching | Unclassified |
+|---|---|---|---|---|---|---|
+| 1 | `01-answer-without-tools` | 2 | 2 | 0 | not recorded | not recorded |
+| 2 | `02-read-file` | 2 | 2 | 0 | not recorded | not recorded |
+| 3 | `03-edit-file` | 2 | 2 | 0 | not recorded | not recorded |
+| 4 | `04-edit-non-unique-match` | 2 | 2 | 0 | not recorded | not recorded |
+| 5 | `05-write-new-file` | 2 | 2 | 0 | not recorded | not recorded |
+| 6 | `06-write-outside-workspace` | 2 | 2 | 0 | not recorded | not recorded |
+| 7 | `07-multi-file-patch` | 2 | 2 | 0 | not recorded | not recorded |
+| 8 | `08-glob-and-grep` | 2 | 2 | 0 | not recorded | not recorded |
+| 9 | `09-shell-success` | 2 | 2 | 0 | not recorded | not recorded |
+| 10 | `10-shell-nonzero-exit` | 2 | 2 | 0 | not recorded | not recorded |
+| 11 | `11-shell-long-output` | 2 | 2 | 0 | not recorded | not recorded |
+| 12 | `12-background-job-abort` | 2 | 2 | 0 | not recorded | not recorded |
+| 13 | `13-denied-by-rule` | 2 | 2 | 0 | not recorded | not recorded |
+| 14 | `14-approval-approved` | 2 | 2 | 0 | not recorded | not recorded |
+| 15 | `15-approval-rejected-feedback` | 2 | 2 | 0 | not recorded | not recorded |
+| 16 | `16-verdict-deny` | 2 | 0 (harness only) | 0 | not recorded | not recorded |
+| 17 | `17-verdict-timeout` | 2 | 0 (harness only) | 0 | not recorded | not recorded |
+| 18 | `18-todo-list` | 2 | 2 | 0 | not recorded | not recorded |
+| 19 | `19-subagent-task` | 2 | 2 | 0 | not recorded | not recorded |
+| 20 | `20-steering-mid-run` | 2 | 2 | 0 | not recorded | not recorded |
+| 21 | `21-abort-mid-stream` | 2 | 2 | 0 | not recorded | not recorded |
+| 22 | `22-provider-error-then-success` | 2 | 2 | 0 | not recorded | not recorded |
+| 23 | `23-compaction` | 2 | 2 | 0 | not recorded | not recorded |
+| 24 | `24-revert-to-message` | 2 | 2 | 0 | not recorded | not recorded |
+| | **Total** | 48 | 44 | 0 | not recorded | not recorded |
+
+Exit criterion 3 of `../stages/s2-parity-and-proof.md` is met for the classified counts only. The matching and unclassified counts are filled in from the first `ledger.md` an L2 run or an evidence run writes.
