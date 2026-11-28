@@ -236,7 +236,6 @@ async fn nothing_runs_when_a_process_substitution_inside_a_test_is_refused() {
 }
 
 #[tokio::test]
-#[ignore = "parity ledger: Lexer::posix reads $(( as a dollar sign and a group separator, so echo $((1 + 1)) is asked about as the two patterns echo $ and 1 + 1"]
 async fn arithmetic_is_asked_about_as_one_command() {
     let project = Project::new();
     let sum = run(&project, "echo $((1 + 1))").await;

@@ -34,7 +34,8 @@ impl Lexer {
                 }
                 self.nest(&inner);
             },
-            '$' if next == Some('(') && self.peek(2) != Some('(') => {
+            '$' if next == Some('(') && self.peek(2) == Some('(') => self.arithmetic(),
+            '$' if next == Some('(') => {
                 self.at += 1;
                 self.substitution();
             },
@@ -159,7 +160,8 @@ impl Lexer {
                     }
                     self.at += 2;
                 },
-                '$' if self.peek(1) == Some('(') && self.peek(2) != Some('(') => {
+                '$' if self.peek(1) == Some('(') && self.peek(2) == Some('(') => self.arithmetic(),
+                '$' if self.peek(1) == Some('(') => {
                     self.at += 1;
                     self.substitution();
                 },
@@ -169,6 +171,16 @@ impl Lexer {
                 },
             }
         }
+    }
+
+    fn arithmetic(&mut self) {
+        self.at += 1;
+        let inner = self.take_group();
+        self.word.push_str("$(");
+        self.word.push_str(&inner);
+        self.word.push(')');
+        self.has_word = true;
+        self.expansions(&inner);
     }
 
     pub(super) fn powershell(&mut self, c: char) {

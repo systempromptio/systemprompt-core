@@ -173,3 +173,10 @@ fn here_document_bodies_are_skipped_and_only_their_expansions_scanned() {
     );
     assert_eq!(heads("cat <<<word; ls", Dialect::Posix), ["cat", "ls"]);
 }
+
+#[test]
+fn arithmetic_is_one_word_whose_substitutions_are_still_scanned() {
+    let segments = split_commands("echo $((1 + $(id -u))) \"$((2))\"", Dialect::Posix);
+    assert_eq!(segments[0].words, ["echo", "$((1 + $(id -u)))", "$((2))"]);
+    assert_eq!(heads("echo $((1 + $(id -u)))", Dialect::Posix), ["echo", "id"]);
+}
