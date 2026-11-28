@@ -18,11 +18,13 @@ use crate::run::session::attachments::slash;
 
 pub(crate) struct SkillTool {
     config: Arc<Loaded>,
+    offered: Vec<String>,
 }
 
 impl SkillTool {
-    pub(crate) const fn new(config: Arc<Loaded>) -> Self {
-        Self { config }
+    /// A skill tool that loads only the `offered` skills of `config`.
+    pub(crate) const fn new(config: Arc<Loaded>, offered: Vec<String>) -> Self {
+        Self { config, offered }
     }
 }
 
@@ -43,7 +45,7 @@ impl Tool for SkillTool {
 
     // JSON: the tool's input schema is JSON Schema, sent to the model as it is.
     fn schema(&self) -> Value {
-        let names: Vec<&str> = self.config.skills.keys().map(String::as_str).collect();
+        let names: Vec<&str> = self.offered.iter().map(String::as_str).collect();
         skill_schema(&names)
     }
 
@@ -51,9 +53,10 @@ impl Tool for SkillTool {
     async fn run(&self, input: Value, ctx: &ToolContext) -> Result<ToolOutput, ToolError> {
         let input: Input =
             serde_json::from_value(input).map_err(|error| ToolError::malformed("", error))?;
-        let Some(skill) = self.config.skills.get(input.name.trim()) else {
-            let known: Vec<&str> = self.config.skills.keys().map(String::as_str).collect();
-            let known = known.join(", ");
+        let name = input.name.trim();
+        let offered = self.offered.iter().any(|skill| skill == name);
+        let Some(skill) = self.config.skills.get(name).filter(|_| offered) else {
+            let known = self.offered.join(", ");
             let name = &input.name;
             let message = format!("there is no skill named {name}; the skills are: {known}");
             return Err(ToolError::invalid(message));

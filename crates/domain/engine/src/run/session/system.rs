@@ -41,6 +41,7 @@ pub(crate) fn prompt(
         config
             .skills
             .values()
+            .filter(|skill| toolbox.offers_skill(&skill.name))
             .map(|skill| NamedEntry {
                 name: &skill.name,
                 description: &skill.description,

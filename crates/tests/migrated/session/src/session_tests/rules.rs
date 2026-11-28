@@ -38,7 +38,6 @@ async fn a_skill_the_organisation_denies_is_no_longer_listed() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "parity ledger: skills are listed whenever the skill tool is offered; a skill whose own rule denies it again stays listed"]
 async fn a_skill_allowed_and_then_denied_again_is_not_listed() {
     let rules = r#"{"permission": [
         {"permission": "skill", "pattern": "*", "action": "deny"},

@@ -55,3 +55,67 @@ async fn denying_edit_withholds_every_file_writer() {
     }
     harness.engine.shutdown().await;
 }
+
+fn add_skill(project: &std::path::Path, name: &str, description: &str) {
+    let dir = project.join(".harness/skills").join(name);
+    std::fs::create_dir_all(&dir).unwrap();
+    let text = format!("---\nname: {name}\ndescription: {description}\n---\nFollow the steps.\n");
+    std::fs::write(dir.join("SKILL.md"), text).unwrap();
+}
+
+async fn first_request(settings: &str) -> serde_json::Value {
+    let transport = Arc::new(Scripted::with(vec![(200, text_reply("Fine."))]));
+    let harness = harness_with(
+        Arc::new(TestGovernor::default()),
+        Arc::clone(&transport),
+        Some(settings),
+    );
+    add_skill(&harness.project, "deploy", "Ships a release");
+    add_skill(&harness.project, "review", "Reviews a change");
+    let id = titled_session(&harness).await;
+    let mut events = harness.engine.subscribe();
+    harness
+        .engine
+        .prompt(prompt(&harness, &id, "Hello", Delivery::Steer))
+        .await
+        .unwrap();
+    wait_idle(&mut events, &id).await;
+    harness.engine.shutdown().await;
+    transport.requests()[0].clone()
+}
+
+#[tokio::test]
+async fn a_skill_a_rule_denies_by_name_is_neither_listed_nor_loadable() {
+    let settings = r#"{"permission": [
+        {"permission": "skill", "pattern": "*", "action": "deny"},
+        {"permission": "skill", "pattern": "*", "action": "allow"},
+        {"permission": "skill", "pattern": "deploy", "action": "allow"},
+        {"permission": "skill", "pattern": "deploy", "action": "deny"}
+    ]}"#;
+    let request = first_request(settings).await;
+    let sent = request.to_string();
+    assert!(!sent.contains("Ships a release"), "{sent}");
+    assert!(sent.contains("Reviews a change"), "{sent}");
+    let skill = request["tools"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|tool| tool["function"]["name"] == tool_names::SKILL)
+        .expect("the skill tool is offered");
+    assert!(!skill.to_string().contains("deploy"), "{skill}");
+}
+
+#[tokio::test]
+async fn the_skill_tool_is_withheld_when_every_skill_is_denied_by_name() {
+    let settings = r#"{"permission": [
+        {"permission": "skill", "pattern": "deploy", "action": "deny"},
+        {"permission": "skill", "pattern": "review", "action": "deny"}
+    ]}"#;
+    let request = first_request(settings).await;
+    let tools = offered(&request);
+    assert!(
+        !tools.iter().any(|tool| tool == tool_names::SKILL),
+        "{tools:?}"
+    );
+    assert!(!request.to_string().contains("Reviews a change"));
+}

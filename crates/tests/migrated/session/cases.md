@@ -74,7 +74,7 @@ Cases: 1140 over 120 catalogue rows. ported 230, covered 86, not applicable 430,
 | ENG-e5b2d046 | `packages/core/test/session-tool-progress.test.ts` |  | 1 | 0 | 0 | 0 | 0 | 1 | 0 |
 | ENG-aab79be7 | `packages/core/test/session-view.test.ts` |  | 4 | 0 | 0 | 4 | 0 | 0 | 0 |
 | ENG-fbe9a590 | `packages/core/test/skill.test.ts` |  | 11 | 3 | 0 | 6 | 0 | 2 | 0 |
-| ENG-74af0a8e | `packages/core/test/skill/instructions.test.ts` |  | 7 | 4 | 0 | 0 | 0 | 3 | 0 |
+| ENG-74af0a8e | `packages/core/test/skill/instructions.test.ts` |  | 7 | 5 | 0 | 0 | 0 | 2 | 0 |
 | ENG-7bff276d.2 | `packages/core/test/snapshot.test.ts` | robustness cases | 8 | 2 | 2 | 2 | 0 | 2 | 0 |
 | ENG-7bff276d.3 | `packages/core/test/snapshot.test.ts` | repository discovery and availability | 4 | 1 | 0 | 2 | 0 | 1 | 0 |
 | ENG-d55b99bf | `packages/core/test/storage-failure.test.ts` |  | 4 | 1 | 0 | 0 | 0 | 3 | 0 |
@@ -989,7 +989,7 @@ Cases: 1140 over 120 catalogue rows. ported 230, covered 86, not applicable 430,
 | ENG-74af0a8e:151 | omits instructions when the selected agent denies all skills | port |  | session::tools_tests::an_agent_denied_every_skill_gets_no_skills_section | unit | passing |  |
 | ENG-74af0a8e:165 | omits instructions when a resource-specific denial follows the global denial | port |  | session::tools_tests::an_agent_denied_every_skill_gets_no_skills_section | unit | passing |  |
 | ENG-74af0a8e:182 | retains specifically allowed skills after a global denial | port |  | session::tools_tests::a_skill_allowed_again_after_a_blanket_denial_stays_listed | unit | passing |  |
-| ENG-74af0a8e:199 | omits instructions when a specifically allowed skill is denied again | port |  | session::session_tests::rules::a_skill_allowed_and_then_denied_again_is_not_listed | unit | ledger | asserts: a skill denied by a blanket rule, allowed by name and denied by name again is not listed; observed: every skill is listed whenever the skill tool is offered, and the tool is withheld only when the last skill rule is a blanket denial (config/permission/ruleset.rs denies_all, run/tools/registry.rs assemble) |
+| ENG-74af0a8e:199 | omits instructions when a specifically allowed skill is denied again | port |  | session::session_tests::rules::a_skill_allowed_and_then_denied_again_is_not_listed | unit | passing |  |
 | ENG-7bff276d.2:82 | captures and restores Location-scoped changes | covered | partial | systemprompt-engine-tests::workspace::snapshot_tests::restore_rolls_back_everything | unit | passing |  |
 | ENG-7bff276d.2:124 | recovers from a corrupt index and ignores a stale index lock | not-applicable | reference-internal: the reference snapshot strategy built on git plumbing (indexes, packs, check-ignore, command-line batching); the engine snapshot store is its own content-addressed store (workspace/snapshot) |  | unit | - |  |
 | ENG-7bff276d.2:152 | captures concurrently from independent processes | port |  |  | unit | ledger | asserts: independent processes capture the same worktree concurrently; observed: captures are serialised by an in-process lock (engine workspace/snapshot/store.rs StoreInner lock); concurrency across processes was not verified by a test |
