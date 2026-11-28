@@ -1,6 +1,8 @@
 //! Mapping stored messages to the model's history: parts become content blocks,
 //! tool calls are followed by their results, and the latest compaction replaces
-//! everything before it with its summary and verbatim tail.
+//! everything before it with its summary and verbatim tail. Reasoning is sent
+//! back when it holds text or a signature; a failed reply is sent back only up
+//! to its last tool call that ran.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -9,7 +11,7 @@ use std::collections::HashSet;
 
 use crate::llm::{Attachment, Content, Message};
 use crate::prompt::{compaction, notices};
-use crate::store::{MessageWithParts, PartBody, ToolState};
+use crate::store::{MessageErrorKind, MessageWithParts, Part, PartBody, ToolState};
 use serde_json::Value;
 use systemprompt_identifiers::engine::{CallId, MessageId};
 
@@ -113,7 +115,16 @@ pub(crate) fn map_messages(
                 if assistant.system {
                     continue;
                 }
-                let (content, results) = assistant_content(message);
+                let failed = assistant
+                    .error
+                    .as_ref()
+                    .is_some_and(|error| error.kind != MessageErrorKind::Aborted);
+                let parts = if failed {
+                    replayable(&message.parts)
+                } else {
+                    &message.parts
+                };
+                let (content, results) = assistant_content(parts);
                 if !content.is_empty() {
                     out.push(Message::assistant(content));
                 }
@@ -173,10 +184,24 @@ fn file_content(mime: &str, name: Option<&str>, url: &str) -> Option<Content> {
     })
 }
 
-fn assistant_content(message: &MessageWithParts) -> (Vec<Content>, Vec<Content>) {
+/// The parts of a failed reply worth sending back: everything up to its last
+/// tool call that ran, so a retry continues from that call's result. A failed
+/// reply in which no tool ran is not sent back at all.
+fn replayable(parts: &[Part]) -> &[Part] {
+    let ran = parts.iter().rposition(|part| {
+        matches!(
+            &part.body,
+            PartBody::Tool { state, .. }
+                if matches!(**state, ToolState::Completed { .. } | ToolState::Error { .. })
+        )
+    });
+    ran.map_or(&[], |last| &parts[..=last])
+}
+
+fn assistant_content(parts: &[Part]) -> (Vec<Content>, Vec<Content>) {
     let mut content = Vec::new();
     let mut results = Vec::new();
-    for part in &message.parts {
+    for part in parts {
         match &part.body {
             PartBody::Text { text, .. } if !text.trim().is_empty() => {
                 content.push(Content::Text { text: text.clone() });
@@ -214,10 +239,10 @@ fn reasoning(text: &str, provider_data: Option<&Value>) -> Option<Content> {
             data: data.to_owned(),
         });
     }
-    if text.trim().is_empty() {
+    let signature = replay_field(provider_data, "signature").map(str::to_owned);
+    if text.trim().is_empty() && signature.is_none() {
         return None;
     }
-    let signature = replay_field(provider_data, "signature").map(str::to_owned);
     Some(Content::Reasoning {
         text: text.to_owned(),
         signature,
