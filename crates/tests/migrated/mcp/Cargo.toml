@@ -1,0 +1,18 @@
+[package]
+name = "systemprompt-migrated-mcp-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Migrated behaviour tests for the engine's MCP client: stdio framing, listing, calls, timeouts and results"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-engine = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+tokio = { workspace = true }

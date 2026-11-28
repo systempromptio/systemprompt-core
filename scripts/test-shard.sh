@@ -8,7 +8,7 @@ group_prefixes() {
   case "$1" in
     shared)      echo "/tests/unit/shared/" ;;
     infra)       echo "/tests/unit/infra/" ;;
-    domain)      echo "/tests/unit/domain/" ;;
+    domain)      echo "/tests/unit/domain/ /tests/migrated/tools/ /tests/migrated/session/ /tests/migrated/config/ /tests/migrated/llm/ /tests/migrated/mcp/" ;;
     # The gateway crate sits beside the runtime it is composed into; its unit
     # tests ride this shard rather than adding a CI matrix entry.
     app-runtime)   echo "/tests/unit/app/runtime/ /tests/unit/app/gateway/ /tests/unit/app/gateway-golden/ /tests/unit/entry/gateway/ /tests/common/fixtures/" ;;
@@ -37,7 +37,7 @@ group_prefixes() {
                              /tests/integration/oauth/ /tests/integration/runtime/ \
                              /tests/integration/security/ /tests/integration/scheduler/ \
                              /tests/integration/users/" ;;
-    edge)          echo "/tests/concurrency/ /tests/property/ /tests/contract/ /tests/scripted-instance/" ;;
+    edge)          echo "/tests/concurrency/ /tests/property/ /tests/contract/ /tests/scripted-instance/ /tests/scripted-instance-tests/ /tests/golden/runner/ /tests/parity/compare/" ;;
     *) echo "unknown shard group: $1" >&2; exit 2 ;;
   esac
 }

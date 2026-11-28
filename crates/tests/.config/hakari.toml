@@ -23,6 +23,9 @@ platforms = [
 # together (checked by scripts/lint-native-test-deps.sh).
 workspace-members = [
     "systemprompt-scripted-instance",
+    "systemprompt-scripted-instance-tests",
+    "systemprompt-golden-runner",
+    "systemprompt-parity-compare",
     "systemprompt-bridge-activity-tests",
     "systemprompt-bridge-auth-session-tests",
     "systemprompt-bridge-auth-tests",
@@ -52,6 +55,11 @@ workspace-members = [
     "systemprompt-drive-tests",
     "systemprompt-engine-tests",
     "systemprompt-harness-tests",
+    "systemprompt-migrated-tools-tests",
+    "systemprompt-migrated-config-tests",
+    "systemprompt-migrated-session-tests",
+    "systemprompt-migrated-llm-tests",
+    "systemprompt-migrated-mcp-tests",
     "systemprompt-models-device-tests",
 ]
 # Top-of-stack crates only their own test crates link: pinning them would make

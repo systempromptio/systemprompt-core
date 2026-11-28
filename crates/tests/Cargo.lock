@@ -11421,6 +11421,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-golden-runner"
+version = "0.0.11"
+dependencies = [
+ "anyhow",
+ "axum",
+ "base64 0.23.1",
+ "ed25519-dalek 3.0.0",
+ "rand 0.10.3",
+ "reqwest",
+ "serde_jcs",
+ "serde_json",
+ "systemprompt-device",
+ "systemprompt-harness",
+ "systemprompt-models",
+ "systemprompt-parity-compare",
+ "systemprompt-scripted-instance",
+ "systemprompt-traits",
+ "tempfile",
+ "tokio",
+ "toml 1.2.1+spec-1.1.0",
+]
+
+[[package]]
 name = "systemprompt-governance"
 version = "0.87.0"
 dependencies = [
@@ -12138,6 +12161,68 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-migrated-config-tests"
+version = "0.0.11"
+dependencies = [
+ "serde_json",
+ "systemprompt-engine",
+ "tempfile",
+]
+
+[[package]]
+name = "systemprompt-migrated-llm-tests"
+version = "0.0.11"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "futures-util",
+ "reqwest",
+ "serde_json",
+ "systemprompt-engine",
+ "systemprompt-scripted-instance",
+ "tokio",
+ "tokio-util",
+ "url",
+]
+
+[[package]]
+name = "systemprompt-migrated-mcp-tests"
+version = "0.0.11"
+dependencies = [
+ "serde_json",
+ "systemprompt-engine",
+ "tokio",
+]
+
+[[package]]
+name = "systemprompt-migrated-session-tests"
+version = "0.0.11"
+dependencies = [
+ "async-trait",
+ "reqwest",
+ "serde_json",
+ "systemprompt-engine",
+ "systemprompt-scripted-instance",
+ "tempfile",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "systemprompt-migrated-tools-tests"
+version = "0.0.11"
+dependencies = [
+ "async-trait",
+ "reqwest",
+ "serde_json",
+ "systemprompt-engine",
+ "systemprompt-identifiers",
+ "systemprompt-traits",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "systemprompt-mobile"
 version = "0.87.0"
 dependencies = [
@@ -12541,6 +12626,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-parity-compare"
+version = "0.0.11"
+dependencies = [
+ "anyhow",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tempfile",
+ "toml 1.2.1+spec-1.1.0",
+ "walkdir",
+]
+
+[[package]]
 name = "systemprompt-property-tests"
 version = "0.0.11"
 dependencies = [
@@ -12833,6 +12932,23 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "systemprompt-scripted-instance-tests"
+version = "0.0.11"
+dependencies = [
+ "chrono",
+ "serde_json",
+ "systemprompt-device",
+ "systemprompt-golden-runner",
+ "systemprompt-harness",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-scripted-instance",
+ "systemprompt-traits",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]

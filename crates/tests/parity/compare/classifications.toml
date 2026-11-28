@@ -1,0 +1,9 @@
+# The reviewed classifications of the parity ledger
+# (documentation/future/harness/testing/03-golden-scenarios.md section 6).
+#
+# One [[entry]] per difference: scenario, protocol ("*" for both), comparison
+# ("harness-vs-expected" or "harness-vs-reference"), path (as the ledger prints
+# it; a trailing "*" matches every path that starts with the rest), class
+# (intended, gap, defect, reference-defect), reason, and owner for a gap or
+# evidence for a reference-defect. A difference not named here is
+# unclassified and fails the golden run.

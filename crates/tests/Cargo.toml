@@ -74,6 +74,14 @@ members = [
     "unit/domain/teams",
     "unit/domain/engine",
     "unit/domain/drive",
+    # Migrated reference behaviour (S2 batch 1: tools and shell)
+    "migrated/tools",
+    # Migrated reference behaviour (S2 batch 2: session, store, permissions, configuration)
+    "migrated/session",
+    "migrated/config",
+    # Migrated reference behaviour (S2 batch 3: model clients, MCP)
+    "migrated/llm",
+    "migrated/mcp",
     # Unit tests - app layer
     "unit/app/gateway",
     "unit/app/gateway-golden",
@@ -141,6 +149,9 @@ members = [
     "unit/bridge/cli-subprocess",
     # Common test utilities
     "scripted-instance",
+    "scripted-instance-tests",
+    "golden/runner",
+    "parity/compare",
     "common/hack",
     "common/mocks",
     "common/migrate",

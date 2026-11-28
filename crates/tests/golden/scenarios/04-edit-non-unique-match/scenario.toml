@@ -17,4 +17,4 @@ exit = "ok"
 
 [harness]
 title = "Renaming a list label"
-verdicts = ["edit"]
+verdicts = []

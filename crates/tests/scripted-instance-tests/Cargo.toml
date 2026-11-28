@@ -1,0 +1,26 @@
+[package]
+name = "systemprompt-scripted-instance-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "The harness's live behaviours (sign-in, heartbeat, manifest, model list, hooks, feeds, one governed step) against the scripted instance, with no real instance and no model"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+chrono = { workspace = true }
+serde_json = { workspace = true }
+systemprompt-device = { workspace = true }
+systemprompt-golden-runner = { path = "../golden/runner" }
+systemprompt-harness = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-scripted-instance = { path = "../scripted-instance" }
+systemprompt-traits = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true }

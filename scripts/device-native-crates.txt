@@ -13,4 +13,12 @@ systemprompt-device-tests
 systemprompt-drive-tests
 systemprompt-engine-tests
 systemprompt-harness-tests
+systemprompt-migrated-tools-tests
+systemprompt-migrated-config-tests
+systemprompt-migrated-session-tests
+systemprompt-migrated-llm-tests
+systemprompt-migrated-mcp-tests
 systemprompt-models-device-tests
+systemprompt-golden-runner
+systemprompt-parity-compare
+systemprompt-scripted-instance-tests

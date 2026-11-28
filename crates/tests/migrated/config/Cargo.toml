@@ -1,0 +1,18 @@
+[package]
+name = "systemprompt-migrated-config-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Migrated behaviour tests for the engine's settings, permission rules, agents, skills, commands and instruction files"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-engine = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+tempfile = { workspace = true }

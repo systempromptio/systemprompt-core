@@ -1,0 +1,25 @@
+[package]
+name = "systemprompt-migrated-llm-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Migrated behaviour tests for the engine's model clients: request shaping, stream decoding, tool-call assembly, errors and transport"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-engine = { workspace = true }
+
+[dev-dependencies]
+systemprompt-scripted-instance = { path = "../../scripted-instance" }
+async-trait = { workspace = true }
+bytes = { workspace = true }
+futures-util = { workspace = true }
+reqwest = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+url = { workspace = true }

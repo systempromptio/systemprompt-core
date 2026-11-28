@@ -24,7 +24,8 @@
       "call": "t1",
       "tool": "glob",
       "status": "ok",
-      "digest": "sha256:666cee670c7d22af9031ce341c5d5d752e9efeaa9a91d74dbb587e65fc56e389"
+      "digest": "sha256:666cee670c7d22af9031ce341c5d5d752e9efeaa9a91d74dbb587e65fc56e389",
+      "truncated": true
     },
     {
       "kind": "tool_call",

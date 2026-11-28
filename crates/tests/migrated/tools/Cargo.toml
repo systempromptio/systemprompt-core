@@ -1,0 +1,28 @@
+[package]
+name = "systemprompt-migrated-tools-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Migrated behaviour tests for the engine's file, search, patch and shell tools"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-engine = { workspace = true }
+
+[dev-dependencies]
+systemprompt-identifiers = { workspace = true }
+systemprompt-traits = { workspace = true }
+async-trait = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true }
+# Not referenced in code: it turns on the TLS provider feature the fetch
+# tool's HTTP client needs to be built at all.
+reqwest = { workspace = true }
+
+[package.metadata.cargo-machete]
+ignored = ["reqwest"]
