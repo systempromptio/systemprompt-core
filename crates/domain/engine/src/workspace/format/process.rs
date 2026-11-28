@@ -7,25 +7,21 @@ use std::process::Stdio;
 use std::time::Duration;
 
 use super::{FormatError, ResolvedFormatter};
+use crate::workspace::platform;
 
 const STDERR_TAIL_CHARS: usize = 2000;
-#[cfg(windows)]
-const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 pub(super) async fn run(
     resolved: &ResolvedFormatter,
     timeout: Duration,
 ) -> Result<(), FormatError> {
-    let mut command = tokio::process::Command::new(&resolved.program);
+    let mut command = platform::command(&resolved.program);
     command
         .args(&resolved.args)
         .current_dir(&resolved.cwd)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .kill_on_drop(true);
-    #[cfg(windows)]
-    command.creation_flags(CREATE_NO_WINDOW);
+        .stderr(Stdio::piped());
 
     let child = command.spawn().map_err(|source| FormatError::Spawn {
         name: resolved.name.clone(),

@@ -10,6 +10,8 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::lsp::platform;
+
 /// The path shape a URI is converted from or to, independent of the host
 /// platform.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,11 +21,7 @@ pub enum PathStyle {
 }
 
 impl PathStyle {
-    pub const NATIVE: Self = if cfg!(windows) {
-        Self::Windows
-    } else {
-        Self::Posix
-    };
+    pub const NATIVE: Self = platform::PATH_STYLE;
 }
 
 pub fn path_to_uri(path: &Path) -> String {

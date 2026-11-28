@@ -65,7 +65,6 @@ impl Applier {
         for (file, path) in &targets {
             let outcome = write_if_changed(path, &file.bytes, Access::Shared)
                 .map_err(MaterializeError::secure("write a runtime file"))?;
-            #[cfg(unix)]
             crate::projection::readback::set_mode(path, file.executable)?;
             tracing::debug!(skill = skill_dir, file = %file.path, ?outcome, "runtime file");
         }

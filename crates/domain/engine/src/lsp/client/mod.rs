@@ -31,6 +31,7 @@ use tracing::{debug, trace};
 
 use crate::lsp::error::LspError;
 use crate::lsp::parse::ServerCapabilities;
+use crate::lsp::platform;
 use crate::lsp::spec::{LspTimeouts, ServerSpec};
 
 use connection::Shared;
@@ -249,12 +250,7 @@ impl Drop for Client {
         }
         let child = self.child.lock().take();
         if let Some(mut child) = child {
-            #[cfg(windows)]
-            if matches!(child.try_wait(), Ok(None))
-                && let Some(pid) = child.id()
-            {
-                process::kill_tree_detached(pid);
-            }
+            platform::abandon_tree(&mut child);
             if let Err(error) = child.start_kill() {
                 trace!(%error, "language server already gone");
             }

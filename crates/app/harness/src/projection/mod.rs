@@ -38,6 +38,7 @@ mod managed;
 mod mcp;
 mod model;
 mod plan;
+mod platform;
 mod readback;
 mod rules;
 mod runtime;

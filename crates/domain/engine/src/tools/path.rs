@@ -11,6 +11,7 @@ use serde_json::json;
 
 use crate::tools::contract::{PermissionRequest, ToolContext};
 use crate::tools::error::ToolError;
+use crate::tools::platform;
 
 pub fn resolve(cwd: &Path, input: &str) -> PathBuf {
     let trimmed = input.trim();
@@ -79,12 +80,7 @@ pub(crate) fn settle(path: &Path) -> PathBuf {
 }
 
 fn comparable(path: &Path) -> PathBuf {
-    let settled = settle(path);
-    if cfg!(windows) {
-        PathBuf::from(settled.to_string_lossy().to_lowercase())
-    } else {
-        settled
-    }
+    platform::comparable(settle(path))
 }
 
 pub fn is_within(path: &Path, root: &Path) -> bool {

@@ -22,6 +22,7 @@ mod manager;
 /// Readers of protocol JSON into the client's own types.
 pub mod parse;
 mod paths;
+mod platform;
 mod spec;
 mod types;
 mod uri;

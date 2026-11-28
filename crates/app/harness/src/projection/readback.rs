@@ -15,6 +15,7 @@ use systemprompt_models::feedback::receipts::{
 };
 
 use crate::projection::error::MaterializeError;
+use crate::projection::platform;
 
 pub(crate) fn read_back(
     path: &Path,
@@ -47,45 +48,14 @@ pub(crate) fn read_back(
         bytes: u64::try_from(bytes.len()).unwrap_or(u64::MAX),
         executable: planned.executable,
         content_check,
-        mode_check: mode_check(metadata.as_ref(), planned.executable),
+        mode_check: platform::mode_check(metadata.as_ref(), planned.executable),
     })
 }
 
-#[cfg(unix)]
-const fn expected_mode(executable: bool) -> u32 {
-    if executable { 0o755 } else { 0o644 }
-}
-
-#[cfg(unix)]
 pub(crate) fn set_mode(path: &Path, executable: bool) -> Result<(), MaterializeError> {
-    use std::os::unix::fs::PermissionsExt as _;
-    fs::set_permissions(path, fs::Permissions::from_mode(expected_mode(executable))).map_err(
-        |source| MaterializeError::Io {
-            op: "set the mode of",
-            path: path.to_path_buf(),
-            source,
-        },
-    )
-}
-
-#[cfg(unix)]
-fn mode_check(metadata: Option<&fs::Metadata>, executable: bool) -> ReadbackStatus {
-    use std::os::unix::fs::PermissionsExt as _;
-    match metadata {
-        Some(metadata) if metadata.permissions().mode() & 0o7777 == expected_mode(executable) => {
-            ReadbackStatus::Verified
-        },
-        _ => ReadbackStatus::Mismatch,
-    }
-}
-
-// Why: Windows has no mode bits; a plain file has nothing to verify and an
-// executable cannot be confirmed.
-#[cfg(not(unix))]
-const fn mode_check(metadata: Option<&fs::Metadata>, executable: bool) -> ReadbackStatus {
-    match metadata {
-        None => ReadbackStatus::Mismatch,
-        Some(_) if executable => ReadbackStatus::Unavailable,
-        Some(_) => ReadbackStatus::Verified,
-    }
+    platform::set_mode(path, executable).map_err(|source| MaterializeError::Io {
+        op: "set the mode of",
+        path: path.to_path_buf(),
+        source,
+    })
 }

@@ -6,6 +6,8 @@
 
 use std::path::{Component, Path, PathBuf};
 
+use crate::workspace::platform;
+
 pub(crate) fn key_from_relative(rel: &Path) -> Option<String> {
     let mut parts: Vec<&str> = Vec::new();
     for component in rel.components() {
@@ -50,7 +52,7 @@ pub(crate) fn path_for_key(root: &Path, key: &str) -> Option<PathBuf> {
         let unsafe_segment = segment.is_empty()
             || segment == "."
             || segment == ".."
-            || (cfg!(windows) && segment.contains(['\\', ':']));
+            || platform::leaves_directory(segment);
         if unsafe_segment {
             return None;
         }
@@ -72,12 +74,6 @@ pub(crate) fn key_matches(key: &str, requested: &str) -> bool {
             .is_some_and(|rest| rest.starts_with('/'))
 }
 
-#[cfg(windows)]
 pub(crate) fn fold(value: &str) -> String {
-    value.to_lowercase()
-}
-
-#[cfg(not(windows))]
-pub(crate) fn fold(value: &str) -> String {
-    value.to_owned()
+    platform::fold(value)
 }
