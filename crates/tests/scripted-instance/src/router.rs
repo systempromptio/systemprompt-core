@@ -54,6 +54,8 @@ pub(crate) fn router(state: Arc<InstanceState>) -> Router {
             ApiPaths::CONSUMER_SESSION_BINDINGS,
             post(consumer::session_binding),
         )
+        .route(ApiPaths::DOCUMENTS, get(drive::documents))
+        .route(ApiPaths::DOCUMENT_FOLDERS, get(drive::folders))
         .route(ApiPaths::BRIDGE_DRIVE_TOKEN, post(drive::token))
         .route(ApiPaths::BRIDGE_DRIVE_MANIFEST, get(drive::manifest))
         .route(ApiPaths::BRIDGE_DRIVE_CHANGES, get(drive::changes))

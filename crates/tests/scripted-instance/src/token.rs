@@ -35,6 +35,7 @@ pub(crate) struct Keys {
     manifest: SigningKey,
     rotated: SigningKey,
     tokens: SigningKey,
+    reloaded: bool,
 }
 
 impl fmt::Debug for Keys {
@@ -50,6 +51,7 @@ impl Keys {
             manifest: key(),
             rotated: key(),
             tokens: key(),
+            reloaded: false,
         }
     }
 
@@ -83,6 +85,7 @@ impl Keys {
             manifest: key(0)?,
             rotated: key(1)?,
             tokens: key(2)?,
+            reloaded: true,
         })
     }
 
@@ -91,6 +94,10 @@ impl Keys {
             .iter()
             .flat_map(|key| key.to_bytes())
             .collect()
+    }
+
+    pub(crate) const fn reloaded(&self) -> bool {
+        self.reloaded
     }
 
     pub(crate) const fn manifest_key(&self, rotated: bool) -> &SigningKey {

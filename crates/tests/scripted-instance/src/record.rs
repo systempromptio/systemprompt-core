@@ -98,6 +98,7 @@ impl Route {
             ApiPaths::CONSUMER_SESSION_BINDINGS => Self::SessionBinding,
             _ if under(path, ApiPaths::BRIDGE_PLUGINS) => Self::PluginBundle,
             _ if under(path, ApiPaths::CONSUMER_RESOURCES) => Self::Plan,
+            ApiPaths::DOCUMENTS | ApiPaths::DOCUMENT_FOLDERS => Self::Drive,
             _ if DRIVE_ROUTES
                 .iter()
                 .any(|base| path == *base || under(path, base)) =>

@@ -132,7 +132,7 @@ async fn fetched(
 }
 
 #[tokio::test]
-async fn a_restart_on_the_same_key_file_is_trusted_and_can_serve_an_older_version() {
+async fn a_restart_on_the_same_key_file_is_trusted_and_serves_an_older_version_at_once() {
     let path = key_file("restart.keys");
     let first = ScriptedInstance::builder()
         .keys(&path)
@@ -150,15 +150,11 @@ async fn a_restart_on_the_same_key_file_is_trusted_and_can_serve_an_older_versio
         .start()
         .await
         .unwrap();
-    let current = fetched(&restarted, &pinned).await.unwrap();
-    assert!(!is_newer(
-        &healthy.manifest_version,
-        Some(&current.manifest_version)
-    ));
     let stale = fetched(&restarted, &pinned).await.unwrap();
+    assert!(stale.manifest_version < healthy.manifest_version);
     assert!(!is_newer(
         &stale.manifest_version,
-        Some(&current.manifest_version)
+        Some(&healthy.manifest_version)
     ));
 
     let other = ScriptedInstance::builder()
