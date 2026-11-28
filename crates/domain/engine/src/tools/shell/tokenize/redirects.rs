@@ -45,8 +45,8 @@ impl Lexer {
     pub(super) fn expansions(&mut self, text: &str) {
         let mut inner = Self::new(text, self.dialect, self.depth + 1);
         inner.double_body(false);
-        if inner.too_deep {
-            self.too_deep = true;
+        if inner.unanalysable {
+            self.unanalysable = true;
         }
         self.nested.extend(inner.segments);
         self.nested.extend(inner.nested);

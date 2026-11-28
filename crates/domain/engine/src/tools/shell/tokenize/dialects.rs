@@ -51,6 +51,10 @@ impl Lexer {
                 self.at += 1;
                 self.redirect();
             },
+            '(' if self.runs_code_qualifier() => {
+                self.unanalysable = true;
+                self.at += 1;
+            },
             '&' | ';' | '(' | ')' => {
                 self.separator(if c == ';' && next == Some(';') { 2 } else { 1 });
             },

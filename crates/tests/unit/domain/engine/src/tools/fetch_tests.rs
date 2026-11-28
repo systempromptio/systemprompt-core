@@ -113,3 +113,18 @@ async fn only_http_urls_are_fetched() {
             .starts_with("invalid input: invalid URL: ")
     );
 }
+
+#[tokio::test]
+async fn urls_with_embedded_credentials_are_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    for url in [
+        "http://user:secret@example.com/a",
+        "http://user@example.com/a",
+    ] {
+        let err = fetch(dir.path(), url, "markdown").await.unwrap_err();
+        assert!(
+            invalid_message(&err).contains("embedded credentials"),
+            "{url}"
+        );
+    }
+}

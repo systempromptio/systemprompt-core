@@ -2,7 +2,7 @@
 
 Batch 2 of the reference-test migration (lane S2-B3). Each catalogue row of this batch is replaced here by one row per case, in the columns of `documentation/future/harness/testing/04-test-migration.md` section 2. `target` names a test as `<crate>::<module>::<function>`, where `config` is `systemprompt-migrated-config-tests` and `session` is `systemprompt-migrated-session-tests`; a `covered` target names an existing test elsewhere. `state` is `passing`, `ledger` (the harness differs; the test, when there is one, is `#[ignore = "parity ledger: ..."]` and asserts the reference behaviour, and `note` gives the observed value) `written` (a test exists that has not yet been run by the integrator) or `open` (not written; `note` says why).
 
-Cases: 199 over 37 catalogue rows. ported 137, covered 5, not applicable 34, deferred 0, difference 23, open 0, written 0.
+Cases: 199 over 37 catalogue rows. ported 138, covered 5, not applicable 34, deferred 0, difference 22, open 0, written 0.
 
 ## Rows
 
@@ -28,7 +28,7 @@ Cases: 199 over 37 catalogue rows. ported 137, covered 5, not applicable 34, def
 | ENG-39e0a118 | `packages/core/test/instance-vanilla.test.ts` |  | 1 | 0 | 0 | 1 | 0 | 0 | 0 | 0 |
 | ENG-77fb49ea | `packages/core/test/instruction-discovery.test.ts` |  | 14 | 8 | 0 | 2 | 0 | 4 | 0 | 0 |
 | ENG-6a70c726.2 | `packages/core/test/location-layer.test.ts` | disabling a built-in agent | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
-| ENG-9ea19c3a.1 | `packages/core/test/permission.test.ts` | rule evaluation and precedence | 19 | 12 | 0 | 4 | 0 | 3 | 0 | 0 |
+| ENG-9ea19c3a.1 | `packages/core/test/permission.test.ts` | rule evaluation and precedence | 19 | 13 | 0 | 4 | 0 | 2 | 0 | 0 |
 | ENG-9c4cca40 | `packages/core/test/plugin/command.test.ts` |  | 1 | 0 | 0 | 1 | 0 | 0 | 0 | 0 |
 | ENG-85d6a31a | `packages/core/test/plugin/plan.test.ts` |  | 6 | 2 | 2 | 0 | 0 | 2 | 0 | 0 |
 | CLI-a9bfd4e0.3 | `packages/cli/test/config.test.ts` | cross-process locking of settings writes | 2 | 0 | 0 | 0 | 0 | 2 | 0 | 0 |
@@ -187,7 +187,7 @@ Cases: 199 over 37 catalogue rows. ported 137, covered 5, not applicable 34, def
 | ENG-9ea19c3a.1:532 | denies omitted-agent permissions when no primary default agent exists | port | | | unit | ledger | asserts: a permission question for a session with no agent and no primary default agent is denied; observed by reading: the step never reaches a question, it fails with EngineError::UnknownAgent (run/session/run.rs), so the outcome is a refusal by another route |
 | ENG-9ea19c3a.1:554 | evaluates bash with the normal configured-rule semantics | port |  | config::permission_tests::explicit_rules_allow_and_deny_without_asking_and_unmatched_subjects_ask | unit | passing |  |
 | ENG-9ea19c3a.1:567 | merges session rules after agent rules and before saved approvals | port |  | config::permission_tests::session_rules_apply_after_agent_rules | unit | passing |  |
-| ENG-9ea19c3a.1:595 | uses saved bash approvals while preserving configured deny precedence | port |  | config::permission_tests::a_saved_approval_never_overrides_a_configured_deny | unit | ledger | observed: Allow: the session approval layer is last and wins |
+| ENG-9ea19c3a.1:595 | uses saved bash approvals while preserving configured deny precedence | port |  | config::permission_tests::a_saved_approval_never_overrides_a_configured_deny | unit | passing |  |
 | ENG-9c4cca40:36 | registers built-in init and review commands | not-applicable | no-feature: built-in project-initialisation and review commands (the harness ships compact, undo and redo) |  | unit | - |  |
 | ENG-85d6a31a:87 | gives the plan agent its own enter and leave texts without replacing its prompt | covered | same | systemprompt-engine-tests::prompt::notices_tests::plan_mode_names_the_plan_file_only_when_given | unit | passing |  |
 | ENG-85d6a31a:103 | does not create the Plan directory during activation | port | | config::permission_tests::building_the_planning_rules_creates_no_plan_directory | unit | passing | |

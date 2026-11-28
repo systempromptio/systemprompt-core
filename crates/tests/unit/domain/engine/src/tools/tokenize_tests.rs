@@ -212,3 +212,13 @@ fn a_parenthesis_in_a_comment_or_braced_variable_does_not_end_a_substitution() {
         ["echo", "printf", "rm"]
     );
 }
+
+#[test]
+fn a_glob_qualifier_that_runs_code_leaves_the_line_unanalysed() {
+    for line in ["ls *(e:'rm x':)", "ls *(.e'rm x')", "echo ?(+cleanup)"] {
+        assert!(split_commands(line, Dialect::Posix).is_empty(), "{line}");
+    }
+    for line in ["ls *(.)", "ls *(om[1,3])", "ls !(skip)"] {
+        assert!(!split_commands(line, Dialect::Posix).is_empty(), "{line}");
+    }
+}

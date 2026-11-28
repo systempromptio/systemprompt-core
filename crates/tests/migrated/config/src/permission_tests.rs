@@ -167,7 +167,6 @@ fn session_rules_apply_after_agent_rules() {
 }
 
 #[test]
-#[ignore = "parity ledger: a session approval layered last overrides a configured deny"]
 fn a_saved_approval_never_overrides_a_configured_deny() {
     let tree = Tree::new();
     tree.project(

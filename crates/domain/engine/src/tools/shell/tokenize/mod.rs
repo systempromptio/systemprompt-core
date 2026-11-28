@@ -3,9 +3,10 @@
 //! groupings and command substitutions) and the words that look like paths, for
 //! POSIX shells, `PowerShell` and cmd. It is not a parser: what it cannot
 //! follow stays inside a word, which makes the check ask rather than wave a
-//! command through. A line nested too deeply to follow yields no segment,
-//! so the check asks about the whole line as written with no "always"
-//! pattern.
+//! command through. A line nested too deeply to follow, or one carrying a
+//! glob qualifier that can run code (`*(e:...:)`, `*(+name)`), yields no
+//! segment, so the check asks about the whole line as written with no
+//! "always" pattern.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
