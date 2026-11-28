@@ -6,6 +6,7 @@
 //! route accepts only that. A commit or a trash whose base is not the head
 //! answers a conflict naming the head and is not applied; nothing is merged.
 
+mod listing;
 mod store;
 
 use std::collections::BTreeMap;
@@ -27,6 +28,7 @@ use systemprompt_models::documents::{
     DriveTrashResponse, content_hash,
 };
 
+pub(crate) use self::listing::{documents, folders};
 pub(crate) use self::store::DriveStore;
 use super::{bearer, refuse, refuse_as, unauthorized};
 use crate::state::{InstanceState, lock};

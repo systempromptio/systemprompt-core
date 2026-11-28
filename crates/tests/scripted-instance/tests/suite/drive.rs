@@ -4,10 +4,10 @@ use serde_json::Value;
 use systemprompt_identifiers::DocumentRevisionId;
 use systemprompt_models::ApiPaths;
 use systemprompt_models::documents::client::{
-    ChangeKind, CommitOutcome, FeedChanges, MoveRequest, TrashOutcome, TrashRequest,
+    ChangeKind, CommitOutcome, DriveListing, FeedChanges, MoveRequest, TrashOutcome, TrashRequest,
 };
 use systemprompt_models::documents::content_hash;
-use systemprompt_scripted_instance::{ModelScript, Route};
+use systemprompt_scripted_instance::{ModelScript, Route, ScriptedInstance};
 
 use crate::feed::{Feed, committed, part};
 use crate::support::{instance, signed_in};
@@ -206,4 +206,64 @@ async fn the_feed_takes_only_the_sync_token() {
             .iter()
             .any(|record| record.route == Route::Drive)
     );
+}
+
+#[tokio::test]
+async fn the_browsing_listing_names_the_documents_the_instance_was_started_with() {
+    let instance = ScriptedInstance::builder()
+        .document("notes/a.md", b"one".to_vec())
+        .document("plan.md", b"two".to_vec())
+        .start()
+        .await
+        .unwrap();
+    let (_client, session) = signed_in(&instance).await;
+    let http = Client::new();
+    let url = |path: &str| format!("{}{path}", instance.base_url());
+
+    let refused = http.get(url(ApiPaths::DOCUMENTS)).send().await.unwrap();
+    assert_eq!(refused.status(), 401);
+
+    let listing: DriveListing = http
+        .get(url(ApiPaths::DOCUMENTS))
+        .query(&[("scope", "mine")])
+        .bearer_auth(session.jwt.expose())
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let mut names: Vec<&str> = listing.documents.iter().map(|d| d.name.as_str()).collect();
+    names.sort_unstable();
+    assert_eq!(names, ["a.md", "plan.md"]);
+    assert!(
+        listing
+            .documents
+            .iter()
+            .all(|d| d.owner_user_id == instance.user().user_id)
+    );
+
+    let searched: DriveListing = http
+        .get(url(ApiPaths::DOCUMENTS))
+        .query(&[("query", "PLAN")])
+        .bearer_auth(session.jwt.expose())
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(searched.documents.len(), 1);
+
+    let folders: DriveListing = http
+        .get(url(ApiPaths::DOCUMENT_FOLDERS))
+        .bearer_auth(session.jwt.expose())
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert!(folders.folders.is_empty());
+    assert!(instance.unscripted_requests().is_empty());
 }

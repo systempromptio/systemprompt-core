@@ -22,7 +22,7 @@ Starting point for the model half: core's `mock-inference` test crate, which alr
 | Heartbeat | The heartbeat route | Recorded |
 | Device enrolment | `POST` the bridge device route | Issues a device credential (`Route::DeviceEnrolment`); plans, receipts and session bindings take it |
 | Bundles and runtime files | Plugin bundle fetch; plans; receipts; session bindings | Bundle files from the manifest fixture's plugins; a plan for a published plugin, for the harness host, laid out as core's marketplace lays one out; receipts and bindings recorded and acknowledged (a repeat answers as the first did) |
-| Documents | The Drive routes the harness uses | An in-memory store |
+| Documents | The Drive routes the harness uses: the sync feed, and the browsing listing of documents and folders that tells the app the instance has a Drive | An in-memory store |
 
 Routes and headers are taken from the linked core crates' constants, never spelled again here. Section 2.3 lists the four that have no constant yet.
 
@@ -93,8 +93,8 @@ The binary is `systemprompt-scripted-instance`. It prints one JSON line with `ba
 | `--governance-plugin ID` | `ManifestFixture::with_plugin(PluginFixture::governance(..))` | The manifest lists a plugin that owns the governance hooks, so verdicts are asked |
 | `--manifest-fault FAULT` | `ManifestFixture::with_fault` | The manifest carries that fault: `stale-version`, `future-not-before`, `wrong-user`, `changed-key` or `bad-signature`. Any other name is a usage error that lists these five |
 | `--pat TEXT` | `pat(TestPat::new(..))` | The personal access token the instance accepts, and prints, in place of the fixture's. A restart with another value refuses a credential stored against the earlier one. A device accepts only a token that starts with core's API-key prefix |
-| `--document PATH=FILE` (repeatable) | `document(path, bytes)` | The Drive store starts with a document at `PATH` holding the bytes of the local file `FILE`. The value is split at its first `=`; a file that cannot be read stops the start |
-| `--keys FILE` | `keys(path)` | Sign with the keys held in `FILE` (three Ed25519 seeds), writing new ones there owner-only when it does not exist, in place of new keys on every start. A restart on the same file serves a manifest key an app that pinned the first start still trusts, so `--manifest-fault stale-version` after a healthy start is a real older-version refusal. A file of any other length stops the start |
+| `--document PATH=FILE` (repeatable) | `document(path, bytes)` | The Drive store starts with a document at `PATH` holding the bytes of the local file `FILE`; the sync feed and the browsing listing (`GET /api/v1/documents`) both name it. The value is split at its first `=`; a file that cannot be read stops the start |
+| `--keys FILE` | `keys(path)` | Sign with the keys held in `FILE` (three Ed25519 seeds), writing new ones there owner-only when it does not exist, in place of new keys on every start. A restart on the same file serves a manifest key an app that pinned the first start still trusts, so `--manifest-fault stale-version` after a healthy start serves an older version from its first manifest, a real older-version refusal. A file of any other length stops the start |
 | `--extension ID` (repeatable) | `ManifestFixture::with_extension` | The manifest's `host_extensions` lists `ID` for the harness host, so the device's extension policy enables it (`drive` turns on Drive). An id that is not kebab-case is a usage error |
 
 ### 2.1 What exists at the end of S0
