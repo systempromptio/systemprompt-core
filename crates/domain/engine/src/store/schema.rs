@@ -5,13 +5,14 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-use rusqlite::{Connection, TransactionBehavior};
+use rusqlite::{Connection, ErrorCode, TransactionBehavior};
 
 use crate::store::error::{Result, StoreError};
 
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
+const BUSY_RETRY: Duration = Duration::from_millis(10);
 
 const MIGRATIONS: &[&str] = &[V1_INITIAL];
 
@@ -94,9 +95,26 @@ pub(crate) fn supported_version() -> i64 {
 
 pub(crate) fn configure_writer(connection: &Connection) -> Result<()> {
     connection.busy_timeout(BUSY_TIMEOUT)?;
-    let _mode: String = connection.query_row("PRAGMA journal_mode = WAL", [], |row| row.get(0))?;
+    let _mode = wal_mode(connection)?;
     connection.execute_batch("PRAGMA foreign_keys = ON; PRAGMA synchronous = NORMAL;")?;
     Ok(())
+}
+
+// Why: SQLite answers a journal mode change that meets another connection's
+// lock with SQLITE_BUSY at once, without calling the busy handler, so
+// concurrent first opens of one file retry it here.
+fn wal_mode(connection: &Connection) -> rusqlite::Result<String> {
+    let deadline = Instant::now() + BUSY_TIMEOUT;
+    loop {
+        match connection.query_row("PRAGMA journal_mode = WAL", [], |row| row.get(0)) {
+            Err(rusqlite::Error::SqliteFailure(failure, _))
+                if failure.code == ErrorCode::DatabaseBusy && Instant::now() < deadline =>
+            {
+                std::thread::sleep(BUSY_RETRY);
+            },
+            outcome => return outcome,
+        }
+    }
 }
 
 pub(crate) fn configure_reader(connection: &Connection) -> Result<()> {

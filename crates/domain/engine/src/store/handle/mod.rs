@@ -75,6 +75,7 @@ impl Store {
                 source,
             })
         };
+        create_owner_only(path)?;
         let mut writer = open(path)?;
         schema::configure_writer(&writer)?;
         let version = schema::migrate(&mut writer)?;
@@ -147,4 +148,18 @@ impl Store {
         }
         Ok(value)
     }
+}
+
+fn create_owner_only(path: &Path) -> Result<()> {
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create(true).truncate(false);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    options
+        .open(path)
+        .map(drop)
+        .map_err(|source| StoreError::CreateFile {
+            path: path.to_path_buf(),
+            source,
+        })
 }

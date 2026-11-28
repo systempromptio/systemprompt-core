@@ -3,7 +3,9 @@
 //! groupings and command substitutions) and the words that look like paths, for
 //! POSIX shells, `PowerShell` and cmd. It is not a parser: what it cannot
 //! follow stays inside a word, which makes the check ask rather than wave a
-//! command through.
+//! command through. A line nested too deeply to follow yields no segment,
+//! so the check asks about the whole line as written with no "always"
+//! pattern.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -253,5 +255,5 @@ fn path_like(word: &str, dialect: Dialect) -> Option<String> {
 }
 
 pub fn split_commands(command: &str, dialect: Dialect) -> Vec<Segment> {
-    Lexer::new(command, dialect).run()
+    Lexer::new(command, dialect, 0).run().unwrap_or_default()
 }

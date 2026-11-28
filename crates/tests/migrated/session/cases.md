@@ -240,7 +240,7 @@ Cases: 1140 over 120 catalogue rows. ported 159, covered 48, not applicable 371,
 | ENG-97b8a648.1:182 | lets a later allow lift an earlier broad deny | port |  | config::permission_tests::a_later_allow_lifts_an_earlier_broad_deny_and_a_bare_star_denies_everything | unit | passing |  |
 | ENG-97b8a648.1:191 | denies every permission with a bare wildcard | port |  | config::permission_tests::a_later_allow_lifts_an_earlier_broad_deny_and_a_bare_star_denies_everything | unit | passing |  |
 | ENG-97b8a648.1:234 | names the organization when its permission statement decides: ${input.organization} | port |  | session::ask_tests::an_organisation_denial_overrides_a_project_allow_and_its_reason_reaches_the_model | unit | passing |  |
-| ENG-7b750d1d.1:135 | serializes concurrent embedded initialization for one database path | port |  | session::store_tests::concurrent_first_opens_of_one_file_all_succeed_with_one_schema | unit | ledger | observed: an open fails with "sqlite operation failed" (5 of 6 runs here) |
+| ENG-7b750d1d.1:135 | serializes concurrent embedded initialization for one database path | port |  | session::store_tests::concurrent_first_opens_of_one_file_all_succeed_with_one_schema | unit | passing |  |
 | ENG-7b750d1d.1:149 | bootstraps distinct databases without waiting on each other's lock | port |  |  | unit | open | not written |
 | ENG-7b750d1d.1:175 | declared schema has no ungenerated migrations | not-applicable | reference-internal: reference schema generator check |  | unit | - |  |
 | ENG-7b750d1d.1:184 | bootstraps the current schema and records the migration registry | port |  | session::store_tests::opening_a_new_store_creates_and_records_the_current_schema | unit | passing |  |
@@ -251,7 +251,7 @@ Cases: 1140 over 120 catalogue rows. ported 159, covered 48, not applicable 371,
 | ENG-7b750d1d.1:265 | applies generic migrations once and records their order | covered | same | systemprompt-engine-tests::store::schema_tests::reopening_applies_no_migration | unit | passing |  |
 | ENG-7b750d1d.1:706 | rolls back a failed migration without recording it | port |  |  | unit | open | not written: needs a failing migration injected into the store schema, which is not public |
 | ENG-7b750d1d.1:729 | suspends foreign keys outside migrations that rebuild referenced tables | not-applicable | reference-internal: specific migrations of the reference schema |  | unit | - |  |
-| ENG-dd0b6570:21 | creates the database and sidecars readable only by the owner | port |  | session::store_tests::the_database_file_is_readable_only_by_its_owner | unit | ledger | observed: mode 644: group and others can read the file |
+| ENG-dd0b6570:21 | creates the database and sidecars readable only by the owner | port |  | session::store_tests::the_database_file_is_readable_only_by_its_owner | unit | passing |  |
 | ENG-dd0b6570:27 | tightens an existing database and sidecars | port |  |  | unit | ledger | asserts: an existing database with looser permissions is tightened on open; observed: modes are left as they are (same cause as the row above) |
 | ENG-5cbf0392:49 | returns an absolute target and preserves invocation identity on the read assertion | port |  |  | unit | open | not written |
 | ENG-5cbf0392:72 | authorizes an external directory before the file's read rules | port |  | session::ask_tests::reading_outside_the_project_asks_for_the_directory_before_the_read_rule | unit | passing |  |

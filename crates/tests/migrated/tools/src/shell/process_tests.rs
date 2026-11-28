@@ -140,7 +140,6 @@ async fn capture_finishes_even_when_a_grandchild_keeps_the_pipes_open() {
 }
 
 #[tokio::test]
-#[ignore = "parity ledger: a timeout does not reach descendants that ignore the polite stop"]
 async fn a_stubborn_command_is_stopped_on_timeout_with_everything_it_started() {
     let project = Project::new();
     let marker = project.root.join("survived");

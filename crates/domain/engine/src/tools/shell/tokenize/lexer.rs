@@ -5,7 +5,9 @@
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
 
-use super::{Dialect, Segment, split_commands};
+use super::{Dialect, Segment};
+
+const MAX_DEPTH: usize = 64;
 
 #[derive(Debug)]
 pub(super) struct Lexer {
@@ -18,10 +20,12 @@ pub(super) struct Lexer {
     pub(super) word: String,
     pub(super) has_word: bool,
     pub(super) redirect_next: bool,
+    pub(super) depth: usize,
+    pub(super) too_deep: bool,
 }
 
 impl Lexer {
-    pub(super) fn new(command: &str, dialect: Dialect) -> Self {
+    pub(super) fn new(command: &str, dialect: Dialect, depth: usize) -> Self {
         Self {
             chars: command.chars().collect(),
             at: 0,
@@ -32,6 +36,8 @@ impl Lexer {
             word: String::new(),
             has_word: false,
             redirect_next: false,
+            depth,
+            too_deep: depth > MAX_DEPTH,
         }
     }
 
@@ -53,9 +59,19 @@ impl Lexer {
             self.current.redirects.push(word);
             self.redirect_next = false;
         } else {
+            if self.opens_function_body(&word) {
+                let definition = std::mem::take(&mut self.current);
+                self.segments.push(definition);
+            }
             self.current.words.push(word);
         }
         self.has_word = false;
+    }
+
+    fn opens_function_body(&self, word: &str) -> bool {
+        self.dialect == Dialect::Posix
+            && word == "{"
+            && matches!(self.current.words.as_slice(), [keyword, _] if keyword == "function")
     }
 
     pub(super) fn end_segment(&mut self) {
@@ -67,8 +83,11 @@ impl Lexer {
         }
     }
 
-    pub(super) fn run(mut self) -> Vec<Segment> {
+    pub(super) fn run(mut self) -> Option<Vec<Segment>> {
         while let Some(c) = self.peek(0) {
+            if self.too_deep {
+                return None;
+            }
             match c {
                 ' ' | '\t' => {
                     self.flush_word();
@@ -86,9 +105,12 @@ impl Lexer {
             }
         }
         self.end_segment();
+        if self.too_deep {
+            return None;
+        }
         let mut all = self.segments;
         all.extend(self.nested);
-        all
+        Some(all)
     }
 
     pub(super) fn skip_comment(&mut self) {
@@ -153,10 +175,16 @@ impl Lexer {
 
     pub(super) fn substitution(&mut self) {
         let inner = self.take_group();
+        self.nest(&inner);
+    }
+
+    pub(super) fn nest(&mut self, inner: &str) {
         self.word.push_str("$(…)");
         self.has_word = true;
-        let found = split_commands(&inner, self.dialect);
-        self.nested.extend(found);
+        match Self::new(inner, self.dialect, self.depth + 1).run() {
+            Some(found) => self.nested.extend(found),
+            None => self.too_deep = true,
+        }
     }
 
     pub(super) fn redirect(&mut self) {

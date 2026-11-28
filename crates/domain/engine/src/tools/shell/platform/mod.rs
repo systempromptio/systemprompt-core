@@ -43,7 +43,8 @@ use macos::MacOs as Host;
 #[cfg(windows)]
 use windows::Windows as Host;
 
-const TERM_GRACE: Duration = Duration::from_secs(2);
+const TERM_GRACE: Duration = Duration::from_millis(500);
+const REAP_GRACE: Duration = Duration::from_secs(4);
 const PS_PRELUDE: &str = "$ProgressPreference = 'SilentlyContinue'; try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}; $OutputEncoding = [System.Text.Encoding]::UTF8; ";
 
 pub(super) trait Platform: fmt::Debug + Default + Send + Sync {
@@ -150,7 +151,7 @@ impl ProcessTree {
         if let Err(err) = child.start_kill() {
             tracing::trace!(error = %err, "shell command had already exited when killed");
         }
-        match tokio::time::timeout(TERM_GRACE * 2, child.wait()).await {
+        match tokio::time::timeout(REAP_GRACE, child.wait()).await {
             Ok(Ok(_)) => {},
             Ok(Err(err)) => tracing::debug!(error = %err, "could not reap the shell command"),
             Err(_) => tracing::debug!("shell command did not exit after it was killed"),

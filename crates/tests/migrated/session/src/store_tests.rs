@@ -273,7 +273,6 @@ fn opening_a_new_store_creates_and_records_the_current_schema() {
 }
 
 #[test]
-#[ignore = "parity ledger: concurrent first opens of one file are not serialised and some fail"]
 fn concurrent_first_opens_of_one_file_all_succeed_with_one_schema() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("sessions.db");
@@ -301,7 +300,6 @@ fn concurrent_first_opens_of_one_file_all_succeed_with_one_schema() {
 
 #[cfg(unix)]
 #[test]
-#[ignore = "parity ledger: the database file is created with the default file mode, not owner-only"]
 fn the_database_file_is_readable_only_by_its_owner() {
     use std::os::unix::fs::PermissionsExt;
     let dir = tempfile::tempdir().unwrap();

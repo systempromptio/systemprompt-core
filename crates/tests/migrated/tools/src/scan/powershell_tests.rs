@@ -181,7 +181,6 @@ fn deeply_nested_script_blocks_are_bounded() {
 }
 
 #[test]
-#[ignore = "parity ledger: deeply nested strings and sub-expressions overflow the stack and abort the process"]
 fn deeply_mixed_strings_and_subexpressions_are_bounded() {
     let started = Instant::now();
     let mixed = format!("{}x{}", "\"$(@(".repeat(2_000), "))\"".repeat(2_000));

@@ -16,6 +16,12 @@ pub enum StoreError {
         #[source]
         source: std::io::Error,
     },
+    #[error("cannot create the database file {path}")]
+    CreateFile {
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
     #[error("cannot open the database at {path}")]
     Open {
         path: PathBuf,

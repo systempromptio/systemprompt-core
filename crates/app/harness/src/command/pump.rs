@@ -152,7 +152,7 @@ impl<W: Write + Send> Pump<'_, W> {
         tracing::info!(session = %self.root, running, outcome = ?status, "the run was interrupted");
     }
 
-    fn drain(&mut self) -> Result<(), PumpError> {
+    pub(crate) fn drain(&mut self) -> Result<(), PumpError> {
         loop {
             match self.feeds.changes.try_recv() {
                 Ok(change) => self.on_change(Ok(change))?,

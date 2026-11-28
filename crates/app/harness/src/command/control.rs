@@ -237,6 +237,7 @@ impl<W: Write + Send> Pump<'_, W> {
 
     fn close(&mut self) -> Result<(), PumpError> {
         self.feeds.controls = None;
+        self.drain()?;
         let Some(mut waiting) = self.waiting.take() else {
             return Ok(());
         };

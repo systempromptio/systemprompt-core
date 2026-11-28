@@ -215,7 +215,6 @@ fn function_definitions_of_every_spelling_reveal_their_bodies() {
 }
 
 #[test]
-#[ignore = "parity ledger: the body of a `function name { … }` definition is not scanned"]
 fn a_function_keyword_definition_without_parentheses_reveals_its_body() {
     let found = posix("function f { body; }");
     assert!(found.contains(&"body".to_owned()), "{found:?}");
@@ -304,7 +303,6 @@ fn deeply_nested_conditionals_are_scanned_in_bounded_time() {
 }
 
 #[test]
-#[ignore = "parity ledger: deeply nested command substitutions overflow the stack and abort the process"]
 fn deeply_nested_substitutions_are_scanned_in_bounded_time() {
     let substitutions = format!("{}x{}", "$(".repeat(5_000), ")".repeat(5_000));
     quick(|| split_commands(&substitutions, Dialect::Posix));

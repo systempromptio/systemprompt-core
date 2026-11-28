@@ -5,7 +5,6 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use super::lexer::Lexer;
-use super::split_commands;
 
 impl Lexer {
     pub(super) fn posix(&mut self, c: char) {
@@ -31,10 +30,7 @@ impl Lexer {
                     }
                     inner.push(c);
                 }
-                self.word.push_str("$(…)");
-                self.has_word = true;
-                let found = split_commands(&inner, self.dialect);
-                self.nested.extend(found);
+                self.nest(&inner);
             },
             '$' if next == Some('(') && self.peek(2) != Some('(') => {
                 self.at += 1;
