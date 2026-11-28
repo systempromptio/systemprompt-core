@@ -392,7 +392,6 @@ fn an_ansi_c_quoted_directory_target_is_found() {
 }
 
 #[test]
-#[ignore = "parity ledger: Segment::command_words skips the words of POSIX_SKIPPED, which holds time but not coproc, so coproc is reported as the command"]
 fn the_command_after_coproc_is_found() {
     let found = posix("coproc git status");
     assert!(contains_all(&found, &["git"]), "{found:?}");

@@ -41,9 +41,9 @@ pub struct Segment {
     quoted_names: Vec<usize>,
 }
 
-const POSIX_SKIPPED: [&str; 14] = [
+const POSIX_SKIPPED: [&str; 15] = [
     "{", "}", "!", "if", "then", "else", "elif", "fi", "do", "done", "while", "until", "time",
-    "exec",
+    "exec", "coproc",
 ];
 const NULL_DEVICES: [&str; 5] = ["/dev/null", "/dev/stdout", "/dev/stderr", "nul", "$null"];
 

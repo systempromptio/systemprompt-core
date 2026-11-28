@@ -180,3 +180,8 @@ fn arithmetic_is_one_word_whose_substitutions_are_still_scanned() {
     assert_eq!(segments[0].words, ["echo", "$((1 + $(id -u)))", "$((2))"]);
     assert_eq!(heads("echo $((1 + $(id -u)))", Dialect::Posix), ["echo", "id"]);
 }
+
+#[test]
+fn the_command_after_coproc_is_the_head() {
+    assert_eq!(heads("coproc git status", Dialect::Posix), ["git"]);
+}
