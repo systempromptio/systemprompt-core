@@ -45,7 +45,7 @@ Cases: 1140 over 120 catalogue rows. ported 230, covered 86, not applicable 430,
 | ENG-1deb6de2 | `packages/core/test/session-background.test.ts` |  | 3 | 0 | 0 | 3 | 0 | 0 | 0 |
 | ENG-d7cbc5b5 | `packages/core/test/session-compact.test.ts` |  | 3 | 2 | 0 | 0 | 0 | 1 | 0 |
 | ENG-bc2aab1b.1 | `packages/core/test/session-compaction.test.ts` | cases about summary compaction, history cut-off, retained tail and prompts | 22 | 5 | 5 | 2 | 0 | 10 | 0 |
-| ENG-b818e896 | `packages/core/test/session-create.test.ts` |  | 46 | 16 | 0 | 20 | 0 | 10 | 0 |
+| ENG-b818e896 | `packages/core/test/session-create.test.ts` |  | 46 | 17 | 0 | 20 | 0 | 9 | 0 |
 | ENG-b5d9e379 | `packages/core/test/session-diff.test.ts` |  | 1 | 0 | 0 | 0 | 0 | 1 | 0 |
 | ENG-287f43ae.1 | `packages/core/test/session-error.test.ts` | cases about generic error mapping and retry eligibility | 10 | 2 | 4 | 4 | 0 | 0 | 0 |
 | ENG-b9c86236.1 | `packages/core/test/session-execution.test.ts` | cases about execution lifecycle, ownership claims and interruption | 12 | 3 | 0 | 4 | 0 | 5 | 0 |
@@ -461,7 +461,7 @@ Cases: 1140 over 120 catalogue rows. ported 230, covered 86, not applicable 430,
 | ENG-b818e896:389 | stores a trailing-slash directory in the same session list | port |  | session::session_tests::projects::a_directory_given_with_a_trailing_separator_is_stored_without_it | unit | ledger | asserts: a directory given with a trailing separator is stored without it and its session is listed under the plain directory; observed: the session is listed, but the directory is stored as given, separator included (store/rows/session.rs writes the path text unchanged) |
 | ENG-b818e896:400 | stores supplied immutable create attributes | port |  | session::store_tests::a_session_keeps_its_attributes_and_rules | unit | passing |  |
 | ENG-b818e896:420 | stores creation metadata and inherits it through children and forks | port |  | session::store_tests::a_session_keeps_its_attributes_and_rules | unit | passing |  |
-| ENG-b818e896:474 | stores permission rules, inherits them through children and forks, and replaces them | port |  | session::session_tests::forks::session_rules_pass_to_forks_and_to_child_sessions | unit | ledger | asserts: session rules are stored, inherited by child sessions and by forks, and can be replaced; observed: a fork carries them (store/handle/fork.rs copies the source row) and Store::update_session replaces them, but a child session is created without rules (run/session/mod.rs create builds NewSession with no permission), so a file its parent denies is read by the subagent |
+| ENG-b818e896:474 | stores permission rules, inherits them through children and forks, and replaces them | port |  | session::session_tests::forks::session_rules_pass_to_forks_and_to_child_sessions | unit | passing |  |
 | ENG-b818e896:500 | inherits location from an existing parent when omitted | port |  | session::session_tests::children::a_child_session_takes_its_callers_directory_and_project_and_its_tasks_name | unit | passing |  |
 | ENG-b818e896:510 | rejects child creation when the parent does not exist | port |  | session::store_tests::creating_a_child_of_an_unknown_session_fails | unit | passing |  |
 | ENG-b818e896:521 | filters root sessions before applying the page limit | port |  | session::session_tests::projects::root_sessions_are_listed_apart_from_any_number_of_newer_children | unit | passing | the root listing has no page limit; asserted on the whole listing with 60 newer children |
