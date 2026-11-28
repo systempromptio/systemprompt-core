@@ -43,9 +43,9 @@ where
         serde_json::from_slice(&body).map_err(|source| FrameError::Malformed { source })?;
     stream.write_u8(ACKNOWLEDGED).await.map_err(transport)?;
     stream.flush().await.map_err(transport)?;
-    // Why: a Windows pipe discards an acknowledgement the launch has not read
-    // yet when the server disconnects, so the server waits for the launch to
-    // close its end first.
+    // Why: a Windows pipe can discard an acknowledgement the launch has not
+    // read yet once the server lets go of its end, so the server waits for the
+    // launch to close its end first.
     let mut closing = [0u8; 1];
     if let Err(error) = stream.read(&mut closing).await {
         tracing::debug!(error = %error, "second launch closed its end abruptly");

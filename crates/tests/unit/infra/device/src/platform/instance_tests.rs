@@ -1,7 +1,14 @@
+use std::time::Duration;
+
 use systemprompt_device::platform::instance::{
     Acquisition, HandOff, InstanceError, InstanceGuard, RunningInstance, acquire,
 };
 use tempfile::TempDir;
+use tokio::time::timeout;
+
+// Why: the primary keeps listening after a hand-off it rejected, so an
+// unbounded accept would hide the launch's own error behind a hung test.
+const ROUND: Duration = Duration::from_secs(20);
 
 fn primary(root: &TempDir) -> InstanceGuard {
     match acquire(root.path()).expect("acquire a free data root") {
@@ -30,9 +37,11 @@ async fn second_launch_hands_its_arguments_to_the_primary() {
         working_directory: Some(root.path().to_path_buf()),
     };
 
-    let (received, delivered) = tokio::join!(guard.accept(), running.hand_off(&sent));
+    let (received, delivered) =
+        tokio::join!(timeout(ROUND, guard.accept()), running.hand_off(&sent));
 
     delivered.expect("the primary acknowledges the hand-off");
+    let received = received.expect("the primary accepts in time");
     assert_eq!(received.expect("the primary receives the hand-off"), sent);
 }
 
@@ -47,8 +56,10 @@ async fn primary_serves_one_launch_after_another() {
             arguments: vec![format!("round-{round}")],
             working_directory: None,
         };
-        let (received, delivered) = tokio::join!(guard.accept(), running.hand_off(&sent));
+        let (received, delivered) =
+            tokio::join!(timeout(ROUND, guard.accept()), running.hand_off(&sent));
         delivered.expect("each launch is acknowledged");
+        let received = received.expect("the primary accepts each launch in time");
         assert_eq!(received.expect("each hand-off arrives"), sent);
     }
 }
