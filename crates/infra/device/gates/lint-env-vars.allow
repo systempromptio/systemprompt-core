@@ -1,0 +1,1 @@
+src/platform/dirs.rs  # HOME through std::env::home_dir, and the OS-defined base-directory variables: LOCALAPPDATA / ProgramData (Windows), XDG_DATA_HOME (Linux)

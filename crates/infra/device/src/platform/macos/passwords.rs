@@ -16,7 +16,7 @@ use security_framework::passwords_options::PasswordOptions;
 use zeroize::Zeroizing;
 
 use super::status::{is_duplicate, is_not_found, keystore};
-use crate::secure::error::SecureError;
+use crate::secure::SecureError;
 
 pub(super) enum Insertion {
     Added,

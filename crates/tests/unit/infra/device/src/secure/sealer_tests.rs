@@ -70,12 +70,6 @@ fn disabled_sealer_is_unavailable_and_keeps_ciphertext() {
     assert!(opened.as_ref().is_err_and(SecureError::keeps_ciphertext));
 }
 
-#[cfg(not(any(windows, target_os = "macos")))]
-#[test]
-fn platform_sealer_without_a_native_store_is_unavailable() {
-    assert!(!systemprompt_device::secure::platform_sealer("io.example.app").available());
-}
-
 #[test]
 fn debug_does_not_show_secrets() -> TestResult {
     let sealer = MemorySealer::for_tests();

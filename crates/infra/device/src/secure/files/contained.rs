@@ -12,7 +12,7 @@
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
-use super::platform::is_link;
+use crate::platform::{Native, Platform};
 use crate::secure::error::SecureError;
 
 pub fn contained_path(root: &Path, relative: &str) -> Result<PathBuf, SecureError> {
@@ -37,7 +37,7 @@ pub fn contained_path(root: &Path, relative: &str) -> Result<PathBuf, SecureErro
         current.push(segment);
         match fs::symlink_metadata(&current) {
             Ok(metadata) => {
-                if is_link(&metadata) {
+                if Native::is_link(&metadata) {
                     return Err(SecureError::Link { path: current });
                 }
                 if index < last && !metadata.is_dir() {
@@ -53,7 +53,7 @@ pub fn contained_path(root: &Path, relative: &str) -> Result<PathBuf, SecureErro
         .fold(root.to_path_buf(), |path, segment| path.join(segment)))
 }
 
-fn check_segment(segment: &str) -> Result<(), &'static str> {
+pub(crate) fn check_segment(segment: &str) -> Result<(), &'static str> {
     if segment.is_empty() {
         return Err("the path has an empty segment");
     }

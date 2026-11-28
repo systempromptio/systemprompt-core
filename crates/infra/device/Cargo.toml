@@ -36,6 +36,15 @@ url.workspace = true
 uuid.workspace = true
 zeroize.workspace = true
 
+[target.'cfg(unix)'.dependencies]
+nix.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+aws-lc-rs.workspace = true
+dbus-secret-service-keyring-store.workspace = true
+keyring-core.workspace = true
+linux-keyutils-keyring-store.workspace = true
+
 [target.'cfg(windows)'.dependencies]
 keyring-core.workspace = true
 windows-native-keyring-store.workspace = true

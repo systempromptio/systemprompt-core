@@ -9,6 +9,8 @@ mod accounts;
 #[cfg(test)]
 mod client;
 #[cfg(test)]
+mod platform;
+#[cfg(test)]
 mod protocol;
 #[cfg(test)]
 mod secure;

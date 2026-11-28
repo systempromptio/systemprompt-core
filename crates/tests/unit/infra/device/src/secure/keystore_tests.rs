@@ -16,12 +16,3 @@ fn memory_store_round_trips_and_deletes() -> TestResult {
     assert!(store.load("svc", "client")?.is_none());
     Ok(())
 }
-
-#[cfg(not(any(windows, target_os = "macos")))]
-#[test]
-fn platform_store_is_unsupported_without_a_native_store() {
-    assert!(matches!(
-        Keystore::platform(),
-        Err(systemprompt_device::secure::SecureError::Unsupported)
-    ));
-}
