@@ -33,7 +33,7 @@ mod catalog;
 use crate::sync::acceptance::accept;
 use crate::sync::bundles::BundleCache;
 use crate::sync::cadence::Clock;
-use crate::sync::error::PollError;
+use crate::sync::error::{PollError, is_refusal};
 use crate::sync::planner::{Outcome, Planner, Request};
 use crate::sync::ports::{Instance, Store};
 use crate::sync::runtime::RuntimeFiles;
@@ -107,11 +107,15 @@ impl<S: Store, T: Target> Poller<S, T> {
 
     pub async fn poll(&mut self, request: Request, planner: &mut Planner) -> Outcome {
         let account = self.scope.account.clone();
-        let already_synced = matches!(
-            &*self.scope.status.borrow(),
-            SyncStatus::Synced { account: synced, .. } if synced == &account
-        );
-        if !already_synced {
+        let keep = {
+            let current = self.scope.status.borrow();
+            is_refusal(&current)
+                || matches!(
+                    &*current,
+                    SyncStatus::Synced { account: synced, .. } if synced == &account
+                )
+        };
+        if !keep {
             self.scope.status.send_replace(SyncStatus::Syncing {
                 account: account.clone(),
             });
