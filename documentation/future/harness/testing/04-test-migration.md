@@ -93,17 +93,17 @@ By batch:
 
 | Batch | Catalogue rows | Case rows | passing | ledger | covered | not applicable | deferred | tour | manual | open | written |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | 67 | 680 | 407 | 165 | 22 | 56 | 16 | 0 | 0 | 0 | 14 |
+| 1 | 67 | 680 | 421 | 165 | 22 | 56 | 16 | 0 | 0 | 0 | 0 |
 | 2 | 157 | 1,339 | 381 | 402 | 91 | 464 | 1 | 0 | 0 | 0 | 0 |
 | 3 | 51 | 485 | 213 | 79 | 40 | 153 | 0 | 0 | 0 | 0 | 0 |
 | 4 | 645 | 3,918 | 207 | 1,757 | 5 | 1,471 | 1 | 477 | 0 | 0 | 0 |
-| **Total** | 920 | 6,422 | 1,208 | 2,403 | 158 | 2,144 | 18 | 477 | 0 | 0 | 14 |
+| **Total** | 920 | 6,422 | 1,222 | 2,403 | 158 | 2,144 | 18 | 477 | 0 | 0 | 0 |
 
 By file:
 
 | Batch | Path | Catalogue rows | Case rows | passing | ledger | covered | not applicable | deferred | tour | manual | open | written |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | `migrated/tools/` | 67 | 680 | 407 | 165 | 22 | 56 | 16 | 0 | 0 | 0 | 14 |
+| 1 | `migrated/tools/` | 67 | 680 | 421 | 165 | 22 | 56 | 16 | 0 | 0 | 0 | 0 |
 | 2 | `migrated/config/` | 37 | 199 | 137 | 23 | 5 | 34 | 0 | 0 | 0 | 0 | 0 |
 | 2 | `migrated/session/` | 120 | 1,140 | 244 | 379 | 86 | 430 | 1 | 0 | 0 | 0 | 0 |
 | 3 | `migrated/llm/` | 46 | 429 | 194 | 72 | 34 | 129 | 0 | 0 | 0 | 0 | 0 |
@@ -130,7 +130,7 @@ What each column means:
 | open | Nothing written |
 | written | A test exists but has not been run on the system it needs |
 
-**`port` case rows with neither a passing test nor a ledger entry.** Of the 4,102 case rows still classified `port`, 1,208 pass, 2,403 are in the ledger and 477 are tour states. The remaining 14 are `written`, all in `migrated/tools/`: each is a Windows-only test that has not yet been run on Windows. No row is `open` or `manual`. The stage gate (`../stages/s2-parity-and-proof.md`, "Migrated tests") fails on every `open`, `written` or `manual` row, and `count-cases.py --check` exits 1 on the same rows.
+**`port` case rows with neither a passing test nor a ledger entry.** Of the 4,102 case rows still classified `port`, 1,222 pass, 2,403 are in the ledger and 477 are tour states. No row is `open`, `written` or `manual`: the 14 Windows-only tests of `migrated/tools/` passed in the device-native run on a Windows 11 machine on 28 November 2026. The stage gate (`../stages/s2-parity-and-proof.md`, "Migrated tests") fails on every `open`, `written` or `manual` row, and `count-cases.py --check` exits 1 on the same rows.
 
 A `tour` row has no test and no ledger entry either. It is not counted above because section 5 makes it a state on the screenshot tour, which has its own line in the stage gate; the 477 tour rows are all in batch 4.
 
