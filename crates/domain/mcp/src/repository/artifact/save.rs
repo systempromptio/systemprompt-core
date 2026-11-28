@@ -6,6 +6,17 @@
 
 use super::{ArtifactCorrelation, CreateMcpArtifact, McpArtifactRepository};
 use crate::error::McpDomainResult;
+use crate::repository::is_unique_violation_on;
+
+const EXECUTION_INDEX: &str = "idx_mcp_artifacts_execution";
+
+/// What inserting an artifact row ended as.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArtifactSave {
+    Saved,
+    /// Another artifact is already linked to the same execution.
+    ExecutionHeld,
+}
 use systemprompt_identifiers::ArtifactId;
 use systemprompt_models::mcp::ExecutionSource;
 
@@ -55,6 +66,21 @@ impl McpArtifactRepository {
         .await?;
 
         Ok(())
+    }
+
+    /// Saves an artifact, reporting one another vantage point already linked
+    /// to the same execution as an outcome, not an error.
+    pub async fn save_for_execution(
+        &self,
+        artifact: &CreateMcpArtifact,
+    ) -> McpDomainResult<ArtifactSave> {
+        match self.save(artifact).await {
+            Ok(()) => Ok(ArtifactSave::Saved),
+            Err(e) if is_unique_violation_on(&e, EXECUTION_INDEX) => {
+                Ok(ArtifactSave::ExecutionHeld)
+            },
+            Err(e) => Err(e),
+        }
     }
 
     pub async fn enrich_correlation(

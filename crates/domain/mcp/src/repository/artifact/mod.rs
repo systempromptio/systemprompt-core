@@ -18,6 +18,8 @@
 mod queries;
 mod save;
 
+pub use save::ArtifactSave;
+
 use crate::error::McpDomainResult;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;

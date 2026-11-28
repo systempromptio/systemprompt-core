@@ -29,8 +29,10 @@ use systemprompt_models::artifacts::payload_digest;
 use systemprompt_extension::mcp::artifacts::{ArtifactScanner, IngestOutcome, IngestRequest};
 
 use crate::error::McpDomainResult;
+use systemprompt_traits::RepositoryError;
+
 use crate::repository::{
-    ArtifactFindingRepository, ArtifactIngestRepositories, ArtifactPayloadRepository,
+    ArtifactFindingRepository, ArtifactIngestRepositories, ArtifactPayloadRepository, ArtifactSave,
     McpArtifactRecord, McpArtifactRepository, ToolResultIngestMarkRepository, ToolUsageRepository,
 };
 
@@ -162,7 +164,9 @@ impl ArtifactIngest {
             stored_digest: &stored_digest,
             byte_len,
         })?;
-        self.artifacts.save(&create).await?;
+        if self.artifacts.save_for_execution(&create).await? == ArtifactSave::ExecutionHeld {
+            return self.join_concurrent_artifact(&request, resolved).await;
+        }
         if !scanned.findings.is_empty() {
             self.findings
                 .insert_findings(&artifact_id, &scanned.findings)
@@ -194,6 +198,31 @@ impl ArtifactIngest {
             scanned,
             redacted_body,
         ))
+    }
+}
+
+impl ArtifactIngest {
+    // Why: another vantage point linked its artifact to this execution between
+    // this one's lookup and its insert; this sighting enriches that artifact.
+    async fn join_concurrent_artifact(
+        &self,
+        request: &IngestRequest,
+        resolved: resolve::ResolvedExecution,
+    ) -> McpDomainResult<IngestOutcome> {
+        let Some(existing) = self
+            .artifacts
+            .find_by_execution_id(&resolved.mcp_execution_id)
+            .await?
+        else {
+            return Err(RepositoryError::conflict(
+                "mcp_artifact",
+                &resolved.mcp_execution_id,
+                "the artifact linked to this execution is gone",
+            )
+            .into());
+        };
+        resolve::enrich_existing(self, request, &resolved, &existing).await?;
+        Ok(existing_outcome(resolved, existing))
     }
 }
 

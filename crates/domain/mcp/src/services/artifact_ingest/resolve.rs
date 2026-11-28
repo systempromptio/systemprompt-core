@@ -24,7 +24,8 @@ use crate::error::McpDomainResult;
 use crate::models::{
     McpToolExecutionStatus, ToolExecution, ToolExecutionRequest, ToolExecutionResult,
 };
-use crate::repository::{ArtifactCorrelation, McpArtifactRecord, ProximityProbe};
+use crate::repository::{ArtifactCorrelation, ExecutionInsert, McpArtifactRecord, ProximityProbe};
+use systemprompt_traits::RepositoryError;
 
 #[derive(Debug, Clone)]
 pub(super) struct ResolvedExecution {
@@ -47,10 +48,13 @@ pub(super) async fn resolve_execution(
     if let Some(id) = &request.mcp_execution_id {
         if ingest.executions.find_by_id(id).await?.is_none() {
             let (execution, result) = new_execution(request, classified);
-            ingest
+            let inserted = ingest
                 .executions
-                .log_execution_sync_with_id(id, &execution, &result, Correlation::Exact)
+                .insert_execution_with_id(id, &execution, &result, Correlation::Exact)
                 .await?;
+            if inserted == ExecutionInsert::CallIdHeld {
+                return Ok(exact(held_call_id_execution(ingest, request).await?));
+            }
         }
         return Ok(exact(id.clone()));
     }
@@ -71,14 +75,55 @@ pub(super) async fn resolve_execution(
     };
     let id = McpExecutionId::generate();
     let (execution, result) = new_execution(request, classified);
-    ingest
+    match ingest
         .executions
-        .log_execution_sync_with_id(&id, &execution, &result, correlation)
-        .await?;
-    Ok(ResolvedExecution {
-        mcp_execution_id: id,
-        correlation,
-    })
+        .insert_execution_with_id(&id, &execution, &result, correlation)
+        .await?
+    {
+        ExecutionInsert::Inserted => Ok(ResolvedExecution {
+            mcp_execution_id: id,
+            correlation,
+        }),
+        ExecutionInsert::CallIdHeld => Ok(exact(held_call_id_execution(ingest, request).await?)),
+        ExecutionInsert::ExecutionIdHeld => Err(RepositoryError::conflict(
+            "mcp_tool_execution",
+            &id,
+            "a freshly generated execution id is already taken",
+        )
+        .into()),
+    }
+}
+
+// Why: another vantage point inserted the same call between this one's
+// lookup and its insert. The call id names that execution exactly, so this
+// sighting joins it and ends in enrichment rather than a dropped write.
+async fn held_call_id_execution(
+    ingest: &ArtifactIngest,
+    request: &IngestRequest,
+) -> McpDomainResult<McpExecutionId> {
+    let Some(call_id) = request.ai_tool_call_id.as_ref() else {
+        return Err(RepositoryError::conflict(
+            "mcp_tool_execution",
+            "<no call id>",
+            "a call id conflict was reported for a request without one",
+        )
+        .into());
+    };
+    let held = ingest.executions.find_by_ai_call_id(call_id).await?;
+    let Some(id) = held else {
+        return Err(RepositoryError::conflict(
+            "mcp_tool_execution",
+            call_id,
+            "the execution holding this call id is gone",
+        )
+        .into());
+    };
+    tracing::debug!(
+        mcp_execution_id = %id,
+        source = %request.source,
+        "Concurrent sighting joined the execution another vantage point inserted"
+    );
+    Ok(id)
 }
 
 // Why: a client-reported result carries no key the server shares, so it is
