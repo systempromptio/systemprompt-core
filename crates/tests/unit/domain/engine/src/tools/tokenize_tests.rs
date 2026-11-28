@@ -160,3 +160,16 @@ fn ansi_c_quoting_decodes_escapes_and_keeps_unknown_ones() {
             .contains(&"/tmp/x".to_owned())
     );
 }
+
+#[test]
+fn here_document_bodies_are_skipped_and_only_their_expansions_scanned() {
+    assert_eq!(
+        heads("cat <<-'X' >out\n\trm a\n\tX\nls", Dialect::Posix),
+        ["cat", "ls"]
+    );
+    assert_eq!(
+        heads("cat <<X\nrm $(whoami)\nX\nls", Dialect::Posix),
+        ["cat", "ls", "whoami"]
+    );
+    assert_eq!(heads("cat <<<word; ls", Dialect::Posix), ["cat", "ls"]);
+}

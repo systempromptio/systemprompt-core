@@ -9,6 +9,15 @@ use super::{Dialect, Segment};
 
 const MAX_DEPTH: usize = 64;
 
+/// A here-document whose delimiter has been read and whose body starts after
+/// the next line feed.
+#[derive(Debug)]
+pub(super) struct HereDocument {
+    delimiter: String,
+    strip_tabs: bool,
+    expands: bool,
+}
+
 #[derive(Debug)]
 pub(super) struct Lexer {
     pub(super) chars: Vec<char>,
@@ -21,6 +30,8 @@ pub(super) struct Lexer {
     pub(super) has_word: bool,
     pub(super) redirect_next: bool,
     pub(super) quoted_at: Option<usize>,
+    pub(super) here_next: Option<bool>,
+    pub(super) here_documents: Vec<HereDocument>,
     pub(super) depth: usize,
     pub(super) too_deep: bool,
 }
@@ -38,6 +49,8 @@ impl Lexer {
             has_word: false,
             redirect_next: false,
             quoted_at: None,
+            here_next: None,
+            here_documents: Vec::new(),
             depth,
             too_deep: depth > MAX_DEPTH,
         }
@@ -64,7 +77,13 @@ impl Lexer {
         }
         let word = std::mem::take(&mut self.word);
         let quoted_at = self.quoted_at.take();
-        if self.redirect_next {
+        if let Some(strip_tabs) = self.here_next.take() {
+            self.here_documents.push(HereDocument {
+                delimiter: word,
+                strip_tabs,
+                expands: quoted_at.is_none(),
+            });
+        } else if self.redirect_next {
             self.current.redirects.push(word);
             self.redirect_next = false;
         } else {
@@ -89,6 +108,7 @@ impl Lexer {
     pub(super) fn end_segment(&mut self) {
         self.flush_word();
         self.redirect_next = false;
+        self.here_next = None;
         let segment = std::mem::take(&mut self.current);
         if !segment.words.is_empty() || !segment.redirects.is_empty() {
             self.segments.push(segment);
@@ -105,7 +125,12 @@ impl Lexer {
                     self.flush_word();
                     self.at += 1;
                 },
-                '\n' | '\r' => {
+                '\n' => {
+                    self.end_segment();
+                    self.at += 1;
+                    self.here_bodies();
+                },
+                '\r' => {
                     self.end_segment();
                     self.at += 1;
                 },
@@ -200,7 +225,55 @@ impl Lexer {
         }
     }
 
-    pub(super) fn redirect(&mut self) {
+    fn here_bodies(&mut self) {
+        for document in std::mem::take(&mut self.here_documents) {
+            while self.at < self.chars.len() {
+                let start = self.at;
+                let end = self.chars[start..]
+                    .iter()
+                    .position(|&c| c == '\n')
+                    .map_or(self.chars.len(), |offset| start + offset);
+                self.at = (end + 1).min(self.chars.len());
+                let line: String = self.chars[start..end].iter().collect();
+                let line = line.strip_suffix('\r').unwrap_or(&line);
+                let compared = if document.strip_tabs {
+                    line.trim_start_matches('\t')
+                } else {
+                    line
+                };
+                if compared == document.delimiter {
+                    break;
+                }
+                if document.expands {
+                    self.expansions(line);
+                }
+            }
+        }
+    }
+
+    /// Scans text where only expansions run, a here-document body or
+    /// arithmetic, and keeps the commands of its substitutions.
+    pub(super) fn expansions(&mut self, text: &str) {
+        let mut inner = Self::new(text, self.dialect, self.depth + 1);
+        inner.double_body(false);
+        if inner.too_deep {
+            self.too_deep = true;
+        }
+        self.nested.extend(inner.segments);
+        self.nested.extend(inner.nested);
+    }
+
+    pub(super) fn here_document(&mut self) {
+        self.take_descriptor();
+        self.at += 2;
+        let strip_tabs = self.peek(0) == Some('-');
+        if strip_tabs {
+            self.at += 1;
+        }
+        self.here_next = Some(strip_tabs);
+    }
+
+    fn take_descriptor(&mut self) {
         let descriptor = self.has_word
             && self.quoted_at.is_none()
             && (self.word.chars().all(|c| c.is_ascii_digit()) || self.word == "*");
@@ -210,6 +283,10 @@ impl Lexer {
         } else {
             self.flush_word();
         }
+    }
+
+    pub(super) fn redirect(&mut self) {
+        self.take_descriptor();
         self.at += 1;
         while matches!(self.peek(0), Some('>' | '<' | '|')) {
             self.at += 1;

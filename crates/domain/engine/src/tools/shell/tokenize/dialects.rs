@@ -53,6 +53,7 @@ impl Lexer {
             '&' | ';' | '(' | ')' => {
                 self.separator(if c == ';' && next == Some(';') { 2 } else { 1 });
             },
+            '<' if next == Some('<') && self.peek(2) != Some('<') => self.here_document(),
             '>' | '<' => self.redirect(),
             _ => {
                 self.push(c);
@@ -140,9 +141,13 @@ impl Lexer {
         self.mark_quoted();
         self.at += 1;
         self.has_word = true;
+        self.double_body(true);
+    }
+
+    pub(super) fn double_body(&mut self, closing: bool) {
         while let Some(c) = self.peek(0) {
             match c {
-                '"' => {
+                '"' if closing => {
                     self.at += 1;
                     return;
                 },

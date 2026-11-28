@@ -118,7 +118,6 @@ fn static_variables_in_directory_arguments_are_expanded() {
 }
 
 #[test]
-#[ignore = "parity ledger: here-document body lines are scanned as commands"]
 fn here_document_bodies_never_become_commands() {
     let found = posix("cat <<EOF > out.txt\nhello; rm -rf x\nEOF\necho done");
     assert!(!found.contains(&"rm".to_owned()), "{found:?}");
@@ -365,7 +364,6 @@ fn a_descriptor_duplication_on_a_group_adds_no_command() {
 }
 
 #[test]
-#[ignore = "parity ledger: the lexer has no here-document handling; Lexer::redirect takes the delimiter as a redirect target and the body lines are scanned as commands"]
 fn an_ansi_c_quoted_here_document_delimiter_ends_the_body() {
     let found = posix("cat <<$'E\\[F'\nE[F\nE\\[F\nprintf done");
     assert_eq!(found, ["cat", "printf"], "{found:?}");
