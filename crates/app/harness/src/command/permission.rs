@@ -4,7 +4,9 @@
 //! what becomes of a request the rules leave to the user. `ask` takes the next
 //! scripted reply and rejects once the script is used up, `allow` approves
 //! each request once, `deny` rejects each one. Questions take the next
-//! scripted answer in every mode and are dismissed without one.
+//! scripted answer in every mode and are dismissed without one. Under a
+//! control feed the requests the rules leave to the user are held in
+//! [`WaitingAsks`] until a `reply` names each.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -13,6 +15,8 @@ use std::collections::VecDeque;
 
 use serde::{Deserialize, Serialize};
 use systemprompt_engine::run::Reply;
+use systemprompt_engine::store::SessionId;
+use systemprompt_identifiers::engine::PermissionId;
 
 /// One question request's answers, one list per question; `None` dismisses
 /// the request.
@@ -49,13 +53,15 @@ impl PermissionMode {
     }
 }
 
-/// Where an answer came from: the mode, the script, or nothing (the script
-/// was used up, so the request was rejected or dismissed).
+/// Where an answer came from: the mode, the script, a `reply` on the control
+/// stream, or nothing (the script was used up, so the request was rejected or
+/// dismissed).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AnswerSource {
     Mode,
     Scripted,
+    Control,
     Unanswered,
 }
 
@@ -84,6 +90,40 @@ impl Answers {
 pub struct UnusedAnswers {
     pub permissions: usize,
     pub questions: usize,
+}
+
+/// The permission requests of a controlled run that still wait for a `reply`,
+/// each with the session that raised it, in the order they were raised.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct WaitingAsks {
+    asks: Vec<(PermissionId, SessionId)>,
+}
+
+impl WaitingAsks {
+    pub fn hold(&mut self, id: &PermissionId, session: &SessionId) -> bool {
+        if self.asks.iter().any(|(held, _)| held == id) {
+            return false;
+        }
+        self.asks.push((id.clone(), session.clone()));
+        true
+    }
+
+    pub fn release(&mut self, id: &PermissionId) -> Option<SessionId> {
+        let at = self.asks.iter().position(|(held, _)| held == id)?;
+        Some(self.asks.remove(at).1)
+    }
+
+    pub fn drain(&mut self) -> Vec<(PermissionId, SessionId)> {
+        std::mem::take(&mut self.asks)
+    }
+
+    pub const fn len(&self) -> usize {
+        self.asks.len()
+    }
+
+    pub const fn is_empty(&self) -> bool {
+        self.asks.is_empty()
+    }
 }
 
 /// Answers every request of one run from its mode and its script.

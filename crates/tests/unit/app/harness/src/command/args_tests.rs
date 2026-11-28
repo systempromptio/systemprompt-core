@@ -33,6 +33,7 @@ fn run_with_the_least_it_needs_takes_the_defaults() {
             workspace: PathBuf::from("/work/project"),
             permission_mode: PermissionMode::Ask,
             answers: None,
+            control: false,
             model: None,
             agent: None,
             data_root: None,
@@ -309,4 +310,73 @@ fn load_refuses_a_missing_workspace_prompt_file_or_a_bad_answers_file() {
         .load(),
         Err(UsageError::Answers { .. })
     ));
+}
+
+#[test]
+fn control_is_a_switch_that_takes_no_value() {
+    let run = run_args(&["run", "--workspace", "/w", "--control", "--prompt", "p"]);
+    assert!(run.control);
+    assert_eq!(run.permission_mode, PermissionMode::Ask);
+    assert_eq!(run.answers, None);
+    assert!(matches!(
+        refusal(&["run", "--workspace", "/w", "--prompt", "p", "--control=yes"]),
+        UsageError::UnexpectedValue { flag: "--control" }
+    ));
+    assert!(matches!(
+        refusal(&["login", "--stdin", "--instance", "x", "--control"]),
+        UsageError::UnknownArgument { command: "login", argument } if argument == "--control"
+    ));
+}
+
+#[test]
+fn control_still_needs_a_first_prompt() {
+    assert!(matches!(
+        refusal(&["run", "--workspace", "/w", "--control"]),
+        UsageError::Missing {
+            command: "run",
+            flag: "--prompt"
+        }
+    ));
+}
+
+#[test]
+fn control_is_refused_beside_the_arguments_that_answer_permission_requests() {
+    for (flag, value) in [
+        ("--permission-mode", "allow"),
+        ("--permission-mode", "ask"),
+        ("--answers", "/tmp/answers.json"),
+    ] {
+        for list in [
+            [
+                "run",
+                "--workspace",
+                "/w",
+                "--prompt",
+                "p",
+                "--control",
+                flag,
+                value,
+            ],
+            [
+                "run",
+                flag,
+                value,
+                "--control",
+                "--workspace",
+                "/w",
+                "--prompt",
+                "p",
+            ],
+        ] {
+            let error = refusal(&list);
+            assert!(
+                matches!(error, UsageError::Conflict { flag: "--control", other } if other == flag),
+                "{list:?}"
+            );
+            assert_eq!(
+                error.to_string(),
+                format!("`--control` cannot be given with `{flag}`")
+            );
+        }
+    }
 }

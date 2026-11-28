@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use serde_json::{Value, json};
 use systemprompt_harness::command::{
-    Answers, Control, EventWriter, ExitStatus, PermissionMode, RunReport, RunRequest, run,
+    Answers, ControlCommand, EventWriter, ExitStatus, PermissionMode, RunReport, RunRequest, run,
     run_controlled,
 };
 use systemprompt_traits::CancellationToken;
@@ -114,7 +114,7 @@ async fn a_controlled_run_that_cannot_start_ends_without_reading_its_controls() 
     let dir = tempfile::tempdir().unwrap();
     let host = host(dir.path());
     let (sender, controls) = tokio::sync::mpsc::unbounded_channel();
-    sender.send(Control::Abort).unwrap();
+    sender.send(Ok(ControlCommand::Abort {})).unwrap();
     let mut out = EventWriter::new(Vec::new());
 
     let report = run_controlled(

@@ -38,6 +38,7 @@ impl Stop {
     pub(crate) fn of_pump(error: PumpError) -> Self {
         match error {
             PumpError::Engine(error) => Self::of_engine(&error),
+            PumpError::Control(error) => Self::new(error.status(), describe(&error)),
             other => Self::new(ExitStatus::Internal, describe(&other)),
         }
     }

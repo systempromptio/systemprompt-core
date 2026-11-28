@@ -10,7 +10,7 @@ use std::path::PathBuf;
 pub const USAGE: &str = "\
 usage:
   run --workspace <dir> (--prompt <text> | --prompt-file <path>)...
-      [--permission-mode ask|allow|deny] [--answers <path>]
+      [--permission-mode ask|allow|deny] [--answers <path>] [--control]
       [--model <id>] [--agent <name>] [--data-root <dir>]
       [--sync-timeout <seconds>] [--timeout <seconds>]
   login --stdin --instance <url> [--fingerprint sha256:<hex>] [--data-root <dir>]";
@@ -31,6 +31,11 @@ pub enum UsageError {
     MissingValue { flag: &'static str },
     #[error("`{flag}` takes no value")]
     UnexpectedValue { flag: &'static str },
+    #[error("`{flag}` cannot be given with `{other}`")]
+    Conflict {
+        flag: &'static str,
+        other: &'static str,
+    },
     #[error("`{flag}` was given more than once")]
     Repeated { flag: &'static str },
     #[error("`{command}` needs `{flag}`")]

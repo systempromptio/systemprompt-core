@@ -4,8 +4,9 @@
 //! The composition is started, the active account's instance is awaited until
 //! the sync applied it, a session is created in the workspace and each prompt
 //! is admitted once the one before it left the session idle. A run stops at
-//! the first prompt that does not complete. The event stream always ends with
-//! a `finished` line carrying the status the process exits with.
+//! the first prompt that does not complete. A run given a control feed then
+//! stays open for its commands until the feed ends. The event stream always
+//! ends with a `finished` line carrying the status the process exits with.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -20,11 +21,11 @@ use systemprompt_traits::CancellationToken;
 use tokio::time::Instant;
 
 use crate::command::compose::Composition;
-use crate::command::control::{Control, ControlFeed};
+use crate::command::control::{ControlCommand, ControlFeed, Idle};
 use crate::command::event::{EventWriter, RunEvent};
 use crate::command::exit::ExitStatus;
 use crate::command::host::HeadlessHost;
-use crate::command::permission::{Answers, Decider, PermissionMode};
+use crate::command::permission::{Answers, Decider, PermissionMode, WaitingAsks};
 use crate::command::pump::{Feeds, Limits, Pump, PumpError};
 use crate::command::stop::{Stop, describe, ready};
 
@@ -165,6 +166,7 @@ async fn converse<W: Write + Send>(
         engine: &parts.composition.engine,
         root: session.id.clone(),
         decider,
+        waiting: feeds.controls.is_some().then(WaitingAsks::default),
         out,
         feeds,
         template: PromptInput {
@@ -192,11 +194,13 @@ async fn converse<W: Write + Send>(
         turn(&mut pump, text.clone(), index == 0, &limits).await?;
     }
     loop {
-        let control = pump.while_idle(&limits).await.map_err(Stop::of_pump)?;
-        match control {
-            None | Some(Control::Close) => break,
-            Some(Control::Prompt { text, .. }) => turn(&mut pump, text, false, &limits).await?,
-            Some(control) => pump.during_turn(control).await.map_err(Stop::of_pump)?,
+        match pump.while_idle(&limits).await.map_err(Stop::of_pump)? {
+            Idle::Closed => break,
+            Idle::Running => follow(&mut pump, false, &limits).await?,
+            Idle::Command(ControlCommand::Prompt { text } | ControlCommand::Steer { text }) => {
+                turn(&mut pump, text, false, &limits).await?;
+            },
+            Idle::Command(command) => pump.carry_out(command).await.map_err(Stop::of_pump)?,
         }
         if pump.interrupted.is_some() {
             break;
@@ -232,6 +236,15 @@ async fn turn<W: Write + Send>(
             "the session was busy when a prompt was admitted",
         ));
     }
+    follow(pump, first, limits).await
+}
+
+async fn follow<W: Write + Send>(
+    pump: &mut Pump<'_, W>,
+    first: bool,
+    limits: &Limits<'_>,
+) -> Result<(), Stop> {
+    let engine = pump.engine;
     let pumped = async {
         pump.until_idle(limits).await?;
         if first {

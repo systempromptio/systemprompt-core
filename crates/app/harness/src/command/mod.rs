@@ -8,7 +8,9 @@
 //! writes every store change and engine event as one JSON line
 //! ([`RunEvent`]) to the writer it is given. Permission requests are answered
 //! by the [`PermissionMode`] and the scripted [`Answers`]; nothing waits for a
-//! person. [`login`] signs in with a personal access token read from standard
+//! person. With `--control` the run is steered from its standard input, one
+//! [`ControlCommand`] per line, and every permission request waits for its
+//! `reply`. [`login`] signs in with a personal access token read from standard
 //! input and pins the manifest key the instance serves.
 //!
 //! [`parse`] turns an argument list into a [`Command`], and [`execute`] is
@@ -38,14 +40,14 @@ mod usage;
 
 pub use args::{Command, LoginArgs, PromptSource, RunArgs, parse};
 pub use compose::{Composition, StartupError};
-pub use control::{Control, ControlDelivery, ControlFeed};
+pub use control::{ControlCommand, ControlError, ControlFeed, read_controls};
 pub use dispatch::{Streams, execute};
 pub use event::{EventWriter, Feed, RunEvent};
 pub use exit::ExitStatus;
 pub use host::{DataRoot, HeadlessHost};
 pub use login::{LoginFailure, LoginOutcome, LoginReport, LoginRequest, login, read_token};
 pub use permission::{
-    AnswerSource, Answers, Decider, PermissionMode, QuestionAnswers, UnusedAnswers,
+    AnswerSource, Answers, Decider, PermissionMode, QuestionAnswers, UnusedAnswers, WaitingAsks,
 };
 pub use run::{DEFAULT_SYNC_TIMEOUT, RunReport, RunRequest, run, run_controlled};
 pub use settings::MemorySettings;

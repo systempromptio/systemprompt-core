@@ -141,3 +141,62 @@ async fn login_reads_the_token_from_the_input_and_writes_one_line() {
     assert_eq!(line["exit_code"], 0);
     assert_eq!(line["instance"], instance.url);
 }
+
+#[tokio::test]
+async fn a_controlled_run_that_cannot_start_writes_one_finished_line() {
+    let dir = tempfile::tempdir().unwrap();
+    let host = host(dir.path());
+
+    let ended = invoke(
+        &host,
+        &[
+            "run",
+            "--workspace",
+            dir.path().to_str().unwrap(),
+            "--prompt",
+            "hello",
+            "--control",
+        ],
+        "{\"do\":\"steer\",\"text\":\"more\"}\n{\"do\":\"end\"}\n",
+    )
+    .await;
+
+    assert_eq!(ended.status, ExitStatus::NotSignedIn);
+    assert!(ended.errors.is_empty());
+    assert_eq!(ended.output.lines().count(), 1);
+    let line: Value = serde_json::from_str(ended.output.trim_end()).unwrap();
+    assert_eq!(line["type"], "finished");
+    assert_eq!(line["exit_code"], 5);
+}
+
+#[tokio::test]
+async fn control_beside_a_permission_mode_is_a_usage_error_before_anything_runs() {
+    let dir = tempfile::tempdir().unwrap();
+    let host = host(dir.path());
+
+    let ended = invoke(
+        &host,
+        &[
+            "run",
+            "--workspace",
+            dir.path().to_str().unwrap(),
+            "--prompt",
+            "hello",
+            "--control",
+            "--permission-mode",
+            "allow",
+        ],
+        "",
+    )
+    .await;
+
+    assert_eq!(ended.status, ExitStatus::Usage);
+    assert!(ended.output.is_empty());
+    assert!(
+        ended
+            .errors
+            .starts_with("`--control` cannot be given with `--permission-mode`")
+    );
+    assert!(ended.errors.contains(USAGE));
+    assert!(!host.data_root.exists());
+}
