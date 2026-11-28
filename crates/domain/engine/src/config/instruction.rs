@@ -6,19 +6,20 @@
 //! See <https://systemprompt.io> for licensing details.
 
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::path::{Component, MAIN_SEPARATOR_STR, Path, PathBuf};
 
 use globset::{GlobBuilder, GlobMatcher};
 
 use crate::config::error::ConfigError;
 use crate::config::fsio::Probe;
-use crate::config::paths::{Layout, Paths, expand_home};
+use crate::config::paths::{Layout, Paths, home_relative};
 
 const PRIMARY: &str = "AGENTS.md";
 const FALLBACK: &str = "CLAUDE.md";
 const GLOB_FILES: usize = 64;
 const GLOB_DEPTH: usize = 8;
 const SKIPPED_DIRS: [&str; 2] = ["node_modules", "target"];
+const SEPARATORS: [char; 2] = ['/', '\\'];
 
 /// One instruction file as it will be shown to the model. `bytes` is its size
 /// on disk; `truncated` is set when `text` holds only the first
@@ -120,13 +121,16 @@ impl Collector {
         inputs: &Inputs<'_>,
         problems: &mut Vec<ConfigError>,
     ) {
-        let expanded = expand_home(entry.trim(), &inputs.paths.home);
-        let pattern = expanded.to_string_lossy().replace('\\', "/");
-        let (base, rest) = split_glob(&pattern);
-        let base = if Path::new(&base).is_absolute() {
-            PathBuf::from(&base)
+        let written = entry.trim();
+        let (anchor, written) = home_relative(written).map_or_else(
+            || (inputs.root, written),
+            |rest| (inputs.paths.home.as_path(), rest),
+        );
+        let (literal, rest) = split_glob(written);
+        let base = if literal.as_os_str().is_empty() {
+            anchor.to_path_buf()
         } else {
-            inputs.root.join(&base)
+            anchor.join(literal)
         };
         if rest.is_empty() {
             match self.add(probe, &base) {
@@ -195,19 +199,29 @@ impl GlobSearch<'_> {
     }
 }
 
-fn split_glob(pattern: &str) -> (String, String) {
-    let parts: Vec<&str> = pattern.split('/').collect();
+// Why: a Windows verbatim prefix (`\\?\`) holds a glob character, so a prefix is
+// literal, and only the text as written is split, never the home or root path.
+fn split_glob(written: &str) -> (PathBuf, String) {
+    let prefix = match Path::new(written).components().next() {
+        Some(Component::Prefix(prefix)) => prefix.as_os_str().len(),
+        _ => 0,
+    };
+    let (prefix, body) = written.split_at(prefix);
+    let parts: Vec<&str> = body.split(SEPARATORS).collect();
     let first_glob = parts
         .iter()
         .position(|part| part.contains(['*', '?', '[', '{']))
         .unwrap_or(parts.len());
-    let base = parts[..first_glob].join("/");
-    let base = if base.is_empty() && pattern.starts_with('/') {
-        "/".to_owned()
+    let literal = parts[..first_glob].join(MAIN_SEPARATOR_STR);
+    let literal = if literal.is_empty() && body.starts_with(SEPARATORS) {
+        MAIN_SEPARATOR_STR
     } else {
-        base
+        literal.as_str()
     };
-    (base, parts[first_glob..].join("/"))
+    (
+        PathBuf::from(format!("{prefix}{literal}")),
+        parts[first_glob..].join("/"),
+    )
 }
 
 fn cap(bytes: &[u8], limit: usize) -> (String, bool) {
