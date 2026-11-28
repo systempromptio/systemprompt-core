@@ -217,7 +217,6 @@ async fn a_second_overflow_after_one_recovery_ends_the_turn_with_the_overflow() 
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "parity ledger: when the recovery summary fails, the turn reports the summary's failure, not the overflow that started it"]
 async fn a_failed_recovery_summary_leaves_the_original_overflow_as_the_turns_failure() {
     let scripted = Scripted::start(vec![
         fault(TurnFault::ContextOverflow),
@@ -312,7 +311,6 @@ async fn prompts_sent_during_an_overflow_recovery_wait_until_the_retry_has_answe
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "parity ledger: an overflow reported after output was stored still starts a compaction and a retry"]
 async fn an_overflow_after_stored_output_is_not_recovered() {
     let rig = Rig::canned(
         vec![
