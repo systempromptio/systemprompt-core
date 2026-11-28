@@ -9,7 +9,7 @@
 //! `systemprompt_harness::command::login`, the fixture copied to a fresh
 //! workspace outside the data root with one modification time, and
 //! `run_controlled` driven in process with the scenario's answers and
-//! actions ([`drive`]). [`outcome`] normalises what the run left, compares
+//! actions ([`drive()`]). [`outcome`] normalises what the run left, compares
 //! it with `expected/` and classifies every difference into a ledger row.
 
 mod checks;

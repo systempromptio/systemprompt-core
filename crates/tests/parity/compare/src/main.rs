@@ -2,8 +2,9 @@
 //! harness-to-reference comparison when the reference runner's export is
 //! given, and writes the parity ledger.
 //!
-//! `parity-ledger --runs <dir> --out <dir> [--reference <dir> --scenarios
-//! <dir>]`
+//! ```text
+//! parity-ledger --runs <dir> --out <dir> [--reference <dir> --scenarios <dir>]
+//! ```
 //!
 //! `--runs` is the runner's output (`<scenario>/<protocol>/row.json` and
 //! `trace.json`); `--reference` the reference runner's `--out`. Exits 1

@@ -74,6 +74,7 @@ percent-encoding = { version = "2" }
 phf = { version = "0.14", features = ["macros"] }
 phf_shared = { version = "0.14" }
 pkcs8 = { version = "0.11", default-features = false, features = ["encryption", "pem", "std"] }
+proc-macro2 = { version = "1" }
 prost = { version = "0.13", features = ["prost-derive"] }
 rand-274715c4dabd11b0 = { package = "rand", version = "0.9", default-features = false, features = ["small_rng", "thread_rng"] }
 rand-93f6ce9d446188ac = { package = "rand", version = "0.10" }
@@ -185,7 +186,9 @@ num-traits = { version = "0.2", features = ["i128", "libm"] }
 once_cell = { version = "1" }
 percent-encoding = { version = "2" }
 phf_shared = { version = "0.14" }
+proc-macro2 = { version = "1" }
 prost = { version = "0.13", features = ["prost-derive"] }
+quote = { version = "1" }
 rand-93f6ce9d446188ac = { package = "rand", version = "0.10" }
 regex = { version = "1" }
 regex-automata = { version = "0.4", default-features = false, features = ["dfa", "hybrid", "meta", "nfa", "perf", "std", "unicode"] }
@@ -234,6 +237,8 @@ zeroize = { version = "1", features = ["derive", "serde"] }
 
 [target.x86_64-unknown-linux-gnu.dependencies]
 ahash = { version = "0.8", features = ["serde"] }
+aws-lc-rs = { version = "1", default-features = false, features = ["aws-lc-sys", "prebuilt-nasm"] }
+aws-lc-sys = { version = "0.47", default-features = false, features = ["prebuilt-nasm"] }
 getrandom-9fbad63c4bcf4a8f = { package = "getrandom", version = "0.4", default-features = false, features = ["std", "sys_rng"] }
 hmac = { version = "0.12", default-features = false, features = ["reset"] }
 hyper-rustls = { version = "0.27", default-features = false, features = ["aws-lc-rs", "http1", "http2", "tls12"] }
@@ -241,6 +246,7 @@ hyper-util = { version = "0.1", default-features = false, features = ["client-le
 linux-raw-sys = { version = "0.12", default-features = false, features = ["auxvec", "elf", "errno", "general", "if_ether", "ioctl", "net", "netlink", "no_std", "prctl", "xdp"] }
 mio = { version = "1", features = ["net", "os-ext"] }
 nix = { version = "0.31", features = ["fs", "hostname", "signal", "user"] }
+quote = { version = "1" }
 rustix = { version = "1", features = ["event", "fs", "net", "pipe", "process", "time"] }
 rustls = { version = "0.23", default-features = false, features = ["aws-lc-rs", "aws_lc_rs"] }
 rustls-webpki = { version = "0.103", default-features = false, features = ["aws-lc-rs", "ring", "std"] }
@@ -252,6 +258,8 @@ tower = { version = "0.5", default-features = false, features = ["log", "make", 
 zvariant = { version = "5", features = ["enumflags2", "url"] }
 
 [target.x86_64-unknown-linux-gnu.build-dependencies]
+aws-lc-rs = { version = "1", default-features = false, features = ["aws-lc-sys", "prebuilt-nasm"] }
+aws-lc-sys = { version = "0.47", default-features = false, features = ["prebuilt-nasm"] }
 cc = { version = "1", default-features = false, features = ["parallel"] }
 getrandom-9fbad63c4bcf4a8f = { package = "getrandom", version = "0.4", default-features = false, features = ["std", "sys_rng"] }
 hyper-util = { version = "0.1", default-features = false, features = ["client-legacy", "client-proxy"] }

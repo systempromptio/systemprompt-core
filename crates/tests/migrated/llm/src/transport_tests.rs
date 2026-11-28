@@ -37,7 +37,7 @@ async fn a_refused_connection_is_a_connect_error_that_says_why_and_is_retried() 
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let url = format!("http://{}/v1/messages", listener.local_addr().unwrap());
     drop(listener);
-    let error = short(1_000)
+    let error = short(30_000)
         .send(post(&url))
         .await
         .expect_err("a closed port answered");

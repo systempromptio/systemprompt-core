@@ -44,12 +44,18 @@ fn denials(transcript: &Transcript) -> Value {
     Value::Object(found)
 }
 
+/// A path with forward slashes, whichever separator the system writes, so a
+/// patched file compares equal to the scenario's workspace-relative name.
+fn slashed(path: &str) -> String {
+    path.replace('\\', "/")
+}
+
 fn patch_files(
     events: &[Value],
     workspace: &str,
     hidden: &std::collections::BTreeSet<String>,
 ) -> Vec<String> {
-    let prefix = format!("{}/", workspace.trim_end_matches('/'));
+    let prefix = format!("{}/", slashed(workspace).trim_end_matches('/'));
     let mut files: Vec<String> = events
         .iter()
         .filter(|event| event.pointer("/part/body/type").and_then(Value::as_str) == Some("patch"))
@@ -68,8 +74,10 @@ fn patch_files(
                 .unwrap_or_default()
         })
         .filter_map(|file| {
-            file.as_str()
-                .map(|file| file.strip_prefix(&prefix).unwrap_or(file).to_owned())
+            file.as_str().map(|file| {
+                let file = slashed(file);
+                file.strip_prefix(&prefix).unwrap_or(&file).to_owned()
+            })
         })
         .collect();
     files.sort();
