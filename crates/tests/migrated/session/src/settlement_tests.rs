@@ -52,7 +52,6 @@ async fn every_tool_call_of_a_step_is_settled_before_the_one_continuation() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "parity ledger: a step whose stream ends at the output limit still runs the tool calls it streamed and the turn continues (engine run/session/step.rs runs every streamed call and records ToolCalls)"]
 async fn a_step_cut_off_by_the_output_limit_runs_none_of_its_tool_calls() {
     let cut = Turn {
         stop: Some(StopReason::MaxTokens),

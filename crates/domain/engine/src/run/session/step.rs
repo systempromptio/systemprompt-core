@@ -72,7 +72,11 @@ pub(crate) async fn run(
         },
     };
 
-    let has_calls = !streamed.calls.is_empty();
+    let cut_off = matches!(streamed.finish, Some(crate::llm::FinishReason::Length));
+    if cut_off {
+        exec::settle_cut_off(ctx, &message.id, &streamed.calls).await;
+    }
+    let has_calls = !cut_off && !streamed.calls.is_empty();
     let stop = has_calls && exec::run_calls(ctx, toolbox, &message.id, &streamed.calls).await;
     let after = if has_calls {
         snapshot(ctx).await

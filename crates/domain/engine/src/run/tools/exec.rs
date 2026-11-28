@@ -26,6 +26,10 @@ use crate::run::session::stream::PendingCall;
 
 const MALFORMED_EXCERPT: usize = 500;
 
+/// The error a call is settled with when the output limit cut its step off.
+pub(crate) const CUT_OFF: &str =
+    "the reply reached the output limit before this call was finished, so it was not run";
+
 pub(super) struct Invocation<'a> {
     pub(super) ctx: &'a StepContext,
     toolbox: &'a ToolBox,
@@ -44,6 +48,21 @@ pub(crate) async fn run_calls(
         .iter()
         .map(|call| run_call(ctx, toolbox, message_id, call));
     join_all(runs).await.into_iter().any(|stop| stop)
+}
+
+/// Settles the calls of a step the output limit cut off without running any
+/// of them: each is recorded as failed with [`CUT_OFF`].
+pub(crate) async fn settle_cut_off(
+    ctx: &StepContext,
+    message_id: &MessageId,
+    calls: &[PendingCall],
+) {
+    for call in calls {
+        let started = now_ms();
+        let record = CallRecord::new(ctx.session.id.clone(), message_id.clone(), call, started);
+        let finished = Finished::failed(call.input.clone(), CUT_OFF.to_owned(), started);
+        record.write(&ctx.inner.db, finished.state).await;
+    }
 }
 
 async fn run_call(
