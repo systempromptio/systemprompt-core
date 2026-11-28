@@ -115,6 +115,30 @@ pub(crate) async fn markdown(html: &'static str) -> String {
     result.unwrap().output
 }
 
+/// The page as markdown under an output limit of `limit` bytes, without the
+/// truncation notice.
+pub(crate) async fn shown_within(limit: usize, html: String) -> String {
+    let dir = tempfile::tempdir().unwrap();
+    let base = serve(move |_| page("text/html", html.clone())).await;
+    let ctx = context(dir.path(), Arc::new(Gate::default()));
+    let tool = FetchTool::new(
+        FetchConfig::default(),
+        OutputLimits {
+            max_lines: 1_000,
+            max_bytes: limit,
+        },
+    );
+    let out = tool
+        .run(json!({"url": format!("{base}/p")}), &ctx)
+        .await
+        .unwrap();
+    out.output
+        .split("\n\n[Output truncated")
+        .next()
+        .unwrap()
+        .to_owned()
+}
+
 async fn text(html: &'static str) -> String {
     let dir = tempfile::tempdir().unwrap();
     let base = serve(move |_| page("text/html", html)).await;

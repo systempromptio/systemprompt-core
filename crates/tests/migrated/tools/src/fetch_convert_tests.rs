@@ -3,7 +3,7 @@
 use serde_json::json;
 use systemprompt_engine::tools::{FetchConfig, FetchTool, OutputLimits, Tool};
 
-use crate::fetch_tests::markdown;
+use crate::fetch_tests::{markdown, shown_within};
 use crate::support::Project;
 
 fn leak(html: String) -> &'static str {
@@ -251,4 +251,42 @@ async fn active_content_stays_suppressed_in_deep_nesting() {
 async fn child_lists_indent_from_their_parent_marker() {
     let out = markdown("<ol start=\"10\"><li>ten<ul><li>child</li></ul></li></ol>").await;
     assert!(out.contains("10. ten\n    - child"), "{out}");
+}
+
+#[tokio::test]
+async fn a_code_block_with_no_room_for_its_fence_leaves_no_open_fence() {
+    for quoted in [false, true] {
+        for spare in 0..24 {
+            let code = "<pre>x</pre>";
+            let block = if quoted {
+                format!("<blockquote>{code}</blockquote>")
+            } else {
+                code.to_owned()
+            };
+            let html = format!("<p>{}</p>{block}", "y".repeat(80));
+            let shown = shown_within(80 + spare, html).await;
+            assert_eq!(
+                shown.matches("```").count() % 2,
+                0,
+                "quoted {quoted}, spare {spare}: {shown:?}"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn inline_code_at_the_start_of_a_quote_is_quoted() {
+    let out = markdown("<blockquote><code>x</code> y</blockquote>").await;
+    assert!(out.lines().any(|line| line == "> `x` y"), "{out}");
+}
+
+#[tokio::test]
+async fn text_after_deep_nesting_inside_preformatted_content_is_kept() {
+    let out = markdown(leak(format!(
+        "<pre>{}visible{}</pre><p>after</p>",
+        "<i>".repeat(10_001),
+        "</i>".repeat(10_001)
+    )))
+    .await;
+    assert!(out.contains("visible") && out.contains("after"), "{out}");
 }
