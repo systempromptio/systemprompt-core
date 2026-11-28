@@ -4,9 +4,13 @@
 //! crate's decoders to the scripted turn.
 
 mod asides;
+mod bundles;
 mod catalog;
+mod consumer;
 mod device;
+mod drive;
 mod faults;
+mod feed;
 mod hooks;
 mod manifest;
 mod streams;

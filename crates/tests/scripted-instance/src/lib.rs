@@ -9,8 +9,10 @@
 //! It serves discovery and health, the sign-in exchanges, identity, the
 //! signed manifest and its key, the model list and profile, both model
 //! protocols as scripted streams, the hook client, hook token, telemetry
-//! and verdict routes, and the heartbeat. Every request is recorded, the
-//! ones no route answers included.
+//! and verdict routes, the heartbeat, device enrolment, plugin bundle
+//! files, receipts, session bindings and the Drive sync feed. Every request
+//! is recorded, the ones no route answers included. Installation plans are
+//! not served: a plan request is recorded and refused.
 //!
 //! Routes and header names are taken from the linked core crates
 //! (`systemprompt_models::ApiPaths`, `systemprompt_identifiers::headers`)
@@ -24,6 +26,7 @@ mod guard;
 mod instance;
 mod manifest;
 mod model;
+mod plugin;
 mod record;
 mod router;
 mod routes;
@@ -38,6 +41,7 @@ pub use event::Event;
 pub use instance::{ScriptedInstance, ScriptedInstanceBuilder};
 pub use manifest::{ManifestFault, ManifestFixture};
 pub use model::ModelFixture;
+pub use plugin::PluginFixture;
 pub use record::{RecordedBody, RequestRecord, Route};
 pub use script::{
     Aside, Expect, ModelScript, Respond, StopReason, ToolCall, Turn, TurnFault, Usage,

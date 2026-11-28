@@ -2,6 +2,8 @@
 //! refusing a request.
 
 pub(crate) mod auth;
+pub(crate) mod consumer;
+pub(crate) mod drive;
 pub(crate) mod hooks;
 pub(crate) mod model;
 pub(crate) mod sync;
@@ -25,10 +27,14 @@ pub(crate) fn bearer(headers: &HeaderMap) -> Option<&str> {
 }
 
 pub(crate) fn refuse(status: StatusCode, message: &str) -> Response {
+    refuse_as(status, None, message)
+}
+
+pub(crate) fn refuse_as(status: StatusCode, error_key: Option<&str>, message: &str) -> Response {
     let envelope = ErrorEnvelope {
         code: Some(status.as_u16().to_string()),
         message: Some(message.to_owned()),
-        error_key: None,
+        error_key: error_key.map(str::to_owned),
         timestamp: None,
     };
     (status, Json(envelope)).into_response()

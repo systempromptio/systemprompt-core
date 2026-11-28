@@ -13,6 +13,8 @@ pub(crate) const TOKEN_TTL_SECS: i64 = 3_600;
 
 pub(crate) const SESSION_USE: &str = "session";
 pub(crate) const HOOK_USE: &str = "hook";
+pub(crate) const DEVICE_TOKEN_USE: &str = "device_token";
+pub(crate) const SYNC_USE: &str = "drive_sync";
 
 const TOKEN_USE: &str = "token_use";
 
