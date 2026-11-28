@@ -19,12 +19,13 @@ use systemprompt_identifiers::{McpExecutionId, McpServerId};
 use systemprompt_models::mcp::Correlation;
 
 use super::classify::Classified;
-use super::{ArtifactIngest, FINGERPRINT_WINDOW_SECONDS, IngestRequest, PROXIMITY_WINDOW_SECONDS};
+use super::pair::pair_client_attestation;
+use super::{ArtifactIngest, IngestRequest};
 use crate::error::McpDomainResult;
 use crate::models::{
     McpToolExecutionStatus, ToolExecution, ToolExecutionRequest, ToolExecutionResult,
 };
-use crate::repository::{ArtifactCorrelation, ExecutionInsert, McpArtifactRecord, ProximityProbe};
+use crate::repository::{ArtifactCorrelation, ExecutionInsert, McpArtifactRecord};
 use systemprompt_traits::RepositoryError;
 
 #[derive(Debug, Clone)]
@@ -124,88 +125,6 @@ async fn held_call_id_execution(
         "Concurrent sighting joined the execution another vantage point inserted"
     );
     Ok(id)
-}
-
-// Why: a client-reported result carries no key the server shares, so it is
-// joined to the execution the server observed — first by proximity, then by
-// payload fingerprint. A server-observed row is already its own record and
-// never pairs with another.
-async fn pair_client_attestation(
-    ingest: &ArtifactIngest,
-    request: &IngestRequest,
-    raw_sha256: &str,
-) -> McpDomainResult<Option<ResolvedExecution>> {
-    if request.source.is_server_observed() {
-        return Ok(None);
-    }
-
-    if let Some(id) = find_by_proximity(ingest, request).await? {
-        ingest
-            .executions
-            .mark_correlated(
-                &id,
-                request.ai_tool_call_id.as_ref(),
-                Correlation::Inferred,
-                None,
-            )
-            .await?;
-        tracing::info!(
-            mcp_execution_id = %id,
-            tool = %request.tool_name,
-            source = %request.source,
-            "Client attestation paired with the execution the server observed"
-        );
-        return Ok(Some(ResolvedExecution {
-            mcp_execution_id: id,
-            correlation: Correlation::Inferred,
-        }));
-    }
-
-    if let Some(id) = ingest
-        .executions
-        .find_by_fingerprint(
-            request.ctx.session_id(),
-            &request.tool_name,
-            raw_sha256,
-            FINGERPRINT_WINDOW_SECONDS,
-        )
-        .await?
-    {
-        tracing::info!(
-            mcp_execution_id = %id,
-            tool = %request.tool_name,
-            source = %request.source,
-            "Tool result joined to its execution by fingerprint"
-        );
-        return Ok(Some(ResolvedExecution {
-            mcp_execution_id: id,
-            correlation: Correlation::Inferred,
-        }));
-    }
-
-    Ok(None)
-}
-
-async fn find_by_proximity(
-    ingest: &ArtifactIngest,
-    request: &IngestRequest,
-) -> McpDomainResult<Option<McpExecutionId>> {
-    if request.ctx.is_anonymous() {
-        return Ok(None);
-    }
-    let Some(server_name) = request.server_name.as_ref() else {
-        return Ok(None);
-    };
-    ingest
-        .executions
-        .find_unattested_by_proximity(&ProximityProbe {
-            user_id: request.ctx.user_id(),
-            server_name,
-            tool_name: &request.tool_name,
-            at: request.started_at.unwrap_or_else(Utc::now),
-            window_seconds: PROXIMITY_WINDOW_SECONDS,
-        })
-        .await
 }
 
 // Why: a client-reported result carries keys the client chose. Joining it to

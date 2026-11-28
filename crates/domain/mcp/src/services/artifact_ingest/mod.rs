@@ -14,6 +14,7 @@
 
 mod classify;
 mod normalize;
+mod pair;
 mod persist;
 mod port;
 mod resolve;
