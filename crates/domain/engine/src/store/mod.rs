@@ -18,6 +18,7 @@ mod error;
 mod handle;
 mod id;
 mod model;
+mod platform;
 mod rows;
 mod schema;
 

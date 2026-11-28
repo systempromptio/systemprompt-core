@@ -153,8 +153,7 @@ impl Store {
 fn create_owner_only(path: &Path) -> Result<()> {
     let mut options = std::fs::OpenOptions::new();
     options.write(true).create(true).truncate(false);
-    #[cfg(unix)]
-    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    crate::store::platform::owner_only(&mut options);
     options
         .open(path)
         .map(drop)

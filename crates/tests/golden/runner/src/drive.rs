@@ -184,7 +184,7 @@ pub async fn drive(
         prompts: vec![scenario.messages.first().cloned().unwrap_or_default()],
         workspace: workspace.clone(),
         permission_mode: PermissionMode::parse(&scenario.mode).context("permission mode")?,
-        answers: Answers::default(),
+        answers: Answers::parse(&scenario.answers().to_string())?,
         model: None,
         agent: None,
         data_root: Some(root),

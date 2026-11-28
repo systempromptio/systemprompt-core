@@ -8,7 +8,7 @@ use std::io::Write;
 use serde_json::Value;
 use systemprompt_harness::command::{ControlCommand, ControlError};
 use systemprompt_parity_compare::{Mark, MarkKind};
-use systemprompt_scripted_instance::{Route, ScriptedInstance};
+use systemprompt_scripted_instance::ScriptedInstance;
 use tokio::sync::mpsc;
 
 use crate::scenario::{ActionOn, Scenario};
@@ -40,7 +40,7 @@ fn model_calls(instance: &ScriptedInstance) -> usize {
     instance
         .requests()
         .iter()
-        .filter(|record| matches!(record.route, Route::Messages | Route::ChatCompletions))
+        .filter(|record| crate::outcome::is_step_call(record))
         .count()
 }
 
