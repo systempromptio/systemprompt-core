@@ -230,7 +230,6 @@ async fn a_summary_refused_by_the_provider_is_reported_as_a_failed_compaction() 
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore = "parity ledger: a summary cut off by the output limit or a content filter is stored as the summary"]
 async fn a_summary_that_did_not_finish_is_rejected_without_a_retry() {
     for stop in [StopReason::MaxTokens, StopReason::ContentFilter] {
         let mut unfinished = text_turn("INCOMPLETE summary");
