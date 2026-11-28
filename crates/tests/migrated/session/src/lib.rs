@@ -29,6 +29,8 @@ mod revert_tests;
 #[cfg(test)]
 mod session_tests;
 #[cfg(test)]
+mod settlement_tests;
+#[cfg(test)]
 mod store_tests;
 #[cfg(test)]
 mod subagent_tests;
