@@ -83,6 +83,74 @@ What the counts are, and are not:
 - 59 rows (696 cases) need the scripted instance or a golden scenario: 40 in batch 2, 10 in batch 3, 2 in batch 4, 5 deferred, 2 already covered. That is a floor. Many reference tests inject an in-process fake model and were marked `unit`; batch 2's agent-loop rows are the likely additions.
 - Two behaviour differences are already visible and go to the parity ledger, not to a fix: a read at an offset past the end of a file (the reference returns the file's end, the harness an error), and a shell command that times out (the reference moves it to the background, the harness kills it).
 
+### 1.2 Counts after migration, 2026-11-28
+
+Recounted from the rows of every `cases.md`, not from the totals line each file carries. Core batches 1 to 3 were read at core commit `6d079361b8` (`crates/tests/migrated/`); template batch 4 at template commit `63cf625e` (`extensions/harness/tests/migrated/desktop/`).
+
+The 920 catalogue rows first classified `port` are now 6,422 case rows. A case row counts under its class when that class is `covered`, `not-applicable` or `defer`, and under its `state` when the class is `port`. The 1,773 catalogue rows first classified otherwise (43 covered, 1,679 not applicable, 51 deferred) were not opened by a batch lane and keep the counts of section 1.1.
+
+By batch:
+
+| Batch | Catalogue rows | Case rows | passing | ledger | covered | not applicable | deferred | tour | manual | open | written |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 67 | 680 | 378 | 162 | 22 | 49 | 2 | 0 | 0 | 64 | 3 |
+| 2 | 157 | 1,339 | 296 | 197 | 52 | 405 | 1 | 0 | 0 | 388 | 0 |
+| 3 | 51 | 485 | 203 | 77 | 40 | 153 | 0 | 0 | 0 | 12 | 0 |
+| 4 | 645 | 3,918 | 119 | 1,509 | 4 | 1,066 | 1 | 390 | 829 | 0 | 0 |
+| **Total** | 920 | 6,422 | 996 | 1,945 | 118 | 1,673 | 4 | 390 | 829 | 464 | 3 |
+
+By file:
+
+| Batch | Path | Catalogue rows | Case rows | passing | ledger | covered | not applicable | deferred | tour | manual | open | written |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | `migrated/tools/` | 67 | 680 | 378 | 162 | 22 | 49 | 2 | 0 | 0 | 64 | 3 |
+| 2 | `migrated/config/` | 37 | 199 | 135 | 20 | 4 | 34 | 0 | 0 | 0 | 6 | 0 |
+| 2 | `migrated/session/` | 120 | 1,140 | 161 | 177 | 48 | 371 | 1 | 0 | 0 | 382 | 0 |
+| 3 | `migrated/llm/` | 46 | 429 | 187 | 70 | 34 | 129 | 0 | 0 | 0 | 9 | 0 |
+| 3 | `migrated/mcp/` | 5 | 56 | 16 | 7 | 6 | 24 | 0 | 0 | 0 | 3 | 0 |
+| 4a | `desktop/process/` | 26 | 137 | 24 | 30 | 1 | 71 | 1 | 10 | 0 | 0 | 0 |
+| 4b | `desktop/session/` | 145 | 852 | 24 | 458 | 0 | 177 | 0 | 193 | 0 | 0 | 0 |
+| 4c | `desktop/app/` | 200 | 1,253 | 34 | 634 | 3 | 371 | 0 | 124 | 87 | 0 | 0 |
+| 4d | `desktop/composer/` | 197 | 1,085 | 21 | 227 | 0 | 102 | 0 | 32 | 703 | 0 | 0 |
+| 4e | `desktop/panels/` | 77 | 591 | 16 | 160 | 0 | 345 | 0 | 31 | 39 | 0 | 0 |
+
+Batch 3 has no `migrated/lsp/` file: its 51 catalogue rows are all in `migrated/llm/` (46) and `migrated/mcp/` (5).
+
+What each column means:
+
+| Column | Meaning |
+|---|---|
+| passing | A Rust test asserts the case and passes |
+| ledger | The harness behaves differently or lacks the behaviour; the difference is recorded on the row, with an ignored test asserting the reference behaviour where one can express it |
+| covered | An existing harness test already asserts the case |
+| not applicable | The case was read and falls under a reason code of section 3 |
+| deferred | The case waits for a feature a later stage delivers |
+| tour | The case needs a display; it is a state on the screenshot tour, checked by a person |
+| manual | The shell has the behaviour, but its logic sits in a view with no seam a test can drive without a window; a line on the manual walk |
+| open | Nothing written |
+| written | A test exists but has not been run on the system it needs |
+
+**`port` case rows with neither a passing test nor a ledger entry.** Of the 4,627 case rows still classified `port`, 996 pass, 1,945 are in the ledger and 390 are tour states. The remaining 1,296 are `open`, `written` or `manual`, and the stage gate (`../stages/s2-parity-and-proof.md`, "Migrated tests") fails on every one of them:
+
+| Batch | open | written | manual | Fails the gate | Where they are |
+|---|---|---|---|---|---|
+| 1 | 64 | 3 | 0 | 67 | `migrated/tools/`. 41 of the 67 name a Windows host or a PowerShell executable the lane did not have, the 3 `written` rows among them; the other 26 give another reason in `note` |
+| 2 | 388 | 0 | 0 | 388 | `migrated/session/` 382, `migrated/config/` 6. In the session file 172 rows say only "not written", 57 name the headless run command as the place the behaviour is tested, and 153 give another reason in `note` |
+| 3 | 12 | 0 | 0 | 12 | `migrated/llm/` 9, `migrated/mcp/` 3 |
+| 4 | 0 | 0 | 829 | 829 | `desktop/composer/` 703, `desktop/app/` 87, `desktop/panels/` 39. 694 of the composer rows say the logic has no seam yet |
+| **Total** | 464 | 3 | 829 | 1,296 | |
+
+A `tour` row has no test and no ledger entry either. It is not counted above because section 5 makes it a state on the screenshot tour, which has its own line in the stage gate; the 390 tour rows are all in batch 4.
+
+Where a file's own totals disagree with its rows, the recount above is what is published:
+
+| File | The file says | Its rows say |
+|---|---|---|
+| `migrated/tools/cases.md` | passing 374, ledger 166 | passing 378, ledger 162 |
+| `migrated/session/cases.md` | ported 159, difference 179 (header line and the sum of its per-row table) | passing 161, ledger 177. The per-row table differs from the case rows on `ENG-7b750d1d.1` (it says 1 ported and 1 difference; the rows say 2 passing) and `ENG-dd0b6570` (it says 2 differences; the rows say 1 passing and 1 ledger) |
+
+Every other figure in the ten files agrees with its rows.
+
 ## 2. The catalogue
 
 Produced by S0-A5 and maintained as a data file beside the migrated tests. The S0 catalogue is a working file held with the integrator; S2 converts it to that data file, mechanically, when the first batch lane opens.
