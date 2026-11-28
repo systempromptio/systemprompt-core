@@ -41,6 +41,16 @@ fn a_manifest_older_than_the_last_applied_is_refused_and_the_same_one_is_accepte
 }
 
 #[test]
+fn an_older_manifest_offered_after_one_was_applied_is_refused_as_a_replay() {
+    let applied = accept(&manifest(json!({})), None, None, at(0)).unwrap();
+    let older = manifest(json!({ "manifest_version": version(-86_400, "0000000000000001") }));
+    assert_eq!(
+        accept(&older, None, Some(&applied), at(0)),
+        Err(Refusal::Replay)
+    );
+}
+
+#[test]
 fn not_before_beyond_five_minutes_is_refused_either_way_before_anything_was_applied() {
     let ahead = manifest(json!({ "not_before": (at(0) + TimeDelta::minutes(6)).to_rfc3339() }));
     assert_eq!(accept(&ahead, None, None, at(0)), Err(Refusal::Skew));

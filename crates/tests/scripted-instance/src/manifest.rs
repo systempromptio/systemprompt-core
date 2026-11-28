@@ -7,6 +7,11 @@
 //! filter names the client families of the fixture's models, as core's
 //! gateway writes it. The fixture's host extensions are listed for the
 //! harness host in `host_extensions`, as core's gateway lists an instance's.
+//!
+//! A stale version is dated a day back. It is served after the first manifest
+//! of this process, and from the first one when the instance started on a key
+//! file an earlier start wrote, so a restart with that fault offers an app
+//! that applied the earlier start's manifest an older one.
 
 use std::sync::PoisonError;
 use std::sync::atomic::Ordering;
@@ -113,7 +118,7 @@ pub(crate) fn key_is_rotated(state: &InstanceState) -> bool {
 
 pub(crate) fn serve(state: &InstanceState) -> Result<ServedManifest, FixtureError> {
     let fault = state.manifest.fault();
-    let served_before = state.manifests_served.load(Ordering::SeqCst) > 0;
+    let served_before = state.manifests_served.load(Ordering::SeqCst) > 0 || state.keys.reloaded();
     let dated = dated(state);
     let day = TimeDelta::days(1);
 
