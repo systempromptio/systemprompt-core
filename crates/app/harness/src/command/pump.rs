@@ -103,11 +103,6 @@ impl<W: Write + Send> Pump<'_, W> {
         self.drain()
     }
 
-    /// Waits for the title of the first prompt, for at most `TITLE_GRACE`.
-    ///
-    /// An aborted run waits too: the abort stops the step, not the title
-    /// call beside it, and ending first would shut the engine down under
-    /// that call. A run that outran its own timeout does not wait.
     pub(crate) async fn settle_title(&mut self) -> Result<(), PumpError> {
         let deadline = Instant::now() + TITLE_GRACE;
         while !self.titled && self.interrupted != Some(ExitStatus::TimedOut) {
