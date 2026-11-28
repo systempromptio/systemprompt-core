@@ -103,6 +103,11 @@ fn evaluates_layered_rules(loaded: &Loaded, repo: &Path) {
     );
     let plan = &loaded.agents["plan"];
     assert_eq!(loaded.evaluate(plan, &none, EDIT, "/x/y.rs"), Action::Deny);
+    let everything = Ruleset::from(vec![Rule::new(EDIT, "*", Action::Allow)]);
+    assert_eq!(
+        loaded.evaluate(plan, &everything, EDIT, "/x/y.rs"),
+        Action::Deny
+    );
     let skill_file = repo.join(".claude/skills/tidy/SKILL.md");
     assert_eq!(
         loaded.evaluate(

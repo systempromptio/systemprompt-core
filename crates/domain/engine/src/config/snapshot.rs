@@ -29,7 +29,8 @@ use crate::config::worktree::Worktree;
 ///
 /// The effective rules for an agent are, lowest first: the agent's defaults,
 /// access to skill directories, the global then project settings, the agent's
-/// own rules, and the session's rules.
+/// own rules, and the session's rules. A configured deny is final: the
+/// session's rules decide only what the configured layers do not deny.
 #[derive(Debug)]
 pub struct Loaded {
     pub cwd: PathBuf,
@@ -221,16 +222,13 @@ impl Loaded {
             .collect()
     }
 
-    pub fn rules_for(&self, agent: &AgentDef, session: &Ruleset) -> Ruleset {
+    pub fn rules_for<'a>(&self, agent: &AgentDef, session: &'a Ruleset) -> EffectiveRules<'a> {
         let skills = self.skill_access();
         let settings = &self.settings.permission;
-        Ruleset::layered(&[
-            &agent.defaults,
-            &skills,
-            settings,
-            &agent.permission,
+        EffectiveRules {
+            configured: Ruleset::layered(&[&agent.defaults, &skills, settings, &agent.permission]),
             session,
-        ])
+        }
     }
 
     pub fn evaluate(
@@ -241,5 +239,47 @@ impl Loaded {
         pattern: &str,
     ) -> Action {
         self.rules_for(agent, session).evaluate(permission, pattern)
+    }
+}
+
+/// The rules in force for one agent in one session.
+///
+/// The configured layers are consulted first and a deny there is final; a
+/// session rule decides only where the configured layers allow or ask.
+#[derive(Debug, Clone)]
+pub struct EffectiveRules<'a> {
+    configured: Ruleset,
+    session: &'a Ruleset,
+}
+
+impl EffectiveRules<'_> {
+    pub fn evaluate(&self, permission: &str, pattern: &str) -> Action {
+        let configured = self.configured.evaluate(permission, pattern);
+        if configured == Action::Deny {
+            return Action::Deny;
+        }
+        self.session
+            .find(permission, pattern)
+            .map_or(configured, |rule| rule.action)
+    }
+
+    pub fn evaluate_all<'a>(
+        &self,
+        permission: &str,
+        patterns: impl IntoIterator<Item = &'a str>,
+    ) -> Action {
+        let mut verdict = Action::Allow;
+        for pattern in patterns {
+            match self.evaluate(permission, pattern) {
+                Action::Deny => return Action::Deny,
+                Action::Ask => verdict = Action::Ask,
+                Action::Allow => {},
+            }
+        }
+        verdict
+    }
+
+    pub fn denies_all(&self, permission: &str) -> bool {
+        self.configured.denies_all(permission) || self.session.denies_all(permission)
     }
 }
