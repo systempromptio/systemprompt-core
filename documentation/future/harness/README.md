@@ -81,3 +81,14 @@ D10 to D49 (crate list, publishing, contract placement, layout, naming, Linux, d
 | S9 Server half and orchestration | Not started |
 
 Update this table in the commit that closes a stage.
+
+### Who is working where (2026-11-28)
+
+Two agent sessions push to `future` in both repositories and cannot message each other, so claims are recorded here. Read this before opening a lane; add a row before starting work on a path; fetch and rebase before every push; do not push while the other side's last push still has a hosted run in progress.
+
+| Session | Holds | Does not touch |
+|---|---|---|
+| Harness lane (commits as Edward) | S2 waves B, C and D: `crates/tests/{golden,parity,migrated,scripted-instance-tests}/**`, the template's `extensions/harness/tests/{tour,migrated}/**` and `scripts/harness/evidence/**`, and the S2 rows of this table | S7 wave A paths below |
+| `harness-s1-s9-delivery` (commits as Edward Burton) | S7 wave A: `platform` modules of `systemprompt-device`, `systemprompt-engine` and `systemprompt-machine`, and `scripts/lint-platform-confinement.py`. Earlier today: the scripted-instance asides, context window, enrolment, bundles, receipts and Drive feed, and `run --control` | Everything in the row above |
+
+Open between the two: the template's `Gates` and `Harness` workflows fail on `lint-repo-hygiene` since `6a9dab38` (six `.txt` files under `extensions/harness/tests/tour` and `scripts/harness/evidence`); it is the harness lane's to fix. S3 is unclaimed: whoever takes it adds a row first.
