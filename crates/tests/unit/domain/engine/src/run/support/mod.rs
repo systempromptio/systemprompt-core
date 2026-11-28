@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use serde_json::Value;
 use systemprompt_engine::config::{Layout, Paths};
-use systemprompt_engine::llm::Supports;
+use systemprompt_engine::llm::{Supports, Transport};
 use systemprompt_engine::mcp::ClientInfo;
 use systemprompt_engine::run::{
     Delivery, Engine, EngineEvent, EngineOptions, ExtensionSet, Governor, ModelSpec, PermissionAsk,
@@ -48,6 +48,13 @@ pub(crate) fn harness(governor: Arc<dyn Governor>, transport: Arc<Scripted>) -> 
     harness_with(governor, transport, None)
 }
 
+pub(crate) fn harness_on<T: Transport + 'static>(
+    governor: Arc<dyn Governor>,
+    transport: Arc<T>,
+) -> Harness {
+    harness_extended(governor, transport, None, ExtensionSet::default())
+}
+
 pub(crate) fn harness_with(
     governor: Arc<dyn Governor>,
     transport: Arc<Scripted>,
@@ -56,9 +63,9 @@ pub(crate) fn harness_with(
     harness_extended(governor, transport, settings, ExtensionSet::default())
 }
 
-pub(crate) fn harness_extended(
+pub(crate) fn harness_extended<T: Transport + 'static>(
     governor: Arc<dyn Governor>,
-    transport: Arc<Scripted>,
+    transport: Arc<T>,
     settings: Option<&str>,
     extensions: ExtensionSet,
 ) -> Harness {
