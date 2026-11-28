@@ -75,7 +75,7 @@ impl ManifestFixture {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum ManifestFault {
     StaleVersion,
     FutureNotBefore,

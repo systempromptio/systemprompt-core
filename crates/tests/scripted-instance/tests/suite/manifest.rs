@@ -9,7 +9,7 @@ use systemprompt_scripted_instance::{
 
 use crate::support::signed_in;
 
-async fn faulty(fault: ManifestFault) -> ScriptedInstance {
+pub(crate) async fn faulty(fault: ManifestFault) -> ScriptedInstance {
     ScriptedInstance::builder()
         .manifest(ManifestFixture::minimal().with_fault(fault))
         .start()
@@ -17,7 +17,7 @@ async fn faulty(fault: ManifestFault) -> ScriptedInstance {
         .unwrap()
 }
 
-async fn fetch(instance: &ScriptedInstance) -> Result<Box<Manifest>, ClientError> {
+pub(crate) async fn fetch(instance: &ScriptedInstance) -> Result<Box<Manifest>, ClientError> {
     let (client, session) = signed_in(instance).await;
     let key = client.pubkey().await?;
     match client.manifest(&session.jwt, &key, None, false).await? {

@@ -18,7 +18,10 @@ pub(crate) struct Feed {
 
 impl Feed {
     pub(crate) async fn open() -> Self {
-        let instance = instance(ModelScript::empty()).await;
+        Self::over(instance(ModelScript::empty()).await).await
+    }
+
+    pub(crate) async fn over(instance: ScriptedInstance) -> Self {
         let (_client, session) = signed_in(&instance).await;
         let http = Client::new();
         let device = session.device_token.unwrap();

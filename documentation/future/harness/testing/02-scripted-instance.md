@@ -61,10 +61,10 @@ The types:
 
 | Type | Shape |
 |---|---|
-| `ScriptedInstanceBuilder` | `user`, `pat`, `manifest`, `models`, `verdict`, `script`, `title_reply` (section 3.1), `port` (default 0, an ephemeral port; always loopback), `start` |
+| `ScriptedInstanceBuilder` | `user`, `pat`, `manifest`, `models`, `verdict`, `script`, `title_reply` (section 3.1), `document(path, bytes)` (the Drive store starts holding it; the change feed records it as created), `port` (default 0, an ephemeral port; always loopback), `start` |
 | `ScriptedInstance` | The calls above, plus `addr` and read access to each fixture it was built with |
 | `TestUser` | Typed user id, optional tenant id, email, display name, roles |
-| `ManifestFixture`, `ManifestFault` | `minimal()`, `with_fault`, `with_plugin`. Faults: `StaleVersion`, `FutureNotBefore`, `WrongUser`, `ChangedKey`, `BadSignature` |
+| `ManifestFixture`, `ManifestFault` | `minimal()`, `with_fault`, `with_plugin`. Faults: `StaleVersion`, `FutureNotBefore`, `WrongUser`, `ChangedKey`, `BadSignature`; each is also taken by its hyphenated name (`stale-version`, and so on) |
 | `PluginFixture` | `new(id)`, `governance(id)` (owns the governance hooks, so the harness mints a hook token and asks for verdicts), `file(path, bytes)`, `published()` (a managed publication: the manifest entry names it and its plan is served). The entry's digests are derived from the files; a plugin manifest is served when the fixture brings none |
 | `ModelFixture` | A typed model id and a wire protocol (core's `WireProtocol`; there is no local protocol enum); `messages(id)`, `chat(id)`, `on(id, protocol)`, `named(display)`, `context_window(tokens)`, `family()` (core's `ClientFamily` for the protocol) |
 | `VerdictScript`, `Verdict` | A default verdict and a map from logical tool name to verdict. `Allow`, `Deny { reason }`, `Delay { millis }`, `Error { status }`. File shape: `{"default": <verdict>, "tools": {"<name>": <verdict>}}` |
@@ -79,7 +79,21 @@ Every scripted structure refuses unknown keys, so a misspelt key in a scenario f
 
 A verdict is scripted **per tool, not per call**. A scenario that needs a sequence of verdicts for one tool needs a wider type; the lane that writes the first such scenario requests it.
 
-The binary: `systemprompt-scripted-instance [--port N] [--script turns.json] [--verdicts verdicts.json] [--messages-model ID]... [--chat-model ID]... [--context-window TOKENS] [--title-reply TEXT] [--governance-plugin ID]`. It prints one JSON line with `base_url` and `pat` on standard output, logs to standard error, and serves until interrupted.
+The binary is `systemprompt-scripted-instance`. It prints one JSON line with `base_url` and `pat` on standard output, logs to standard error, and serves until interrupted. Every switch is optional and maps to one builder call:
+
+| Switch | Builder call | Effect |
+|---|---|---|
+| `--port N` | `port` | The loopback port; 0, the default, takes an ephemeral one |
+| `--script turns.json` | `script(ModelScript::from_file(..))` | The turns and asides (section 3) |
+| `--verdicts verdicts.json` | `verdict(VerdictScript::from_file(..))` | The verdict per tool; without it every tool is allowed |
+| `--messages-model ID` (repeatable) | `models` with `ModelFixture::messages` | A model on the Messages protocol |
+| `--chat-model ID` (repeatable) | `models` with `ModelFixture::chat` | A model on the Chat Completions protocol |
+| `--context-window TOKENS` | `ModelFixture::context_window` on every model | The context window advertised for every model |
+| `--title-reply TEXT` | `title_reply` | The reply to every session-title call (section 3.1) |
+| `--governance-plugin ID` | `ManifestFixture::with_plugin(PluginFixture::governance(..))` | The manifest lists a plugin that owns the governance hooks, so verdicts are asked |
+| `--manifest-fault FAULT` | `ManifestFixture::with_fault` | The manifest carries that fault: `stale-version`, `future-not-before`, `wrong-user`, `changed-key` or `bad-signature`. Any other name is a usage error that lists these five |
+| `--pat TEXT` | `pat(TestPat::new(..))` | The personal access token the instance accepts, and prints, in place of the fixture's. A restart with another value refuses a credential stored against the earlier one. A device accepts only a token that starts with core's API-key prefix |
+| `--document PATH=FILE` (repeatable) | `document(path, bytes)` | The Drive store starts with a document at `PATH` holding the bytes of the local file `FILE`. The value is split at its first `=`; a file that cannot be read stops the start |
 
 ### 2.1 What exists at the end of S0
 

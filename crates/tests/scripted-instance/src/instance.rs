@@ -17,6 +17,7 @@ use crate::manifest::ManifestFixture;
 use crate::model::ModelFixture;
 use crate::record::RequestRecord;
 use crate::router;
+use crate::routes::drive::DriveStore;
 use crate::script::ModelScript;
 use crate::state::{InstanceState, lock};
 use crate::token::Keys;
@@ -34,6 +35,7 @@ pub struct ScriptedInstanceBuilder {
     verdict: VerdictScript,
     script: ModelScript,
     title_reply: Option<String>,
+    documents: Vec<(String, Vec<u8>)>,
     port: u16,
 }
 
@@ -78,6 +80,14 @@ impl ScriptedInstanceBuilder {
         self
     }
 
+    /// Puts a document in the Drive store before the instance serves: it is
+    /// in the manifest, its blob is served, and the change feed records it as
+    /// created. A later document at the same path replaces the earlier one.
+    pub fn document(mut self, path: impl Into<String>, bytes: impl Into<Vec<u8>>) -> Self {
+        self.documents.push((path.into(), bytes.into()));
+        self
+    }
+
     pub fn port(mut self, port: u16) -> Self {
         self.port = port;
         self
@@ -111,7 +121,7 @@ impl ScriptedInstanceBuilder {
             requests: Mutex::new(Vec::new()),
             consumed_turns: AtomicUsize::new(0),
             consumer: Mutex::default(),
-            drive: Mutex::default(),
+            drive: Mutex::new(DriveStore::holding(self.documents)),
         });
 
         let app = router::router(Arc::clone(&state));
