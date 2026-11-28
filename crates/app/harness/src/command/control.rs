@@ -19,8 +19,8 @@
 use std::io::{self, BufRead, Write};
 
 use serde::Deserialize;
-use systemprompt_engine::run::{Delivery, PromptInput, Reply, RunStatus};
-use systemprompt_engine::store::{Message, MessageId, MessageWithParts};
+use systemprompt_engine::run::{Delivery, Engine, PromptInput, Reply, RunStatus};
+use systemprompt_engine::store::{Message, MessageId, MessageWithParts, SessionId};
 use systemprompt_identifiers::engine::PermissionId;
 use systemprompt_traits::OwnedTask;
 use tokio::sync::mpsc;
@@ -142,16 +142,44 @@ pub(crate) async fn next(controls: &mut Option<ControlFeed>) -> Result<ControlCo
     }
 }
 
+async fn send(
+    engine: &Engine,
+    template: &PromptInput,
+    text: String,
+    delivery: Delivery,
+) -> Result<(), PumpError> {
+    let input = PromptInput {
+        text,
+        delivery,
+        ..template.clone()
+    };
+    let admitted = engine.prompt(input).await;
+    admitted.map(|_| ()).map_err(PumpError::Engine)
+}
+
+async fn revert(engine: &Engine, root: &SessionId, prompt: usize) -> Result<(), PumpError> {
+    let messages = engine.messages(root).await;
+    let messages = messages.map_err(PumpError::Engine)?;
+    let message_id = nth_prompt(&messages, prompt)
+        .ok_or(PumpError::Control(ControlError::NoSuchPrompt { prompt }))?;
+    let reverted = engine.revert(root, &message_id).await;
+    reverted.map(|_| ()).map_err(PumpError::Engine)
+}
+
 impl<W: Write + Send> Pump<'_, W> {
     pub(crate) async fn carry_out(&mut self, command: ControlCommand) -> Result<(), PumpError> {
         match command {
-            ControlCommand::Prompt { text } => self.send(text, Delivery::Queue).await,
-            ControlCommand::Steer { text } => self.send(text, Delivery::Steer).await,
+            ControlCommand::Prompt { text } => {
+                send(self.engine, &self.template, text, Delivery::Queue).await
+            },
+            ControlCommand::Steer { text } => {
+                send(self.engine, &self.template, text, Delivery::Steer).await
+            },
             ControlCommand::Abort {} => {
                 self.interrupt(ExitStatus::Aborted);
                 Ok(())
             },
-            ControlCommand::Revert { prompt } => self.revert(prompt).await,
+            ControlCommand::Revert { prompt } => revert(self.engine, &self.root, prompt).await,
             ControlCommand::Reply { id, reply } => self.reply(&id, reply),
             ControlCommand::End {} => self.close(),
         }
@@ -185,25 +213,6 @@ impl<W: Write + Send> Pump<'_, W> {
                 },
             }
         }
-    }
-
-    async fn send(&self, text: String, delivery: Delivery) -> Result<(), PumpError> {
-        let input = PromptInput {
-            text,
-            delivery,
-            ..self.template.clone()
-        };
-        let admitted = self.engine.prompt(input).await;
-        admitted.map(|_| ()).map_err(PumpError::Engine)
-    }
-
-    async fn revert(&self, prompt: usize) -> Result<(), PumpError> {
-        let messages = self.engine.messages(&self.root).await;
-        let messages = messages.map_err(PumpError::Engine)?;
-        let message_id = nth_prompt(&messages, prompt)
-            .ok_or(PumpError::Control(ControlError::NoSuchPrompt { prompt }))?;
-        let reverted = self.engine.revert(&self.root, &message_id).await;
-        reverted.map(|_| ()).map_err(PumpError::Engine)
     }
 
     fn reply(&mut self, id: &PermissionId, reply: Reply) -> Result<(), PumpError> {
