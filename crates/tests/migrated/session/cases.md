@@ -1,8 +1,8 @@
 # Migrated session tests: per-case results
 
-Batch 2 of the reference-test migration (lane S2-B3). Each catalogue row of this batch is replaced here by one row per case, in the columns of `documentation/future/harness/testing/04-test-migration.md` section 2. `target` names a test as `<crate>::<module>::<function>`, where `config` is `systemprompt-migrated-config-tests` and `session` is `systemprompt-migrated-session-tests`; a `covered` target names an existing test elsewhere. `state` is `passing`, `ledger` (the harness differs; the test, when there is one, is `#[ignore = "parity ledger: ..."]` and asserts the reference behaviour, and `note` gives the observed value) or `open` (not written; `note` says why).
+Batch 2 of the reference-test migration (lane S2-B3). Each catalogue row of this batch is replaced here by one row per case, in the columns of `documentation/future/harness/testing/04-test-migration.md` section 2. `target` names a test as `<crate>::<module>::<function>`, where `config` is `systemprompt-migrated-config-tests` and `session` is `systemprompt-migrated-session-tests`; a `covered` target names an existing test elsewhere. `state` is `passing`, `ledger` (the harness differs; the test, when there is one, is `#[ignore = "parity ledger: ..."]` and asserts the reference behaviour, and `note` gives the observed value), `written` (a new test the integrator has not yet run) or `open` (not written; `note` says why).
 
-Cases: 1140 over 120 catalogue rows. ported 159, covered 48, not applicable 371, deferred 1, difference 179, open 382.
+Cases: 1140 over 120 catalogue rows. ported 171, covered 48, not applicable 371, deferred 1, difference 192, open 357.
 
 ## Rows
 
@@ -18,8 +18,8 @@ Cases: 1140 over 120 catalogue rows. ported 159, covered 48, not applicable 371,
 | ENG-636ce3ff.1 | `packages/core/test/bus.test.ts` | cases about publish/subscribe ordering, atomic batches and replay-then-follow | 47 | 7 | 0 | 36 | 0 | 3 | 1 |
 | ENG-7eb5cb31 | `packages/core/test/config/command-subagent.test.ts` |  | 2 | 1 | 0 | 0 | 0 | 1 | 0 |
 | ENG-97b8a648.1 | `packages/core/test/config/policy.test.ts` | cases about permission policy precedence and denial | 9 | 8 | 0 | 0 | 0 | 0 | 1 |
-| ENG-7b750d1d.1 | `packages/core/test/database-migration.test.ts` | cases about bootstrap, ordered once-only migration, rollback and concurrent initialisation | 11 | 1 | 1 | 5 | 0 | 1 | 3 |
-| ENG-dd0b6570 | `packages/core/test/database.test.ts` |  | 2 | 0 | 0 | 0 | 0 | 2 | 0 |
+| ENG-7b750d1d.1 | `packages/core/test/database-migration.test.ts` | cases about bootstrap, ordered once-only migration, rollback and concurrent initialisation | 11 | 2 | 1 | 5 | 0 | 0 | 3 |
+| ENG-dd0b6570 | `packages/core/test/database.test.ts` |  | 2 | 1 | 0 | 0 | 0 | 1 | 0 |
 | ENG-5cbf0392 | `packages/core/test/file-access.test.ts` |  | 6 | 2 | 0 | 0 | 0 | 0 | 4 |
 | ENG-3c39af8d | `packages/core/test/filesystem/file-watch.test.ts` |  | 8 | 0 | 0 | 8 | 0 | 0 | 0 |
 | ENG-808193a2.1 | `packages/core/test/filesystem/filesystem.test.ts` | cases about upward search, globbing, media types and path containment | 12 | 3 | 9 | 0 | 0 | 0 | 0 |
@@ -57,10 +57,10 @@ Cases: 1140 over 120 catalogue rows. ported 159, covered 48, not applicable 371,
 | ENG-af7ebcd6 | `packages/core/test/session-log.test.ts` |  | 5 | 0 | 0 | 0 | 0 | 4 | 1 |
 | ENG-eb3821b5 | `packages/core/test/session-owned.test.ts` |  | 20 | 0 | 0 | 18 | 0 | 0 | 2 |
 | ENG-0e251e50 | `packages/core/test/session-projector.test.ts` |  | 46 | 4 | 0 | 40 | 0 | 0 | 2 |
-| ENG-2f3c0b44 | `packages/core/test/session-prompt.test.ts` |  | 49 | 3 | 6 | 31 | 0 | 3 | 6 |
+| ENG-2f3c0b44 | `packages/core/test/session-prompt.test.ts` |  | 49 | 6 | 6 | 31 | 0 | 6 | 0 |
 | ENG-696e64d0 | `packages/core/test/session-revert.test.ts` |  | 1 | 0 | 0 | 0 | 0 | 0 | 1 |
 | ENG-dc3eba5a | `packages/core/test/session-run-coordinator.test.ts` |  | 27 | 4 | 0 | 23 | 0 | 0 | 0 |
-| ENG-96d0de2e | `packages/core/test/session-runner-message.test.ts` |  | 28 | 0 | 2 | 8 | 0 | 0 | 18 |
+| ENG-96d0de2e | `packages/core/test/session-runner-message.test.ts` |  | 28 | 7 | 2 | 8 | 0 | 6 | 5 |
 | ENG-92613b87 | `packages/core/test/session-runner-retry.test.ts` |  | 7 | 0 | 0 | 0 | 0 | 0 | 7 |
 | ENG-6eaed661 | `packages/core/test/session-runner-tool-events.test.ts` |  | 22 | 0 | 4 | 4 | 0 | 0 | 14 |
 | ENG-4b12720c.1 | `packages/core/test/session-runner.test.ts` | cases about the agent loop, tool settlement, queueing, steering, interruption and crash recovery | 52 | 17 | 1 | 9 | 0 | 5 | 20 |
@@ -96,8 +96,8 @@ Cases: 1140 over 120 catalogue rows. ported 159, covered 48, not applicable 371,
 | TUI-c4de47fc.1 | `packages/tui/test/session-media-refs.test.tsx` | cases about undo/revert returning the prompt to the composer | 5 | 0 | 0 | 5 | 0 | 0 | 0 |
 | LLM-8b5df200 | `packages/ai/test/loop-steps.test.ts` |  | 7 | 2 | 0 | 3 | 0 | 0 | 2 |
 | LLM-4c84fc6a.1 | `packages/ai/test/loop.test.ts` | cases about the tool loop | 13 | 4 | 0 | 7 | 0 | 0 | 2 |
-| LLM-4ff6bfb3 | `packages/ai/test/media-input.test.ts` |  | 11 | 0 | 2 | 2 | 0 | 0 | 7 |
-| LLM-d4de29ea.1 | `packages/ai/test/media.test.ts` | cases about data URL parsing and type sniffing | 3 | 0 | 1 | 0 | 0 | 0 | 2 |
+| LLM-4ff6bfb3 | `packages/ai/test/media-input.test.ts` |  | 11 | 0 | 2 | 2 | 0 | 4 | 3 |
+| LLM-d4de29ea.1 | `packages/ai/test/media.test.ts` | cases about data URL parsing and type sniffing | 3 | 0 | 1 | 0 | 0 | 2 | 0 |
 | LLM-db05f37b.1 | `packages/ai/test/tool-runtime.test.ts` | cases about the dispatch loop | 10 | 7 | 0 | 2 | 0 | 0 | 1 |
 | DSK-0f3df0a9 | `packages/desktop/src/main/storage/database.test.ts` |  | 5 | 0 | 0 | 0 | 0 | 0 | 5 |
 | CLI-eed8e3a9.1 | `packages/cli/test/mini.test.ts` | prompt input assembly and machine-readable errors | 5 | 0 | 0 | 0 | 0 | 0 | 5 |
@@ -646,9 +646,9 @@ Cases: 1140 over 120 catalogue rows. ported 159, covered 48, not applicable 371,
 | ENG-2f3c0b44:393 | holds synthetic input behind a staged revert and discards it when committed | not-applicable | reference-internal: admission ledger and event stream of the reference session service |  | unit | - |  |
 | ENG-2f3c0b44:422 | resolves attachment MIME before admission | covered | same | systemprompt-engine-tests::run::attachment_tests::an_image_file_is_stored_as_a_base64_data_url | unit | passing |  |
 | ENG-2f3c0b44:451 | materializes selected source file content | covered | same | systemprompt-engine-tests::run::attachment_tests::a_text_file_is_attached_with_its_contents | unit | passing |  |
-| ENG-2f3c0b44:482 | materializes directories as directory attachments | port |  |  | unit | open | not written: attachment edge cases |
+| ENG-2f3c0b44:482 | materializes directories as directory attachments | port |  | session::request_mapping_tests::admission::an_attached_directory_reaches_the_model_as_a_listing_of_its_entries | unit | ledger | asserts: an attached directory reaches the model as a listing of its entries; observed: attaching a directory is refused as an attachment that cannot be read |
 | ENG-2f3c0b44:507 | materializes local image content before admission | covered | same | systemprompt-engine-tests::run::attachment_tests::an_image_file_is_stored_as_a_base64_data_url | unit | passing |  |
-| ENG-2f3c0b44:539 | admits captured image bytes with their source path after the source disappears | port |  |  | unit | open | not written: attachment edge cases |
+| ENG-2f3c0b44:539 | admits captured image bytes with their source path after the source disappears | port |  | session::request_mapping_tests::admission::images_given_as_data_urls_are_stored_and_sent_exactly_as_given | unit | written |  |
 | ENG-2f3c0b44:579 | stores media refs at admission when the session's config enables media_blob | not-applicable | no-feature: a deduplicating media blob store |  | unit | - |  |
 | ENG-2f3c0b44:620 | forks a session's inline media into blobs when its location enables media_blob | not-applicable | no-feature: a deduplicating media blob store |  | unit | - |  |
 | ENG-2f3c0b44:634 | forks inline media inline when the parent's location doesn't enable media_blob, whatever the caller's | not-applicable | no-feature: a deduplicating media blob store |  | unit | - |  |
@@ -656,11 +656,11 @@ Cases: 1140 over 120 catalogue rows. ported 159, covered 48, not applicable 371,
 | ENG-2f3c0b44:670 | records refs on import only for the blobs it took out of its own inline media | not-applicable | no-feature: a deduplicating media blob store |  | unit | - |  |
 | ENG-2f3c0b44:703 | admits and imports media into blobs by default on a dev-channel server with no config | not-applicable | no-feature: a deduplicating media blob store |  | unit | - |  |
 | ENG-2f3c0b44:736 | imports media into blobs only where the location enables media_blob | not-applicable | no-feature: a deduplicating media blob store |  | unit | - |  |
-| ENG-2f3c0b44:784 | normalizes large image content before validating persisted Base64 | port |  |  | unit | open | not written: attachment edge cases |
-| ENG-2f3c0b44:813 | passes images the resizer cannot decode through unchanged | port |  |  | unit | open | not written: attachment edge cases |
+| ENG-2f3c0b44:784 | normalizes large image content before validating persisted Base64 | port |  | session::request_mapping_tests::admission::a_large_image_is_scaled_down_before_it_is_stored | unit | ledger | asserts: a large image is scaled down before it is stored; observed: an image attachment is stored and sent at its original size; nothing scales it down |
+| ENG-2f3c0b44:813 | passes images the resizer cannot decode through unchanged | port |  | session::request_mapping_tests::admission::images_given_as_data_urls_are_stored_and_sent_exactly_as_given | unit | written |  |
 | ENG-2f3c0b44:830 | sniffs data URL content instead of trusting its declared MIME | covered | same | systemprompt-engine-tests::run::attachment_tests::an_image_file_is_stored_as_a_base64_data_url | unit | passing |  |
 | ENG-2f3c0b44:859 | rejects malformed base64 data URLs | covered | same | systemprompt-engine-tests::run::attachment_tests::an_attachment_that_is_not_a_base64_data_url_is_refused | unit | passing |  |
-| ENG-2f3c0b44:882 | rejects oversized inline attachments without echoing their bytes | port |  |  | unit | open | not written: attachment edge cases |
+| ENG-2f3c0b44:882 | rejects oversized inline attachments without echoing their bytes | port |  | session::request_mapping_tests::admission::an_inline_attachment_over_the_size_limit_is_refused_without_repeating_its_bytes | unit | ledger | asserts: an oversized inline attachment is refused without its bytes in the error; observed: an inline attachment of any size is admitted; there is no size limit |
 | ENG-2f3c0b44:905 | streams durable Session events after an aggregate sequence | not-applicable | reference-internal: admission ledger and event stream of the reference session service |  | unit | - |  |
 | ENG-2f3c0b44:937 | resumes through a recorded message without appending another prompt | not-applicable | reference-internal: admission ledger and event stream of the reference session service |  | unit | - |  |
 | ENG-2f3c0b44:958 | records distinct messages when the ID is omitted | not-applicable | reference-internal: admission ledger and event stream of the reference session service |  | unit | - |  |
@@ -681,7 +681,7 @@ Cases: 1140 over 120 catalogue rows. ported 159, covered 48, not applicable 371,
 | ENG-2f3c0b44:1338 | reconciles synthetic retries from the promoted message regardless of payload | not-applicable | reference-internal: admission ledger and event stream of the reference session service |  | unit | - |  |
 | ENG-2f3c0b44:1361 | keeps queued input pending until the idle boundary | port |  | session::loop_tests::queued_prompts_are_delivered_one_turn_at_a_time_in_order | unit | passing |  |
 | ENG-2f3c0b44:1387 | promotes prompt and synthetic steers in admission order | port |  | session::loop_tests::several_steers_sent_during_a_step_are_delivered_together_in_one_continuation | unit | passing |  |
-| ENG-2f3c0b44:1418 | fails for an unknown session | port |  |  | unit | open | not written |
+| ENG-2f3c0b44:1418 | fails for an unknown session | port |  | session::request_mapping_tests::admission::a_prompt_or_a_compaction_for_a_session_that_does_not_exist_is_not_found | unit | written |  |
 | ENG-2f3c0b44:1427 | lists admitted work in admission order until promotion | port |  |  | unit | ledger | asserts: pending prompts can be listed, cancelled and moved between steer and queue; observed: the inbox is not exposed |
 | ENG-2f3c0b44:1457 | lists an unhandled compaction until it is cancelled | not-applicable | reference-internal: admission ledger and event stream of the reference session service |  | unit | - |  |
 | ENG-2f3c0b44:1473 | cancels pending input and allows its ID to be admitted again | port |  |  | unit | ledger | asserts: pending prompts can be listed, cancelled and moved between steer and queue; observed: the inbox is not exposed |
@@ -715,33 +715,33 @@ Cases: 1140 over 120 catalogue rows. ported 159, covered 48, not applicable 371,
 | ENG-dc3eba5a:664 | an interrupt during terminal settlement claims the recorded wake | not-applicable | reference-internal: run coordinator internals of the reference |  | unit | - |  |
 | ENG-dc3eba5a:690 | trampolines synchronous self-waking execution | not-applicable | reference-internal: run coordinator internals of the reference |  | unit | - |  |
 | ENG-96d0de2e:23 | background user shells enter model context only through their completion notification | not-applicable | no-feature: user shell commands typed into a session |  | unit | - |  |
-| ENG-96d0de2e:55 | omits empty assistant turns | port |  |  | unit | open | not written |
-| ENG-96d0de2e:86 | maps every top-level Session message type | port |  |  | unit | open | not written: history-to-request mapping detail |
+| ENG-96d0de2e:55 | omits empty assistant turns | port |  | session::request_mapping_tests::history::replies_with_nothing_to_send_are_left_out_and_signature_only_reasoning_is_kept | unit | ledger | asserts: empty assistant turns are left out and signature-only reasoning is kept; observed: a reasoning part that holds only a signature is dropped from the request |
+| ENG-96d0de2e:86 | maps every top-level Session message type | port |  | session::request_mapping_tests::history::each_kind_of_stored_message_takes_its_place_in_the_request | unit | written |  |
 | ENG-96d0de2e:205 | leaves out the recent context of a checkpoint that kept none | port |  |  | unit | open | not written: history-to-request mapping detail |
-| ENG-96d0de2e:234 | lists a checkpoint's subagents and background jobs after its summary, and after a native window | port |  |  | unit | open | not written: history-to-request mapping detail |
+| ENG-96d0de2e:234 | lists a checkpoint's subagents and background jobs after its summary, and after a native window | port |  | session::request_mapping_tests::history::a_compaction_summary_is_followed_by_the_sessions_subagents | unit | ledger | asserts: a checkpoint summary is followed by its subagents and background jobs; observed: the summary frame holds the summary alone; subagent sessions and background work are not listed after it |
 | ENG-96d0de2e:287 | words the newer-than-summary note for a checkpoint with one list | port |  |  | unit | open | not written: history-to-request mapping detail |
 | ENG-96d0de2e:325 | records a same-model effort switch as an effort update | not-applicable | provider-catalogue: vendor-specific reasoning and effort metadata |  | unit | - |  |
 | ENG-96d0de2e:331 | maps the default variant and no variant to the model default effort | not-applicable | provider-catalogue: vendor-specific reasoning and effort metadata |  | unit | - |  |
 | ENG-96d0de2e:338 | ignores switches that are not effort changes on the requested model | not-applicable | provider-catalogue: vendor-specific reasoning and effort metadata |  | unit | - |  |
 | ENG-96d0de2e:347 | lowers each prepared skill once before the prompt | port |  |  | unit | open | not written: history-to-request mapping detail |
-| ENG-96d0de2e:384 | does not inject skill content for reference-only attachments | port |  |  | unit | open | not written: history-to-request mapping detail |
+| ENG-96d0de2e:384 | does not inject skill content for reference-only attachments | port |  | session::request_mapping_tests::prompt_content::naming_a_skill_in_a_prompt_does_not_put_the_skills_content_in_the_conversation | unit | written |  |
 | ENG-96d0de2e:410 | preserves attachment order after the prompt | covered | same | systemprompt-engine-tests::run::attachment_tests::a_text_file_is_attached_with_its_contents | unit | passing |  |
 | ENG-96d0de2e:446 | omits empty prompt text before an attachment | covered | same | systemprompt-engine-tests::run::attachment_tests::a_text_file_is_attached_with_its_contents | unit | passing |  |
-| ENG-96d0de2e:474 | uses materialized image and PDF data as provider media | port |  |  | unit | open | not written: history-to-request mapping detail |
-| ENG-96d0de2e:504 | exposes admitted local image source paths before provider media | port |  |  | unit | open | not written: history-to-request mapping detail |
+| ENG-96d0de2e:474 | uses materialized image and PDF data as provider media | port |  | session::request_mapping_tests::prompt_content::inline_images_and_pdfs_are_sent_as_media_with_no_location_text | unit | written |  |
+| ENG-96d0de2e:504 | exposes admitted local image source paths before provider media | port |  | session::request_mapping_tests::prompt_content::an_attached_image_file_is_introduced_by_its_path_before_the_media | unit | ledger | asserts: an admitted local image is introduced by its source path before the media; observed: an attached image file is sent as media alone; its path on disk is not stated |
 | ENG-96d0de2e:534 | falls back to attachment names for invalid local source paths | port |  |  | unit | open | not written: history-to-request mapping detail |
-| ENG-96d0de2e:572 | does not add attachment location text for non-local provider media | port |  |  | unit | open | not written: history-to-request mapping detail |
-| ENG-96d0de2e:600 | deduplicates provider media while preserving durable attachment references | port |  |  | unit | open | not written: history-to-request mapping detail |
-| ENG-96d0de2e:649 | preserves provider media with distinct labels or URI sources | port |  |  | unit | open | not written: history-to-request mapping detail |
-| ENG-96d0de2e:695 | replays durable tool media into canonical tool messages without structured base64 | port |  |  | unit | open | not written: history-to-request mapping detail |
+| ENG-96d0de2e:572 | does not add attachment location text for non-local provider media | port |  | session::request_mapping_tests::prompt_content::inline_images_and_pdfs_are_sent_as_media_with_no_location_text | unit | written |  |
+| ENG-96d0de2e:600 | deduplicates provider media while preserving durable attachment references | port |  | session::request_mapping_tests::prompt_content::the_same_image_attached_twice_under_one_name_is_sent_once | unit | ledger | asserts: identical media under one label is sent once; observed: the same image attached twice under one name is sent twice |
+| ENG-96d0de2e:649 | preserves provider media with distinct labels or URI sources | port |  | session::request_mapping_tests::prompt_content::the_same_image_under_different_names_or_from_a_file_is_sent_each_time | unit | written |  |
+| ENG-96d0de2e:695 | replays durable tool media into canonical tool messages without structured base64 | port |  | session::request_mapping_tests::history::a_tool_call_with_media_is_replayed_as_a_call_and_a_result_holding_the_media | unit | written |  |
 | ENG-96d0de2e:845 | restores OpenAI encrypted reasoning metadata | not-applicable | provider-catalogue: vendor-specific reasoning and effort metadata |  | unit | - |  |
 | ENG-96d0de2e:876 | replays flat state under an reference hosted model's route key | not-applicable | provider-catalogue: vendor-specific reasoning and effort metadata |  | unit | - |  |
-| ENG-96d0de2e:905 | retries a failed stream from its last local call that ran | port |  |  | unit | open | not written: history-to-request mapping detail |
-| ENG-96d0de2e:1054 | omits unfinished reasoning from an interrupted assistant message | port |  |  | unit | open | not written |
+| ENG-96d0de2e:905 | retries a failed stream from its last local call that ran | port |  | session::request_mapping_tests::history::a_failed_reply_is_replayed_only_up_to_its_last_tool_call_that_ran | unit | ledger | asserts: a failed reply is replayed only up to its last local call that ran; observed: a failed reply is replayed whole, including output after its last tool call and replies in which no tool ran |
+| ENG-96d0de2e:1054 | omits unfinished reasoning from an interrupted assistant message | port |  | session::request_mapping_tests::history::an_interrupted_reply_that_holds_only_reasoning_is_left_out | unit | ledger | asserts: unfinished reasoning of an interrupted reply is omitted; observed: an interrupted reply that holds only signed reasoning is sent back as a turn of its own |
 | ENG-96d0de2e:1085 | drops model-scoped continuation metadata after a model switch but keeps hosted result payloads | not-applicable | provider-catalogue: vendor-specific reasoning and effort metadata |  | unit | - |  |
 | ENG-96d0de2e:1176 | drops assistant text provider state across model changes, aborts, and provider failures | port |  |  | unit | open | not written: history-to-request mapping detail |
 | ENG-96d0de2e:1507 | replays tools migrated from V1, which never recorded when they ran | not-applicable | provider-catalogue: vendor-specific reasoning and effort metadata |  | unit | - |  |
-| ENG-96d0de2e:1544 | preserves assistant text provider state for the same model | port |  |  | unit | open | not written: history-to-request mapping detail |
+| ENG-96d0de2e:1544 | preserves assistant text provider state for the same model | port |  | session::request_mapping_tests::history::an_aborted_reply_keeps_its_signed_reasoning_and_visible_text_in_the_next_request | unit | written |  |
 | ENG-92613b87:55 | stops retrying transport timeouts after three attempts | port |  |  | unit | open | not written: transport timeout and unreachable-host retry budgets need a transport fault the scripted instance cannot produce (a refused port could stand in) |
 | ENG-92613b87:61 | keeps the general allowance for other transient failures | port |  |  | unit | open | not written: transport timeout and unreachable-host retry budgets need a transport fault the scripted instance cannot produce (a refused port could stand in) |
 | ENG-92613b87:67 | keeps retrying an unreachable host for an hour with gaps of at most 30 seconds | port |  |  | unit | open | not written: transport timeout and unreachable-host retry budgets need a transport fault the scripted instance cannot produce (a refused port could stand in) |
@@ -1131,19 +1131,19 @@ Cases: 1140 over 120 catalogue rows. ported 159, covered 48, not applicable 371,
 | LLM-4c84fc6a.1:301 | fails the request when two tools share a name | not-applicable | reference-internal: the reference model-client library API |  | scripted-instance | - |  |
 | LLM-4c84fc6a.1:316 | fails untyped input that has neither or both of prompt and messages | not-applicable | reference-internal: the reference model-client library API |  | scripted-instance | - |  |
 | LLM-4ff6bfb3:11 | passes assets through | port |  |  | unit | open | not written: attachment data-URL parsing edge cases |
-| LLM-4ff6bfb3:16 | sniffs bytes and array buffers | port |  |  | unit | open | not written: attachment data-URL parsing edge cases |
+| LLM-4ff6bfb3:16 | sniffs bytes and array buffers | port |  | session::request_mapping_tests::admission::an_attached_file_is_typed_by_its_content_when_its_name_does_not_say | unit | ledger | asserts: bytes are typed by their content; observed: an attached file is typed by its extension alone, so image bytes under another extension are stored as application/octet-stream |
 | LLM-4ff6bfb3:22 | reads the media type from data URLs | covered | same | systemprompt-engine-tests::run::attachment_tests::an_attachment_that_is_not_a_base64_data_url_is_refused | unit | passing |  |
-| LLM-4ff6bfb3:31 | keeps http(s) and other URLs as url sources | port |  |  | unit | open | not written: attachment data-URL parsing edge cases |
+| LLM-4ff6bfb3:31 | keeps http(s) and other URLs as url sources | port |  | session::request_mapping_tests::prompt_content::an_image_given_by_web_address_is_sent_as_a_url_source | unit | ledger | asserts: a web address is kept as a url source; observed: an attachment must be a base64 data URL; a web address is refused as invalid input |
 | LLM-4ff6bfb3:40 | treats other strings as base64 | port |  |  | unit | open | not written: attachment data-URL parsing edge cases |
-| LLM-4ff6bfb3:45 | requires a mediaType when the type cannot be detected | port |  |  | unit | open | not written: attachment data-URL parsing edge cases |
+| LLM-4ff6bfb3:45 | requires a mediaType when the type cannot be detected | port |  | session::request_mapping_tests::admission::untyped_data_whose_type_cannot_be_told_is_refused | unit | ledger | asserts: data whose type cannot be told and is not stated is refused; observed: it is admitted as application/octet-stream |
 | LLM-4ff6bfb3:51 | rejects strings that are not base64 | covered | same | systemprompt-engine-tests::run::attachment_tests::an_attachment_that_is_not_a_base64_data_url_is_refused | unit | passing |  |
-| LLM-4ff6bfb3:55 | matches the data URL scheme in any case | port |  |  | unit | open | not written: attachment data-URL parsing edge cases |
+| LLM-4ff6bfb3:55 | matches the data URL scheme in any case | port |  | session::request_mapping_tests::admission::a_data_url_is_recognised_whatever_the_case_of_its_scheme | unit | ledger | asserts: the data URL scheme matches in any case; observed: the scheme is matched in lower case only, so an upper-case scheme is refused |
 | LLM-4ff6bfb3:61 | request media parts accept plain data | port |  |  | unit | open | not written: attachment data-URL parsing edge cases |
 | LLM-4ff6bfb3:77 | image edit inputs accept plain data | not-applicable | no-feature: image editing and decision media |  | unit | - |  |
 | LLM-4ff6bfb3:87 | decision media parts accept plain data | not-applicable | no-feature: image editing and decision media |  | unit | - |  |
 | LLM-d4de29ea.1:81 | parses data URLs and rejects malformed ones | covered | same | systemprompt-engine-tests::run::attachment_tests::an_attachment_that_is_not_a_base64_data_url_is_refused | unit | passing |  |
-| LLM-d4de29ea.1:98 | detects media types from magic bytes | port |  |  | unit | open | not written |
-| LLM-d4de29ea.1:119 | tells ISO-BMFF brands apart | port |  |  | unit | open | not written |
+| LLM-d4de29ea.1:98 | detects media types from magic bytes | port |  | session::request_mapping_tests::media_types::images_documents_and_audio_are_told_from_their_first_bytes | unit | ledger | asserts: images, documents and audio are typed from their magic bytes; observed: images and PDFs are told from their first bytes, audio is not |
+| LLM-d4de29ea.1:119 | tells ISO-BMFF brands apart | port |  | session::request_mapping_tests::media_types::media_containers_are_told_apart_by_their_brand | unit | ledger | asserts: ISO-BMFF containers are told apart by brand; observed: no container brand is recognised |
 | LLM-db05f37b.1:93 | sends tool-call history and request options on the follow-up request | port |  | session::loop_tests::a_turn_sends_one_request_per_step_and_settles_each_tool_call_before_continuing | scripted-instance | passing |  |
 | LLM-db05f37b.1:146 | dispatches a tool call, appends results, and resumes streaming | port |  | session::loop_tests::a_turn_sends_one_request_per_step_and_settles_each_tool_call_before_continuing | scripted-instance | passing |  |
 | LLM-db05f37b.1:633 | replays encrypted OpenAI reasoning items with tool outputs | not-applicable | provider-catalogue: provider-executed tools and vendor reasoning items |  | scripted-instance | - |  |

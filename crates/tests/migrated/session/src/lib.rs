@@ -19,6 +19,8 @@ mod feed_tests;
 #[cfg(test)]
 mod loop_tests;
 #[cfg(test)]
+mod request_mapping_tests;
+#[cfg(test)]
 mod retry_tests;
 #[cfg(test)]
 mod revert_tests;
