@@ -254,12 +254,21 @@ fn a_reference_export_keeps_errors_truncation_asks_compaction_and_todos() {
     };
     assert_eq!(find("t1", "permission")["outcome"], json!("rejected"));
     assert_eq!(find("t1", "tool_result")["status"], json!("rejected"));
-    assert_eq!(find("t1", "tool_result")["digest"], json!(digest::text("Not now.")));
+    assert_eq!(
+        find("t1", "tool_result")["digest"],
+        json!(digest::text("Not now."))
+    );
     assert_eq!(find("t2", "permission")["outcome"], json!("denied_by_rule"));
     assert_eq!(find("t2", "tool_result")["status"], json!("denied"));
     assert_eq!(find("t3", "tool_result")["truncated"], json!(true));
-    let kinds: Vec<&str> = steps.iter().map(|step| step["kind"].as_str().unwrap()).collect();
-    let prompt = kinds.iter().position(|kind| *kind == "user_message").unwrap();
+    let kinds: Vec<&str> = steps
+        .iter()
+        .map(|step| step["kind"].as_str().unwrap())
+        .collect();
+    let prompt = kinds
+        .iter()
+        .position(|kind| *kind == "user_message")
+        .unwrap();
     assert_eq!(kinds[prompt + 1], "model_request");
     assert_eq!(steps[prompt + 1]["purpose"], json!("compaction"));
     assert_eq!(kinds[prompt + 2], "compaction");
