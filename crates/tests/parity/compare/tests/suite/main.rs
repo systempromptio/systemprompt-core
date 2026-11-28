@@ -176,3 +176,95 @@ fn a_reference_export_reduces_to_the_trace_with_logical_names() {
     assert_eq!(trace["steps"][4]["tool_results"], json!(["t1"]));
     assert_eq!(trace["session"]["messages"], json!(4));
 }
+
+#[test]
+fn a_reference_export_keeps_errors_truncation_asks_compaction_and_todos() {
+    let dir = tempfile::tempdir().unwrap();
+    let run = dir.path();
+    std::fs::write(
+        run.join("session.json"),
+        json!({
+            "info": { "id": "root" },
+            "messages": [
+                { "type": "user", "id": "u1", "text": "Go." },
+                { "type": "assistant", "id": "a1", "finish": "tool-calls", "content": [
+                    { "type": "tool", "id": "t1", "name": "shell", "state": {
+                        "status": "error", "input": { "command": "echo x" },
+                        "error": { "type": "permission.rejected", "message": "Not now." } } },
+                    { "type": "tool", "id": "t2", "name": "write", "state": {
+                        "status": "error", "input": { "path": "s/a.txt", "content": "x" },
+                        "error": { "type": "permission.rejected", "message": "Permission denied: edit" } } },
+                    { "type": "tool", "id": "t3", "name": "read", "state": {
+                        "status": "completed", "input": { "path": "a.txt" },
+                        "content": [{ "type": "text", "text": "cut" }], "metadata": { "truncated": true } } },
+                    { "type": "tool", "id": "t4", "name": "todowrite", "state": {
+                        "status": "completed", "input": { "todos": [{ "content": "one", "status": "pending" }] },
+                        "content": "ok" } },
+                ] },
+                { "type": "user", "id": "u2", "text": "More." },
+                { "type": "compaction", "id": "c1", "reason": "auto", "summary": "## Goal" },
+                { "type": "assistant", "id": "a2", "finish": "stop", "content": [{ "type": "text", "text": "Done." }] },
+            ],
+        })
+        .to_string(),
+    )
+    .unwrap();
+    let tools_body = json!([{ "name": "read" }]);
+    let requests = [
+        json!({ "status": 200, "body": { "tools": tools_body, "messages": [] } }),
+        json!({ "status": 200, "body": { "tools": tools_body, "messages": [] } }),
+        json!({ "status": 200, "body": { "tools": tools_body, "messages": [] } }),
+    ];
+    let lines: Vec<String> = requests.iter().map(ToString::to_string).collect();
+    std::fs::write(run.join("requests.jsonl"), lines.join("\n")).unwrap();
+    std::fs::write(
+        run.join("run.json"),
+        json!({
+            "actions": [{ "do": "prompt", "message": 2, "on": "idle", "index": 1 }],
+            "asks": [{ "index": 1, "request": { "source": { "id": "t1" } },
+                       "reply": { "decision": "reject", "message": "Not now." } }],
+        })
+        .to_string(),
+    )
+    .unwrap();
+    let tools = Path::new(env!("CARGO_MANIFEST_DIR")).join("../reference/tools.json");
+    let table = Table::parse(&std::fs::read_to_string(tools).unwrap()).unwrap();
+    assert_eq!(table.dropped("shell"), ["description".to_owned()]);
+    let transcript = reference::transcript(run, &table).unwrap();
+    let script = ScenarioScript::parse(
+        &json!({ "turns": [
+            { "respond": [
+                { "tool_call": { "id": "t1" } }, { "tool_call": { "id": "t2" } },
+                { "tool_call": { "id": "t3" } }, { "tool_call": { "id": "t4" } },
+            ] },
+            { "respond": [{ "text": "## Goal" }] },
+            { "respond": [{ "text": "Done." }] },
+        ] })
+        .to_string(),
+    )
+    .unwrap();
+    let trace = build::trace(&transcript, &script, "messages", json!({}));
+    let steps = trace["steps"].as_array().unwrap();
+    let find = |call: &str, kind: &str| {
+        steps
+            .iter()
+            .find(|step| step["call"] == json!(call) && step["kind"] == json!(kind))
+            .unwrap()
+            .clone()
+    };
+    assert_eq!(find("t1", "permission")["outcome"], json!("rejected"));
+    assert_eq!(find("t1", "tool_result")["status"], json!("rejected"));
+    assert_eq!(find("t1", "tool_result")["digest"], json!(digest::text("Not now.")));
+    assert_eq!(find("t2", "permission")["outcome"], json!("denied_by_rule"));
+    assert_eq!(find("t2", "tool_result")["status"], json!("denied"));
+    assert_eq!(find("t3", "tool_result")["truncated"], json!(true));
+    let kinds: Vec<&str> = steps.iter().map(|step| step["kind"].as_str().unwrap()).collect();
+    let prompt = kinds.iter().position(|kind| *kind == "user_message").unwrap();
+    assert_eq!(kinds[prompt + 1], "model_request");
+    assert_eq!(steps[prompt + 1]["purpose"], json!("compaction"));
+    assert_eq!(kinds[prompt + 2], "compaction");
+    assert_eq!(
+        trace["session"]["todos"],
+        json!([{ "content": "one", "status": "pending" }])
+    );
+}

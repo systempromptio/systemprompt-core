@@ -206,6 +206,7 @@ It listens on loopback and refuses an upstream that is not loopback.
   index.json                    one entry per scenario and protocol
   <scenario id>/<protocol>/
     session.json                the agent's native export of the session
+    session.before-revert.json  the same, taken just before a revert action, when there is one
     children/<session id>.json  the same for each child session, when there are any
     workspace/                  the workspace as the agent left it (no .git, no agent directory)
     outside/                    whatever appeared beside the workspace (scenario 6)

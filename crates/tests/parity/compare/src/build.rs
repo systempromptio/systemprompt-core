@@ -186,7 +186,9 @@ impl Builder<'_> {
     fn request_steps(&self, at: usize, steps: &mut Vec<Value>) -> &'static str {
         let request = &self.transcript.requests[at];
         let reply = self.pairing.replies[at].map(|(_, reply)| reply);
-        let compaction = !request.has_tools && reply.is_some_and(|reply| reply.calls.is_empty());
+        // A request answered with the session's summary is a compaction
+        // request whether or not it still advertised tools.
+        let compaction = reply.is_some_and(|reply| reply.summary && reply.calls.is_empty());
         let mut step = Map::new();
         step.insert("kind".into(), json!("model_request"));
         step.insert("protocol".into(), json!(self.protocol));
@@ -197,7 +199,7 @@ impl Builder<'_> {
         if request.unscripted {
             step.insert("status".into(), json!(400));
         }
-        if compaction && reply.is_some_and(|reply| reply.summary) {
+        if compaction {
             step.insert("purpose".into(), json!("compaction"));
         }
         steps.push(Value::Object(step));

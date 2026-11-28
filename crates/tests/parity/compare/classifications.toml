@@ -7,3 +7,307 @@
 # (intended, gap, defect, reference-defect), reason, and owner for a gap or
 # evidence for a reference-defect. A difference not named here is
 # unclassified and fails the golden run.
+
+[[entry]]
+scenario = "02-read-file"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[4].digest"
+class = "intended"
+reason = "Tool result wording: each product words its own tool results and the trace keeps only a digest of the text (03-golden-scenarios.md section 3, Tool output). Both traces were read: the same facts reach the model in both, worded by the harness's own tool. Here, read: numbered lines and an end-of-file note, against a \"Read file ..., lines 1-3\" header."
+
+[[entry]]
+scenario = "02-read-file"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[7].digest"
+class = "intended"
+reason = "Tool result wording: each product words its own tool results and the trace keeps only a digest of the text (03-golden-scenarios.md section 3, Tool output). Both traces were read: the same facts reach the model in both, worded by the harness's own tool. Here, read with offset and limit: the same five rows and a continue-at-offset-15 note in both, worded differently."
+
+[[entry]]
+scenario = "03-edit-file"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].digest"
+class = "intended"
+reason = "Tool result wording: each product words its own tool results and the trace keeps only a digest of the text (03-golden-scenarios.md section 3, Tool output). Both traces were read: the same facts reach the model in both, worded by the harness's own tool. Here, edit: \"Edited greeting.txt: 1 replacement (+1 -1).\" against \"Edited greeting.txt (1 replacement)\"."
+
+[[entry]]
+scenario = "04-edit-non-unique-match"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].digest"
+class = "intended"
+reason = "Tool result wording: each product words its own tool results and the trace keeps only a digest of the text (03-golden-scenarios.md section 3, Tool output). Both traces were read: the same facts reach the model in both, worded by the harness's own tool. Here, edit refused for two matches: both say how many matches and to add context or set replace_all."
+
+[[entry]]
+scenario = "05-write-new-file"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].digest"
+class = "intended"
+reason = "Tool result wording: each product words its own tool results and the trace keeps only a digest of the text (03-golden-scenarios.md section 3, Tool output). Both traces were read: the same facts reach the model in both, worded by the harness's own tool. Here, write: \"Created journal/changes.txt (2 lines).\" against \"Created file successfully: ...\"."
+
+[[entry]]
+scenario = "08-glob-and-grep"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].digest"
+class = "intended"
+reason = "Tool result wording: each product words its own tool results and the trace keeps only a digest of the text (03-golden-scenarios.md section 3, Tool output). Both traces were read: the same facts reach the model in both, worded by the harness's own tool. Here, glob: the harness lists workspace-relative paths sorted by name, the reference absolute paths by modification time; both cut at the same limit and mark it truncated."
+
+[[entry]]
+scenario = "08-glob-and-grep"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[6].digest"
+class = "intended"
+reason = "Tool result wording: each product words its own tool results and the trace keeps only a digest of the text (03-golden-scenarios.md section 3, Tool output). Both traces were read: the same facts reach the model in both, worded by the harness's own tool. Here, grep: the same two matches in both, the reference with absolute paths and \"Line N:\" labels."
+
+[[entry]]
+scenario = "10-shell-nonzero-exit"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].digest"
+class = "intended"
+reason = "Tool result wording: each product words its own tool results and the trace keeps only a digest of the text (03-golden-scenarios.md section 3, Tool output). Both traces were read: the same facts reach the model in both, worded by the harness's own tool. Here, shell exit 3: stderr \"oops\" and the exit code in both, \"[Exit code: 3]\" against \"Exit code: 3\"."
+
+[[entry]]
+scenario = "11-shell-long-output"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].digest"
+class = "intended"
+reason = "Tool result wording: each product words its own tool results and the trace keeps only a digest of the text (03-golden-scenarios.md section 3, Tool output). Both traces were read: the same facts reach the model in both, worded by the harness's own tool. Here, shell long output: both keep the last 2000 lines; the harness adds a note naming the saved full output."
+
+[[entry]]
+scenario = "12-background-job-abort"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].digest"
+class = "intended"
+reason = "Tool result wording: each product words its own tool results and the trace keeps only a digest of the text (03-golden-scenarios.md section 3, Tool output). Both traces were read: the same facts reach the model in both, worded by the harness's own tool. Here, background shell: both report the job started and where its output goes, with their own ids and paths."
+
+[[entry]]
+scenario = "13-denied-by-rule"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].digest"
+class = "intended"
+reason = "Tool result wording: each product words its own tool results and the trace keeps only a digest of the text (03-golden-scenarios.md section 3, Tool output). Both traces were read: the same facts reach the model in both, worded by the harness's own tool. Here, rule denial: \"permission denied: a rule denies edit for secrets/token.txt\" against \"Permission denied: edit\"."
+
+[[entry]]
+scenario = "14-approval-approved"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].digest"
+class = "intended"
+reason = "Tool result wording: each product words its own tool results and the trace keeps only a digest of the text (03-golden-scenarios.md section 3, Tool output). Both traces were read: the same facts reach the model in both, worded by the harness's own tool. Here, write after approval: the same created-file wording difference as scenario 5."
+
+[[entry]]
+scenario = "15-approval-rejected-feedback"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].digest"
+class = "intended"
+reason = "Tool result wording: each product words its own tool results and the trace keeps only a digest of the text (03-golden-scenarios.md section 3, Tool output). Both traces were read: the same facts reach the model in both, worded by the harness's own tool. Here, rejection with feedback: both return the feedback text; the harness wraps it in a sentence saying the call did not run."
+
+[[entry]]
+scenario = "18-todo-list"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].digest"
+class = "intended"
+reason = "Tool result wording: each product words its own tool results and the trace keeps only a digest of the text (03-golden-scenarios.md section 3, Tool output). Both traces were read: the same facts reach the model in both, worded by the harness's own tool. Here, todo: a checklist (\"[ ] Draft the outline\") against a count (\"Todos updated: 0/2 completed\")."
+
+[[entry]]
+scenario = "18-todo-list"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[7].digest"
+class = "intended"
+reason = "Tool result wording: each product words its own tool results and the trace keeps only a digest of the text (03-golden-scenarios.md section 3, Tool output). Both traces were read: the same facts reach the model in both, worded by the harness's own tool. Here, todo update: the same checklist-against-count wording."
+
+[[entry]]
+scenario = "19-subagent-task"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].steps[3].digest"
+class = "intended"
+reason = "Tool result wording: each product words its own tool results and the trace keeps only a digest of the text (03-golden-scenarios.md section 3, Tool output). Both traces were read: the same facts reach the model in both, worded by the harness's own tool. Here, the read in the child session: the same three lines in both, worded as in scenario 2."
+
+[[entry]]
+scenario = "20-steering-mid-run"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].digest"
+class = "intended"
+reason = "Tool result wording: each product words its own tool results and the trace keeps only a digest of the text (03-golden-scenarios.md section 3, Tool output). Both traces were read: the same facts reach the model in both, worded by the harness's own tool. Here, write after approval: the same created-file wording difference as scenario 5."
+
+[[entry]]
+scenario = "24-revert-to-message"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].digest"
+class = "intended"
+reason = "Tool result wording: each product words its own tool results and the trace keeps only a digest of the text (03-golden-scenarios.md section 3, Tool output). Both traces were read: the same facts reach the model in both, worded by the harness's own tool. Here, write: the created-file wording difference of scenario 5."
+
+[[entry]]
+scenario = "24-revert-to-message"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[11].digest"
+class = "intended"
+reason = "Tool result wording: each product words its own tool results and the trace keeps only a digest of the text (03-golden-scenarios.md section 3, Tool output). Both traces were read: the same facts reach the model in both, worded by the harness's own tool. Here, edit: the edit wording difference of scenario 3."
+
+[[entry]]
+scenario = "24-revert-to-message"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[14].digest"
+class = "intended"
+reason = "Tool result wording: each product words its own tool results and the trace keeps only a digest of the text (03-golden-scenarios.md section 3, Tool output). Both traces were read: the same facts reach the model in both, worded by the harness's own tool. Here, write: the created-file wording difference of scenario 5."
+
+[[entry]]
+scenario = "02-read-file"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[7].truncated"
+class = "intended"
+reason = "A read of a requested window (offset 10, limit 5) that stops before the end of the file: the reference flags it truncated, the harness reports it as a complete answer to the window with metadata more=true and no truncation, keeping truncated for output it had to cut (scenario 11). Both tell the model to continue at offset 15."
+
+[[entry]]
+scenario = "06-write-outside-workspace"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[2].outcome"
+class = "intended"
+reason = "Write outside the workspace: the harness asks for external_directory and the scripted reply rejects it; the reference, with its own defaults (the runner adds no rules beyond the scenario's, crates/tests/parity/reference/README.md), wrote ../outside.txt without asking (its outside/outside.txt export holds the file). A stricter guard is intended (03-golden-scenarios.md section 6; row 6: refused by the path guard)."
+
+[[entry]]
+scenario = "06-write-outside-workspace"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].status"
+class = "intended"
+reason = "Write outside the workspace: the harness asks for external_directory and the scripted reply rejects it; the reference, with its own defaults (the runner adds no rules beyond the scenario's, crates/tests/parity/reference/README.md), wrote ../outside.txt without asking (its outside/outside.txt export holds the file). A stricter guard is intended (03-golden-scenarios.md section 6; row 6: refused by the path guard)."
+
+[[entry]]
+scenario = "06-write-outside-workspace"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].digest"
+class = "intended"
+reason = "Write outside the workspace: the harness asks for external_directory and the scripted reply rejects it; the reference, with its own defaults (the runner adds no rules beyond the scenario's, crates/tests/parity/reference/README.md), wrote ../outside.txt without asking (its outside/outside.txt export holds the file). A stricter guard is intended (03-golden-scenarios.md section 6; row 6: refused by the path guard)."
+
+[[entry]]
+scenario = "07-multi-file-patch"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "*"
+class = "intended"
+reason = "The reference agent at v2.4.2 does not advertise its patch tool to this model (its first request lists edit, glob, grep, question, read, shell, skill, subagent, todowrite, webfetch, websearch, write, execute), so the scripted turn that calls patch is refused with 400 and the run ends; every later step, the session count and the workspace follow from that one cause. The harness offers its patch tool to every model. Unsure whether intended is the right class: the corpus names 'a tool the harness does not offer', not the reverse."
+
+[[entry]]
+scenario = "12-background-job-abort"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "session.jobs"
+class = "intended"
+reason = "After the abort the harness has killed the background job's process tree (row 12: the process tree is killed); the reference's job list taken at the end of the run (jobs.json) still shows sleep 300 running, because its background shells outlive an interrupted step by design. Unsure: whether the reference would end the job later was not observed."
+
+[[entry]]
+scenario = "19-subagent-task"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "session.messages"
+class = "gap"
+reason = "The reference runs a subagent in the background: its task call returns at once with a 'working in the background' result, the parent's next request carries t1 before the child has run, the scripted turn expecting the child's c1 is refused with 400, and the child's answer reaches the parent later as an extra message. The harness runs the child to completion and returns its answer as the task's result. Every path here follows from that one cause. Background subagents that work while the parent continues are useful behaviour the harness lacks."
+owner = "S9 (the deferred features and orchestration; unsure, no stage names background subagents)"
+
+[[entry]]
+scenario = "19-subagent-task"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].steps[4].status"
+class = "gap"
+reason = "The reference runs a subagent in the background: its task call returns at once with a 'working in the background' result, the parent's next request carries t1 before the child has run, the scripted turn expecting the child's c1 is refused with 400, and the child's answer reaches the parent later as an extra message. The harness runs the child to completion and returns its answer as the task's result. Every path here follows from that one cause. Background subagents that work while the parent continues are useful behaviour the harness lacks."
+owner = "S9 (the deferred features and orchestration; unsure, no stage names background subagents)"
+
+[[entry]]
+scenario = "19-subagent-task"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].steps[4].tool_results"
+class = "gap"
+reason = "The reference runs a subagent in the background: its task call returns at once with a 'working in the background' result, the parent's next request carries t1 before the child has run, the scripted turn expecting the child's c1 is refused with 400, and the child's answer reaches the parent later as an extra message. The harness runs the child to completion and returns its answer as the task's result. Every path here follows from that one cause. Background subagents that work while the parent continues are useful behaviour the harness lacks."
+owner = "S9 (the deferred features and orchestration; unsure, no stage names background subagents)"
+
+[[entry]]
+scenario = "19-subagent-task"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].steps[5]"
+class = "gap"
+reason = "The reference runs a subagent in the background: its task call returns at once with a 'working in the background' result, the parent's next request carries t1 before the child has run, the scripted turn expecting the child's c1 is refused with 400, and the child's answer reaches the parent later as an extra message. The harness runs the child to completion and returns its answer as the task's result. Every path here follows from that one cause. Background subagents that work while the parent continues are useful behaviour the harness lacks."
+owner = "S9 (the deferred features and orchestration; unsure, no stage names background subagents)"
+
+[[entry]]
+scenario = "19-subagent-task"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].steps[6]"
+class = "gap"
+reason = "The reference runs a subagent in the background: its task call returns at once with a 'working in the background' result, the parent's next request carries t1 before the child has run, the scripted turn expecting the child's c1 is refused with 400, and the child's answer reaches the parent later as an extra message. The harness runs the child to completion and returns its answer as the task's result. Every path here follows from that one cause. Background subagents that work while the parent continues are useful behaviour the harness lacks."
+owner = "S9 (the deferred features and orchestration; unsure, no stage names background subagents)"
+
+[[entry]]
+scenario = "19-subagent-task"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3].steps[7]"
+class = "gap"
+reason = "The reference runs a subagent in the background: its task call returns at once with a 'working in the background' result, the parent's next request carries t1 before the child has run, the scripted turn expecting the child's c1 is refused with 400, and the child's answer reaches the parent later as an extra message. The harness runs the child to completion and returns its answer as the task's result. Every path here follows from that one cause. Background subagents that work while the parent continues are useful behaviour the harness lacks."
+owner = "S9 (the deferred features and orchestration; unsure, no stage names background subagents)"
+
+[[entry]]
+scenario = "19-subagent-task"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[4].digest"
+class = "gap"
+reason = "The reference runs a subagent in the background: its task call returns at once with a 'working in the background' result, the parent's next request carries t1 before the child has run, the scripted turn expecting the child's c1 is refused with 400, and the child's answer reaches the parent later as an extra message. The harness runs the child to completion and returns its answer as the task's result. Every path here follows from that one cause. Background subagents that work while the parent continues are useful behaviour the harness lacks."
+owner = "S9 (the deferred features and orchestration; unsure, no stage names background subagents)"
+
+[[entry]]
+scenario = "19-subagent-task"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[5].tool_results"
+class = "gap"
+reason = "The reference runs a subagent in the background: its task call returns at once with a 'working in the background' result, the parent's next request carries t1 before the child has run, the scripted turn expecting the child's c1 is refused with 400, and the child's answer reaches the parent later as an extra message. The harness runs the child to completion and returns its answer as the task's result. Every path here follows from that one cause. Background subagents that work while the parent continues are useful behaviour the harness lacks."
+owner = "S9 (the deferred features and orchestration; unsure, no stage names background subagents)"
+
+[[entry]]
+scenario = "22-provider-error-then-success"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[3]"
+class = "intended"
+reason = "Scenario 22 scripts 429, 500 and 401 before the answer; row 22 says 429 and 5xx are retried with backoff and a 401 refreshes the session once. The harness signs in to the instance with a session it can refresh, so it refreshes and retries; the reference holds a static key, treats 401 as an authentication failure and ends the run. Intended: it follows from the harness's governed session credential."
+
+[[entry]]
+scenario = "22-provider-error-then-success"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[4]"
+class = "intended"
+reason = "Scenario 22 scripts 429, 500 and 401 before the answer; row 22 says 429 and 5xx are retried with backoff and a 401 refreshes the session once. The harness signs in to the instance with a session it can refresh, so it refreshes and retries; the reference holds a static key, treats 401 as an authentication failure and ends the run. Intended: it follows from the harness's governed session credential."
+
+[[entry]]
+scenario = "22-provider-error-then-success"
+protocol = "*"
+comparison = "harness-vs-reference"
+path = "steps[5]"
+class = "intended"
+reason = "Scenario 22 scripts 429, 500 and 401 before the answer; row 22 says 429 and 5xx are retried with backoff and a 401 refreshes the session once. The harness signs in to the instance with a session it can refresh, so it refreshes and retries; the reference holds a static key, treats 401 as an authentication failure and ends the run. Intended: it follows from the harness's governed session credential."

@@ -93,13 +93,67 @@ fn traces(
     )?)?;
     let script = ScenarioScript::parse(&std::fs::read_to_string(run.join("turns.json"))?)?;
     let transcript = reference::transcript(exported, &table)?;
-    let theirs = build::trace(
+    let mut theirs = build::trace(
         &transcript,
         &script,
         protocol,
         reference_workspace(fixture, exported)?,
     );
+    let mut harness = harness;
+    if let Some(steps) = harness.get_mut("steps") {
+        drop_unmapped_input(steps, &table);
+    }
+    if harness.pointer("/session/jobs").is_some() {
+        theirs["session"]["jobs"] = reference_jobs(exported);
+    }
     Ok((harness, theirs))
+}
+
+/// Removes from every `tool_call` step's input, subagent steps included, the
+/// fields the reference table maps to nothing: the reference tool takes no
+/// such field, so its side can never carry one.
+fn drop_unmapped_input(steps: &mut Value, table: &Table) {
+    for step in steps.as_array_mut().into_iter().flatten() {
+        if step.get("kind").and_then(Value::as_str) == Some("tool_call") {
+            let tool = step
+                .get("tool")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_owned();
+            if let Some(input) = step.get_mut("input").and_then(Value::as_object_mut) {
+                for field in table.dropped(&tool) {
+                    input.remove(field);
+                }
+            }
+        }
+        if let Some(nested) = step.get_mut("steps") {
+            drop_unmapped_input(nested, table);
+        }
+    }
+}
+
+/// The final state of each background job the reference agent listed at the
+/// end of the run (`jobs.json`), in the harness trace's vocabulary.
+fn reference_jobs(exported: &Path) -> Value {
+    let Ok(text) = std::fs::read_to_string(exported.join("jobs.json")) else {
+        return Value::Null;
+    };
+    let Ok(listed) = serde_json::from_str::<Value>(&text) else {
+        return Value::Null;
+    };
+    listed
+        .get("data")
+        .and_then(Value::as_array)
+        .map_or(Value::Null, |jobs| {
+            jobs.iter()
+                .map(|job| match job.get("status").and_then(Value::as_str) {
+                    Some("running") => json!("running"),
+                    Some("killed" | "aborted" | "cancelled" | "interrupted") => json!("killed"),
+                    Some(other) => json!(other),
+                    None => Value::Null,
+                })
+                .collect()
+        })
 }
 
 fn keep(dir: &Path, harness: &Value, theirs: &Value) -> anyhow::Result<()> {

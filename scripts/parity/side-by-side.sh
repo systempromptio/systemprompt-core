@@ -4,6 +4,7 @@
 #   scripts/parity/side-by-side.sh --out <dir> [--cache <dir>] [--agent <path>]
 #       [--reference <dir>] [--only <id or number>]... [--protocol messages|chat]...
 #       [--limit <seconds>]
+#   scripts/parity/side-by-side.sh --out <dir> --reuse
 #
 # One command, six steps:
 #
@@ -24,6 +25,10 @@
 #      compared run under <out>/traces.
 #   6. Writes <out>/side-by-side.html and <out>/summary.tsv (render.py).
 #
+# --reuse takes <out>/reference and <out>/harness from an earlier run and does
+# steps 2, 5 and 6 only: the comparison again, after a change to the
+# comparator or to classifications.toml, without running either product.
+#
 # No model credential is needed, and the command refuses to start when the
 # environment holds one (the workflow's check). The workflow's network
 # namespace and system-call trace are not applied here.
@@ -42,12 +47,13 @@ manifest="$root/crates/tests/Cargo.toml"
 scenarios="$root/crates/tests/golden/scenarios"
 runner="$root/crates/tests/parity/reference/run.py"
 
-out="" agent="" reference="" limit=""
+out="" agent="" reference="" limit="" reuse=""
 cache="${XDG_CACHE_HOME:-$HOME/.cache}/systemprompt-parity"
 only=() protocols=()
 while [ $# -gt 0 ]; do
     case "$1" in
         -h|--help) usage; exit 0 ;;
+        --reuse) reuse=1; shift; continue ;;
         --out|--cache|--agent|--reference|--only|--protocol|--limit)
             [ $# -ge 2 ] || die "$1 needs a value"
             case "$1" in
@@ -64,6 +70,12 @@ while [ $# -gt 0 ]; do
     esac
 done
 [ -n "$out" ] || die "--out is required"
+if [ -n "$reuse" ]; then
+    [ -z "$reference$agent" ] || die "--reuse takes the reference export from --out; it takes no --reference or --agent"
+    [ -f "$out/reference/index.json" ] || die "--reuse needs $out/reference/index.json from an earlier run"
+    [ -d "$out/harness" ] || die "--reuse needs $out/harness from an earlier run"
+    reference="$out/reference"
+fi
 for protocol in ${protocols[@]+"${protocols[@]}"}; do
     case "$protocol" in messages|chat) ;; *) die "--protocol is messages or chat, not $protocol" ;; esac
 done
@@ -137,7 +149,8 @@ mkdir -p "$out" || die "cannot create $out"
 out=$(cd "$out" && pwd)
 mkdir -p "$cache" || die "cannot create $cache"
 cache=$(cd "$cache" && pwd)
-rm -rf "$out/harness" "$out/traces" "$out/work" \
+[ -n "$reuse" ] || rm -rf "$out/harness"
+rm -rf "$out/traces" "$out/work" \
     "$out/ledger.json" "$out/ledger.md" "$out/side-by-side.html" "$out/summary.tsv"
 
 if [ -n "$reference" ]; then
@@ -198,6 +211,9 @@ for value in ${only[@]+"${only[@]}"}; do
     [ -n "$number" ] || die "--only $value does not start with a two-digit scenario number"
     filters+=("s${number}_")
 done
+if [ -n "$reuse" ]; then
+    echo "side-by-side: reusing $out/harness and $reference"
+else
 runs="$target/tmp/golden/runs"
 rm -rf "$runs"
 echo "side-by-side: running the scenarios through the harness"
@@ -211,6 +227,7 @@ if [ ${#protocols[@]} -gt 0 ]; then
         [ -d "$run" ] || continue
         case " ${protocols[*]} " in *" $(basename "$run") "*) ;; *) rm -rf "$run" ;; esac
     done
+fi
 fi
 
 echo "side-by-side: comparing"

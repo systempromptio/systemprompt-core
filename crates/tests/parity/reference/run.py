@@ -136,6 +136,7 @@ class Session:
         self.responses = 0
         self.texts = set()
         self.reverted = None
+        self.before_revert = None
         self.pending_asks = list(scenario.asks)
         self.pending_actions = list(scenario.actions)
 
@@ -228,6 +229,12 @@ class Session:
                 target = self.user_messages.get(action["message"])
                 if target is None:
                     raise RunError("the scenario reverts to message %s, which was never sent" % action["message"])
+                # The export after the revert no longer holds the reverted
+                # messages; the one taken now lets the comparator trace them.
+                try:
+                    self.before_revert = self.server.agent.export(self.id, self.server.cwd, self.server.env)
+                except (agent_module.AgentError, subprocess.SubprocessError) as error:
+                    self.findings.append("the export before the revert failed: %s" % error)
                 staged = self.server.request(
                     "POST", "/api/session/%s/revert/stage" % self.id, {"messageID": target, "files": True}
                 )
@@ -366,6 +373,9 @@ def run_one(scenario, protocol, options, table, agent, out_root, work_root):
         if session.id:
             with open(os.path.join(out, "session.json"), "w", encoding="utf-8") as handle:
                 handle.write(agent.export(session.id, workspace, env))
+            if session.before_revert is not None:
+                with open(os.path.join(out, "session.before-revert.json"), "w", encoding="utf-8") as handle:
+                    handle.write(session.before_revert)
             if session.children:
                 os.makedirs(os.path.join(out, "children"))
             for child in session.children:
