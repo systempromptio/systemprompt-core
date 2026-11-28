@@ -33,9 +33,9 @@ const CONFIG_HOME: &str = "XDG_CONFIG_HOME";
 
 struct Units {
     service: PathBuf,
-    service_name: String,
+    service_unit: String,
     timer: PathBuf,
-    timer_name: String,
+    timer_unit: String,
 }
 
 // Why: systemd reads user units from $XDG_CONFIG_HOME/systemd/user and falls
@@ -49,13 +49,13 @@ fn units(id: &EntryId) -> Result<Units, SchedulerError> {
             .join(".config"),
     };
     let directory = config.join("systemd").join("user");
-    let service_name = systemd::service_name(id);
-    let timer_name = systemd::timer_name(id);
+    let service_unit = systemd::service_name(id);
+    let timer_unit = systemd::timer_name(id);
     Ok(Units {
-        service: directory.join(&service_name),
-        timer: directory.join(&timer_name),
-        service_name,
-        timer_name,
+        service: directory.join(&service_unit),
+        timer: directory.join(&timer_unit),
+        service_unit,
+        timer_unit,
     })
 }
 
@@ -167,14 +167,14 @@ impl System for Current {
         write(&units.service, &rendered.service)?;
         match &rendered.timer {
             Some(timer) => write(&units.timer, timer)?,
-            None => retire(&units.timer, &units.timer_name)?,
+            None => retire(&units.timer, &units.timer_unit)?,
         }
         if let Some(cause) = unless_no_manager(systemctl(&["daemon-reload"]))? {
             return Ok(Created::Inactive { cause });
         }
         match entry.trigger() {
-            Trigger::Every(_) => systemctl(&["enable", "--now", &units.timer_name])?,
-            Trigger::AtLogin => systemctl(&["enable", "--now", &units.service_name])?,
+            Trigger::Every(_) => systemctl(&["enable", "--now", &units.timer_unit])?,
+            Trigger::AtLogin => systemctl(&["enable", "--now", &units.service_unit])?,
             Trigger::OnDemand => {},
         }
         Ok(Created::Active)
@@ -193,8 +193,8 @@ impl System for Current {
         if !exists(&units.service)? && !exists(&units.timer)? {
             return Ok(Removal::NotInstalled);
         }
-        retire(&units.timer, &units.timer_name)?;
-        retire(&units.service, &units.service_name)?;
+        retire(&units.timer, &units.timer_unit)?;
+        retire(&units.service, &units.service_unit)?;
         if let Some(cause) = unless_no_manager(systemctl(&["daemon-reload"]))? {
             tracing::debug!(error = %cause, "no user manager to reload after the removal");
         }

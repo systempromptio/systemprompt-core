@@ -92,7 +92,7 @@ fn charset_named(codeset: &str) -> Option<&'static Encoding> {
         let region = codeset
             .get(..3)
             .filter(|prefix| prefix.eq_ignore_ascii_case("euc"))
-            .and(codeset.get(3..))?;
+            .and_then(|_| codeset.get(3..))?;
         Encoding::for_label(format!("euc-{region}").as_bytes())
     })
 }

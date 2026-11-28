@@ -54,8 +54,5 @@ impl Decoder {
 }
 
 fn decode_line(bytes: &[u8]) -> String {
-    match std::str::from_utf8(bytes) {
-        Ok(text) => text.to_owned(),
-        Err(_) => platform::decode(bytes),
-    }
+    std::str::from_utf8(bytes).map_or_else(|_| platform::decode(bytes), str::to_owned)
 }
