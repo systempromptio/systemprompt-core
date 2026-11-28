@@ -11,6 +11,8 @@ mod permission_tests;
 #[cfg(unix)]
 mod process_tests;
 mod selection_tests;
+#[cfg(windows)]
+mod windows_tests;
 
 #[cfg(unix)]
 pub(crate) mod posix {

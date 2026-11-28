@@ -179,3 +179,83 @@ async fn a_bare_numeric_symlink_operand_reaches_outside_without_an_outside_quest
     assert_eq!(asked, ["shell"]);
     assert_eq!(out.output.trim(), slash(&crate::support::dunce(&outside)));
 }
+
+#[tokio::test]
+async fn a_directory_operand_continued_over_a_line_break_is_asked_about_as_one_path() {
+    let project = Project::new();
+    let outside = slash(&project.outside());
+    let (head, tail) = outside.split_at(outside.len() / 2);
+    let called = run(&project, &format!("cd {head}\\\n{tail} && pwd")).await;
+    let asked = called.gate.asked();
+    let external: Vec<_> = asked
+        .iter()
+        .filter(|request| request.permission == "external_directory")
+        .collect();
+    assert_eq!(external.len(), 1, "{asked:?}");
+    assert_eq!(external[0].patterns, [format!("{outside}/*")]);
+}
+
+#[tokio::test]
+async fn a_process_substitution_inside_a_test_is_asked_about() {
+    let project = Project::new();
+    let called = run(&project, "[[ -n <(printf reached > marker) ]]; wait \"$!\"").await;
+    let asked = called.gate.asked();
+    let shell = asked
+        .iter()
+        .find(|request| request.permission == "shell")
+        .unwrap();
+    assert!(
+        shell
+            .patterns
+            .iter()
+            .any(|pattern| pattern.starts_with("printf")),
+        "{:?}",
+        shell.patterns
+    );
+    assert!(
+        shell
+            .patterns
+            .iter()
+            .any(|pattern| pattern.starts_with("wait")),
+        "{:?}",
+        shell.patterns
+    );
+}
+
+#[tokio::test]
+async fn nothing_runs_when_a_process_substitution_inside_a_test_is_refused() {
+    let project = Project::new();
+    let called = run_input(
+        &project,
+        json!({"command": "[[ -n <(printf reached > marker) ]]; wait \"$!\""}),
+        Gate::refusing("shell"),
+    )
+    .await;
+    assert!(matches!(called.err(), ToolError::Rejected));
+    assert!(!project.exists("marker"));
+}
+
+#[tokio::test]
+async fn arithmetic_and_directory_changes_run_and_ask_as_ordinary_commands() {
+    let project = Project::new();
+    std::fs::create_dir_all(project.root.join("one").join("two")).unwrap();
+    let sum = run(&project, "echo $((1 + 1))").await;
+    let asked = sum.gate.asked();
+    assert_eq!(sum.ok().output.trim(), "2");
+    let shell = asked
+        .iter()
+        .find(|request| request.permission == "shell")
+        .unwrap();
+    assert_eq!(shell.patterns, ["echo $((1 + 1))"]);
+    assert_eq!(shell.always, ["echo *"]);
+    let nested = run(&project, "cd one&&cd two&&pwd").await;
+    let asked = nested.gate.asked();
+    assert!(
+        asked
+            .iter()
+            .all(|request| request.permission != "external_directory"),
+        "{asked:?}"
+    );
+    let out = nested.ok().output;
+    assert!(out.trim().ends_with("one/two"), "{out}");
+}
