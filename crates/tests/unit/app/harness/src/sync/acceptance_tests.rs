@@ -25,11 +25,11 @@ fn another_users_manifest_is_refused() {
 }
 
 #[test]
-fn a_manifest_not_newer_than_the_last_applied_is_refused() {
+fn a_manifest_older_than_the_last_applied_is_refused_and_the_same_one_is_accepted_again() {
     let last = parsed(0, "0000000000000001");
     assert_eq!(
         accept(&manifest(json!({})), None, Some(&last), at(0)),
-        Err(Refusal::Replay)
+        Ok(last.clone())
     );
     let older = manifest(json!({ "manifest_version": version(-10, "ffffffffffffffff") }));
     assert_eq!(
