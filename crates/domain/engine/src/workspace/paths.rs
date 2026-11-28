@@ -28,22 +28,42 @@ pub(crate) fn rel_key_under(root: &Path, path: &Path) -> Option<String> {
     key_from_relative(path.strip_prefix(root).ok()?)
 }
 
+const VERBATIM: [&str; 2] = [r"\\?\", "//?/"];
+const VERBATIM_UNC: &str = "UNC";
+
+// Why: a worktree and a file path name the same place whether either carries a
+// Windows verbatim prefix (`\\?\`) or has had its separators turned into
+// forward slashes, so both are compared as plain segments of text.
 pub(crate) fn relative_key(root: &Path, path: &Path) -> Option<String> {
     if path.is_relative() {
         return key_from_relative(path);
     }
-    let mut path_parts = path.components();
-    for root_part in root.components() {
-        let path_part = path_parts.next()?;
-        if !same_component(root_part, path_part) {
+    let root_text = root.to_string_lossy();
+    let path_text = path.to_string_lossy();
+    let mut path_parts = segments(&path_text);
+    for root_part in segments(&root_text) {
+        if fold(path_parts.next()?) != fold(root_part) {
             return None;
         }
     }
-    key_from_relative(path_parts.as_path())
+    let rest: PathBuf = path_parts.collect();
+    key_from_relative(&rest)
 }
 
-fn same_component(a: Component<'_>, b: Component<'_>) -> bool {
-    fold(&a.as_os_str().to_string_lossy()) == fold(&b.as_os_str().to_string_lossy())
+fn segments(text: &str) -> impl Iterator<Item = &str> {
+    without_verbatim(text)
+        .split(platform::separators())
+        .filter(|segment| !segment.is_empty() && *segment != ".")
+}
+
+fn without_verbatim(text: &str) -> &str {
+    VERBATIM
+        .iter()
+        .find_map(|prefix| text.strip_prefix(prefix))
+        .map_or(text, |rest| match rest.get(..VERBATIM_UNC.len()) {
+            Some(head) if head.eq_ignore_ascii_case(VERBATIM_UNC) => &rest[VERBATIM_UNC.len()..],
+            _ => rest,
+        })
 }
 
 pub(crate) fn path_for_key(root: &Path, key: &str) -> Option<PathBuf> {

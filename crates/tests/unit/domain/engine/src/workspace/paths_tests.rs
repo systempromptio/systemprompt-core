@@ -22,6 +22,38 @@ fn nested_files_are_found_by_relative_and_absolute_path() {
 }
 
 #[test]
+fn a_verbatim_or_forward_slashed_path_under_the_worktree_is_inside_it() {
+    let f = fixture();
+    put(&f.root, "draft.txt", "kept\n");
+    let base = f.store.track().unwrap();
+    let slashed = f
+        .root
+        .join("draft.txt")
+        .to_string_lossy()
+        .replace('\\', "/");
+    for written in [format!("//?/{slashed}"), slashed] {
+        assert_eq!(
+            f.store.file_at(&base, Path::new(&written)).unwrap(),
+            Some(b"kept\n".to_vec()),
+            "{written}"
+        );
+    }
+}
+
+#[test]
+fn a_verbatim_path_beside_the_worktree_is_outside_it() {
+    let f = fixture();
+    put(&f.root, "x", "x\n");
+    let base = f.store.track().unwrap();
+    let beside = f.root.parent().unwrap().join("other").join("x");
+    let written = format!("//?/{}", beside.to_string_lossy().replace('\\', "/"));
+    assert!(matches!(
+        f.store.file_at(&base, Path::new(&written)),
+        Err(SnapshotError::OutsideWorktree { .. })
+    ));
+}
+
+#[test]
 fn parent_components_are_outside_the_worktree() {
     let f = fixture();
     put(&f.root, "x", "x\n");

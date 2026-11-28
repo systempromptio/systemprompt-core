@@ -22,6 +22,10 @@ impl Platform for Unix {
         false
     }
 
+    fn separators() -> &'static [char] {
+        &['/']
+    }
+
     fn shim_names(command: &str) -> Vec<String> {
         vec![command.to_owned()]
     }

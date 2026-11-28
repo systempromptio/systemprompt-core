@@ -23,6 +23,10 @@ impl Platform for Windows {
         segment.contains(['\\', ':'])
     }
 
+    fn separators() -> &'static [char] {
+        &['/', '\\']
+    }
+
     fn shim_names(command: &str) -> Vec<String> {
         vec![format!("{command}.cmd"), format!("{command}.exe")]
     }
