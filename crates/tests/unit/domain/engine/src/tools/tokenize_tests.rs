@@ -185,3 +185,9 @@ fn arithmetic_is_one_word_whose_substitutions_are_still_scanned() {
 fn the_command_after_coproc_is_the_head() {
     assert_eq!(heads("coproc git status", Dialect::Posix), ["git"]);
 }
+
+#[test]
+fn a_carriage_return_ends_a_comment_in_every_dialect() {
+    assert_eq!(heads("# note\rrm x", Dialect::Posix), ["rm"]);
+    assert_eq!(heads("# note\rRemove-Item x", Dialect::PowerShell), ["remove-item"]);
+}

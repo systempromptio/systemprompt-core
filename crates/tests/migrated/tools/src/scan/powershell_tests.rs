@@ -274,7 +274,6 @@ fn the_call_operator_reveals_a_quoted_command_and_its_unquoted_arguments() {
 }
 
 #[test]
-#[ignore = "parity ledger: Lexer::skip_comment ends a comment only at a line feed, so a carriage return leaves the next command inside it"]
 fn a_carriage_return_ends_a_comment() {
     assert_eq!(ps("# comment\rRemove-Item victim"), ["remove-item"]);
 }

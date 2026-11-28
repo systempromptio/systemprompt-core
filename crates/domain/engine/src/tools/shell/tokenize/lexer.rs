@@ -152,7 +152,7 @@ impl Lexer {
 
     pub(super) fn skip_comment(&mut self) {
         while let Some(c) = self.peek(0) {
-            if c == '\n' {
+            if matches!(c, '\n' | '\r') {
                 break;
             }
             self.at += 1;
