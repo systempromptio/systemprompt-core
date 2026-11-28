@@ -127,7 +127,7 @@ An expected trace changes only by a reviewed edit that states why. There is no b
 
 ## 8. Ledger counts, 2026-11-28
 
-Read at core commit `6d079361b8`, from the scenario corpus (`golden/scenarios/`), the comparator (`parity/compare/`) and its reviewed file (`parity/compare/classifications.toml`). No session was run to produce this section.
+Read at core commit `6d079361b8`, from the scenario corpus (`golden/scenarios/`), the comparator (`parity/compare/`) and its reviewed file (`parity/compare/classifications.toml`). No session was run to produce this section. These are scenario and ledger rows; the per-case counts of the migrated tests are in `04-test-migration.md` section 1.2, printed by `scripts/parity/count-cases.py`.
 
 **What the ledger holds.** One row per scenario, protocol and comparison. `harness-vs-expected` compares a harness run with `expected/`; `harness-vs-reference` compares it with the reference agent's normalised export. A row's result is `same`, `differs` (one entry per difference, each `intended`, `gap`, `defect`, `reference-defect` or `unclassified`) or `error` (the run could not be judged).
 
