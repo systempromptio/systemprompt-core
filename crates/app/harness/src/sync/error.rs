@@ -11,7 +11,7 @@ use crate::extension::ExtensionError;
 use crate::projection::{MaterializeError, ProjectionError};
 use systemprompt_device::accounts::AccountsError;
 use systemprompt_device::client::ClientError;
-use systemprompt_device::view::SyncErrorKind;
+use systemprompt_device::view::{SyncErrorKind, SyncStatus};
 
 use crate::sync::acceptance::Refusal;
 
@@ -87,4 +87,14 @@ fn accounts_kind(error: &AccountsError) -> SyncErrorKind {
         AccountsError::Client(inner) => inner.sync_error_kind(),
         _ => SyncErrorKind::Service,
     }
+}
+
+pub(crate) const fn is_refusal(status: &SyncStatus) -> bool {
+    matches!(
+        status,
+        SyncStatus::Error {
+            kind: SyncErrorKind::Refused | SyncErrorKind::Invalid,
+            ..
+        }
+    )
 }

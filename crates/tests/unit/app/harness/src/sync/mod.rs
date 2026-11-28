@@ -11,3 +11,4 @@ mod outbox_tests;
 mod planner_tests;
 mod poll_tests;
 mod runtime_tests;
+mod supervisor_tests;

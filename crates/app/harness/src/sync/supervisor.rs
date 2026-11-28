@@ -3,6 +3,8 @@
 //! and starts the new account's loop at once; the same account with another URL
 //! or a newly trusted key restarts its loop and keeps its content until the
 //! next apply. Nobody signed in at start clears what an earlier run left.
+//! Going idle never hides a refusal: it stays the reported status until a
+//! later attempt ends with another outcome.
 //!
 //! Copyright (c) systemprompt.io — Business Source License 1.1.
 //! See <https://systemprompt.io> for licensing details.
@@ -15,6 +17,7 @@ use tokio::sync::watch;
 use tokio_util::sync::CancellationToken;
 
 use crate::sync::account_loop::{self, LoopContext};
+use crate::sync::error::is_refusal;
 use crate::sync::ports::Store;
 use crate::sync::target::Target;
 
@@ -120,7 +123,13 @@ impl<S: Store, T: Target> Supervisor<S, T> {
             None => {},
         }
         let Some(key) = next else {
-            self.context.status.send_replace(SyncStatus::Idle);
+            self.context.status.send_if_modified(|status| {
+                if is_refusal(status) || *status == SyncStatus::Idle {
+                    return false;
+                }
+                *status = SyncStatus::Idle;
+                true
+            });
             return;
         };
         let token = cancel.child_token();
